@@ -47,7 +47,7 @@ final readonly class ContextUserProvider implements UserProviderInterface
 
         return new SecurityUser(
             id: $user->id()->toString(),
-            email: $user->email(),
+            email: $user->requireEmail(),
             type: $user->type(),
             roles: ['ROLE_USER'],
             passwordFingerprint: $user->passwordFingerprint(),

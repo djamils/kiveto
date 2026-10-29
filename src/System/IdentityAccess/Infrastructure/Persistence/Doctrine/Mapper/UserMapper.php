@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Mapper;
 
+use App\Shared\Domain\ValueObject\PhoneNumber;
 use App\System\IdentityAccess\Domain\User as DomainUser;
 use App\System\IdentityAccess\Domain\ValueObject\UserId;
 use App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\UserEntity;
@@ -25,6 +26,8 @@ final readonly class UserMapper
         $entity->setCreatedAt($domainUser->createdAt());
         $entity->setStatus($domainUser->status());
         $entity->setEmailVerifiedAt($domainUser->emailVerifiedAt());
+        $entity->setPhone($domainUser->phone()?->toString());
+        $entity->setPhoneVerifiedAt($domainUser->phoneVerifiedAt());
 
         return $entity;
     }
@@ -36,6 +39,8 @@ final readonly class UserMapper
         $entity->setPasswordHash($domainUser->passwordHash());
         $entity->setStatus($domainUser->status());
         $entity->setEmailVerifiedAt($domainUser->emailVerifiedAt());
+        $entity->setPhone($domainUser->phone()?->toString());
+        $entity->setPhoneVerifiedAt($domainUser->phoneVerifiedAt());
     }
 
     public function toDomain(UserEntity $entity): DomainUser
@@ -48,6 +53,8 @@ final readonly class UserMapper
             $entity->getStatus(),
             $entity->getEmailVerifiedAt(),
             $entity->getType(),
+            null === $entity->getPhone() ? null : PhoneNumber::fromString($entity->getPhone()),
+            $entity->getPhoneVerifiedAt(),
         );
     }
 }

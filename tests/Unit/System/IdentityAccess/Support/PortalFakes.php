@@ -1,0 +1,78 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Unit\System\IdentityAccess\Support;
+
+use App\System\IdentityAccess\Application\Port\AccessTokenIssuerInterface;
+use App\System\IdentityAccess\Application\Port\IssuedAccessToken;
+use App\System\IdentityAccess\Application\Port\MobilePhonePolicyInterface;
+use App\System\IdentityAccess\Application\Port\OtpCodeGeneratorInterface;
+use App\System\IdentityAccess\Application\Port\OtpCodeHasherInterface;
+use App\System\IdentityAccess\Application\Port\UnknownNumberSmsBudgetInterface;
+
+/**
+ * Hand-written doubles of the Portal ports: predictable codes and a readable
+ * code digest, plain access tokens, a switchable mobile policy and a
+ * countable unknown-number budget.
+ */
+final class PortalFakes implements OtpCodeGeneratorInterface, OtpCodeHasherInterface, AccessTokenIssuerInterface, MobilePhonePolicyInterface, UnknownNumberSmsBudgetInterface
+{
+    /** @var list<string> codes handed out next; '123456' once exhausted */
+    public array $nextCodes = [];
+
+    public bool $mobile = true;
+
+    /** @var list<string> phones checked against the policy */
+    public array $policyChecks = [];
+
+    /** SMS left in the unknown-number budget. */
+    public int $budget = 200;
+
+    public int $budgetConsumptions = 0;
+
+    /** @var list<string> users an access token was issued for */
+    public array $accessTokensFor = [];
+
+    public function __construct(private readonly \DateTimeImmutable $accessTokenExpiresAt = new \DateTimeImmutable('2026-10-26 07:29:00'))
+    {
+    }
+
+    public function generate(): string
+    {
+        return array_shift($this->nextCodes) ?? '123456';
+    }
+
+    /** A 64-character digest, the width of the stored column. */
+    public function hash(string $code): string
+    {
+        return hash('sha256', 'otp:' . $code);
+    }
+
+    public function issue(string $userId): IssuedAccessToken
+    {
+        $this->accessTokensFor[] = $userId;
+
+        return new IssuedAccessToken('jwt.' . $userId . '.' . \count($this->accessTokensFor), $this->accessTokenExpiresAt);
+    }
+
+    public function isPortalMobile(string $phone): bool
+    {
+        $this->policyChecks[] = $phone;
+
+        return $this->mobile;
+    }
+
+    public function consume(): bool
+    {
+        ++$this->budgetConsumptions;
+
+        if ($this->budget <= 0) {
+            return false;
+        }
+
+        --$this->budget;
+
+        return true;
+    }
+}

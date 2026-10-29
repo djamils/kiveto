@@ -150,6 +150,13 @@ Workers (`make worker-start`): `messenger-worker` (`async`),
 `external-worker` (`async_external`, then `async_external_batch`),
 `scheduler-worker` (schedules).
 
+## API plumbing (Portal API)
+
+- **Opaque tokens** — `Domain/Security/OpaqueTokenHasherInterface` (`Infrastructure/Security/OpaqueTokenHasher`): `newSecret()` = 32 random bytes in base64url, `hash()` = sha256 hex. For high-entropy secrets only (account links, refresh tokens, onboarding grants, invitation tokens); low-entropy one-time codes use a keyed HMAC instead (IdentityAccess).
+- **Cursor pagination** — `Application/Pagination/{Cursor, CursorPage, InvalidCursorException}`: an opaque base64url JSON cursor (not signed: it only carries positions), `limit` 20 by default, clamped to 1–50; a tampered cursor throws `InvalidCursorException`, mapped to `400 cursor_invalid` by the API.
+- **Idempotency keys** — `Domain/Idempotency/*` + `Infrastructure/Idempotency/DbalIdempotencyStore` (table `shared__idempotency_keys`, 24 h): same principal + key + request fingerprint → the stored response is replayed; another request under the same key → `IdempotencyKeyReusedException`; concurrent identical requests are serialised by a lock `idempotency:<principal>:<key>`; expired rows are purged opportunistically on each write. Wired to API Platform by `Presentation/Api/Shared/Idempotency/IdempotentProcessor` (operations with `extraProperties.idempotent`).
+- **Rate limiter storage** — table `shared__rate_limiter_cache` (Symfony `DoctrineDbalAdapter` schema) holds the Portal API limiters, so every container counts against the same quotas; it and `shared__idempotency_keys` are excluded from the ORM schema diff (`doctrine.dbal.schema_filter`).
+
 ## Responsabilités
 
 - **Domain Events**: Infrastructure pour les événements de domaine (enregistrement, métadonnées, versionning)

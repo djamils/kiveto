@@ -8,7 +8,8 @@ final readonly class UserListItem
 {
     public function __construct(
         public string $id,
-        public string $email,
+        /** Owner (PORTAL) accounts may have none. */
+        public ?string $email,
         public string $type,
         public string $status,
         public ?\DateTimeImmutable $emailVerifiedAt,

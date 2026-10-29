@@ -15,11 +15,18 @@ final class SecurityUserTest extends TestCase
     {
         $user = new SecurityUser('id-1', 'user@example.com', UserType::PORTAL, ['ROLE_USER', 'ROLE_PORTAL']);
 
-        self::assertSame('user@example.com', $user->getUserIdentifier());
+        self::assertSame('id-1', $user->getUserIdentifier(), 'an owner is identified by id: they may have no e-mail');
+        self::assertSame('vet@example.com', new SecurityUser('id-2', 'vet@example.com', UserType::CLINIC)->getUserIdentifier());
         self::assertSame(['ROLE_USER', 'ROLE_PORTAL'], $user->getRoles());
         self::assertSame('id-1', $user->id());
         self::assertSame(UserType::PORTAL, $user->type());
         self::assertSame('', $user->getPassword());
+    }
+
+    public function testAStaffUserWithoutEmailHasNoIdentifier(): void
+    {
+        $this->expectException(\LogicException::class);
+        new SecurityUser('id-1', null, UserType::BACKOFFICE)->getUserIdentifier();
     }
 
     public function testEmptyIdentifierThrows(): void

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\System\IdentityAccess\Domain;
 
+use App\Shared\Domain\ValueObject\PhoneNumber;
 use App\System\IdentityAccess\Domain\Exception\AccountStateException;
+use App\System\IdentityAccess\Domain\Exception\EmailRequiredException;
 use App\System\IdentityAccess\Domain\User;
 use App\System\IdentityAccess\Domain\ValueObject\UserId;
 use App\System\IdentityAccess\Domain\ValueObject\UserStatus;
@@ -121,5 +123,65 @@ final class UserTest extends TestCase
         $this->expectException(AccountStateException::class);
         $this->expectExceptionMessage('Only an ACTIVE account can change its password (status PENDING).');
         $pending->changePassword('$new', new \DateTimeImmutable());
+    }
+
+    public function testAnOwnerIsRegisteredActiveByPhoneWithoutPassword(): void
+    {
+        $at   = new \DateTimeImmutable('2026-10-29 10:00:00');
+        $user = User::registerPortal(UserId::fromString('11111111-1111-1111-1111-111111111111'), PhoneNumber::fromString('+33612345678'), null, $at);
+
+        self::assertSame([UserType::PORTAL, UserStatus::ACTIVE, '+33612345678', $at, null, null], [
+            $user->type(), $user->status(), $user->phone()?->toString(), $user->phoneVerifiedAt(), $user->email(), $user->emailVerifiedAt(),
+        ]);
+        self::assertStringStartsWith('!', $user->passwordHash(), 'no password matches');
+        self::assertSame($at, $user->createdAt());
+
+        $events = $user->pullDomainEvents();
+        self::assertCount(1, $events);
+        self::assertSame('identity-access.portal-user.registered.v1', $events[0]->name());
+        self::assertSame('11111111-1111-1111-1111-111111111111', $events[0]->aggregateId());
+        self::assertSame(['userId' => '11111111-1111-1111-1111-111111111111', 'phone' => '+33612345678'], $events[0]->payload());
+    }
+
+    public function testAnOwnerMayCarryAnUnverifiedEmail(): void
+    {
+        $user = User::registerPortal(UserId::fromString('11111111-1111-1111-1111-111111111111'), PhoneNumber::fromString('+33612345678'), 'famille@example.com', new \DateTimeImmutable());
+
+        self::assertSame('famille@example.com', $user->requireEmail());
+        self::assertNull($user->emailVerifiedAt());
+    }
+
+    public function testRequireEmailRefusesAnAccountWithout(): void
+    {
+        $user = User::registerPortal(UserId::fromString('11111111-1111-1111-1111-111111111111'), PhoneNumber::fromString('+33612345678'), null, new \DateTimeImmutable());
+
+        $this->expectException(EmailRequiredException::class);
+        $this->expectExceptionMessage('Un compte du personnel doit avoir une adresse e-mail.');
+        $user->requireEmail();
+    }
+
+    public function testAStaffAccountNeedsAnEmail(): void
+    {
+        $this->expectException(EmailRequiredException::class);
+        User::register(UserId::fromString('11111111-1111-1111-1111-111111111111'), ' ', '$h', new \DateTimeImmutable(), UserType::CLINIC);
+    }
+
+    public function testAnInvitedStaffAccountNeedsAnEmail(): void
+    {
+        $this->expectException(EmailRequiredException::class);
+        User::invite(UserId::fromString('11111111-1111-1111-1111-111111111111'), '', new \DateTimeImmutable(), UserType::BACKOFFICE);
+    }
+
+    public function testAnOwnerAccountIsNeverRegisteredByEmail(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        User::register(UserId::fromString('11111111-1111-1111-1111-111111111111'), 'owner@example.com', '$h', new \DateTimeImmutable(), UserType::PORTAL);
+    }
+
+    public function testALegacyOwnerWithoutPhoneStillLoads(): void
+    {
+        $user = User::reconstitute(UserId::fromString('11111111-1111-1111-1111-111111111111'), null, '$h', new \DateTimeImmutable(), UserStatus::DISABLED, null, UserType::PORTAL);
+
+        self::assertSame([null, null, null, UserStatus::DISABLED], [$user->email(), $user->phone(), $user->phoneVerifiedAt(), $user->status()]);
     }
 }

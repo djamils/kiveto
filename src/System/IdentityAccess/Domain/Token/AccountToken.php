@@ -6,7 +6,8 @@ namespace App\System\IdentityAccess\Domain\Token;
 
 /**
  * A single-use link sent by e-mail (invitation, password reset). Only the
- * sha256 of its secret is kept: whoever reads the table cannot use a link.
+ * digest of its secret is kept (OpaqueTokenHasherInterface): whoever reads
+ * the table cannot use a link.
  * An invitation is scoped to (clinic, user) — two clinics inviting the same
  * person never cancel each other.
  */
@@ -24,23 +25,12 @@ final class AccountToken
     ) {
     }
 
-    /** A fresh secret: 32 random bytes, base64url without padding. */
-    public static function newSecret(): string
-    {
-        return rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
-    }
-
-    public static function hash(string $secret): string
-    {
-        return hash('sha256', $secret);
-    }
-
     public static function issue(
         AccountTokenId $id,
         string $userId,
         TokenPurpose $purpose,
         ?string $clinicId,
-        string $secret,
+        string $tokenHash,
         \DateTimeImmutable $createdAt,
     ): self {
         if (TokenPurpose::INVITATION === $purpose && null === $clinicId) {
@@ -52,7 +42,7 @@ final class AccountToken
             $userId,
             $purpose,
             TokenPurpose::INVITATION === $purpose ? $clinicId : null,
-            self::hash($secret),
+            $tokenHash,
             $createdAt->add($purpose->lifetime()),
             null,
             $createdAt,

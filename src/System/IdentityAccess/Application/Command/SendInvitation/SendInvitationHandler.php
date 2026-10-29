@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\System\IdentityAccess\Application\Command\SendInvitation;
 
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
+use App\Shared\Domain\Security\OpaqueTokenHasherInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\System\IdentityAccess\Application\Port\AccountLinkBuilderInterface;
 use App\System\IdentityAccess\Application\Port\NotificationRequesterInterface;
@@ -28,6 +29,7 @@ final readonly class SendInvitationHandler
         private ClockInterface $clock,
         private AccountLinkBuilderInterface $links,
         private NotificationRequesterInterface $notifications,
+        private OpaqueTokenHasherInterface $tokenHasher,
     ) {
     }
 
@@ -44,14 +46,14 @@ final readonly class SendInvitationHandler
         $now = $this->clock->now();
         $this->tokens->invalidateInvitations($command->userId, $command->clinicId, $now);
 
-        $secret = AccountToken::newSecret();
-        $token  = AccountToken::issue(AccountTokenId::fromString($this->uuids->generate()), $command->userId, TokenPurpose::INVITATION, $command->clinicId, $secret, $now);
+        $secret = $this->tokenHasher->newSecret();
+        $token  = AccountToken::issue(AccountTokenId::fromString($this->uuids->generate()), $command->userId, TokenPurpose::INVITATION, $command->clinicId, $this->tokenHasher->hash($secret), $now);
         $this->tokens->save($token);
 
         $this->notifications->requestStaffInvitation(new StaffInvitationRequest(
             tokenId: $token->id()->toString(),
             userId: $command->userId,
-            email: $user->email(),
+            email: $user->requireEmail(),
             clinicId: $command->clinicId,
             firstName: $command->inviteeFirstName,
             inviterName: $command->inviterPrintedName,

@@ -31,9 +31,9 @@ final class GetInvitationStatusesHandlerTest extends TestCase
         ]);
 
         $tokens = new InMemoryAccountTokens();
-        $tokens->save(AccountToken::issue(AccountTokenId::fromString('t1'), 'invited', TokenPurpose::INVITATION, self::CLINIC_A, 's1', new \DateTimeImmutable('2026-10-25 10:00:00')));
-        $tokens->save(AccountToken::issue(AccountTokenId::fromString('t2'), 'expired', TokenPurpose::INVITATION, self::CLINIC_A, 's2', new \DateTimeImmutable('2026-10-20 10:00:00')));
-        $tokens->save(AccountToken::issue(AccountTokenId::fromString('t3'), 'elsewhere', TokenPurpose::INVITATION, self::CLINIC_B, 's3', new \DateTimeImmutable('2026-10-25 10:00:00')));
+        $tokens->save(AccountToken::issue(AccountTokenId::fromString('t1'), 'invited', TokenPurpose::INVITATION, self::CLINIC_A, hash('sha256', 's1'), new \DateTimeImmutable('2026-10-25 10:00:00')));
+        $tokens->save(AccountToken::issue(AccountTokenId::fromString('t2'), 'expired', TokenPurpose::INVITATION, self::CLINIC_A, hash('sha256', 's2'), new \DateTimeImmutable('2026-10-20 10:00:00')));
+        $tokens->save(AccountToken::issue(AccountTokenId::fromString('t3'), 'elsewhere', TokenPurpose::INVITATION, self::CLINIC_B, hash('sha256', 's3'), new \DateTimeImmutable('2026-10-25 10:00:00')));
 
         $handler = new GetInvitationStatusesHandler($users, $tokens, new FrozenClock(new \DateTimeImmutable('2026-10-26 10:00:00')));
 

@@ -9,7 +9,6 @@ use App\System\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUse
 use App\System\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserQuery;
 use App\System\IdentityAccess\Application\Query\AuthenticateUser\AuthenticationContext;
 use App\System\IdentityAccess\Application\Query\AuthenticateUser\Exception\AccountStatusNotAllowedException;
-use App\System\IdentityAccess\Application\Query\AuthenticateUser\Exception\AuthenticationContextMismatchException;
 use App\System\IdentityAccess\Application\Query\AuthenticateUser\Exception\EmailVerificationRequiredException;
 use App\System\IdentityAccess\Application\Query\AuthenticateUser\Exception\InvalidCredentialsException;
 use App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface;
@@ -26,8 +25,8 @@ final class AuthenticateUserHandlerTest extends TestCase
         $user = $this->registeredUser(UserType::CLINIC, 'clinic@example.com', 'hashed-secret');
 
         $repo = $this->createStub(UserRepositoryInterface::class);
-        $repo->method('findByEmail')->willReturnMap([
-            ['clinic@example.com', $user],
+        $repo->method('findByEmailAndType')->willReturnMap([
+            ['clinic@example.com', UserType::CLINIC, $user],
         ]);
 
         $handler = new AuthenticateUserHandler($repo, new class implements PasswordHashVerifierInterface {
@@ -50,7 +49,7 @@ final class AuthenticateUserHandlerTest extends TestCase
     {
         $user = $this->registeredUser(UserType::CLINIC, 'clinic@example.com', 'hashed-secret');
         $repo = $this->createStub(UserRepositoryInterface::class);
-        $repo->method('findByEmail')->willReturn($user);
+        $repo->method('findByEmailAndType')->willReturn($user);
 
         $handler = new AuthenticateUserHandler($repo, new class implements PasswordHashVerifierInterface {
             public function verify(string $plainPassword, string $passwordHash): bool
@@ -66,7 +65,7 @@ final class AuthenticateUserHandlerTest extends TestCase
     public function testDeniesWhenUserNotFound(): void
     {
         $repo = $this->createStub(UserRepositoryInterface::class);
-        $repo->method('findByEmail')->willReturn(null);
+        $repo->method('findByEmailAndType')->willReturn(null);
 
         $handler = new AuthenticateUserHandler($repo, new class implements PasswordHashVerifierInterface {
             public function verify(string $plainPassword, string $passwordHash): bool
@@ -79,11 +78,14 @@ final class AuthenticateUserHandlerTest extends TestCase
         $handler(new AuthenticateUserQuery('missing@example.com', 'secret', AuthenticationContext::CLINIC));
     }
 
-    public function testDeniesWrongContext(): void
+    public function testAnotherAppsAccountIsUnknownHere(): void
     {
         $user = $this->registeredUser(UserType::CLINIC, 'clinic@example.com', 'hashed-secret');
         $repo = $this->createStub(UserRepositoryInterface::class);
-        $repo->method('findByEmail')->willReturn($user);
+        $repo->method('findByEmailAndType')->willReturnMap([
+            ['clinic@example.com', UserType::CLINIC, $user],
+            ['clinic@example.com', UserType::PORTAL, null],
+        ]);
 
         $handler = new AuthenticateUserHandler($repo, new class implements PasswordHashVerifierInterface {
             public function verify(string $plainPassword, string $passwordHash): bool
@@ -92,7 +94,7 @@ final class AuthenticateUserHandlerTest extends TestCase
             }
         });
 
-        $this->expectException(AuthenticationContextMismatchException::class);
+        $this->expectException(InvalidCredentialsException::class);
         $handler(new AuthenticateUserQuery('clinic@example.com', 'secret', AuthenticationContext::PORTAL));
     }
 
@@ -108,7 +110,7 @@ final class AuthenticateUserHandlerTest extends TestCase
             UserType::CLINIC,
         );
         $repo = $this->createStub(UserRepositoryInterface::class);
-        $repo->method('findByEmail')->willReturn($user);
+        $repo->method('findByEmailAndType')->willReturn($user);
 
         $handler = new AuthenticateUserHandler($repo, new class implements PasswordHashVerifierInterface {
             public function verify(string $plainPassword, string $passwordHash): bool
@@ -133,7 +135,7 @@ final class AuthenticateUserHandlerTest extends TestCase
             UserType::PORTAL,
         );
         $repo = $this->createStub(UserRepositoryInterface::class);
-        $repo->method('findByEmail')->willReturn($user);
+        $repo->method('findByEmailAndType')->willReturn($user);
 
         $handler = new AuthenticateUserHandler($repo, new class implements PasswordHashVerifierInterface {
             public function verify(string $plainPassword, string $passwordHash): bool

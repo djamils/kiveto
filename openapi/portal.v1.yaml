@@ -1,0 +1,518 @@
+openapi: 3.2.0
+info:
+  title: 'Kiveto Portal API'
+  description: ''
+  version: 1.0.0
+servers:
+  -
+    url: /
+    description: ''
+paths:
+  /api/portal/v1/auth/logout:
+    post:
+      operationId: api_authlogout_post
+      tags:
+        - Authentification
+      responses:
+        '204':
+          description: Déconnecté.
+          links: {  }
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+        '422':
+          description: 'An error occurred'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+      summary: 'Révoque la famille du refresh token (déconnexion).'
+      description: "Sans effet si le jeton n'appartient pas à l'appelant. L'access token reste valable jusqu'à son expiration (15 min)."
+      parameters: []
+      requestBody:
+        description: 'The new SessionLogout resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionLogout'
+        required: true
+  /api/portal/v1/auth/otp/request:
+    post:
+      operationId: api_authotprequest_post
+      tags:
+        - Authentification
+      responses:
+        '202':
+          description: 'Code envoyé (ou non, sans que la réponse le dise).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OtpRequest.OtpChallengeView'
+          links: {  }
+        '422':
+          description: '`phone_not_supported` ou `validation_failed`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+        '429':
+          description: '`otp_rate_limited`, avec `Retry-After`.'
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+      summary: 'Envoie un code de connexion par SMS.'
+      description: 'Même réponse que le numéro ait un compte ou non. Quotas : 3/h et 10/24 h par numéro, 30/h par IP.'
+      parameters: []
+      requestBody:
+        description: 'The new OtpRequest resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpRequest'
+        required: true
+  /api/portal/v1/auth/otp/verify:
+    post:
+      operationId: api_authotpverify_post
+      tags:
+        - Authentification
+      responses:
+        '200':
+          description: '`status` = `authenticated` (paire de jetons) ou `registration_required`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OtpVerification.OtpVerificationView'
+          links: {  }
+        '403':
+          description: '`account_disabled`.'
+        '422':
+          description: '`otp_invalid`, `otp_expired`, `otp_attempts_exceeded` ou `validation_failed`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+      summary: 'Vérifie un code de connexion.'
+      description: 'Vérifie un code de connexion.'
+      parameters: []
+      requestBody:
+        description: 'The new OtpVerification resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpVerification'
+        required: true
+  '/api/portal/v1/auth/otp/{challengeId}/resend':
+    post:
+      operationId: api_authotp_challengeIdresend_post
+      tags:
+        - Authentification
+      responses:
+        '202':
+          description: 'Nouveau code envoyé.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OtpResend.OtpChallengeView'
+          links: {  }
+        '404':
+          description: '`otp_challenge_not_found`.'
+        '422':
+          description: '`validation_failed` (canal inconnu).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+        '429':
+          description: '`otp_rate_limited` (avant `resendAvailableAt`, ou quotas), avec `Retry-After`.'
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+      summary: 'Renvoie un nouveau code pour le même challenge.'
+      description: "Le code précédent ne fonctionne plus. Seul le canal `sms` existe pour l'instant."
+      parameters:
+        -
+          name: challengeId
+          in: path
+          description: 'OtpResend identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+      requestBody:
+        description: 'The new OtpResend resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpResend'
+        required: true
+  /api/portal/v1/auth/refresh:
+    post:
+      operationId: api_authrefresh_post
+      tags:
+        - Authentification
+      responses:
+        '200':
+          description: 'Nouvelle paire.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionRefresh.SessionTokensView'
+          links: {  }
+        '401':
+          description: '`refresh_revoked` : se reconnecter par code.'
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+        '422':
+          description: 'An error occurred'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+      summary: 'Échange un refresh token contre une nouvelle paire.'
+      description: 'Rotation à chaque usage. Le client doit sérialiser ses refresh : rejouer un jeton plus de 30 s après son usage, ou deux fois, révoque toute la famille.'
+      parameters: []
+      requestBody:
+        description: 'The new SessionRefresh resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionRefresh'
+        required: true
+  /api/portal/v1/legal/terms/current:
+    get:
+      operationId: api_legaltermscurrent_get
+      tags:
+        - CGU
+      responses:
+        '200':
+          description: 'CurrentTerms resource'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentTerms'
+        '404':
+          description: 'Not found'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+      summary: "Version courante des conditions d'utilisation du Portal."
+      description: "Publique. `version` est la valeur attendue par les routes d'acceptation (`termsVersion`)."
+      parameters: []
+components:
+  schemas:
+    ConstraintViolation:
+      type: object
+      description: 'Unprocessable entity'
+      properties:
+        status:
+          default: 422
+          type: integer
+        violations:
+          type: array
+          items:
+            type: object
+            properties:
+              propertyPath:
+                type: string
+                description: 'The property path of the violation'
+              message:
+                type: string
+                description: 'The message associated with the violation'
+              code:
+                type: string
+                description: 'The code of the violation'
+              hint:
+                type: string
+                description: 'An extra hint to understand the violation'
+              payload:
+                type: object
+                additionalProperties: true
+                description: 'The serialized payload of the violation'
+            required:
+              - propertyPath
+              - message
+        detail:
+          readOnly: true
+          type: string
+        type:
+          readOnly: true
+          type: string
+        title:
+          readOnly: true
+          type:
+            - string
+            - 'null'
+        instance:
+          readOnly: true
+          type:
+            - string
+            - 'null'
+    CurrentTerms:
+      type: object
+      properties:
+        version:
+          type: string
+        url:
+          type: string
+    Error:
+      type: object
+      description: 'A representation of common errors.'
+      properties:
+        title:
+          readOnly: true
+          description: 'A short, human-readable summary of the problem.'
+          type:
+            - string
+            - 'null'
+        detail:
+          readOnly: true
+          description: 'A human-readable explanation specific to this occurrence of the problem.'
+          type:
+            - string
+            - 'null'
+        status:
+          type:
+            - integer
+            - 'null'
+          examples:
+            - 404
+          default: 400
+        instance:
+          readOnly: true
+          description: 'A URI reference that identifies the specific occurrence of the problem. It may or may not yield further information if dereferenced.'
+          type:
+            - string
+            - 'null'
+        type:
+          readOnly: true
+          description: 'A URI reference that identifies the problem type'
+          type: string
+    OtpRequest:
+      type: object
+      required:
+        - phone
+      properties:
+        phone:
+          pattern: '^(\+[1-9]\d{6,14})$'
+          description: 'E.164, e.g. `+33612345678`.'
+          type: string
+    OtpRequest.OtpChallengeView:
+      type: object
+      properties:
+        challengeId:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+        resendAvailableAt:
+          type: string
+          format: date-time
+    OtpResend:
+      type: object
+      required:
+        - channel
+      properties:
+        channel:
+          enum:
+            - sms
+          type: string
+    OtpResend.OtpChallengeView:
+      type: object
+      properties:
+        challengeId:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+        resendAvailableAt:
+          type: string
+          format: date-time
+    OtpVerification:
+      type: object
+      required:
+        - challengeId
+        - code
+      properties:
+        challengeId:
+          format: uuid
+          externalDocs:
+            url: 'https://schema.org/identifier'
+          type: string
+        code:
+          pattern: '^(\d{6})$'
+          type: string
+    OtpVerification.OtpVerificationView:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - authenticated
+            - registration_required
+        accessToken:
+          type:
+            - string
+            - 'null'
+        accessTokenExpiresAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        refreshToken:
+          type:
+            - string
+            - 'null'
+        refreshTokenExpiresAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        pendingInvitations:
+          type: array
+          items:
+            type: object
+            required:
+              - invitationId
+              - clinic
+            properties:
+              invitationId:
+                type: string
+                format: uuid
+              clinic:
+                type: object
+                required:
+                  - name
+                  - city
+                properties:
+                  name: { type: string }
+                  city: { type: [string, 'null'] }
+        onboardingToken:
+          type:
+            - string
+            - 'null'
+        onboardingTokenExpiresAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        registrationToken:
+          type:
+            - string
+            - 'null'
+    SessionLogout:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+    SessionRefresh:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+    SessionRefresh.SessionTokensView:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        accessTokenExpiresAt:
+          type: string
+          format: date-time
+        refreshToken:
+          type: string
+        refreshTokenExpiresAt:
+          type: string
+          format: date-time
+  responses: {  }
+  parameters: {  }
+  examples: {  }
+  requestBodies: {  }
+  headers: {  }
+  securitySchemes:
+    Bearer:
+      type: apiKey
+      description: 'Value for the Authorization header parameter.'
+      name: Authorization
+      in: header
+security:
+  -
+    Bearer: []
+tags:
+  -
+    name: CGU
+    description: "Resource 'CGU' operations."
+  -
+    name: Authentification
+    description: "Resource 'Authentification' operations."
+webhooks: {  }

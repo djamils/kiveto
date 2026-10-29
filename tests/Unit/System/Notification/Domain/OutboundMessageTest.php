@@ -392,6 +392,24 @@ final class OutboundMessageTest extends TestCase
         self::assertFalse(Messages::email()->linkExpired(new \DateTimeImmutable('2030-01-01')), 'no link, never expired');
     }
 
+    /**
+     * D28: a Portal code lives 10 min, a Portal invitation link 7 days, and
+     * both are erased once handed over.
+     */
+    public function testAPortalCodeOrInvitationIsAOneTimeLink(): void
+    {
+        $code       = Messages::sms(purpose: MessagePurpose::PORTAL_OTP, at: new \DateTimeImmutable('2026-10-16 08:00:00'));
+        $invitation = Messages::sms(id: '01960000-0000-7000-8000-000000000502', purpose: MessagePurpose::PORTAL_INVITATION, at: new \DateTimeImmutable('2026-10-16 08:00:00'));
+
+        self::assertFalse($code->linkExpired(new \DateTimeImmutable('2026-10-16 08:09:59')));
+        self::assertTrue($code->linkExpired(new \DateTimeImmutable('2026-10-16 08:10:00')));
+        self::assertFalse($invitation->linkExpired(new \DateTimeImmutable('2026-10-23 07:59:59')));
+        self::assertTrue($invitation->linkExpired(new \DateTimeImmutable('2026-10-23 08:00:00')));
+
+        $code->markSent('b-1', new \DateTimeImmutable('2026-10-16 08:01:00'));
+        self::assertSame('', $code->content()?->smsText);
+    }
+
     private function sent(): OutboundMessage
     {
         $message = Messages::email();

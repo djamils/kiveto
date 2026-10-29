@@ -3,8 +3,8 @@
 ## Purpose
 
 Sends the messages Kiveto writes to people — clients (appointments, invoices,
-unpaid reminders, consultation documents) and staff (invitation, password
-reset) — by e-mail and SMS, keeps a journal of every outbound message with its
+unpaid reminders, consultation documents, Portal invitation and one-time
+login code) and staff (invitation, password reset) — by e-mail and SMS, keeps a journal of every outbound message with its
 delivery status, and hosts the in-app notification feed (the « cloche »).
 
 Messages are rendered from **Twig templates owned by Kiveto**
@@ -35,12 +35,12 @@ official Symfony bridges (`symfony/brevo-mailer` API transport,
 
 | Term | Definition |
 |------|------------|
-| **OutboundMessage** | One e-mail or one SMS to one recipient, with its content frozen at request time, its attachments, the provider message id and its status history. The bodies of `STAFF_INVITATION` and `PASSWORD_RESET` (one-time link) are erased once the message is handed over or fails (subject and metadata stay); such a message whose link expired while it waited (30 min / 72 h after the request) is not sent: FAILED « Lien expiré avant l'envoi ». |
-| **MessagePurpose** | Why the message is sent: `APPOINTMENT_CONFIRMATION`, `APPOINTMENT_CHANGE`, `APPOINTMENT_CANCELLATION`, `APPOINTMENT_REMINDER`, `INVOICE_SENT`, `INVOICE_REMINDER`, `CONSULTATION_DOCUMENTS`, `STAFF_INVITATION`, `PASSWORD_RESET`, `TEST`. |
+| **OutboundMessage** | One e-mail or one SMS to one recipient, with its content frozen at request time, its attachments, the provider message id and its status history. The bodies of `STAFF_INVITATION`, `PASSWORD_RESET`, `PORTAL_INVITATION` (one-time link) and `PORTAL_OTP` (one-time code) are erased once the message is handed over or fails (subject and metadata stay); such a message whose link or code expired while it waited (30 min / 72 h / 7 days / 10 min after the request) is not sent: FAILED « Lien expiré avant l'envoi ». |
+| **MessagePurpose** | Why the message is sent: `APPOINTMENT_CONFIRMATION`, `APPOINTMENT_CHANGE`, `APPOINTMENT_CANCELLATION`, `APPOINTMENT_REMINDER`, `INVOICE_SENT`, `INVOICE_REMINDER`, `CONSULTATION_DOCUMENTS`, `STAFF_INVITATION`, `PASSWORD_RESET`, `TEST`, `PORTAL_OTP` (« Code de connexion Portal »), `PORTAL_INVITATION` (« Invitation au Portal »). |
 | **Criticality** | Fixed per purpose. `NON_CRITICAL` (appointment reminder, unpaid reminder) SMS are subject to the overage cap; everything else is `CRITICAL`. |
 | **DeliveryStatus** | `QUEUED` (0) → `SENT` / `DEFERRED` (1) → `DELIVERED` / `BOUNCED` / `REJECTED` / `FAILED` / `BLOCKED_CAP` (2, final). A complaint (spam) is a flag, not a status. |
 | **IdempotencyKey** | Opaque string built by the requester (`appointment:<id>:confirmation:1`, `invoice:<id>:send:<dispatchId>`, `invitation:<tokenId>`…), unique across messages. |
-| **SenderIdentity** | Clinic purposes: `<Clinic name> <<slug>@mail.kiveto.app>`, reply-to the letterhead e-mail, SMS sender = clinic short sender (fallback « Kiveto »). Account and test purposes: `Kiveto <no-reply@kiveto.app>`. |
+| **SenderIdentity** | Clinic purposes: `<Clinic name> <<slug>@mail.kiveto.app>`, reply-to the letterhead e-mail, SMS sender = clinic short sender (fallback « Kiveto »). Account, Portal and test purposes: `Kiveto <no-reply@kiveto.app>`, SMS sender « Kiveto » (a Portal invitation still carries its `clinicId` and `clientId`, for the client journal). |
 | **ClinicMessagingProfile** | Notification's copy of what it needs from a clinic (name, e-mail local part, reply-to, SMS sender, overage cap, address, phone, brand colour, logo), upserted by Clinic. |
 | **Segment** | The unit an SMS is billed in: GSM-7 160 characters (153 per part when split), UCS-2 70 (67); `€`, `[`, `]`, `{`, `}`, `^`, `~`, `\`, `|` count 2. |
 | **SMS quota** | 400 segments × the maximum number of active veterinarians of the month (Europe/Paris), pooled per clinic, never below 400. |
@@ -105,6 +105,8 @@ nothing automated.
 | `INVOICE_REMINDER` | Billing (`SendUnpaidReminder`) | the `billing` consent's reachable channels (SMS and / or e-mail), else `transactionalChannel()`; SMS e-mail fallback only when e-mail is not already a channel | `billing` (« Factures et relances de règlement ») |
 | `CONSULTATION_DOCUMENTS` | Consultation (`EmailConsultationDocuments`) | e-mail on file, whatever the consents (explicit staff action) | none |
 | `STAFF_INVITATION`, `PASSWORD_RESET` | IdentityAccess | e-mail | none (staff accounts) |
+| `PORTAL_OTP` | IdentityAccess (`RequestPortalOtp`) | SMS only, to the phone being verified (`{code, validityMinutes}`) | none |
+| `PORTAL_INVITATION` | ClientPortal (`SendPortalInvitation`) | the channel the staff chose, SMS or e-mail (`{clinicName, ownerFirstName, link, expiresOn}` on both; the SMS takes two segments, the link being long) | none (explicit staff action) |
 
 ## SMS quota
 
@@ -225,6 +227,15 @@ and documents e-mails, webhook events, simulator), `external-worker`
 fixtures (`make reset-db`, `NotificationDemoStory`) seed messages in every
 status, a clinic near and one over its SMS quota, bell entries and
 invitations.
+
+Reading an SMS in dev (a Portal one-time code, erased from the journal once
+sent): in `when@dev` only, `SmsSenderInterface` is decorated by
+`DevLoggingSmsSender`, which writes the recipient and the body of every SMS
+on the monolog channel `dev_sms` before handing it over. The SMS is sent by
+the `external-worker`, so the line lands in that container's
+`var/log/dev.log` (`grep dev_sms var/log/dev.log`). The class is excluded from
+the `App\` auto-registration: production has neither the service nor the
+decoration, and no fixed code exists anywhere.
 
 Real Brevo from a workstation: put in `.env.local`
 `MAILER_DSN=brevo+api://KEY@default`,

@@ -13,6 +13,9 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity]
+#[ORM\Table]
+#[ORM\UniqueConstraint(name: 'uniq_user_type_email', columns: ['type', 'email'])]
+#[ORM\UniqueConstraint(name: 'uniq_user_type_phone', columns: ['type', 'phone'])]
 #[ORM\InheritanceType('SINGLE_TABLE')]
 #[ORM\DiscriminatorColumn(name: 'type', type: 'string')]
 #[ORM\DiscriminatorMap([
@@ -26,8 +29,16 @@ abstract class UserEntity implements UserInterface, PasswordAuthenticatedUserInt
     #[ORM\Column(type: UuidType::NAME)]
     protected Uuid $id;
 
-    #[ORM\Column(type: 'string', length: 180, unique: true)]
-    protected string $email;
+    /** Unique per account type: a veterinarian may also own a pet (PORTAL account). */
+    #[ORM\Column(type: 'string', length: 180, nullable: true)]
+    protected ?string $email = null;
+
+    /** E.164; the sign-in identifier of owner (PORTAL) accounts, unique per type. */
+    #[ORM\Column(type: 'string', length: 16, nullable: true)]
+    protected ?string $phone = null;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    protected ?\DateTimeImmutable $phoneVerifiedAt = null;
 
     #[ORM\Column(type: 'string', length: 255)]
     protected string $passwordHash;
@@ -59,14 +70,34 @@ abstract class UserEntity implements UserInterface, PasswordAuthenticatedUserInt
         $this->id = $id;
     }
 
-    public function getEmail(): string
+    public function getEmail(): ?string
     {
         return $this->email;
     }
 
-    public function setEmail(string $email): void
+    public function setEmail(?string $email): void
     {
         $this->email = $email;
+    }
+
+    public function getPhone(): ?string
+    {
+        return $this->phone;
+    }
+
+    public function setPhone(?string $phone): void
+    {
+        $this->phone = $phone;
+    }
+
+    public function getPhoneVerifiedAt(): ?\DateTimeImmutable
+    {
+        return $this->phoneVerifiedAt;
+    }
+
+    public function setPhoneVerifiedAt(?\DateTimeImmutable $phoneVerifiedAt): void
+    {
+        $this->phoneVerifiedAt = $phoneVerifiedAt;
     }
 
     public function getPasswordHash(): string
@@ -111,7 +142,7 @@ abstract class UserEntity implements UserInterface, PasswordAuthenticatedUserInt
 
     public function getUserIdentifier(): string
     {
-        $identifier = $this->email;
+        $identifier = $this->email ?? $this->id->toRfc4122();
 
         if ('' === $identifier) {
             throw new \LogicException('User identifier must not be empty.');

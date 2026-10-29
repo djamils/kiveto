@@ -31,11 +31,12 @@ final class MessageValueObjectsTest extends TestCase
         $kiveto      = array_values(array_filter(MessagePurpose::cases(), static fn (MessagePurpose $p): bool => $p->isSentByKiveto()));
 
         self::assertSame([MessagePurpose::APPOINTMENT_REMINDER, MessagePurpose::INVOICE_REMINDER], $nonCritical);
-        self::assertSame([MessagePurpose::STAFF_INVITATION, MessagePurpose::PASSWORD_RESET, MessagePurpose::TEST], $kiveto);
+        self::assertSame([MessagePurpose::STAFF_INVITATION, MessagePurpose::PASSWORD_RESET, MessagePurpose::TEST, MessagePurpose::PORTAL_OTP, MessagePurpose::PORTAL_INVITATION], $kiveto);
 
         $labels = array_map(static fn (MessagePurpose $p): string => $p->label(), MessagePurpose::cases());
         self::assertSame($labels, array_unique($labels));
         self::assertSame("Relance d'impayé", MessagePurpose::INVOICE_REMINDER->label());
+        self::assertSame(['Code de connexion Portal', 'Invitation au Portal'], [MessagePurpose::PORTAL_OTP->label(), MessagePurpose::PORTAL_INVITATION->label()]);
     }
 
     public function testStatusesAreRankedAndLabelled(): void

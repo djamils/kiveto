@@ -40,7 +40,8 @@ final readonly class IdentityAccessUserSearchAdapter implements UserSearchForOnb
                 break;
             }
 
-            if (\in_array($user->status, self::JOINABLE, true)) {
+            // Clinic accounts always have an e-mail; only owner accounts may lack one.
+            if (null !== $user->email && \in_array($user->status, self::JOINABLE, true)) {
                 $results[] = new UserSearchResultItem(userId: $user->id, email: $user->email);
             }
         }

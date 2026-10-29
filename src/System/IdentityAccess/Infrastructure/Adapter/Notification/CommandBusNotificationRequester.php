@@ -7,6 +7,7 @@ namespace App\System\IdentityAccess\Infrastructure\Adapter\Notification;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\System\IdentityAccess\Application\Port\NotificationRequesterInterface;
 use App\System\IdentityAccess\Application\Port\PasswordResetRequest;
+use App\System\IdentityAccess\Application\Port\PortalOtpRequest;
 use App\System\IdentityAccess\Application\Port\StaffInvitationRequest;
 use App\System\Notification\Application\Command\RequestNotification\RequestNotification;
 
@@ -61,6 +62,25 @@ final readonly class CommandBusNotificationRequester implements NotificationRequ
                 'accountEmail'     => $request->email,
                 'resetUrl'         => $request->resetUrl,
                 'requestedAtLabel' => $request->requestedAtLabel,
+            ],
+        ));
+    }
+
+    public function requestPortalOtp(PortalOtpRequest $request): void
+    {
+        $this->commandBus->dispatch(new RequestNotification(
+            purpose: 'PORTAL_OTP',
+            channel: 'SMS',
+            recipientAddress: $request->phone,
+            recipientName: '',
+            clinicId: null,
+            clientId: null,
+            subjectType: 'otp_challenge',
+            subjectId: $request->challengeId,
+            idempotencyKey: \sprintf('otp:%s:%d', $request->challengeId, $request->sendCount),
+            parameters: [
+                'code'            => $request->code,
+                'validityMinutes' => $request->validityMinutes,
             ],
         ));
     }

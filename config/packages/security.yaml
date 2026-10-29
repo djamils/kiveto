@@ -2,10 +2,6 @@ security:
     # https://symfony.com/doc/current/security.html#registering-the-user-hashing-passwords
     password_hashers:
         Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
-        App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\User: 'auto'
-        App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUser: 'auto'
-        App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUser: 'auto'
-        App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUser: 'auto'
 
     # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
     providers:
@@ -17,6 +13,10 @@ security:
 
         backoffice_user_provider:
             id: App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.backoffice
+
+        # Owners of the Portal API, loaded by the `sub` of their access token.
+        portal_api_user_provider:
+            id: App\Presentation\Api\Portal\Security\PortalApiUserProvider
 
     firewalls:
         # Brevo delivery webhooks (any host): no session, no user; the request
@@ -42,6 +42,18 @@ security:
                 # The sign-in page greets the member with « Vous êtes déconnecté ».
                 target: /login?deco=1
                 invalidate_session: true
+
+        # Portal API: stateless, Bearer access tokens (lexik). Symfony ignores
+        # `lazy` on stateless firewalls: the authenticator itself skips the
+        # routes access_control declares public, so that a stale token sent to
+        # refresh, codes or invitations is ignored instead of answering 401.
+        portal_api:
+            stateless: true
+            pattern: ^/api/portal/v1
+            host: '^portal\.kiveto\.local$'
+            provider: portal_api_user_provider
+            jwt:
+                authenticator: app.portal_api.jwt_authenticator
 
         portal:
             lazy: true
@@ -79,6 +91,10 @@ security:
         # addresses are where the links redirect once the secret is in the session)
         - { host: '^clinic\.kiveto\.local$', path: '^/(mot-de-passe-oublie|reinitialiser(/[^/]+)?|invitation(/[^/]+)?)$', roles: PUBLIC_ACCESS }
         - { host: '^portal\.kiveto\.local$', path: '^/login', roles: PUBLIC_ACCESS }
+        # Portal API: sign-in, refresh, invitations, terms and docs are public;
+        # `_test/` routes only exist in the test env.
+        - { host: '^portal\.kiveto\.local$', path: '^/api/portal/v1/(auth/otp|auth/refresh|invitations|legal|docs|_test/)', roles: PUBLIC_ACCESS }
+        - { host: '^portal\.kiveto\.local$', path: '^/api/portal/v1', roles: IS_AUTHENTICATED_FULLY }
         - { host: '^backoffice\.kiveto\.local$', path: '^/login', roles: PUBLIC_ACCESS }
 
         # Protect everything else

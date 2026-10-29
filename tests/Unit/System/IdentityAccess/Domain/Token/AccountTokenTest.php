@@ -14,16 +14,11 @@ final class AccountTokenTest extends TestCase
     private const string USER   = '01960000-0000-7000-8000-0000000000a1';
     private const string CLINIC = '01960000-0000-7000-8000-0000000000c1';
 
-    public function testASecretIsUrlSafeAndOnlyItsHashIsKept(): void
+    public function testOnlyTheHashIsKept(): void
     {
-        $secret = AccountToken::newSecret();
-        self::assertMatchesRegularExpression('/^[A-Za-z0-9_-]{43}$/', $secret);
-        self::assertNotSame($secret, AccountToken::newSecret());
+        $token = AccountToken::issue(AccountTokenId::fromString('t-1'), self::USER, TokenPurpose::PASSWORD_RESET, self::CLINIC, 'digest', new \DateTimeImmutable('2026-10-26 10:00:00'));
 
-        $token = AccountToken::issue(AccountTokenId::fromString('t-1'), self::USER, TokenPurpose::PASSWORD_RESET, self::CLINIC, $secret, new \DateTimeImmutable('2026-10-26 10:00:00'));
-
-        self::assertSame(hash('sha256', $secret), $token->tokenHash());
-        self::assertSame(AccountToken::hash($secret), $token->tokenHash());
+        self::assertSame('digest', $token->tokenHash());
         self::assertNull($token->clinicId(), 'a reset belongs to no clinic');
         self::assertSame('2026-10-26 10:30:00', $token->expiresAt()->format('Y-m-d H:i:s'));
         self::assertSame(['t-1', self::USER, TokenPurpose::PASSWORD_RESET, '2026-10-26 10:00:00'], [$token->id()->toString(), $token->userId(), $token->purpose(), $token->createdAt()->format('Y-m-d H:i:s')]);

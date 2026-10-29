@@ -3,6 +3,7 @@ monolog:
         - deprecation # Deprecations are logged in the dedicated "deprecation" channel when it exists
         - messenger   # Channel for Messenger bus tracing logs
         - external_api # One record per call to an external service (service, duration, status, outcome)
+        - dev_sms      # Dev only: every SMS body (DevLoggingSmsSender); declared everywhere, handled in dev only
 
 # Symfony's own `http_client` channel logs full URLs, query strings included
 # (names, SIRENs): it is excluded from every handler and gets none of its own.
@@ -17,7 +18,12 @@ when@dev:
                 type: stream
                 path: "%kernel.logs_dir%/%kernel.environment%.log"
                 level: debug
-                channels: ["!event", "!http_client"]
+                channels: ["!event", "!http_client", "!dev_sms"]
+            dev_sms:
+                type: stream
+                path: "%kernel.logs_dir%/%kernel.environment%.log"
+                level: info
+                channels: [dev_sms]
             console:
                 type: console
                 process_psr_3_messages: false

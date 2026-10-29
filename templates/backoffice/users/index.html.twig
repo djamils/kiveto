@@ -85,7 +85,7 @@
                   copier
                 </button>
               </td>
-              <td>{{ user.email }}</td>
+              <td>{{ user.email ?? '—' }}</td>
               <td>
                 {% if user.type == 'PLATFORM_ADMIN' %}
                   <span class="badge b-fail">{{ user.type }}</span>

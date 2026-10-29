@@ -138,3 +138,16 @@ services:
     test.App\System\IdentityAccess\Domain\Token\AccountTokenRepositoryInterface:
         alias: App\System\IdentityAccess\Domain\Token\AccountTokenRepositoryInterface
         public: true
+
+    # Portal API limiters read by the functional tests (OtpQuotaTest).
+    test.limiter.portal_otp_phone_daily:
+        alias: limiter.portal_otp_phone_daily
+        public: true
+
+    test.limiter.portal_otp_ip:
+        alias: limiter.portal_otp_ip
+        public: true
+
+    test.limiter.portal_otp_unknown_global:
+        alias: limiter.portal_otp_unknown_global
+        public: true

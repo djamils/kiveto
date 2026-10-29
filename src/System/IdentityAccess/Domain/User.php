@@ -5,22 +5,34 @@ declare(strict_types=1);
 namespace App\System\IdentityAccess\Domain;
 
 use App\Shared\Domain\Aggregate\AggregateRoot;
+use App\Shared\Domain\ValueObject\PhoneNumber;
+use App\System\IdentityAccess\Domain\Event\PortalUserRegistered;
 use App\System\IdentityAccess\Domain\Event\UserActivated;
 use App\System\IdentityAccess\Domain\Event\UserInvited;
 use App\System\IdentityAccess\Domain\Event\UserPasswordChanged;
 use App\System\IdentityAccess\Domain\Event\UserRegistered;
 use App\System\IdentityAccess\Domain\Exception\AccountStateException;
+use App\System\IdentityAccess\Domain\Exception\EmailRequiredException;
 use App\System\IdentityAccess\Domain\ValueObject\UserId;
 use App\System\IdentityAccess\Domain\ValueObject\UserStatus;
 use App\System\IdentityAccess\Domain\ValueObject\UserType;
 
+/**
+ * A Kiveto account. Staff accounts (CLINIC, BACKOFFICE) sign in with their
+ * e-mail address and a password. Owner accounts (PORTAL) sign in with their
+ * mobile phone and a one-time code: no password, the e-mail is optional.
+ * Creation rules live in the named constructors only; reconstitute() checks
+ * nothing, so that legacy rows always load.
+ */
 final class User extends AggregateRoot
 {
     /** No password hasher produces a hash starting with « ! ». */
     private const string UNUSABLE_PASSWORD_PREFIX = '!';
 
     private UserId $id;
-    private string $email;
+    private ?string $email;
+    private ?PhoneNumber $phone                  = null;
+    private ?\DateTimeImmutable $phoneVerifiedAt = null;
     private string $passwordHash;
     private \DateTimeImmutable $createdAt;
     private UserStatus $status;
@@ -38,6 +50,8 @@ final class User extends AggregateRoot
         \DateTimeImmutable $createdAt,
         UserType $type,
     ): self {
+        self::assertStaffEmail($type, $email);
+
         $user               = new self();
         $user->id           = $id;
         $user->email        = $email;
@@ -64,6 +78,8 @@ final class User extends AggregateRoot
         \DateTimeImmutable $createdAt,
         UserType $type,
     ): self {
+        self::assertStaffEmail($type, $email);
+
         $user               = new self();
         $user->id           = $id;
         $user->email        = $email;
@@ -80,14 +96,45 @@ final class User extends AggregateRoot
         return $user;
     }
 
+    /**
+     * An owner who proved their mobile phone (one-time code): ACTIVE at once,
+     * without password. The e-mail, copied from a clinic's client file, is
+     * not verified.
+     */
+    public static function registerPortal(
+        UserId $id,
+        PhoneNumber $phone,
+        ?string $email,
+        \DateTimeImmutable $at,
+    ): self {
+        $user                  = new self();
+        $user->id              = $id;
+        $user->email           = $email;
+        $user->phone           = $phone;
+        $user->phoneVerifiedAt = $at;
+        $user->passwordHash    = self::UNUSABLE_PASSWORD_PREFIX . bin2hex(random_bytes(16));
+        $user->createdAt       = $at;
+        $user->status          = UserStatus::ACTIVE;
+        $user->type            = UserType::PORTAL;
+
+        $user->recordDomainEvent(new PortalUserRegistered(
+            userId: $id->toString(),
+            phone: $phone->toString(),
+        ));
+
+        return $user;
+    }
+
     public static function reconstitute(
         UserId $id,
-        string $email,
+        ?string $email,
         string $passwordHash,
         \DateTimeImmutable $createdAt,
         UserStatus $status,
         ?\DateTimeImmutable $emailVerifiedAt = null,
         ?UserType $type = null,
+        ?PhoneNumber $phone = null,
+        ?\DateTimeImmutable $phoneVerifiedAt = null,
     ): self {
         $user                  = new self();
         $user->id              = $id;
@@ -97,6 +144,8 @@ final class User extends AggregateRoot
         $user->status          = $status;
         $user->emailVerifiedAt = $emailVerifiedAt;
         $user->type            = $type ?? UserType::CLINIC;
+        $user->phone           = $phone;
+        $user->phoneVerifiedAt = $phoneVerifiedAt;
 
         return $user;
     }
@@ -106,9 +155,26 @@ final class User extends AggregateRoot
         return $this->id;
     }
 
-    public function email(): string
+    /** Required for staff accounts, optional for owner (PORTAL) accounts. */
+    public function email(): ?string
     {
         return $this->email;
+    }
+
+    /** The e-mail of an account that must have one (staff paths). */
+    public function requireEmail(): string
+    {
+        return $this->email ?? throw new EmailRequiredException();
+    }
+
+    public function phone(): ?PhoneNumber
+    {
+        return $this->phone;
+    }
+
+    public function phoneVerifiedAt(): ?\DateTimeImmutable
+    {
+        return $this->phoneVerifiedAt;
     }
 
     public function passwordHash(): string
@@ -177,5 +243,17 @@ final class User extends AggregateRoot
     public function passwordFingerprint(): string
     {
         return substr(hash('sha256', $this->passwordHash), 0, 16);
+    }
+
+    /** Staff accounts sign in by e-mail; owner accounts are created by registerPortal(). */
+    private static function assertStaffEmail(UserType $type, string $email): void
+    {
+        if (UserType::PORTAL === $type) {
+            throw new \InvalidArgumentException('An owner account is created by User::registerPortal(), with a phone.');
+        }
+
+        if ('' === trim($email)) {
+            throw new EmailRequiredException();
+        }
     }
 }

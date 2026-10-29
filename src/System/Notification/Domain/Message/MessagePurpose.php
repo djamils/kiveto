@@ -20,6 +20,8 @@ enum MessagePurpose: string
     case STAFF_INVITATION         = 'STAFF_INVITATION';
     case PASSWORD_RESET           = 'PASSWORD_RESET';
     case TEST                     = 'TEST';
+    case PORTAL_OTP               = 'PORTAL_OTP';
+    case PORTAL_INVITATION        = 'PORTAL_INVITATION';
 
     /**
      * Only reminders may be held back by the SMS overage cap; e-mail-only
@@ -34,25 +36,27 @@ enum MessagePurpose: string
     }
 
     /**
-     * Account and test messages are sent by Kiveto itself, not on behalf of a
-     * clinic, and need no clinic messaging profile.
+     * Account, Portal and test messages are sent by Kiveto itself, not on
+     * behalf of a clinic, and need no clinic messaging profile.
      */
     public function isSentByKiveto(): bool
     {
-        return \in_array($this, [self::STAFF_INVITATION, self::PASSWORD_RESET, self::TEST], true);
+        return \in_array($this, [self::STAFF_INVITATION, self::PASSWORD_RESET, self::TEST, self::PORTAL_OTP, self::PORTAL_INVITATION], true);
     }
 
     /**
      * How long the one-time link the message carries can be used (the
-     * IdentityAccess token lifetimes), from when the message is requested;
-     * null when it carries none.
+     * IdentityAccess token lifetimes, the Portal one-time code and invitation),
+     * from when the message is requested; null when it carries none.
      */
     public function linkValidity(): ?\DateInterval
     {
         return match ($this) {
-            self::STAFF_INVITATION => new \DateInterval('PT72H'),
-            self::PASSWORD_RESET   => new \DateInterval('PT30M'),
-            default                => null,
+            self::STAFF_INVITATION  => new \DateInterval('PT72H'),
+            self::PASSWORD_RESET    => new \DateInterval('PT30M'),
+            self::PORTAL_OTP        => new \DateInterval('PT10M'),
+            self::PORTAL_INVITATION => new \DateInterval('P7D'),
+            default                 => null,
         };
     }
 
@@ -70,6 +74,8 @@ enum MessagePurpose: string
             self::STAFF_INVITATION         => "Invitation d'un membre",
             self::PASSWORD_RESET           => 'Réinitialisation du mot de passe',
             self::TEST                     => 'Message de test Kiveto',
+            self::PORTAL_OTP               => 'Code de connexion Portal',
+            self::PORTAL_INVITATION        => 'Invitation au Portal',
         };
     }
 }

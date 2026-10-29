@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\System\IdentityAccess\Application\Command\RequestPasswordReset;
 
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
+use App\Shared\Domain\Security\OpaqueTokenHasherInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\System\IdentityAccess\Application\Port\AccountLinkBuilderInterface;
 use App\System\IdentityAccess\Application\Port\NotificationRequesterInterface;
@@ -30,6 +31,7 @@ final readonly class RequestPasswordResetHandler
         private ClockInterface $clock,
         private AccountLinkBuilderInterface $links,
         private NotificationRequesterInterface $notifications,
+        private OpaqueTokenHasherInterface $tokenHasher,
     ) {
     }
 
@@ -47,14 +49,14 @@ final readonly class RequestPasswordResetHandler
         $userId = $user->id()->toString();
         $this->tokens->invalidatePasswordResets($userId, $now);
 
-        $secret = AccountToken::newSecret();
-        $token  = AccountToken::issue(AccountTokenId::fromString($this->uuids->generate()), $userId, TokenPurpose::PASSWORD_RESET, null, $secret, $now);
+        $secret = $this->tokenHasher->newSecret();
+        $token  = AccountToken::issue(AccountTokenId::fromString($this->uuids->generate()), $userId, TokenPurpose::PASSWORD_RESET, null, $this->tokenHasher->hash($secret), $now);
         $this->tokens->save($token);
 
         $this->notifications->requestPasswordReset(new PasswordResetRequest(
             tokenId: $token->id()->toString(),
             userId: $userId,
-            email: $user->email(),
+            email: $user->requireEmail(),
             resetUrl: $this->links->passwordResetUrl($secret),
             requestedAtLabel: $now->setTimezone(new \DateTimeZone(self::LABEL_TIME_ZONE))->format('d/m/Y \à H:i'),
         ));

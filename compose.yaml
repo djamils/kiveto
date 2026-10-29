@@ -38,6 +38,7 @@ services:
     volumes:
       - ./:/var/www/html:cached
       - ./docker/php-fpm/conf.d/xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+      - ./docker/php-fpm/conf.d/memory.ini:/usr/local/etc/php/conf.d/zz-memory.ini
     environment:
       - DATABASE_URL=mysql://root:k!v3t0@db/kiveto?serverVersion=8.4.7
       - GOTENBERG_URL=http://gotenberg:3000

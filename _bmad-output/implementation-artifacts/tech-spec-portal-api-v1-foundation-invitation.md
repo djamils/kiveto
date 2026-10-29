@@ -230,6 +230,8 @@ The owner-facing mobile app (Flutter, iOS/Android — later the web Portal in Tw
 
 **Review amendments, round 2 (diff review, 2026-10-29)** — F-A → D29 (single owner of the grant check)/AC 68; F-B → D3/AC 71; F-C → D4, D10, D29 (replay)/AC 72; F-D → D29 (grant minted inside verify)/AC 80; F-E → D7, D18/AC 76, 77; F-F → D6, D16, D24 (`MobileNumberPolicy` single source)/AC 43, 73; F-G → D11, D24/AC 78; F-H → D18 (no email channel)/AC 12, 53; F-I → D6 (`reissue` keeps the id)/AC 23, 79; F-J → D7 (transactional per-phone mutex)/AC 55; F-K → AC 55; F-L → D29/AC 70; F-M → D11/AC 81; F-N → D29 (documented only); F-O → D3/AC 74; F-P → D26, AC 61/75, AC 45; F-Q → D28/AC 62.
 
+**Implementation notes (branch 2, 2026-10-29)** — (1) D3: Symfony ignores `lazy` on a stateless firewall, so `lazy: true` cannot protect public routes from a stale Bearer. The `portal_api` firewall uses `PublicRouteAwareJwtAuthenticator` (lexik's authenticator whose `supports()` answers `false` on the routes `access_control` declares `PUBLIC_ACCESS`); AC 71 holds, the access map stays the single source of what is public. (2) The test client sends `Accept-Language: en-us`, which Translation's `DefaultLocaleResolver` rejected (500 on any translated message): it now normalises `xx-yy` to `xx-YY` and falls back to the default locale for anything else. (3) API Platform 4.3.11 is installed (4.4 would bump every Symfony component). (4) The dev kernel's debug container dump no longer fits in 128 M: `docker/php-fpm/conf.d/memory.ini` sets 512 M for php-fpm (`docker compose up -d php-fpm` to apply). (5) Validation 422s keep API Platform's `violations[]`; `ValidationProblemTypeListener` rewrites their `type` to `validation_failed`.
+
 ## Implementation Plan
 
 ### Tasks

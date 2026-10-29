@@ -101,7 +101,8 @@ endef
 .PHONY: help \
 	build kill install reset clean start start-containers stop vendor wait-db init-db check-web ready \
 	worker-start worker-stop worker-logs scheduler-debug \
-	ci phpstan phpcs phpcbf php-cs-fixer php-cs-fixer.dry-run test test-coverage \
+	ci phpstan phpcs phpcbf php-cs-fixer php-cs-fixer.dry-run test test-coverage openapi-export openapi-check \
+	jwt-keys \
 	assets tailwind-build \
 	migrations identity-access-migrations translations-migrations clinic-migrations access-control-migrations client-migrations animal-migrations scheduling-migrations consultation-migrations patient-migrations admission-migrations pharmaceutical-registry-migrations regulatory-migrations shared-migrations \
 	drop-db create-db migrate-db reset-db drop-test-db create-test-db migrate-test-db reset-test-db \
@@ -124,6 +125,9 @@ help:
 	@echo "  worker-logs     follow the background workers logs"
 	@echo "  scheduler-debug list the schedules and their next runs"
 	@echo "  ci              QA pipeline"
+	@echo "  jwt-keys        generate the Portal API JWT keypair (config/jwt, kept if present)"
+	@echo "  openapi-export  write the Portal API contract to openapi/portal.v1.yaml"
+	@echo "  openapi-check   fail when openapi/portal.v1.yaml differs from the code"
 	@echo "  assets          tailwind:build + asset-map:compile"
 	@echo "  tailwind-build  compile Tailwind CSS"
 	@echo ""
@@ -149,6 +153,7 @@ install:
 	$(MAKE) build; \
 	$(MAKE) start-containers; \
 	$(MAKE) vendor; \
+	$(MAKE) jwt-keys; \
 	$(MAKE) wait-db; \
 	$(MAKE) init-db; \
 	$(MAKE) migrate-db; \
@@ -223,6 +228,11 @@ assets: tailwind-build
 	@$(call step,Compiling AssetMapper...)
 	$(Q)$(SYMFONY) asset-map:compile
 	@$(call ok,Assets compiled)
+
+jwt-keys:
+	@$(call step,Generating the Portal API JWT keypair...)
+	$(Q)$(SYMFONY) lexik:jwt:generate-keypair --skip-if-exists
+	@$(call ok,JWT keypair ready)
 
 wait-db:
 	@$(call step,Waiting for MySQL to be ready...)
@@ -438,7 +448,20 @@ ready:
 ##
 ## QUALITY ASSURANCE
 ##
-ci: php-cs-fixer.dry-run phpcs phpstan tailwind-build test
+ci: php-cs-fixer.dry-run phpcs phpstan openapi-check tailwind-build test
+
+# The Portal API contract (OpenAPI) is generated from the API Platform
+# resources and committed; the check fails when the code drifted from it.
+openapi-export:
+	@$(call step,Exporting the Portal API contract...)
+	$(Q)$(SYMFONY) api:openapi:export --yaml --output=openapi/portal.v1.yaml
+	@$(call ok,openapi/portal.v1.yaml written)
+
+openapi-check:
+	@$(call step,Checking the Portal API contract...)
+	$(Q)$(SYMFONY) api:openapi:export --yaml --output=var/openapi.check.yaml
+	$(Q)diff -u openapi/portal.v1.yaml var/openapi.check.yaml
+	@$(call ok,Portal API contract up to date)
 
 phpstan:
 	@$(call step,Running PHPStan...)
