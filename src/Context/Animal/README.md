@@ -378,6 +378,22 @@ Pesées et actes de prévention d'un animal, du plus récent au plus ancien.
 
 **Output:** `list<WeightRecordView>` (`id`, `weightGrams`, `bodyConditionScore`, `measuredOn`, `authorName`) / `list<PreventiveCareRecordView>` (`id`, `kind`, `label`, `administeredOn`, `batchNumber`, `nextDueOn`, `authorName`)
 
+#### ListPortalPets
+Les animaux visibles sur le Portal client : statut `active`, propriétaire **principal actif** parmi les clients donnés, jamais cédés (`transfer_status = none`). Les animaux archivés, en propriété secondaire, vendus ou donnés sont exclus ; les animaux décédés ou disparus restent dans la liste. Une seule requête SQL sur `animal__ownerships` ⋈ `animal__animals`. Liste de clients vide → `[]` sans requête.
+
+**Input:** `clinicId`, `clientIds: list<string>`
+
+**Output:** `list<PortalPetView>` (`id`, `primaryOwnerClientId`, `name`, `species`, `breedName: ?string`, `isMixedBreed: bool`, `sex`, `reproductiveStatus`, `birthDate: ?DateTimeImmutable` (date seule), `lifeStatus`, `microchipNumber: ?string`), énumérations exposées telles que stockées (minuscules), triée vivants d'abord puis par nom.
+
+#### ListLatestPreventiveCare
+Le dernier acte de chaque protocole `(animal_id, kind, LOWER(label))` des animaux donnés : `ROW_NUMBER()` sur **tous** les actes, ordonnés `administered_on DESC, recorded_at DESC`, rang 1 conservé **sans** filtre sur `next_due_on`. Un renouvellement sans échéance masque donc un acte plus ancien qui en avait une ; l'appelant filtre lui-même les `nextDueOn` nuls. Liste d'animaux vide → `[]` sans requête.
+
+**Input:** `clinicId`, `animalIds: list<string>`
+
+**Output:** `list<LatestPreventiveCareView>` (`animalId`, `kind`, `label`, `administeredOn`, `batchNumber: ?string`, `nextDueOn: ?DateTimeImmutable`)
+
+**Duplication connue :** la règle « dernier acte par protocole » existe encore en copies côté VetApp, volontairement laissées en l'état (slice 3 du Portal) : `AnimalSheetBuilder::preventionRows`, `CockpitContextBuilder::due`, le SQL brut de `ClientSheetBuilder` et `DbalAnimalDirectoryReadRepository::LATEST_ACTS` (qui filtre en plus sur `:dueBy`). À terme, elles devraient s'appuyer sur `ListLatestPreventiveCare`.
+
 #### GetAnimalById
 Retourne les détails complets d'un animal.
 
@@ -537,6 +553,7 @@ Recherche et pagine les animaux d'une clinique.
   - `find()` : retourne `null` si introuvable
 - **Read** : `AnimalReadRepositoryInterface` → projections optimisées (DTOs) pour les queries
   - `findById()` : retourne `?AnimalView`
+  - `listPortalPets()` / `listLatestPreventiveCare()` : SQL DBAL pour le Portal client
 
 ### Transaction boundary
 - Une commande = une transaction
@@ -558,6 +575,12 @@ Recherche et pagine les animaux d'une clinique.
 ---
 
 ## Changelog
+
+### 2026-10-31 - Portal client : animaux et rappels de prévention
+
+**Ajouts** :
+- ✨ Query `ListPortalPets` (animaux visibles d'un client sur le Portal)
+- ✨ Query `ListLatestPreventiveCare` (dernier acte par protocole, plusieurs animaux à la fois)
 
 ### 2026-10-10 - Fiche animal : pesées et prévention
 

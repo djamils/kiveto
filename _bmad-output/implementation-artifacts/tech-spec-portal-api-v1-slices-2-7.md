@@ -614,7 +614,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
 
 #### Slice 3 — pets and history — `feature/portal-pets`
 
-- [ ] Task 11: Animal queries (S3a, S3d, D4)
+- [x] Task 11: Animal queries (S3a, S3d, D4)
   - Files:
     - `src/Context/Animal/Application/Query/ListPortalPets/{ListPortalPets, ListPortalPetsHandler, PortalPetView}.php` (new)
     - `src/Context/Animal/Application/Query/ListLatestPreventiveCare/{ListLatestPreventiveCare, ListLatestPreventiveCareHandler, LatestPreventiveCareView}.php` (new)
@@ -637,7 +637,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
       - same label with different case;
       - two kinds with the same label.
     - Unit tests of both handlers in `tests/Unit/Context/Animal/Application/Query/`.
-- [ ] Task 12: Consultation portal summaries, title rule and weight (S3b, S3e, D3)
+- [x] Task 12: Consultation portal summaries, title rule and weight (S3b, S3e, D3)
   - Files:
     - `src/Context/Consultation/Application/Service/VisitTitle.php` (new pure service)
     - `src/Context/Consultation/Application/Query/GetConsultationPortalSummaries/{GetConsultationPortalSummaries, GetConsultationPortalSummariesHandler, ConsultationPortalSummary}.php` (new)
@@ -660,7 +660,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
     - `tests/Unit/Context/Consultation/Application/Service/VisitTitleTest.php`: motifs, casing, trailing « . », null complaint.
     - `tests/Integration/Context/Consultation/Application/Query/{GetConsultationPortalSummariesTest, GetLatestClosedConsultationWeightTest}.php`: open consultation ignored, reconciled patients (two patient rows).
     - VetApp regression: `tests/Integration/Presentation/Clinic/…` asserting the visit titles of the animal sheet and the client sheet on an existing fixture.
-- [ ] Task 13: Scheduling queries for the home (S3h)
+- [x] Task 13: Scheduling queries for the home (S3h)
   - Files:
     - `src/Context/Scheduling/Domain/ValueObject/AppointmentCategory.php` (new, `fromReason(?string)`: the rule moved from `AgendaViewBuilder::motif`)
     - `src/Presentation/Clinic/ViewModel/Agenda/AgendaViewBuilder.php` (`motif()` delegates)
@@ -678,7 +678,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
     - CANCELLED;
     - appointment without animal;
     - tie on the same start, broken by id.
-- [ ] Task 14: ClientPortal pet read models (S3a–S3e, S3g, S3h)
+- [x] Task 14: ClientPortal pet read models (S3a–S3e, S3g, S3h)
   - Files:
     - `src/Context/ClientPortal/Application/Query/{ListOwnerPets, GetOwnerPet, ListOwnerCareItems, GetOwnerHome, ListPetTimeline}/…`
     - `Application/Port/{PetDirectoryInterface, PreventiveCareInterface, VisitSummariesInterface, ConsultationWeightsInterface, AnimalWeightsInterface, OwnerAppointmentsInterface, PractitionerNamesInterface}.php`
@@ -712,7 +712,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
     - `tests/Unit/Context/ClientPortal/Application/{Service/CareItemStatusPolicyTest, Query/*HandlerTest}.php` with in-memory ports (Noumea and Martinique boundaries);
     - `tests/Integration/Context/ClientPortal/Infrastructure/Adapter/**` for each adapter;
     - `tests/Integration/Context/ClientPortal/Infrastructure/Persistence/Doctrine/Repository/DbalPublishedDocumentRepositoryTimelineTest.php`.
-- [ ] Task 15: Vaccination booklet (S3f)
+- [x] Task 15: Vaccination booklet (S3f)
   - Files:
     - `templates/portal/document/vaccination_booklet.html.twig` (new)
     - `src/Context/ClientPortal/Application/Service/VaccinationBookletFiles.php` (new; no command, no bus)
@@ -731,7 +731,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
     - unchanged inputs → same key, no render;
     - new record, rename, chip change, `TEMPLATE_VERSION` bump → new key and deletion scheduled;
     - zero vaccinations.
-- [ ] Task 16: Portal API — pets and home (slice 3 routes)
+- [x] Task 16: Portal API — pets and home (slice 3 routes)
   - Files:
     - `src/Presentation/Api/Portal/Resource/{Home, PetList, Pet, PetCareItems, PetTimeline}.php`
     - `State/{HomeProvider, PetListProvider, PetProvider, PetCareItemsProvider, PetTimelineProvider, MeProvider}.php`
@@ -745,7 +745,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
     - Field formats as S3g.
     - Booklet: `GET /clinics/{c}/pets/{id}/vaccination-booklet` → 302 (`Cache-Control: private, no-store`) to `GET /files/booklets/{c}/{animalId}/{hash}`, signed over `{c, animalId, hash}` for 5 min. The download re-checks the signature and serves the key with `Cache-Control: private, no-store`. Failures → 404 `not_found`.
   - Tests: `tests/Integration/Presentation/Api/Portal/{PetsApiTest, HomeApiTest, PetTimelineApiTest, VaccinationBookletApiTest}.php`.
-- [ ] Task 17: Fixtures for slice 3
+- [x] Task 17: Fixtures for slice 3
   - Files:
     - `fixtures/Context/Animal/Story/PortalPetsAnimalStory.php`
     - `fixtures/Context/Scheduling/Story/PortalPetsAppointmentsStory.php`

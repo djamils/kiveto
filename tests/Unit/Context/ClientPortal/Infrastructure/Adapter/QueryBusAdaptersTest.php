@@ -15,7 +15,7 @@ use App\Context\Client\Application\Query\IsPortalMobileNumber\IsPortalMobileNumb
 use App\Context\ClientPortal\Infrastructure\Adapter\Animal\QueryBusPetNames;
 use App\Context\ClientPortal\Infrastructure\Adapter\Client\QueryBusClientDirectory;
 use App\Context\ClientPortal\Infrastructure\Adapter\Client\QueryBusMobilePhonePolicy;
-use App\Context\ClientPortal\Infrastructure\Adapter\Clinic\QueryBusClinicNames;
+use App\Context\ClientPortal\Infrastructure\Adapter\Clinic\QueryBusClinicProfile;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\LetterheadDto;
@@ -71,13 +71,13 @@ final class QueryBusAdaptersTest extends TestCase
             return new ClinicDto('clinic-1', 'Clinique des Lilas', 'lilas', 'Europe/Paris', 'fr-FR', 'FR', null, 'EUR', ClinicStatus::ACTIVE, null, 'c', 'u', $letterhead);
         };
 
-        $label = new QueryBusClinicNames(new AnsweringQueryBus([GetClinic::class => $clinic('Lyon')]))->clinicOf('clinic-1');
+        $label = new QueryBusClinicProfile(new AnsweringQueryBus([GetClinic::class => $clinic('Lyon')]))->clinicOf('clinic-1');
         self::assertSame(['Clinique des Lilas', 'Lyon', 'Europe/Paris'], [$label->name, $label->city, $label->timeZone]);
 
-        self::assertNull(new QueryBusClinicNames(new AnsweringQueryBus([GetClinic::class => $clinic(' ')]))->clinicOf('clinic-1')->city);
-        self::assertNull(new QueryBusClinicNames(new AnsweringQueryBus([GetClinic::class => $clinic(null)]))->clinicOf('clinic-1')->city);
+        self::assertNull(new QueryBusClinicProfile(new AnsweringQueryBus([GetClinic::class => $clinic(' ')]))->clinicOf('clinic-1')->city);
+        self::assertNull(new QueryBusClinicProfile(new AnsweringQueryBus([GetClinic::class => $clinic(null)]))->clinicOf('clinic-1')->city);
 
-        $unknown = new QueryBusClinicNames(new AnsweringQueryBus())->clinicOf('clinic-1');
+        $unknown = new QueryBusClinicProfile(new AnsweringQueryBus())->clinicOf('clinic-1');
         self::assertSame(['', null, 'UTC'], [$unknown->name, $unknown->city, $unknown->timeZone]);
     }
 

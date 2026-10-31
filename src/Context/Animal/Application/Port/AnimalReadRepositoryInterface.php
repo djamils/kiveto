@@ -7,6 +7,8 @@ namespace App\Context\Animal\Application\Port;
 use App\Context\Animal\Application\Query\FindByMicrochip\AnimalMicrochipView;
 use App\Context\Animal\Application\Query\GetAnimalById\AnimalView;
 use App\Context\Animal\Application\Query\ListAnimalSummariesPerClientIds\AnimalSummary;
+use App\Context\Animal\Application\Query\ListLatestPreventiveCare\LatestPreventiveCareView;
+use App\Context\Animal\Application\Query\ListPortalPets\PortalPetView;
 use App\Context\Animal\Application\Query\SearchAnimals\AnimalListItemView;
 use App\Context\Animal\Application\Query\SearchAnimals\SearchAnimalsCriteria;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
@@ -45,4 +47,24 @@ interface AnimalReadRepositoryInterface
     ): array;
 
     public function findByMicrochip(string $microchipNumber, string $clinicId): ?AnimalMicrochipView;
+
+    /**
+     * Active, non-transferred animals whose active primary owner is one of the
+     * given clients. Deceased and missing animals are kept.
+     *
+     * @param list<string> $clientIds UUID strings
+     *
+     * @return list<PortalPetView> alive first, then by name
+     */
+    public function listPortalPets(ClinicId $clinicId, array $clientIds): array;
+
+    /**
+     * The latest act of each protocol `(animal, kind, lower(label))`, ranked on
+     * `administered_on DESC, recorded_at DESC`, with no filter on the due date.
+     *
+     * @param list<string> $animalIds UUID strings
+     *
+     * @return list<LatestPreventiveCareView>
+     */
+    public function listLatestPreventiveCare(ClinicId $clinicId, array $animalIds): array;
 }

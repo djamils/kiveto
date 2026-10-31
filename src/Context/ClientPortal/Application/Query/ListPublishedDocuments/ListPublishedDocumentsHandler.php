@@ -4,19 +4,17 @@ declare(strict_types=1);
 
 namespace App\Context\ClientPortal\Application\Query\ListPublishedDocuments;
 
-use App\Context\ClientPortal\Application\Port\ClinicNamesInterface;
-use App\Context\ClientPortal\Application\Port\DocumentPosition;
+use App\Context\ClientPortal\Application\Port\ClinicProfileInterface;
 use App\Context\ClientPortal\Application\Port\InvoiceDocumentsInterface;
 use App\Context\ClientPortal\Application\Port\ListedDocument;
 use App\Context\ClientPortal\Application\Port\PrescriptionDocumentsInterface;
 use App\Context\ClientPortal\Application\Port\PublishedDocumentReadModelInterface;
+use App\Context\ClientPortal\Application\Service\DocumentCursor;
 use App\Context\ClientPortal\Domain\Document\DocumentType;
 use App\Shared\Application\Pagination\Cursor;
 use App\Shared\Application\Pagination\CursorPage;
-use App\Shared\Application\Pagination\InvalidCursorException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * The payment status of an invoice and the state of a prescription are
@@ -31,7 +29,7 @@ final readonly class ListPublishedDocumentsHandler
         private PublishedDocumentReadModelInterface $documents,
         private InvoiceDocumentsInterface $invoices,
         private PrescriptionDocumentsInterface $prescriptions,
-        private ClinicNamesInterface $clinics,
+        private ClinicProfileInterface $clinics,
         private LoggerInterface $logger,
     ) {
     }
@@ -42,14 +40,13 @@ final readonly class ListPublishedDocumentsHandler
     public function __invoke(ListPublishedDocuments $query): CursorPage
     {
         $limit = Cursor::clampLimit($query->limit);
-        $after = null === $query->cursor ? null : self::position($query->cursor);
+        $after = null === $query->cursor ? null : DocumentCursor::position($query->cursor);
         $rows  = $this->documents->listable($query->userId, $query->clinicId, $query->type, $query->petId, $after, $limit + 1);
 
         $next = null;
         if (\count($rows) > $limit) {
             $rows = \array_slice($rows, 0, $limit);
-            $last = $rows[$limit - 1];
-            $next = Cursor::fromPosition(['at' => $last->issuedAt->format('Y-m-d H:i:s'), 'id' => $last->id])->encode();
+            $next = DocumentCursor::after($rows[$limit - 1]);
         }
 
         return new CursorPage($this->documents($query->clinicId, $rows), $next);
@@ -108,25 +105,6 @@ final readonly class ListPublishedDocumentsHandler
         }
 
         return $documents;
-    }
-
-    private static function position(string $cursor): DocumentPosition
-    {
-        $position = Cursor::decode($cursor)->position();
-        $at       = $position['at'] ?? null;
-        $id       = $position['id'] ?? null;
-
-        if (!\is_string($at) || !\is_string($id) || !Uuid::isValid($id)) {
-            throw new InvalidCursorException();
-        }
-
-        $issuedAt = \DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $at, new \DateTimeZone('UTC'));
-
-        if (false === $issuedAt || $issuedAt->format('Y-m-d H:i:s') !== $at) {
-            throw new InvalidCursorException();
-        }
-
-        return new DocumentPosition($issuedAt, $id);
     }
 
     /**

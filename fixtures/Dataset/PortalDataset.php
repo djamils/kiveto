@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Fixtures\Dataset;
 
+use App\Fixtures\Context\Animal\Story\PortalPetsAnimalStory;
 use App\Fixtures\Context\ClientPortal\Story\ClientPortalStatesStory;
 use App\Fixtures\Context\ClientPortal\Story\PortalDocumentsStory;
+use App\Fixtures\Context\ClientPortal\Story\PortalPetsStory;
+use App\Fixtures\Context\Scheduling\Story\PortalPetsAppointmentsStory;
 use App\Fixtures\System\IdentityAccess\Factory\PortalUserFactory;
 use App\Fixtures\System\IdentityAccess\Story\PortalUserStory;
 use Zenstruck\Foundry\Attribute\AsFixture;
@@ -23,6 +26,12 @@ final class PortalDataset extends Story
 
         // What the clinic published on their Portal: invoices, ordonnances, reports.
         PortalDocumentsStory::load();
+
+        // Their pets: the animals in every Portal state, the appointments of
+        // the home, then the published visits of the timeline.
+        PortalPetsAnimalStory::load();
+        PortalPetsAppointmentsStory::load();
+        PortalPetsStory::load();
 
         PortalUserFactory::createMany(5);
     }

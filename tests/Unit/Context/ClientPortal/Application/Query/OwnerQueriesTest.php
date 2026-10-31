@@ -72,7 +72,7 @@ final class OwnerQueriesTest extends TestCase
     public function testTheOwnerClinicsComeFromConfirmedLinksOneEntryPerClinic(): void
     {
         $world                             = new W();
-        $world->fakes->clinics[W::CLINIC]  = new ClinicLabel('Clinique des Lilas', 'Lyon');
+        $world->fakes->clinics[W::CLINIC]  = new ClinicLabel('Clinique des Lilas', 'Lyon', 'Europe/Paris');
         $world->fakes->clinics[W::CLINIC2] = new ClinicLabel('Clinique du Parc', null);
         $world->fakes->pets                = [W::CLINIC . '/' . W::CLIENT => ['Moka'], W::CLINIC . '/' . W::CLIENT2 => ['Rex'], W::CLINIC2 . '/' . W::CLIENT => ['Nala']];
         $at                                = static fn (string $d): \DateTimeImmutable => new \DateTimeImmutable($d);
@@ -86,9 +86,9 @@ final class OwnerQueriesTest extends TestCase
         $clinics = new ListOwnerClinicsHandler($world->links, $world->fakes, $world->fakes)(new ListOwnerClinics(self::USER));
 
         self::assertSame([
-            [W::CLINIC, 'Clinique des Lilas', 'Lyon', '2026-10-10', ['Rex', 'Moka']],
-            [W::CLINIC2, 'Clinique du Parc', null, '2026-10-15', ['Nala']],
-        ], array_map(static fn ($c): array => [$c->clinicId, $c->clinicName, $c->city, $c->linkedAt->format('Y-m-d'), $c->petNames], $clinics));
+            [W::CLINIC, 'Clinique des Lilas', 'Lyon', '2026-10-10', ['Rex', 'Moka'], 'Europe/Paris'],
+            [W::CLINIC2, 'Clinique du Parc', null, '2026-10-15', ['Nala'], 'UTC'],
+        ], array_map(static fn ($c): array => [$c->clinicId, $c->clinicName, $c->city, $c->linkedAt->format('Y-m-d'), $c->petNames, $c->timeZone], $clinics));
 
         $links = new HasConfirmedClientLinkHandler($world->links);
         self::assertTrue($links(new HasConfirmedClientLink(self::USER, W::CLINIC2)));

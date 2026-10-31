@@ -51,7 +51,7 @@ Opens from a scheduled appointment (`startFromAppointment()`) or directly from a
 | `CatalogItemProviderInterface` | Searches acts and medications, resolves the price to snapshot, and reads a drug's active substances (Catalog BC + PharmaceuticalRegistry) |
 | `TaxRateProviderInterface` | Effective VAT rate per tax category, for the billing totals (Taxation) |
 | `PatientIdsProviderInterface` | All patient records of a clinic linked to one animal, so the history survives reconciliation (Patient BC) |
-| `ConsultationReadRepositoryInterface` | Read model: consultation details and the patient's consultation history |
+| `ConsultationReadRepositoryInterface` | Read model: consultation details, the patient's consultation history and the Portal summaries and weight |
 
 ## Documents by e-mail
 
@@ -79,6 +79,14 @@ Opens from a scheduled appointment (`startFromAppointment()`) or directly from a
 | Port | Adapter (`Infrastructure/…`) | Counterpart |
 |------|------------------------------|-------------|
 | `PatientAnimalOwnershipInterface` | `Adapter/Patient/QueryBusPatientAnimalOwnership` | Patient `GetPatientAnimalLink`, Animal `GetAnimalById` |
+
+## Portal pet facts
+
+Two public queries feed the Portal pet pages (ClientPortal); the visit title rule they share with the VetApp lives in the pure service `Application/Service/VisitTitle`.
+
+- `VisitTitle::of(motifs, chiefComplaint)`: the first motif as is, the following ones lowercased on their first letter and joined with « et » (« Vaccination et bilan annuel »); without motif the chief complaint stripped of its trailing dots and spaces; otherwise « Consultation ». The VetApp dossier visits (`DossierVisitReader::visitTitle`, animal and client sheets) delegate to it.
+- `GetConsultationPortalSummaries(clinicId, consultationIds[])` → `list<ConsultationPortalSummary{consultationId, startedAtUtc (UTC), title}>`, in the order of the requested ids, read in one SQL statement (motifs joined); unknown ids and other clinics' consultations are left out, an empty input returns `[]`. No practitioner: the Portal timeline shows the name snapshotted when the report was shared.
+- `GetLatestClosedConsultationWeight(clinicId, animalId)` → `?ConsultationWeight{weightGrams, measuredAtUtc}`: the weight of the latest **CLOSED** consultation (`started_at_utc DESC`) with a recorded weight, over every patient record of the animal (`PatientIdsProviderInterface`, reconciliation-safe). Open consultations are ignored since their vitals can still change. `weightGrams = (int) round(weightKg × 1000)`, `measuredAtUtc` = the consultation start. The Portal compares it with the Animal weight records.
 
 ## Read Side
 

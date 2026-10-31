@@ -17,6 +17,9 @@ final class FakePublishedDocumentReadModel implements PublishedDocumentReadModel
     /** @var list<array{string, string, ?string, ?string, ?DocumentPosition, int}> */
     public array $listings = [];
 
+    /** @var list<ListedDocument> the listable documents of every visit, newest first */
+    public array $visitRows = [];
+
     /** @var array<string, ListedDocument> by document id */
     public array $byId = [];
 
@@ -46,6 +49,16 @@ final class FakePublishedDocumentReadModel implements PublishedDocumentReadModel
         $this->listings[] = [$userId, $clinicId, $type, $petId, $after, $limit];
 
         return \array_slice($this->rows, 0, $limit);
+    }
+
+    public function listableOfVisits(string $userId, string $clinicId, array $consultationIds): array
+    {
+        $this->calls[] = 'listableOfVisits:' . $userId . ':' . $clinicId . ':' . implode(',', $consultationIds);
+
+        return array_values(array_filter(
+            $this->visitRows,
+            static fn (ListedDocument $row): bool => \in_array($row->consultationId, $consultationIds, true),
+        ));
     }
 
     public function find(string $userId, string $clinicId, string $documentId): ?ListedDocument

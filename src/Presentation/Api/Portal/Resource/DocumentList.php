@@ -37,7 +37,7 @@ use Symfony\Component\Validator\Constraints as Assert;
                 'type'   => new QueryParameter(schema: ['type' => 'string', 'enum' => self::TYPES], constraints: [new Assert\Choice(choices: self::TYPES, message: 'Type de document inconnu.')]),
                 'petId'  => new QueryParameter(schema: ['type' => 'string', 'format' => 'uuid'], constraints: [new Assert\Uuid(message: 'Identifiant d\'animal invalide.')]),
                 'cursor' => new QueryParameter(schema: ['type' => 'string']),
-                'limit'  => new QueryParameter(schema: ['type' => 'integer', 'minimum' => 1, 'maximum' => 50]),
+                'limit'  => new QueryParameter(schema: ['type' => 'integer'], description: 'Taille de page : 20 par défaut, ramenée à 50 au plus.'),
             ],
         ),
     ],

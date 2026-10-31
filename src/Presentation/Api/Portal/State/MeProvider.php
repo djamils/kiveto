@@ -46,7 +46,7 @@ final readonly class MeProvider implements ProviderInterface
             array_values(array_map(static function (mixed $clinic) use ($unread): ClinicLinkView {
                 \assert($clinic instanceof OwnerClinic);
 
-                return new ClinicLinkView($clinic->clinicId, $clinic->clinicName, $clinic->city, 'confirmed', ApiDate::format($clinic->linkedAt), $clinic->petNames, [], \is_int($unread[$clinic->clinicId] ?? null) ? $unread[$clinic->clinicId] : 0);
+                return new ClinicLinkView($clinic->clinicId, $clinic->clinicName, $clinic->city, $clinic->timeZone, 'confirmed', ApiDate::format($clinic->linkedAt), $clinic->petNames, [], \is_int($unread[$clinic->clinicId] ?? null) ? $unread[$clinic->clinicId] : 0);
             }, $clinics)),
         );
     }

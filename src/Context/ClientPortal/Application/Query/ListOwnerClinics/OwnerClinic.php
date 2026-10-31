@@ -16,6 +16,8 @@ final readonly class OwnerClinic
         public ?string $city,
         public \DateTimeImmutable $linkedAt,
         public array $petNames,
+        /** IANA time zone of the clinic: its clinical instants are shown in it. */
+        public string $timeZone,
     ) {
     }
 }
