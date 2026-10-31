@@ -72,13 +72,13 @@ final class QueryBusAdaptersTest extends TestCase
         };
 
         $label = new QueryBusClinicNames(new AnsweringQueryBus([GetClinic::class => $clinic('Lyon')]))->clinicOf('clinic-1');
-        self::assertSame(['Clinique des Lilas', 'Lyon'], [$label->name, $label->city]);
+        self::assertSame(['Clinique des Lilas', 'Lyon', 'Europe/Paris'], [$label->name, $label->city, $label->timeZone]);
 
         self::assertNull(new QueryBusClinicNames(new AnsweringQueryBus([GetClinic::class => $clinic(' ')]))->clinicOf('clinic-1')->city);
         self::assertNull(new QueryBusClinicNames(new AnsweringQueryBus([GetClinic::class => $clinic(null)]))->clinicOf('clinic-1')->city);
 
         $unknown = new QueryBusClinicNames(new AnsweringQueryBus())->clinicOf('clinic-1');
-        self::assertSame(['', null], [$unknown->name, $unknown->city]);
+        self::assertSame(['', null, 'UTC'], [$unknown->name, $unknown->city, $unknown->timeZone]);
     }
 
     public function testThePetNamesOfTheClientAreRead(): void

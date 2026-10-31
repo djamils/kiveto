@@ -83,4 +83,14 @@ final class FakeInvoiceReads implements InvoiceReadRepositoryInterface
 
         return $rows;
     }
+
+    public function portalStatuses(ClinicId $clinicId, array $invoiceIds): array
+    {
+        throw new \LogicException('Not used.');
+    }
+
+    public function portalPublishable(\DateTimeImmutable $issuedFrom, ?InvoiceId $afterId, int $limit): array
+    {
+        throw new \LogicException('Not used.');
+    }
 }

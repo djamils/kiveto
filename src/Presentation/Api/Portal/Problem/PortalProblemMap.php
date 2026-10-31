@@ -30,6 +30,8 @@ final class PortalProblemMap
     public const string ONBOARDING_INVALID      = 'onboarding_invalid';
     public const string TERMS_OUTDATED          = 'terms_outdated';
     public const string VALIDATION_FAILED       = 'validation_failed';
+    public const string NOT_FOUND               = 'not_found';
+    public const string CURSOR_INVALID          = 'cursor_invalid';
 
     /** @var array<string, array{int, string}> */
     private const array PROBLEMS = [
@@ -49,6 +51,8 @@ final class PortalProblemMap
         self::ONBOARDING_INVALID      => [401, 'Jeton d\'invitation expiré : reconnectez-vous avec votre numéro.'],
         self::TERMS_OUTDATED          => [422, 'Les conditions d\'utilisation ont changé : acceptez la nouvelle version.'],
         self::VALIDATION_FAILED       => [422, 'Données invalides.'],
+        self::NOT_FOUND               => [404, 'Ressource introuvable.'],
+        self::CURSOR_INVALID          => [400, 'Curseur de pagination invalide.'],
     ];
 
     /**

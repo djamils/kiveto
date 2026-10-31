@@ -554,6 +554,35 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
         ));
     }
 
+    public function testTheConsultationsOfAVisitComeBackOldestFirst(): void
+    {
+        $admissionId = Uuid::v7()->toRfc4122();
+
+        $this->saveOnAdmission(
+            $this->startConsultation(self::CONSULTATION_2, self::CLINIC_ID, self::PATIENT_ID, new \DateTimeImmutable('2026-04-10 11:00:00')),
+            $admissionId,
+        );
+        $this->saveOnAdmission(
+            $this->startConsultation(self::CONSULTATION_1, self::CLINIC_ID, self::PATIENT_ID, new \DateTimeImmutable('2026-04-10 09:00:00')),
+            $admissionId,
+        );
+        // Another visit of the same patient.
+        $this->startAndSave(self::CONSULTATION_3, self::CLINIC_ID, self::PATIENT_ID, '2026-04-10 08:00:00');
+
+        self::assertSame(
+            [self::CONSULTATION_1, self::CONSULTATION_2],
+            $this->readRepository->consultationIdsForAdmission(ClinicId::fromString(self::CLINIC_ID), AdmissionId::fromString($admissionId)),
+        );
+        self::assertSame(
+            [],
+            $this->readRepository->consultationIdsForAdmission(ClinicId::fromString(self::OTHER_CLINIC_ID), AdmissionId::fromString($admissionId)),
+        );
+        self::assertSame(
+            [],
+            $this->readRepository->consultationIdsForAdmission(ClinicId::fromString(self::CLINIC_ID), AdmissionId::fromString(Uuid::v7()->toRfc4122())),
+        );
+    }
+
     public function testTheMedicinesOfAConsultationComeBackInOrder(): void
     {
         $consultation = $this->startConsultation(

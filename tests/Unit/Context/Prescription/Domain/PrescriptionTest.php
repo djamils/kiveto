@@ -391,6 +391,55 @@ final class PrescriptionTest extends TestCase
         self::assertFalse($prescription->isExpiredAt($later));
     }
 
+    // ── Renewable by the owner (Client Portal) ──
+
+    public function testASignedOrdinaryPrescriptionIsRenewableByTheOwner(): void
+    {
+        self::assertTrue($this->issued()->isRenewableByOwner());
+    }
+
+    public function testADraftIsNotRenewableByTheOwner(): void
+    {
+        self::assertFalse($this->draftWithOneLine()->isRenewableByOwner());
+    }
+
+    public function testACancelledPrescriptionIsNotRenewableByTheOwner(): void
+    {
+        $prescription = $this->issued();
+        $prescription->cancel('Erreur', $this->now());
+
+        self::assertFalse($prescription->isRenewableByOwner());
+    }
+
+    public function testAControlledPrescriptionIsNotRenewableByTheOwner(): void
+    {
+        $prescription = $this->draftWithOneLine();
+        $prescription->addLine(
+            $this->line(id: '01960000-0000-7000-8000-0000000000b2', class: DrugPrescriptionClass::RX_CONTROLLED),
+            $this->now(),
+        );
+        $prescription->issue(PrescriptionNumber::of(2026, 1), $this->now());
+
+        self::assertFalse($prescription->isRenewableByOwner());
+    }
+
+    public function testAnExpiredPrescriptionStaysRenewableByTheOwner(): void
+    {
+        // The owner asks the clinic for a new one: expiry is precisely the case.
+        $prescription = $this->issued();
+
+        self::assertTrue($prescription->isExpiredAt($this->now()->modify('+2 years')));
+        self::assertTrue($prescription->isRenewableByOwner());
+    }
+
+    public function testTheOwnerRenewalRuleOnlyNeedsTheStatusAndTheControlledFlag(): void
+    {
+        self::assertTrue(Prescription::renewableByOwner(PrescriptionStatus::ISSUED, false));
+        self::assertFalse(Prescription::renewableByOwner(PrescriptionStatus::ISSUED, true));
+        self::assertFalse(Prescription::renewableByOwner(PrescriptionStatus::DRAFT, false));
+        self::assertFalse(Prescription::renewableByOwner(PrescriptionStatus::CANCELLED, false));
+    }
+
     public function testItIsReconstitutedWithEverythingItHeld(): void
     {
         $prescription = Prescription::reconstitute(

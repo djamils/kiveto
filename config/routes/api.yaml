@@ -10,3 +10,11 @@ api_portal:
     type: api_platform
     prefix: /api/portal/v1
     host: 'portal.kiveto.local'
+
+# The Portal routes that API Platform does not serve: file downloads and
+# calendars (`__invoke` controllers), on the same prefix and host.
+api_portal_controllers:
+    resource: ../../src/Presentation/Api/Portal/Controller/
+    type: attribute
+    prefix: /api/portal/v1
+    host: 'portal.kiveto.local'

@@ -167,6 +167,21 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
         return is_numeric($count) && (int) $count > 0;
     }
 
+    public function consultationIdsForAdmission(ClinicId $clinicId, AdmissionId $admissionId): array
+    {
+        $ids = $this->connection->fetchFirstColumn(
+            'SELECT id FROM consultation__consultations
+             WHERE clinic_id = :clinicId AND admission_id = :admissionId
+             ORDER BY started_at_utc ASC, id ASC',
+            [
+                'clinicId'    => Uuid::fromString($clinicId->toString())->toBinary(),
+                'admissionId' => Uuid::fromString($admissionId->toString())->toBinary(),
+            ],
+        );
+
+        return array_map(static fn (mixed $id): string => Uuid::fromBinary(\is_string($id) ? $id : '')->toRfc4122(), $ids);
+    }
+
     public function totalsForAdmissions(ClinicId $clinicId, array $admissionIds): array
     {
         if ([] === $admissionIds) {

@@ -78,16 +78,71 @@ Portal **profile** (name, postal address, accepted terms of use).
 | `GetOwnerProfile(userId)` | query | `?OwnerProfileDetails{firstName, lastName, address: ?{line1, line2, postalCode, city, country}, termsVersion, termsAcceptedAt}`. |
 | `HasConfirmedClientLink(userId, clinicId)` | query | The Portal API's tenant guard (false for a missing, pending or revoked link). |
 
+## Published documents (slice 2)
+
+The publication registry (`PublishedDocument`, table
+`client_portal__published_documents`, one row per clinic + type + source) says
+which clinic document a client's Portal accounts see. There is no Document
+context: the Portal reads the sources live through query-bus ports.
+
+- **Triggers.** Invoices and prescriptions are published when issued
+  (`InvoiceIssuedForPortalIntegrationEvent`, `PrescriptionIssuedIntegrationEvent`
+  → `PublishInvoice` / `PublishPrescription`, which re-read the source and skip a
+  draft, a cancelled document, a counter sale or a prescription without owner);
+  a consultation report only through the vet's « Partager sur le Portal »
+  (`ShareConsultationReport`).
+- **Visibility.** An invoice is shown to its payer only; a prescription to the
+  owner it was written for; a report to the animal's primary owner at share time.
+  Every read joins the account's **confirmed** links of the clinic in SQL
+  (`DbalPublishedDocumentReadModel`): no client id is ever passed in.
+- **States.** `awaiting_link` (no confirmed link yet: nothing rendered) →
+  `pending_file` → `available`, or `failed` after 5 renders; any state →
+  `withdrawn`, terminal (a cancel delivered first leaves a tombstone, so the late
+  publication is ignored). Listed: a served file (version ≥ 1) that is neither
+  withdrawn nor awaiting a link — a re-share keeps serving the previous version.
+- **Files.** `StorePublishedDocumentFile` (`async_external`, no transaction)
+  uses Billing's durable invoice PDF, or renders a prescription / report under
+  `client_portal/documents/<id>-v<n>.pdf`, then `AttachPublishedDocumentFile`
+  swaps the version (reads forgotten from v2, previous file deleted 10 minutes
+  later by `DeleteStoredDocumentFile`, which refuses keys outside
+  `client_portal/`). A failure is counted by `RecordDocumentRenderFailure`.
+- **Repair.** `ReconcilePublishedDocuments` (schedule `client_portal`, every 5
+  minutes) asks again for files expected for more than 10 minutes;
+  `app:client-portal:import-documents [--since=Y-m-d]` publishes the invoices and
+  prescriptions of the last 24 months at go-live (never reports).
+- **Live states.** The invoice payment status and the prescription state
+  (`renewable` = issued, no controlled substance) are read per page; a row whose
+  source is no longer listable is left out with a warning.
+
+| Command / Query | Bus | What it does |
+|---|---|---|
+| `PublishInvoice(clinicId, invoiceId)`, `PublishPrescription(clinicId, prescriptionId)` | command | Insert-if-absent; file requested when the client is linked. |
+| `ShareConsultationReport(clinicId, consultationId, actorUserId)` | command | `ReportShareResult{documentId, linked}`; `ReportNotShareableException::reason` `unknown`, `not_closed`, `no_animal`, `no_primary_owner`. |
+| `WithdrawPublishedDocument(clinicId, type, sourceRef)` | command | Cancelled source (consumers of the cancel events). |
+| `ReleaseAwaitingDocuments(clinicId, clientId)` | command | A confirmed link releases the documents waiting for it. |
+| `BackfillDocumentPets`, `RepointDocumentPatient` | command | Patient linked to an animal / reconciled into another patient. |
+| `MarkDocumentRead(userId, documentId)` | command | Read for that account only. |
+| `ListPublishedDocuments(userId, clinicId, type?, petId?, cursor?, limit?)` | query | `CursorPage<PortalDocument>`, newest first, cursor `(issued_at, id)`. |
+| `GetPublishedDocumentFile(userId, clinicId, documentId)` | query | Served version and key, to sign a download. |
+| `GetPublishedDocumentVersionFile(clinicId, documentId, version)` | query | Key of a signed download; null once withdrawn. |
+| `CountUnreadDocumentsPerClinic(userId)` | query | `GET /me` badge. |
+| `GetPortalPrescription(userId, clinicId, prescriptionId)` | query | Lines of a listed prescription. |
+
 ## Events
 
 - `PortalInvitationSent` (`reissued` on a resend), `PortalInvitationAccepted`,
   `ClientLinkConfirmed`, `ClientLinkRevoked` — domain events.
 - `ClientLinkConfirmedIntegrationEvent` (linkId, userId, clinicId, clientId) —
   bridged from `ClientLinkConfirmed`.
+- `DocumentPublished`, `DocumentWithdrawn` — domain events of the registry.
 
 ## Consumers
 
 - `ClientArchivedIntegrationEventConsumer` (Client) → `RevokeClientPortalAccess`.
+- Billing `InvoiceIssuedForPortal` / `InvoiceCancelled`, Prescription
+  `PrescriptionIssued` / `PrescriptionCancelled`, Patient `PatientLinkedToAnimal`
+  / `PatientReconciledInto` and our own `ClientLinkConfirmed` integration events
+  → the publication commands above.
 - Clients of this context: the Portal API (lookup, acceptances, `/me`, tenant
   guard), the clinic client sheet (send, status) and IdentityAccess
   (`ListPendingInvitationsForPhone`).
@@ -97,7 +152,9 @@ Portal **profile** (name, postal address, accepted terms of use).
 Raw DBAL repositories (`FOR UPDATE` reads, upserts) over schema-only Doctrine
 entities: `client_portal__portal_invitations` (`token_hash` unique, index on
 `phone`), `client_portal__client_links` (unique `user_id, clinic_id,
-client_id`), `client_portal__owner_profiles` (PK `user_id`). Migrations in
+client_id`), `client_portal__owner_profiles` (PK `user_id`),
+`client_portal__published_documents` (unique `clinic_id, type, source_ref`) and
+`client_portal__document_reads` (PK `document_id, user_id`). Migrations in
 `migrations/ClientPortal/`.
 
 ## Configuration

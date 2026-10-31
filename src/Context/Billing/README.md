@@ -179,6 +179,18 @@ time zone; invoice dates stay the fiscal Europe/Paris ones the invoice prints), 
 PDFs, `Infrastructure/Document/InvoicePdfRenderer`), `ClinicDocumentContextInterface`,
 `SentDocumentFileStoreInterface`, `DispatchJobsInterface` (Messenger).
 
+## Client Portal
+
+The Client Portal (`src/Context/ClientPortal`) publishes invoices to their
+payer. Billing only announces and answers; it never knows about the Portal.
+
+| Event / Query | What it does |
+|---|---|
+| `InvoiceIssuedForPortalIntegrationEvent` `{invoiceId, clinicId}` | Written to the outbox by `InvoiceIssuedForPortalIntegrationBridge` for **every** issued invoice (B2C and B2B, with or without a client payer — the Portal decides). The B2B `InvoiceIssuedIntegrationBridge` is unchanged. |
+| `InvoiceCancelledIntegrationEvent` `{invoiceId, clinicId}` | Written by `InvoiceCancelledIntegrationBridge` on `InvoiceCancelled`: the Portal withdraws the invoice. Payments and credits publish nothing — the Portal reads the status live. |
+| `ListInvoicePortalStatuses(clinicId, invoiceIds)` | `list<InvoicePortalStatus{invoiceId, status, totalGrossMinorUnits, currency}>` in one SQL query (`status` = the stored `InvoiceStatus` value). Ids of another clinic are left out; no ids, no query. |
+| `ListPortalPublishableInvoices(issuedFrom, afterId, limit)` | Go-live import, across all clinics: `list<PortalPublishableInvoice{invoiceId, clinicId}>` issued since `issuedFrom` (ISSUED, PARTIALLY_PAID, PAID or CREDITED) with a client payer, ordered by id, keyset after `afterId`. |
+
 ## Fixture examples
 
 Demo invoices are built by `fixtures/Context/Billing/Story/*`: visits of the

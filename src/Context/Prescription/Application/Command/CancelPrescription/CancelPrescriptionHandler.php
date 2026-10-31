@@ -7,6 +7,7 @@ namespace App\Context\Prescription\Application\Command\CancelPrescription;
 use App\Context\Prescription\Domain\Repository\PrescriptionRepositoryInterface;
 use App\Context\Prescription\Domain\ValueObject\ClinicId;
 use App\Context\Prescription\Domain\ValueObject\PrescriptionId;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -16,6 +17,7 @@ final readonly class CancelPrescriptionHandler
     public function __construct(
         private PrescriptionRepositoryInterface $prescriptions,
         private ClockInterface $clock,
+        private DomainEventPublisher $domainEventPublisher,
     ) {
     }
 
@@ -29,5 +31,6 @@ final readonly class CancelPrescriptionHandler
         $prescription->cancel($command->reason, $this->clock->now());
 
         $this->prescriptions->save($prescription);
+        $this->domainEventPublisher->publish($prescription);
     }
 }

@@ -16,6 +16,7 @@ use App\Presentation\Clinic\ViewModel\Consultation\CockpitContextBuilder;
 use App\Presentation\Clinic\ViewModel\Consultation\CockpitPatientBuilder;
 use App\Presentation\Clinic\ViewModel\Consultation\CockpitReferenceData;
 use App\Presentation\Clinic\ViewModel\Consultation\CockpitStateBuilder;
+use App\Presentation\Clinic\ViewModel\Consultation\PortalShareViewBuilder;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use App\Shared\Domain\Time\ClockInterface;
@@ -34,6 +35,7 @@ final class ConsultationDetailsController extends AbstractController
         private readonly CockpitReferenceData $referenceData,
         private readonly CockpitContextBuilder $contextBuilder,
         private readonly ClockInterface $clock,
+        private readonly PortalShareViewBuilder $portalShare,
     ) {
     }
 
@@ -72,7 +74,7 @@ final class ConsultationDetailsController extends AbstractController
                 'reference'    => $this->referenceData->toArray(),
                 'serverNowUtc' => $this->clock->now()->format('Y-m-d H:i:s'),
                 'endpoints'    => $this->endpoints($id),
-                'documents'    => $this->documents($id, $clinicId, $consultation->admissionId, $clientId),
+                'documents'    => $this->documents($id, $clinicId, $consultation->admissionId, $clientId, $letterhead['timeZone']),
                 'context'      => [
                     'origin'       => $this->contextBuilder->origin($consultation, $letterhead['timeZone']),
                     'letterhead'   => $letterhead,
@@ -100,16 +102,18 @@ final class ConsultationDetailsController extends AbstractController
      * there, the ordonnances and the invoice only once they have been signed.
      * The ids let « Envoyer par e-mail » name the ticked documents; the
      * recipient is the owner's e-mail on file (null: the button stays off).
+     * `portalShare` drives « Partager sur le Portal ».
      *
      * @return array{
      *     report: string,
      *     bundle: string,
      *     prescriptions: list<array{id: string, number: string, lineCount: int, url: string}>,
      *     invoice: array{id: string, number: string, url: string, sendable: bool}|null,
-     *     send: array{url: string, recipient: array{name: string, email: string}|null}
+     *     send: array{url: string, recipient: array{name: string, email: string}|null},
+     *     portalShare: array{url: string, shareable: bool, reason: ?string, sharedAt: ?string}
      * }
      */
-    private function documents(string $consultationId, string $clinicId, string $admissionId, ?string $clientId): array
+    private function documents(string $consultationId, string $clinicId, string $admissionId, ?string $clientId, string $timeZone): array
     {
         $prescriptions = [];
         $rows          = $this->queryBus->ask(new ListPrescriptionsForConsultation(
@@ -156,6 +160,7 @@ final class ConsultationDetailsController extends AbstractController
                 'url'       => $this->generateUrl('clinic_consultation_send_documents', ['id' => $consultationId]),
                 'recipient' => null !== $clientId ? $this->recipient($clinicId, $clientId) : null,
             ],
+            'portalShare' => $this->portalShare->build($clinicId, $consultationId, $timeZone),
         ];
     }
 

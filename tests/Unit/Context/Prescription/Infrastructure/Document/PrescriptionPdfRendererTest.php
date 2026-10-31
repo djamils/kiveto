@@ -100,6 +100,7 @@ final class PrescriptionPdfRendererTest extends TestCase
             prescriberId: '01960000-0000-7000-8000-000000000704',
             patientAnimalId: null,
             patientWeightKg: null,
+            renewableByOwner: true,
         );
     }
 }

@@ -49,6 +49,7 @@ final readonly class PrescriptionDetails
         public string $prescriberId,
         public ?string $patientAnimalId,
         public ?string $patientWeightKg,
+        public bool $renewableByOwner,
     ) {
     }
 }

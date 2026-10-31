@@ -9,6 +9,12 @@ use App\Context\Prescription\Application\Port\PrescriptionReadRepositoryInterfac
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\GetPrescriptionDetails;
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\GetPrescriptionDetailsHandler;
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\PrescriptionDetails;
+use App\Context\Prescription\Application\Query\ListPortalPublishablePrescriptions\ListPortalPublishablePrescriptions;
+use App\Context\Prescription\Application\Query\ListPortalPublishablePrescriptions\ListPortalPublishablePrescriptionsHandler;
+use App\Context\Prescription\Application\Query\ListPortalPublishablePrescriptions\PortalPublishablePrescription;
+use App\Context\Prescription\Application\Query\ListPrescriptionPortalSummaries\ListPrescriptionPortalSummaries;
+use App\Context\Prescription\Application\Query\ListPrescriptionPortalSummaries\ListPrescriptionPortalSummariesHandler;
+use App\Context\Prescription\Application\Query\ListPrescriptionPortalSummaries\PrescriptionPortalSummary;
 use App\Context\Prescription\Application\Query\ListPrescriptionsForConsultation\ConsultationPrescriptionRow;
 use App\Context\Prescription\Application\Query\ListPrescriptionsForConsultation\ListPrescriptionsForConsultation;
 use App\Context\Prescription\Application\Query\ListPrescriptionsForConsultation\ListPrescriptionsForConsultationHandler;
@@ -48,6 +54,66 @@ final class PrescriptionQueryHandlersTest extends TestCase
         );
 
         self::assertSame($details, $result);
+    }
+
+    public function testThePortalSummariesAreReadInTheClinicScope(): void
+    {
+        $summaries = [
+            new PrescriptionPortalSummary(self::PRESCRIPTION_ID, 'ISSUED', new \DateTimeImmutable('2027-08-22'), true),
+        ];
+
+        $repository = $this->createMock(PrescriptionReadRepositoryInterface::class);
+        $repository->expects(self::once())
+            ->method('portalSummaries')
+            ->with(
+                self::callback(static fn (ClinicId $id): bool => self::CLINIC_ID === $id->toString()),
+                [self::PRESCRIPTION_ID],
+            )
+            ->willReturn($summaries)
+        ;
+
+        $result = (new ListPrescriptionPortalSummariesHandler($repository))(
+            new ListPrescriptionPortalSummaries(self::CLINIC_ID, [self::PRESCRIPTION_ID]),
+        );
+
+        self::assertSame($summaries, $result);
+    }
+
+    public function testNoPortalSummaryIsReadForAnEmptyPage(): void
+    {
+        $repository = $this->createMock(PrescriptionReadRepositoryInterface::class);
+        $repository->expects(self::never())->method('portalSummaries');
+
+        self::assertSame([], (new ListPrescriptionPortalSummariesHandler($repository))(
+            new ListPrescriptionPortalSummaries(self::CLINIC_ID, []),
+        ));
+    }
+
+    public function testThePublishablePrescriptionsAreReadOneBatchAtATime(): void
+    {
+        $from  = new \DateTimeImmutable('2024-10-31');
+        $batch = [new PortalPublishablePrescription(self::PRESCRIPTION_ID, self::CLINIC_ID)];
+
+        $repository = $this->createMock(PrescriptionReadRepositoryInterface::class);
+        $repository->expects(self::once())
+            ->method('portalPublishable')
+            ->with($from, self::CONSULTATION_ID, 50)
+            ->willReturn($batch)
+        ;
+
+        self::assertSame($batch, (new ListPortalPublishablePrescriptionsHandler($repository))(
+            new ListPortalPublishablePrescriptions($from, self::CONSULTATION_ID, 50),
+        ));
+    }
+
+    public function testANonPositiveBatchSizeReadsNothing(): void
+    {
+        $repository = $this->createMock(PrescriptionReadRepositoryInterface::class);
+        $repository->expects(self::never())->method('portalPublishable');
+
+        self::assertSame([], (new ListPortalPublishablePrescriptionsHandler($repository))(
+            new ListPortalPublishablePrescriptions(new \DateTimeImmutable('2024-10-31'), null, 0),
+        ));
     }
 
     public function testTheOrdonnancesOfAConsultationAreListedInTheClinicScope(): void
@@ -182,6 +248,7 @@ final class PrescriptionQueryHandlersTest extends TestCase
             prescriberId: '01960000-0000-7000-8000-000000000704',
             patientAnimalId: null,
             patientWeightKg: null,
+            renewableByOwner: true,
         );
     }
 

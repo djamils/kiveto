@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Context\Prescription\Domain\Event;
 
 use App\Context\Prescription\Domain\Event\PrescriptionCancelled;
+use App\Context\Prescription\Domain\Event\PrescriptionCancelledIntegrationEvent;
 use App\Context\Prescription\Domain\Event\PrescriptionDrafted;
 use App\Context\Prescription\Domain\Event\PrescriptionIssued;
+use App\Context\Prescription\Domain\Event\PrescriptionIssuedIntegrationEvent;
 use App\Context\Prescription\Domain\Event\PrescriptionRenewed;
 use PHPUnit\Framework\TestCase;
 
@@ -96,6 +98,30 @@ final class PrescriptionEventsTest extends TestCase
             'clinicId'       => self::CLINIC_ID,
             'reason'         => 'Erreur de posologie',
             'cancelledAt'    => self::AT,
+        ], $event->payload());
+    }
+
+    public function testPrescriptionIssuedIntegrationEventCarriesOnlyTheIds(): void
+    {
+        $event = new PrescriptionIssuedIntegrationEvent(self::PRESCRIPTION_ID, self::CLINIC_ID);
+
+        self::assertSame('prescription.prescription-issued-integration.event.v1', $event->name());
+        self::assertSame(self::PRESCRIPTION_ID, $event->aggregateId());
+        self::assertSame([
+            'prescriptionId' => self::PRESCRIPTION_ID,
+            'clinicId'       => self::CLINIC_ID,
+        ], $event->payload());
+    }
+
+    public function testPrescriptionCancelledIntegrationEventCarriesOnlyTheIds(): void
+    {
+        $event = new PrescriptionCancelledIntegrationEvent(self::PRESCRIPTION_ID, self::CLINIC_ID);
+
+        self::assertSame('prescription.prescription-cancelled-integration.event.v1', $event->name());
+        self::assertSame(self::PRESCRIPTION_ID, $event->aggregateId());
+        self::assertSame([
+            'prescriptionId' => self::PRESCRIPTION_ID,
+            'clinicId'       => self::CLINIC_ID,
         ], $event->payload());
     }
 }

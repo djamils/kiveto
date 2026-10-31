@@ -27,6 +27,6 @@ final readonly class QueryBusClinicNames implements ClinicNamesInterface
 
         $city = $clinic->letterhead?->city;
 
-        return new ClinicLabel($clinic->name, null !== $city && '' !== mb_trim($city) ? $city : null);
+        return new ClinicLabel($clinic->name, null !== $city && '' !== mb_trim($city) ? $city : null, $clinic->timeZone);
     }
 }

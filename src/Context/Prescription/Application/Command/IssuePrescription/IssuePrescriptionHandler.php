@@ -8,6 +8,7 @@ use App\Context\Prescription\Domain\Repository\PrescriptionRepositoryInterface;
 use App\Context\Prescription\Domain\Service\PrescriptionNumberGeneratorInterface;
 use App\Context\Prescription\Domain\ValueObject\ClinicId;
 use App\Context\Prescription\Domain\ValueObject\PrescriptionId;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -18,6 +19,7 @@ final readonly class IssuePrescriptionHandler
         private PrescriptionRepositoryInterface $prescriptions,
         private PrescriptionNumberGeneratorInterface $numbers,
         private ClockInterface $clock,
+        private DomainEventPublisher $domainEventPublisher,
     ) {
     }
 
@@ -31,5 +33,6 @@ final readonly class IssuePrescriptionHandler
         $prescription->issue($this->numbers->next($clinicId, (int) $now->format('Y')), $now);
 
         $this->prescriptions->save($prescription);
+        $this->domainEventPublisher->publish($prescription);
     }
 }

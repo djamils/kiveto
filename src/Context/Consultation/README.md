@@ -69,6 +69,17 @@ Opens from a scheduled appointment (`startFromAppointment()`) or directly from a
 | `DocumentJobsInterface` | `Messaging/MessengerDocumentJobs` | Messenger `async` |
 | `ConsultationReportPdfRendererInterface` | `Document/ConsultationReportPdfRenderer` | Shared `DocumentPdfRendererInterface` (D5), fed by `ClinicDocumentIdentityInterface`, `PractitionerDirectoryInterface` and `PatientSnapshotProviderInterface` |
 
+## Sharing on the Portal
+
+« Partager sur le Portal » (ClientPortal `ShareConsultationReport`) relies on two public messages of this BC; it never stores the report durably itself.
+
+- `GetConsultationShareability(clinicId, consultationId)` → `?ConsultationShareability` (null when the consultation is unknown to the clinic): `shareable`, `reason` (`not_closed` → `no_animal` → `no_primary_owner`, checked in that order, null when shareable), `patientId`, `animalId`, `primaryOwnerClientId` (the client the report goes to, recomputed at each share), `startedAtUtc`, `closedAtUtc`, and `practitionerName` (« Dr Claire Lambert », snapshotted by the caller; null when the practitioner is no longer one of the clinic's veterinarians). Patient → animal → active primary owner goes through `PatientAnimalOwnershipInterface`.
+- `RenderConsultationReportFile(clinicId, consultationId, storageKey)` → `ConsultationReportFile{storageKey, filename}` (`MIME = application/pdf`): plain synchronous command, renders `ConsultationReportPdfRendererInterface::report()` and writes it with `FileStorageInterface::storeAt()` under the caller's key — no database write, so a retry overwrites the file. The PDF reflects the consultation at render time (addenda included). Mirror of Prescription `RenderPrescriptionFile`.
+
+| Port | Adapter (`Infrastructure/…`) | Counterpart |
+|------|------------------------------|-------------|
+| `PatientAnimalOwnershipInterface` | `Adapter/Patient/QueryBusPatientAnimalOwnership` | Patient `GetPatientAnimalLink`, Animal `GetAnimalById` |
+
 ## Read Side
 
 `GetConsultationDetails` returns the whole cockpit state. The DBAL read repository stays bus-free and returns zeroed totals; the **handler** owns the money maths: it collects the distinct tax categories of the billing lines, asks the Taxation port once per category, and sums HT / TVA / TTC.

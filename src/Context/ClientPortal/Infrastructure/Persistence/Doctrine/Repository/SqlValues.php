@@ -41,4 +41,16 @@ final class SqlValues
     {
         return null === $value ? null : self::date($value);
     }
+
+    /**
+     * A JSON array of strings (e.g. `pet_ids`); anything else reads as empty.
+     *
+     * @return list<string>
+     */
+    public static function stringList(string $json): array
+    {
+        $values = json_decode($json, true);
+
+        return \is_array($values) ? array_values(array_filter($values, \is_string(...))) : [];
+    }
 }

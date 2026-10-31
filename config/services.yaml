@@ -320,6 +320,15 @@ services:
     App\Context\ClientPortal\Domain\Profile\OwnerProfileRepositoryInterface:
         class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalOwnerProfileRepository
 
+    App\Context\ClientPortal\Domain\Document\PublishedDocumentRepositoryInterface:
+        class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalPublishedDocumentRepository
+
+    App\Context\ClientPortal\Domain\Document\DocumentReadRepositoryInterface:
+        class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalDocumentReadRepository
+
+    App\Context\ClientPortal\Application\Port\PublishedDocumentReadModelInterface:
+        class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalPublishedDocumentReadModel
+
     App\Context\ClientPortal\Application\Port\ClientDirectoryInterface:
         class: App\Context\ClientPortal\Infrastructure\Adapter\Client\QueryBusClientDirectory
 
@@ -340,6 +349,21 @@ services:
 
     App\Context\ClientPortal\Application\Port\InvitationLinkBuilderInterface:
         class: App\Context\ClientPortal\Infrastructure\Link\PortalInvitationLinkBuilder
+
+    App\Context\ClientPortal\Application\Port\InvoiceDocumentsInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Billing\BusInvoiceDocuments
+
+    App\Context\ClientPortal\Application\Port\PrescriptionDocumentsInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Prescription\BusPrescriptionDocuments
+
+    App\Context\ClientPortal\Application\Port\ConsultationDocumentsInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Consultation\BusConsultationDocuments
+
+    App\Context\ClientPortal\Application\Port\VisitPatientsInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Admission\QueryBusVisitPatients
+
+    App\Context\ClientPortal\Application\Port\DocumentFileJobsInterface:
+        class: App\Context\ClientPortal\Infrastructure\Messaging\MessengerDocumentFileJobs
 
     # ============================================================================
     # BOUNDED CONTEXT: TRANSLATION
@@ -769,6 +793,9 @@ services:
 
     App\Context\Consultation\Application\Port\PatientSnapshotProviderInterface:
         class: App\Context\Consultation\Infrastructure\Adapter\Patient\QueryBusPatientSnapshotProvider
+
+    App\Context\Consultation\Application\Port\PatientAnimalOwnershipInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Patient\QueryBusPatientAnimalOwnership
 
     App\Context\Consultation\Application\Port\ConsultationReportPdfRendererInterface:
         class: App\Context\Consultation\Infrastructure\Document\ConsultationReportPdfRenderer
