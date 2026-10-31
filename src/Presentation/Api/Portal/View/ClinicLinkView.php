@@ -17,6 +17,8 @@ final readonly class ClinicLinkView
         public string $clinicId,
         public string $name,
         public ?string $city,
+        /** IANA time zone of the clinic, in which its clinical instants are emitted. */
+        public string $timezone,
         #[ApiProperty(schema: ['type' => 'string', 'enum' => ['confirmed']])]
         public string $linkStatus,
         #[ApiProperty(schema: ['type' => 'string', 'format' => 'date-time'])]

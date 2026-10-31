@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\ClientPortal\Application\Query\GetPortalPrescription;
 
-use App\Context\ClientPortal\Application\Port\ClinicNamesInterface;
+use App\Context\ClientPortal\Application\Port\ClinicProfileInterface;
 use App\Context\ClientPortal\Application\Port\PrescriptionDocumentsInterface;
 use App\Context\ClientPortal\Application\Port\PublishedDocumentReadModelInterface;
 use App\Context\ClientPortal\Domain\Document\DocumentType;
@@ -18,7 +18,7 @@ final readonly class GetPortalPrescriptionHandler
     public function __construct(
         private PublishedDocumentReadModelInterface $documents,
         private PrescriptionDocumentsInterface $prescriptions,
-        private ClinicNamesInterface $clinics,
+        private ClinicProfileInterface $clinics,
     ) {
     }
 

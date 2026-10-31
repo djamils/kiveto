@@ -148,6 +148,89 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
         );
     }
 
+    public function portalSummaries(ClinicId $clinicId, array $consultationIds): array
+    {
+        if ([] === $consultationIds) {
+            return [];
+        }
+
+        // One statement: the motifs are joined, so a consultation spans as
+        // many rows as it has motifs (one with a null label without any).
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT c.id, c.started_at_utc, c.chief_complaint, m.label
+             FROM consultation__consultations c
+             LEFT JOIN consultation__motifs m ON m.consultation_id = c.id
+             WHERE c.clinic_id = :clinicId AND c.id IN (:ids)
+             ORDER BY c.id ASC, m.position ASC',
+            [
+                'clinicId' => Uuid::fromString($clinicId->toString())->toBinary(),
+                'ids'      => self::toBinaryIds($consultationIds),
+            ],
+            ['ids' => ArrayParameterType::BINARY],
+        );
+
+        /** @var array<string, array{consultationId: string, startedAtUtc: string, chiefComplaint: ?string, motifs: list<string>}> $found */
+        $found = [];
+
+        foreach ($rows as $row) {
+            $id = RowAccessor::uuid($row, 'id');
+
+            $found[$id] ??= [
+                'consultationId' => $id,
+                'startedAtUtc'   => RowAccessor::string($row, 'started_at_utc'),
+                'chiefComplaint' => RowAccessor::nullableString($row, 'chief_complaint'),
+                'motifs'         => [],
+            ];
+
+            $label = RowAccessor::nullableString($row, 'label');
+
+            if (null !== $label) {
+                $found[$id]['motifs'][] = $label;
+            }
+        }
+
+        $summaries = [];
+
+        foreach (array_unique($consultationIds) as $consultationId) {
+            $key = Uuid::fromString($consultationId)->toRfc4122();
+
+            if (isset($found[$key])) {
+                $summaries[] = $found[$key];
+            }
+        }
+
+        return $summaries;
+    }
+
+    public function latestClosedWeight(ClinicId $clinicId, array $patientIds): ?array
+    {
+        if ([] === $patientIds) {
+            return null;
+        }
+
+        $row = $this->connection->fetchAssociative(
+            "SELECT weight_kg, started_at_utc FROM consultation__consultations
+             WHERE clinic_id = :clinicId AND patient_id IN (:patientIds)
+               AND status = 'CLOSED' AND weight_kg IS NOT NULL
+             ORDER BY started_at_utc DESC, id DESC
+             LIMIT 1",
+            [
+                'clinicId'   => Uuid::fromString($clinicId->toString())->toBinary(),
+                'patientIds' => self::toBinaryIds($patientIds),
+            ],
+            ['patientIds' => ArrayParameterType::BINARY],
+        );
+
+        if (false === $row) {
+            return null;
+        }
+
+        return [
+            'weightKg'     => RowAccessor::string($row, 'weight_kg'),
+            'startedAtUtc' => RowAccessor::string($row, 'started_at_utc'),
+        ];
+    }
+
     public function hasOpenConsultationForAdmission(
         AdmissionId $admissionId,
         ClinicId $clinicId,

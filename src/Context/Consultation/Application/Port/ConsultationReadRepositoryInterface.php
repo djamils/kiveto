@@ -44,6 +44,27 @@ interface ConsultationReadRepositoryInterface
     ): array;
 
     /**
+     * Start, chief complaint and motifs (in their order) of the listed
+     * consultations of the clinic, in the order of the requested ids. Unknown
+     * ids and other clinics' consultations are left out.
+     *
+     * @param list<string> $consultationIds
+     *
+     * @return list<array{consultationId: string, startedAtUtc: string, chiefComplaint: ?string, motifs: list<string>}>
+     */
+    public function portalSummaries(ClinicId $clinicId, array $consultationIds): array;
+
+    /**
+     * Weight and start of the most recent CLOSED consultation of the clinic,
+     * among the listed patients, that recorded a weight; null without one.
+     *
+     * @param list<string> $patientIds
+     *
+     * @return array{weightKg: string, startedAtUtc: string}|null
+     */
+    public function latestClosedWeight(ClinicId $clinicId, array $patientIds): ?array;
+
+    /**
      * Whether the admission still has a consultation running, ignoring one.
      *
      * A visit can carry several consultations; it is only over for the

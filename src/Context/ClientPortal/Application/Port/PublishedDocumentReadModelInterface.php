@@ -19,6 +19,16 @@ interface PublishedDocumentReadModelInterface
      */
     public function listable(string $userId, string $clinicId, ?string $type, ?string $petId, ?DocumentPosition $after, int $limit): array;
 
+    /**
+     * The listable documents of the given visits (`consultation_id`), newest
+     * first: an invoice only for its payer.
+     *
+     * @param list<string> $consultationIds
+     *
+     * @return list<ListedDocument>
+     */
+    public function listableOfVisits(string $userId, string $clinicId, array $consultationIds): array;
+
     /** A listable document of the account, or null. */
     public function find(string $userId, string $clinicId, string $documentId): ?ListedDocument;
 

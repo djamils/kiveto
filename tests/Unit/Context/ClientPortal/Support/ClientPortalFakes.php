@@ -6,7 +6,7 @@ namespace App\Tests\Unit\Context\ClientPortal\Support;
 
 use App\Context\ClientPortal\Application\Port\ClientDirectoryInterface;
 use App\Context\ClientPortal\Application\Port\ClinicLabel;
-use App\Context\ClientPortal\Application\Port\ClinicNamesInterface;
+use App\Context\ClientPortal\Application\Port\ClinicProfileInterface;
 use App\Context\ClientPortal\Application\Port\IdentityClaim;
 use App\Context\ClientPortal\Application\Port\IdentityClaimRequest;
 use App\Context\ClientPortal\Application\Port\IdentityClaimResult;
@@ -19,6 +19,7 @@ use App\Context\ClientPortal\Application\Port\PortalClientSnapshot;
 use App\Context\ClientPortal\Application\Port\PortalIdentityInterface;
 use App\Context\ClientPortal\Application\Port\PortalInvitationMessage;
 use App\Shared\Application\Bus\EventBusInterface;
+use App\Shared\Application\Document\DocumentClinic;
 use App\Shared\Domain\Event\DomainEventInterface;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Security\OpaqueTokenHasherInterface;
@@ -29,7 +30,7 @@ use App\Shared\Domain\ValueObject\PostalAddress;
  * clinics, pets, a switchable mobile policy, recorded messages, predictable
  * tokens and ids, and an owner-account claim answered by a closure.
  */
-final class ClientPortalFakes implements ClientDirectoryInterface, ClinicNamesInterface, PetNamesInterface, MobilePhonePolicyInterface, NotificationRequesterInterface, InvitationLinkBuilderInterface, PortalIdentityInterface, OpaqueTokenHasherInterface, UuidGeneratorInterface, EventBusInterface
+final class ClientPortalFakes implements ClientDirectoryInterface, ClinicProfileInterface, PetNamesInterface, MobilePhonePolicyInterface, NotificationRequesterInterface, InvitationLinkBuilderInterface, PortalIdentityInterface, OpaqueTokenHasherInterface, UuidGeneratorInterface, EventBusInterface
 {
     public const string USER = '01960000-0000-7000-8000-0000000c0001';
 
@@ -41,6 +42,9 @@ final class ClientPortalFakes implements ClientDirectoryInterface, ClinicNamesIn
 
     /** @var array<string, ClinicLabel> by clinic id */
     public array $clinics = [];
+
+    /** @var array<string, DocumentClinic> by clinic id */
+    public array $headers = [];
 
     /** @var array<string, list<string>> by "clinic/client" */
     public array $pets = [];
@@ -92,6 +96,11 @@ final class ClientPortalFakes implements ClientDirectoryInterface, ClinicNamesIn
     public function clinicOf(string $clinicId): ClinicLabel
     {
         return $this->clinics[$clinicId] ?? new ClinicLabel('', null);
+    }
+
+    public function documentHeaderOf(string $clinicId): ?DocumentClinic
+    {
+        return $this->headers[$clinicId] ?? null;
     }
 
     public function petNamesOf(string $clinicId, string $clientId): array

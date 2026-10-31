@@ -8,6 +8,7 @@ use App\Context\Billing\Application\Query\SearchInvoices\InvoiceListRow;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ClinicVeterinarianItem;
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ListClinicVeterinarians;
+use App\Context\Consultation\Application\Service\VisitTitle;
 use App\Context\Consultation\Domain\ValueObject\VitalType;
 use App\Shared\Application\Bus\QueryBusInterface;
 use Doctrine\DBAL\ArrayParameterType;
@@ -463,19 +464,14 @@ final readonly class DossierVisitReader
 
     /**
      * The motifs read as a short title (« Vaccination et bilan annuel »); the
-     * chief complaint stands in when none was picked.
+     * chief complaint stands in when none was picked. The rule is Consultation's
+     * `VisitTitle`, shared with the Portal timeline.
      *
      * @param list<string> $motifs
      */
     public function visitTitle(array $motifs, ?string $reason): string
     {
-        if ([] !== $motifs) {
-            $rest = array_map(static fn (string $m): string => mb_strtolower(mb_substr($m, 0, 1)) . mb_substr($m, 1), \array_slice($motifs, 1));
-
-            return implode(' et ', [$motifs[0], ...$rest]);
-        }
-
-        return null === $reason ? 'Consultation' : rtrim($reason, '. ');
+        return VisitTitle::of($motifs, $reason);
     }
 
     public function number(float $value): string

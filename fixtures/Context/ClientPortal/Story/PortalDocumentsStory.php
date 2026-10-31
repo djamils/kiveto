@@ -109,6 +109,47 @@ final class PortalDocumentsStory extends Story
         $this->revokedLink();
     }
 
+    /**
+     * A one-page PDF (Helvetica, WinAnsi) with a title and a few lines.
+     *
+     * @param list<string> $lines
+     */
+    public static function pdf(string $title, array $lines): string
+    {
+        $text = \sprintf("BT /F1 18 Tf 56 770 Td (%s) Tj ET\n", self::pdfText($title));
+        $y    = 735;
+
+        foreach ($lines as $line) {
+            $text .= \sprintf("BT /F1 11 Tf 56 %d Td (%s) Tj ET\n", $y, self::pdfText($line));
+            $y -= 20;
+        }
+
+        $objects = [
+            '<< /Type /Catalog /Pages 2 0 R >>',
+            '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+            '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+            '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+            '<< /Length ' . \strlen($text) . " >>\nstream\n" . $text . 'endstream',
+        ];
+
+        $pdf     = "%PDF-1.4\n";
+        $offsets = [];
+
+        foreach ($objects as $i => $object) {
+            $offsets[] = \strlen($pdf);
+            $pdf .= ($i + 1) . " 0 obj\n" . $object . "\nendobj\n";
+        }
+
+        $xref = \strlen($pdf);
+        $pdf .= "xref\n0 " . (\count($objects) + 1) . "\n0000000000 65535 f \n";
+
+        foreach ($offsets as $offset) {
+            $pdf .= \sprintf("%010d 00000 n \n", $offset);
+        }
+
+        return $pdf . 'trailer << /Size ' . (\count($objects) + 1) . " /Root 1 0 R >>\nstartxref\n" . $xref . "\n%%EOF\n";
+    }
+
     /** Sophie Garnier (« busy » client sheet): every kind of document, more than 20. */
     private function busyOwner(): void
     {
@@ -564,47 +605,6 @@ final class PortalDocumentsStory extends Story
     private static function utc(string $at): \DateTimeImmutable
     {
         return new \DateTimeImmutable($at, new \DateTimeZone('UTC'));
-    }
-
-    /**
-     * A one-page PDF (Helvetica, WinAnsi) with a title and a few lines.
-     *
-     * @param list<string> $lines
-     */
-    private static function pdf(string $title, array $lines): string
-    {
-        $text = \sprintf("BT /F1 18 Tf 56 770 Td (%s) Tj ET\n", self::pdfText($title));
-        $y    = 735;
-
-        foreach ($lines as $line) {
-            $text .= \sprintf("BT /F1 11 Tf 56 %d Td (%s) Tj ET\n", $y, self::pdfText($line));
-            $y -= 20;
-        }
-
-        $objects = [
-            '<< /Type /Catalog /Pages 2 0 R >>',
-            '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-            '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
-            '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
-            '<< /Length ' . \strlen($text) . " >>\nstream\n" . $text . 'endstream',
-        ];
-
-        $pdf     = "%PDF-1.4\n";
-        $offsets = [];
-
-        foreach ($objects as $i => $object) {
-            $offsets[] = \strlen($pdf);
-            $pdf .= ($i + 1) . " 0 obj\n" . $object . "\nendobj\n";
-        }
-
-        $xref = \strlen($pdf);
-        $pdf .= "xref\n0 " . (\count($objects) + 1) . "\n0000000000 65535 f \n";
-
-        foreach ($offsets as $offset) {
-            $pdf .= \sprintf("%010d 00000 n \n", $offset);
-        }
-
-        return $pdf . 'trailer << /Size ' . (\count($objects) + 1) . " /Root 1 0 R >>\nstartxref\n" . $xref . "\n%%EOF\n";
     }
 
     private static function pdfText(string $utf8): string

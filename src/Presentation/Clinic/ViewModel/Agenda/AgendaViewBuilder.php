@@ -12,6 +12,7 @@ use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\Appoint
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\GetAgendaForClinicDateRange;
 use App\Context\Scheduling\Application\Query\ListPlanningBlocksForClinicDateRange\ListPlanningBlocksForClinicDateRange;
 use App\Context\Scheduling\Application\Query\ListPlanningBlocksForClinicDateRange\PlanningBlockView;
+use App\Context\Scheduling\Domain\ValueObject\AppointmentCategory;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Domain\Localization\TimeZone;
 use App\Shared\Domain\Time\ClockInterface;
@@ -167,18 +168,7 @@ final readonly class AgendaViewBuilder
      */
     public static function motif(?string $reason): string
     {
-        $r = mb_strtolower(trim((string) $reason));
-
-        // Most specific first: « Contrôle post-stérilisation » is a follow-up, not a surgery
-        return match (true) {
-            '' === $r                                                                       => 'consult',
-            1 === preg_match('/urgen|trauma|avp|intoxication|dyspn/u', $r)                  => 'urg',
-            1 === preg_match('/vaccin|rappel|primo/u', $r)                                  => 'vaccin',
-            1 === preg_match('/suivi|contrôle|retrait|post-op/u', $r)                       => 'suivi',
-            str_contains($r, 'bilan')                                                       => 'bilan',
-            1 === preg_match('/chirurg|stérilis|castration|détartrage|exérèse|ostéo/u', $r) => 'chir',
-            default                                                                         => 'consult',
-        };
+        return AppointmentCategory::fromReason($reason)->value;
     }
 
     /**

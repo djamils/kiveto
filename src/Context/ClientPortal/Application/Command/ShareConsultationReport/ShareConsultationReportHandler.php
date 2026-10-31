@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\ClientPortal\Application\Command\ShareConsultationReport;
 
-use App\Context\ClientPortal\Application\Port\ClinicNamesInterface;
+use App\Context\ClientPortal\Application\Port\ClinicProfileInterface;
 use App\Context\ClientPortal\Application\Port\ConsultationDocumentsInterface;
 use App\Context\ClientPortal\Application\Service\DocumentPublisher;
 use App\Context\ClientPortal\Domain\Document\DocumentType;
@@ -29,7 +29,7 @@ final readonly class ShareConsultationReportHandler
     public function __construct(
         private ConsultationDocumentsInterface $consultations,
         private PublishedDocumentRepositoryInterface $documents,
-        private ClinicNamesInterface $clinics,
+        private ClinicProfileInterface $clinics,
         private DocumentPublisher $publisher,
         private UuidGeneratorInterface $uuids,
         private ClockInterface $clock,

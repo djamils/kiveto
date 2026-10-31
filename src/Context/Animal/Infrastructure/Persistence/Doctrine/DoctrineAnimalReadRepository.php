@@ -13,12 +13,17 @@ use App\Context\Animal\Application\Query\GetAnimalById\LifeCycleDto;
 use App\Context\Animal\Application\Query\GetAnimalById\OwnershipDto;
 use App\Context\Animal\Application\Query\GetAnimalById\TransferDto;
 use App\Context\Animal\Application\Query\ListAnimalSummariesPerClientIds\AnimalSummary;
+use App\Context\Animal\Application\Query\ListLatestPreventiveCare\LatestPreventiveCareView;
+use App\Context\Animal\Application\Query\ListPortalPets\PortalPetView;
 use App\Context\Animal\Application\Query\SearchAnimals\AnimalListItemView;
 use App\Context\Animal\Application\Query\SearchAnimals\SearchAnimalsCriteria;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
+use App\Context\Animal\Domain\ValueObject\AnimalStatus;
 use App\Context\Animal\Domain\ValueObject\ClinicId;
+use App\Context\Animal\Domain\ValueObject\LifeStatus;
 use App\Context\Animal\Domain\ValueObject\OwnershipRole;
 use App\Context\Animal\Domain\ValueObject\OwnershipStatus;
+use App\Context\Animal\Domain\ValueObject\TransferStatus;
 use App\Context\Animal\Infrastructure\Persistence\Doctrine\Entity\AnimalEntity;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\ArrayParameterType;
@@ -233,6 +238,116 @@ final readonly class DoctrineAnimalReadRepository implements AnimalReadRepositor
             clinicId: $entity->getClinicId()->toString(),
             name: $entity->getName(),
         );
+    }
+
+    public function listPortalPets(ClinicId $clinicId, array $clientIds): array
+    {
+        if ([] === $clientIds) {
+            return [];
+        }
+
+        $rows = $this->entityManager->getConnection()->fetchAllAssociative(
+            'SELECT a.id, o.client_id, a.name, a.species, a.breed_name, a.is_mixed_breed, a.sex,
+                    a.reproductive_status, DATE(a.birth_date) AS birth_date, a.life_status, a.microchip_number
+             FROM animal__ownerships o
+             JOIN animal__animals a ON a.id = o.animal_id
+             WHERE a.clinic_id = :clinicId
+               AND o.client_id IN (:clientIds)
+               AND o.role = :role
+               AND o.status = :ownershipStatus
+               AND a.status = :animalStatus
+               AND a.transfer_status = :transferStatus
+             ORDER BY a.life_status = :alive DESC, a.name ASC, a.id ASC',
+            [
+                'clinicId'        => Uuid::fromString($clinicId->toString())->toBinary(),
+                'clientIds'       => $this->binaryIds($clientIds),
+                'role'            => OwnershipRole::PRIMARY->value,
+                'ownershipStatus' => OwnershipStatus::ACTIVE->value,
+                'animalStatus'    => AnimalStatus::ACTIVE->value,
+                'transferStatus'  => TransferStatus::NONE->value,
+                'alive'           => LifeStatus::ALIVE->value,
+            ],
+            ['clientIds' => ArrayParameterType::BINARY],
+        );
+
+        return array_map(
+            static fn (array $row): PortalPetView => new PortalPetView(
+                id: RowAccessor::uuid($row, 'id'),
+                primaryOwnerClientId: RowAccessor::uuid($row, 'client_id'),
+                name: RowAccessor::string($row, 'name'),
+                species: RowAccessor::string($row, 'species'),
+                breedName: RowAccessor::nullableString($row, 'breed_name'),
+                isMixedBreed: 1 === RowAccessor::int($row, 'is_mixed_breed'),
+                sex: RowAccessor::string($row, 'sex'),
+                reproductiveStatus: RowAccessor::string($row, 'reproductive_status'),
+                birthDate: self::nullableDate($row, 'birth_date'),
+                lifeStatus: RowAccessor::string($row, 'life_status'),
+                microchipNumber: RowAccessor::nullableString($row, 'microchip_number'),
+            ),
+            $rows,
+        );
+    }
+
+    public function listLatestPreventiveCare(ClinicId $clinicId, array $animalIds): array
+    {
+        if ([] === $animalIds) {
+            return [];
+        }
+
+        // Every record is ranked, so a renewal without a due date hides an older
+        // act that had one; callers filter on `nextDueOn` themselves.
+        $rows = $this->entityManager->getConnection()->fetchAllAssociative(
+            'SELECT animal_id, kind, label, administered_on, batch_number, next_due_on
+             FROM (
+                 SELECT animal_id, kind, label, administered_on, batch_number, next_due_on,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY animal_id, kind, LOWER(label)
+                            ORDER BY administered_on DESC, recorded_at DESC
+                        ) AS rank_in_protocol
+                 FROM animal__preventive_care_records
+                 WHERE clinic_id = :clinicId
+                   AND animal_id IN (:animalIds)
+             ) acts
+             WHERE rank_in_protocol = 1
+             ORDER BY animal_id, kind, label',
+            [
+                'clinicId'  => Uuid::fromString($clinicId->toString())->toBinary(),
+                'animalIds' => $this->binaryIds($animalIds),
+            ],
+            ['animalIds' => ArrayParameterType::BINARY],
+        );
+
+        return array_map(
+            static fn (array $row): LatestPreventiveCareView => new LatestPreventiveCareView(
+                animalId: RowAccessor::uuid($row, 'animal_id'),
+                kind: RowAccessor::string($row, 'kind'),
+                label: RowAccessor::string($row, 'label'),
+                administeredOn: new \DateTimeImmutable(RowAccessor::string($row, 'administered_on')),
+                batchNumber: RowAccessor::nullableString($row, 'batch_number'),
+                nextDueOn: self::nullableDate($row, 'next_due_on'),
+            ),
+            $rows,
+        );
+    }
+
+    /**
+     * @param list<string> $ids UUID strings
+     *
+     * @return list<string>
+     */
+    private function binaryIds(array $ids): array
+    {
+        return array_map(static fn (string $id): string => Uuid::fromString($id)->toBinary(), $ids);
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private static function nullableDate(array $row, string $key): ?\DateTimeImmutable
+    {
+        $value = RowAccessor::nullableString($row, $key);
+
+        return null === $value ? null : new \DateTimeImmutable($value);
     }
 
     private function applySearchCriteria(QueryBuilder $qb, SearchAnimalsCriteria $criteria): void

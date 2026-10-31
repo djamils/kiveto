@@ -11,6 +11,7 @@ The **Scheduling** Bounded Context manages planning blocks and appointments for 
 - **PractitionerAssignee** — the veterinary professional assigned to an appointment.
 - **TimeSlot** — start time (UTC) and duration in minutes defining when an appointment occurs.
 - **TimeRange** — a date + start time + end time defining a planning block's active window.
+- **AppointmentCategory** — the category of a booking read from its free-text reason (`AppointmentCategory::fromReason`): `urg`, `vaccin`, `suivi`, `bilan`, `chir`, else `consult` (blank reason included), tested in that order (« Contrôle post-stérilisation » is a follow-up). It is the agenda chip and the Portal's motif label.
 
 ## Aggregates
 
@@ -38,6 +39,10 @@ Represents a scheduled patient visit. Carries: clinic ID, practitioner assignee,
 | `PlanningBlockFinderInterface` | Finds the active planning block covering a given time slot |
 | `AppointmentConflictCheckerInterface` | Checks for overlapping appointments |
 | `PlanningBlockAppointmentCounterInterface` | Counts appointments in a block for capacity enforcement |
+
+## Queries for the Client Portal
+
+- **`GetNextAppointmentForAnimals(clinicId, animalIds, nowUtc)`** → `?NextAppointmentItem{id, animalId, startsAtUtc, practitionerUserId, category}`: the earliest `PLANNED` appointment of the clinic for one of the given animals with `starts_at_utc >= now`, ties broken by id. An empty animal list returns null without a query; appointments without animal never match. The reason is read only to compute the category; neither the reason nor the notes leave Scheduling.
 
 ## Client Messages and Reminders
 

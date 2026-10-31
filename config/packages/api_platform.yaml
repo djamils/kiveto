@@ -14,6 +14,9 @@ api_platform:
     defaults:
         stateless: true
         pagination_enabled: false
+        # The contract writes absent values as explicit nulls, never omitted keys.
+        normalization_context:
+            skip_null_values: false
         cache_headers:
             vary: ['Content-Type', 'Authorization']
     mapping:

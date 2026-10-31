@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\ClientPortal\Application\Query\ListOwnerClinics;
 
-use App\Context\ClientPortal\Application\Port\ClinicNamesInterface;
+use App\Context\ClientPortal\Application\Port\ClinicProfileInterface;
 use App\Context\ClientPortal\Application\Port\PetNamesInterface;
 use App\Context\ClientPortal\Domain\Link\ClientLinkRepositoryInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -18,7 +18,7 @@ final readonly class ListOwnerClinicsHandler
 {
     public function __construct(
         private ClientLinkRepositoryInterface $links,
-        private ClinicNamesInterface $clinics,
+        private ClinicProfileInterface $clinics,
         private PetNamesInterface $pets,
     ) {
     }
@@ -45,7 +45,7 @@ final readonly class ListOwnerClinicsHandler
 
         foreach ($byClinic as $clinicId => $entry) {
             $clinic    = $this->clinics->clinicOf($clinicId);
-            $clinics[] = new OwnerClinic($clinicId, $clinic->name, $clinic->city, $entry['linkedAt'], $entry['petNames']);
+            $clinics[] = new OwnerClinic($clinicId, $clinic->name, $clinic->city, $entry['linkedAt'], $entry['petNames'], $clinic->timeZone);
         }
 
         return $clinics;

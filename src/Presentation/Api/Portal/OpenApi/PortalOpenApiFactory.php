@@ -52,6 +52,28 @@ final readonly class PortalOpenApiFactory implements OpenApiFactoryInterface
             'application/pdf',
             true,
         ],
+        '/clinics/{clinicId}/pets/{petId}/vaccination-booklet' => [
+            'api_portal_vaccination_booklet',
+            'Animaux',
+            'Télécharger le carnet de vaccination d\'un animal.',
+            'PDF généré à la volée et mis en cache tant que ses données ne changent pas (vaccinations, identité, puce, en-tête de la clinique). « Aucune vaccination enregistrée » quand il n\'y en a pas. Servi aussi pour un animal décédé. Redirige vers une URL signée valable 5 minutes.',
+            ['clinicId', 'petId'],
+            '302',
+            'Redirection vers l\'URL signée (`Cache-Control: private, no-store`).',
+            null,
+            false,
+        ],
+        '/files/booklets/{clinicId}/{animalId}/{hash}' => [
+            'api_portal_booklet_download',
+            'Fichiers',
+            'Le PDF d\'un carnet de vaccination (URL signée).',
+            'Publique : la signature tient lieu d\'authentification, 5 minutes.',
+            ['clinicId', 'animalId', 'hash'],
+            '200',
+            'Le PDF (`Cache-Control: private, no-store`).',
+            'application/pdf',
+            true,
+        ],
     ];
 
     public function __construct(

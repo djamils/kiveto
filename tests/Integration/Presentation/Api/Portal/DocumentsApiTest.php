@@ -99,6 +99,7 @@ final class DocumentsApiTest extends PortalApiTestCase
         $wrongShape = rtrim(strtr(base64_encode('{"v":1,"p":{"at":"yesterday","id":"x"}}'), '+/', '-_'), '=');
         self::assertSame('cursor_invalid', self::problemType($this->authGet('/clinics/' . self::CLINIC . '/documents?cursor=' . $wrongShape), 400));
         self::assertSame('validation_failed', self::problemType($this->authGet('/clinics/' . self::CLINIC . '/documents?type=letter'), 422));
+        self::assertSame([], self::json($this->authGet('/clinics/' . self::CLINIC . '/documents?limit=500'), 200)['items'], 'clamped, not refused');
     }
 
     public function testTheFileRouteMarksReadAndRedirectsToAFiveMinuteSignedUrl(): void

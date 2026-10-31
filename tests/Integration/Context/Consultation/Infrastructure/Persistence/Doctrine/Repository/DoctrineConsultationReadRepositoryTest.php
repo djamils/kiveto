@@ -392,6 +392,14 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
         self::assertSame([], $this->readRepository->listForPatients([], ClinicId::fromString(self::CLINIC_ID)));
     }
 
+    public function testPortalSummariesAndLatestClosedWeightAnswerNothingWithoutIds(): void
+    {
+        $this->startAndSave(self::CONSULTATION_1, self::CLINIC_ID, self::PATIENT_ID, '2026-04-10 09:00:00');
+
+        self::assertSame([], $this->readRepository->portalSummaries(ClinicId::fromString(self::CLINIC_ID), []));
+        self::assertNull($this->readRepository->latestClosedWeight(ClinicId::fromString(self::CLINIC_ID), []));
+    }
+
     public function testListForPatientsReturnsConsultationsOfEveryPatientMostRecentFirst(): void
     {
         $closed = $this->startAndSave(

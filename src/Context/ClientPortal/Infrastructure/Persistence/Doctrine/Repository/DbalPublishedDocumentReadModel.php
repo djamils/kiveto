@@ -12,6 +12,7 @@ use App\Context\ClientPortal\Domain\Document\DocumentType;
 use App\Context\ClientPortal\Domain\Document\PublicationStatus;
 use App\Context\ClientPortal\Domain\Link\ClientLinkStatus;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 
 /**
@@ -30,7 +31,7 @@ final readonly class DbalPublishedDocumentReadModel implements PublishedDocument
         . "', '" . PublicationStatus::FAILED->value . "') AND d.file_version >= 1 AND d.storage_key IS NOT NULL";
 
     private const string SELECT = 'SELECT d.id, d.type, d.source_ref, d.title, d.pet_ids, d.issued_at, d.file_version, d.storage_key,'
-        . ' d.practitioner_name, (r.document_id IS NULL) AS unread'
+        . ' d.practitioner_name, d.consultation_id, (r.document_id IS NULL) AS unread'
         . ' FROM ' . self::DOCUMENTS . ' d'
         . ' LEFT JOIN ' . self::READS . ' r ON r.document_id = d.id AND r.user_id = :user';
 
@@ -65,6 +66,26 @@ final readonly class DbalPublishedDocumentReadModel implements PublishedDocument
         $rows = $this->connection->fetchAllAssociative(
             self::SELECT . ' WHERE ' . implode(' AND ', $where) . ' ORDER BY d.issued_at DESC, d.id DESC LIMIT ' . max(1, $limit),
             $parameters,
+        );
+
+        return array_map(self::hydrate(...), $rows);
+    }
+
+    public function listableOfVisits(string $userId, string $clinicId, array $consultationIds): array
+    {
+        if ([] === $consultationIds) {
+            return [];
+        }
+
+        $rows = $this->connection->fetchAllAssociative(
+            self::SELECT . ' WHERE ' . self::SCOPE . ' AND ' . self::LISTABLE . ' AND d.consultation_id IN (:visits)'
+            . ' ORDER BY d.issued_at DESC, d.id DESC',
+            [
+                'user'   => SqlValues::binary($userId),
+                'clinic' => SqlValues::binary($clinicId),
+                'visits' => array_map(SqlValues::binary(...), $consultationIds),
+            ],
+            ['visits' => ArrayParameterType::BINARY],
         );
 
         return array_map(self::hydrate(...), $rows);
@@ -171,6 +192,7 @@ final readonly class DbalPublishedDocumentReadModel implements PublishedDocument
             fileVersion: RowAccessor::int($row, 'file_version'),
             storageKey: RowAccessor::string($row, 'storage_key'),
             practitionerName: RowAccessor::nullableString($row, 'practitioner_name'),
+            consultationId: RowAccessor::nullableUuid($row, 'consultation_id'),
         );
     }
 }

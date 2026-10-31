@@ -335,8 +335,8 @@ services:
     App\Context\ClientPortal\Application\Port\MobilePhonePolicyInterface:
         class: App\Context\ClientPortal\Infrastructure\Adapter\Client\QueryBusMobilePhonePolicy
 
-    App\Context\ClientPortal\Application\Port\ClinicNamesInterface:
-        class: App\Context\ClientPortal\Infrastructure\Adapter\Clinic\QueryBusClinicNames
+    App\Context\ClientPortal\Application\Port\ClinicProfileInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Clinic\QueryBusClinicProfile
 
     App\Context\ClientPortal\Application\Port\PetNamesInterface:
         class: App\Context\ClientPortal\Infrastructure\Adapter\Animal\QueryBusPetNames
@@ -364,6 +364,36 @@ services:
 
     App\Context\ClientPortal\Application\Port\DocumentFileJobsInterface:
         class: App\Context\ClientPortal\Infrastructure\Messaging\MessengerDocumentFileJobs
+
+    App\Context\ClientPortal\Application\Port\PetDirectoryInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Animal\QueryBusPetDirectory
+
+    App\Context\ClientPortal\Application\Port\PreventiveCareInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Animal\QueryBusPreventiveCare
+
+    App\Context\ClientPortal\Application\Port\AnimalWeightsInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Animal\QueryBusAnimalWeights
+
+    App\Context\ClientPortal\Application\Port\VaccinationRecordsInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Animal\QueryBusVaccinationRecords
+
+    App\Context\ClientPortal\Application\Port\VisitSummariesInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Consultation\QueryBusVisitSummaries
+
+    App\Context\ClientPortal\Application\Port\ConsultationWeightsInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Consultation\QueryBusConsultationWeights
+
+    App\Context\ClientPortal\Application\Port\OwnerAppointmentsInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Scheduling\QueryBusOwnerAppointments
+
+    App\Context\ClientPortal\Application\Port\PractitionerNamesInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Clinic\QueryBusPractitionerNames
+
+    App\Context\ClientPortal\Application\Port\BookletRendererInterface:
+        class: App\Context\ClientPortal\Infrastructure\Document\TwigVaccinationBookletRenderer
+
+    App\Context\ClientPortal\Application\Port\BookletFileRepositoryInterface:
+        class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalBookletFileRepository
 
     # ============================================================================
     # BOUNDED CONTEXT: TRANSLATION

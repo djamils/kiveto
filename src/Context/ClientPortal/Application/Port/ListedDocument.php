@@ -20,6 +20,8 @@ final readonly class ListedDocument
         public int $fileVersion,
         public string $storageKey,
         public ?string $practitionerName,
+        /** The visit the document belongs to, when it has one. */
+        public ?string $consultationId = null,
     ) {
     }
 }

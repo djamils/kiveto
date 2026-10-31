@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Context\ClientPortal\Application\Command\SendPortalInvitation;
 
 use App\Context\ClientPortal\Application\Port\ClientDirectoryInterface;
-use App\Context\ClientPortal\Application\Port\ClinicNamesInterface;
+use App\Context\ClientPortal\Application\Port\ClinicProfileInterface;
 use App\Context\ClientPortal\Application\Port\InvitationLinkBuilderInterface;
 use App\Context\ClientPortal\Application\Port\MobilePhonePolicyInterface;
 use App\Context\ClientPortal\Application\Port\NotificationRequesterInterface;
@@ -37,7 +37,7 @@ final readonly class SendPortalInvitationHandler
         private PortalInvitationRepositoryInterface $invitations,
         private ClientDirectoryInterface $clients,
         private MobilePhonePolicyInterface $mobilePolicy,
-        private ClinicNamesInterface $clinics,
+        private ClinicProfileInterface $clinics,
         private InvitationLinkBuilderInterface $links,
         private NotificationRequesterInterface $notifications,
         private OpaqueTokenHasherInterface $hasher,

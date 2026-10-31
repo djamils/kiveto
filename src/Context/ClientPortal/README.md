@@ -27,8 +27,13 @@ Portal **profile** (name, postal address, accepted terms of use).
   (`OpaqueTokenHasherInterface`); only its sha256 is kept. It travels in the
   URL fragment (`…/invitation#t=<token>`), never in a path.
 - **Cross-context access through ports only**: Client (`GetClientNotificationContact`,
-  `GetClientById`, `IsPortalMobileNumber`), Clinic (`GetClinic`), Animal
-  (`ListAnimalSummariesPerClientIds`), IdentityAccess (`ClaimPortalIdentity`,
+  `GetClientById`, `IsPortalMobileNumber`), Clinic (`GetClinic` through
+  `ClinicProfileInterface`, `ListClinicVeterinarians`), Animal
+  (`ListAnimalSummariesPerClientIds`, `ListPortalPets`, `GetAnimalById`,
+  `ListLatestPreventiveCare`, `ListAnimalWeightRecords`,
+  `ListAnimalPreventiveCare`), Consultation (`GetConsultationPortalSummaries`,
+  `GetLatestClosedConsultationWeight`), Scheduling
+  (`GetNextAppointmentForAnimals`), IdentityAccess (`ClaimPortalIdentity`,
   `RevokeOnboardingGrantsForPhone`), Notification (`RequestNotification`).
 
 ## Ubiquitous Language
@@ -74,7 +79,7 @@ Portal **profile** (name, postal address, accepted terms of use).
 | `GetPortalInvitationByToken(token)` | query | `PortalInvitationDetails` (clinic name and city, e-mail, phone, active pet names, expiry); `InvitationInvalidException` / `InvitationExpiredException` / `InvitationAlreadyUsedException`. |
 | `ListPendingInvitationsForPhone(phone)` | query | Pending, unexpired invitations of a phone (`invitationId`, clinic name, city) — IdentityAccess's pending-invitation port. |
 | `GetClientPortalStatus(clinicId, clientId)` | query | The sheet state: a confirmed link → `active`; else the pending invitation → `invited` / `expired`, unless it predates the access withdrawal → `revoked`; else `not_invited`. |
-| `ListOwnerClinics(userId)` | query | Confirmed links, one entry per clinic (name, city, earliest `linkedAt`, pet names). |
+| `ListOwnerClinics(userId)` | query | Confirmed links, one entry per clinic (name, city, IANA time zone, earliest `linkedAt`, pet names). |
 | `GetOwnerProfile(userId)` | query | `?OwnerProfileDetails{firstName, lastName, address: ?{line1, line2, postalCode, city, country}, termsVersion, termsAcceptedAt}`. |
 | `HasConfirmedClientLink(userId, clinicId)` | query | The Portal API's tenant guard (false for a missing, pending or revoked link). |
 
@@ -128,6 +133,52 @@ context: the Portal reads the sources live through query-bus ports.
 | `CountUnreadDocumentsPerClinic(userId)` | query | `GET /me` badge. |
 | `GetPortalPrescription(userId, clinicId, prescriptionId)` | query | Lines of a listed prescription. |
 
+## Pets (slice 3)
+
+Read-only: the Portal shows the animals through Animal, Consultation and
+Scheduling queries, and the registry above for the visits.
+
+- **Visible pets** (`OwnerPets`). Animal's `ListPortalPets` over the client
+  files the account reaches through a **confirmed** link of the clinic, read
+  from `client_portal__client_links`: active animals of an active primary
+  owner, never sold or given. Any other pet id is `PetNotFoundException` (404).
+  Deceased and missing pets stay in the list, the detail and the timeline,
+  but get no care item and never appear on the home.
+- **Latest weight.** The most recent of the animal file's weight records and
+  the vitals of CLOSED consultations, compared on the clinic-local day (a
+  visit is dated by its start); on the same day the animal file wins.
+- **Referent vet.** The practitioner snapshotted on the latest report shared
+  with the account; null without one.
+- **Care items.** The latest act of each protocol with a next due date
+  (`ListLatestPreventiveCare`), `CareItemStatusPolicy`: overdue before the
+  clinic-local today, due soon within 30 days, else up to date; nearest due
+  date first.
+- **Timeline.** The pet's listable report rows addressed to the account,
+  cursor `(issued_at, id)`; per page one `GetConsultationPortalSummaries`
+  (start, title) and one registry read of the visits' documents.
+- **Home.** Alive pets, their 3 nearest care items, the next PLANNED
+  appointment of an alive pet (fixed French label of its category,
+  practitioner from one `ListClinicVeterinarians`), the first 2 documents of
+  `ListPublishedDocuments`.
+- **Vaccination booklet** (`VaccinationBookletFiles::ensure(clinicId,
+  animalId)`, called without a bus once `GetOwnerPet` succeeded). The PDF is
+  rendered from `templates/portal/document/vaccination_booklet.html.twig` and
+  cached under `client_portal/booklets/<animalId>-<sha256>.pdf`, the hash of
+  every render input (vaccinations, identity, clinic header,
+  `TEMPLATE_VERSION`); the current key per animal is kept in
+  `client_portal__booklet_files`, a replaced booklet is deleted 10 minutes
+  later.
+
+Instants are returned in the clinic's time zone; date-only values are dates.
+
+| Query | What it answers |
+|---|---|
+| `ListOwnerPets(userId, clinicId)` | `list<OwnerPet>`, alive first, then by name. |
+| `GetOwnerPet(userId, clinicId, petId)` | `OwnerPetDetails{pet, lastWeight?, chipNumberMasked?, referentVet?}`, null when not visible. |
+| `ListOwnerCareItems(userId, clinicId, petId)` | `list<OwnerCareItem>`; `PetNotFoundException`. |
+| `ListPetTimeline(userId, clinicId, petId, cursor?, limit?)` | `CursorPage<TimelineEntry>`; `PetNotFoundException`, `InvalidCursorException`. |
+| `GetOwnerHome(userId, clinicId)` | `OwnerHome{nextAppointment?, pets, careItems, latestDocuments}`. |
+
 ## Events
 
 - `PortalInvitationSent` (`reissued` on a resend), `PortalInvitationAccepted`,
@@ -153,8 +204,9 @@ Raw DBAL repositories (`FOR UPDATE` reads, upserts) over schema-only Doctrine
 entities: `client_portal__portal_invitations` (`token_hash` unique, index on
 `phone`), `client_portal__client_links` (unique `user_id, clinic_id,
 client_id`), `client_portal__owner_profiles` (PK `user_id`),
-`client_portal__published_documents` (unique `clinic_id, type, source_ref`) and
-`client_portal__document_reads` (PK `document_id, user_id`). Migrations in
+`client_portal__published_documents` (unique `clinic_id, type, source_ref`),
+`client_portal__document_reads` (PK `document_id, user_id`) and
+`client_portal__booklet_files` (PK `animal_id`). Migrations in
 `migrations/ClientPortal/`.
 
 ## Configuration

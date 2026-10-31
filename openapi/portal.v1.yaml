@@ -8,6 +8,242 @@ servers:
     url: /
     description: ''
 paths:
+  '/api/portal/v1/clinics/{clinicId}/home':
+    get:
+      operationId: api_clinics_clinicIdhome_get
+      tags:
+        - Animaux
+      responses:
+        '200':
+          description: "L'accueil."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Home'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: '`not_found` (pas de lien confirmé avec la clinique).'
+      summary: "L'accueil du propriétaire dans cette clinique."
+      description: 'Animaux vivants seulement. Prochain rendez-vous, 3 soins aux échéances les plus proches, 2 derniers documents. Une section vide est un tableau vide (`nextAppointment: null`).'
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'Home identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+  '/api/portal/v1/clinics/{clinicId}/pets':
+    get:
+      operationId: api_clinics_clinicIdpets_get_collection
+      tags:
+        - Animaux
+      responses:
+        '200':
+          description: 'Les animaux.'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PetSummary'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: '`not_found` (pas de lien confirmé avec la clinique).'
+      summary: 'Les animaux du propriétaire dans cette clinique.'
+      description: "Décédés et disparus compris (`lifeStatus`). Vivants d'abord, puis par nom."
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'PetSummary identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+  '/api/portal/v1/clinics/{clinicId}/pets/{petId}':
+    get:
+      operationId: api_clinics_clinicIdpets_petId_get
+      tags:
+        - Animaux
+      responses:
+        '200':
+          description: "L'animal."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: "`not_found` (pas de lien confirmé, ou animal archivé, en copropriété secondaire, vendu, donné ou d'un autre client)."
+      summary: "La fiche d'un animal."
+      description: "`lastWeight` = pesée la plus récente entre la fiche animal et les consultations clôturées (à date égale, la fiche l'emporte). `referentVet` = vétérinaire du dernier compte rendu partagé avec l'appelant."
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'Pet identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: petId
+          in: path
+          description: 'Pet identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+  '/api/portal/v1/clinics/{clinicId}/pets/{petId}/care-items':
+    get:
+      operationId: api_clinics_clinicIdpets_petIdcare-items_get_collection
+      tags:
+        - Animaux
+      responses:
+        '200':
+          description: 'Les soins.'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CareItem'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: '`not_found` (pas de lien confirmé, ou animal non visible).'
+      summary: 'Les soins préventifs à suivre pour un animal.'
+      description: "Dernier acte de chaque protocole ayant une prochaine échéance, par échéance croissante. « Aujourd'hui » = date locale de la clinique. Vide pour un animal décédé ou disparu."
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'CareItem identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: petId
+          in: path
+          description: 'CareItem identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+  '/api/portal/v1/clinics/{clinicId}/pets/{petId}/timeline':
+    get:
+      operationId: api_clinics_clinicIdpets_petIdtimeline_get
+      tags:
+        - Animaux
+      responses:
+        '200':
+          description: 'Une page de visites.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetTimeline'
+        '400':
+          description: '`cursor_invalid`.'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: '`not_found` (pas de lien confirmé, ou animal non visible).'
+      summary: "Les visites d'un animal dont le compte rendu a été partagé avec l'appelant."
+      description: 'Par date de clôture décroissante. `date` = début de la consultation, avec le décalage de la clinique ; `vet` = nom figé au partage.'
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'PetTimeline identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: petId
+          in: path
+          description: 'PetTimeline identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: cursor
+          in: query
+          description: 'PetTimeline cursor'
+          required: false
+          deprecated: false
+          schema:
+            type: string
+          style: form
+          explode: true
+        -
+          name: limit
+          in: query
+          description: 'Taille de page, ramenée entre 1 et 50 (20 par défaut).'
+          required: false
+          deprecated: false
+          schema:
+            type: integer
+          style: form
+          explode: true
+  '/api/portal/v1/clinics/{clinicId}/pets/{petId}/vaccination-booklet':
+    get:
+      operationId: api_portal_vaccination_booklet
+      tags:
+        - Animaux
+      responses:
+        '302':
+          description: "Redirection vers l'URL signée (`Cache-Control: private, no-store`)."
+        '404':
+          description: '`not_found`.'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+      summary: "Télécharger le carnet de vaccination d'un animal."
+      description: "PDF généré à la volée et mis en cache tant que ses données ne changent pas (vaccinations, identité, puce, en-tête de la clinique). « Aucune vaccination enregistrée » quand il n'y en a pas. Servi aussi pour un animal décédé. Redirige vers une URL signée valable 5 minutes."
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: ''
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: petId
+          in: path
+          description: ''
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
   /api/portal/v1/auth/logout:
     post:
       operationId: api_authlogout_post
@@ -366,13 +602,11 @@ paths:
         -
           name: limit
           in: query
-          description: 'DocumentList limit'
+          description: 'Taille de page : 20 par défaut, ramenée à 50 au plus.'
           required: false
           deprecated: false
           schema:
             type: integer
-            minimum: 1
-            maximum: 50
           style: form
           explode: true
   '/api/portal/v1/clinics/{clinicId}/documents/{documentId}/file':
@@ -449,6 +683,55 @@ paths:
             type: string
           style: simple
           explode: false
+  '/api/portal/v1/files/booklets/{clinicId}/{animalId}/{hash}':
+    get:
+      operationId: api_portal_booklet_download
+      tags:
+        - Fichiers
+      responses:
+        '200':
+          description: 'Le PDF (`Cache-Control: private, no-store`).'
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: '`not_found`.'
+      summary: "Le PDF d'un carnet de vaccination (URL signée)."
+      description: "Publique : la signature tient lieu d'authentification, 5 minutes."
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: ''
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: animalId
+          in: path
+          description: ''
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: hash
+          in: path
+          description: ''
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+      security: []
   '/api/portal/v1/files/documents/{clinicId}/{documentId}/{version}':
     get:
       operationId: api_portal_document_download
@@ -747,6 +1030,28 @@ components:
           type: string
         country:
           type: string
+    CareItem:
+      type: object
+      description: |-
+        The latest act of a preventive protocol and where it stands against its
+        due date. The care-items route answers a plain JSON array of it.
+      properties:
+        kind:
+          type: string
+        label:
+          type: string
+        lastDoneOn:
+          type: string
+          format: date
+        dueOn:
+          type: string
+          format: date
+        status:
+          type: string
+          enum:
+            - overdue
+            - due_soon
+            - up_to_date
     ClinicLinkView:
       type: object
       properties:
@@ -758,6 +1063,8 @@ components:
           type:
             - string
             - 'null'
+        timezone:
+          type: string
         linkStatus:
           type: string
           enum:
@@ -909,6 +1216,48 @@ components:
           readOnly: true
           description: 'A URI reference that identifies the problem type'
           type: string
+    Home:
+      type: object
+      properties:
+        nextAppointment:
+          anyOf:
+            -
+              $ref: '#/components/schemas/NextAppointmentView'
+            -
+              type: 'null'
+        pets:
+          type: array
+          items:
+            $ref: '#/components/schemas/PetSummary'
+        careItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/HomeCareItemView'
+        latestDocuments:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentView'
+    HomeCareItemView:
+      type: object
+      properties:
+        pet:
+          $ref: '#/components/schemas/PetReferenceView'
+        kind:
+          type: string
+        label:
+          type: string
+        lastDoneOn:
+          type: string
+          format: date
+        dueOn:
+          type: string
+          format: date
+        status:
+          type: string
+          enum:
+            - overdue
+            - due_soon
+            - up_to_date
     InvitationAcceptance:
       type: object
       required:
@@ -1055,6 +1404,22 @@ components:
           type: integer
         currency:
           type: string
+    NextAppointmentView:
+      type: object
+      properties:
+        id:
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        pet:
+          $ref: '#/components/schemas/PetReferenceView'
+        practitioner:
+          type:
+            - string
+            - 'null'
+        motifLabel:
+          type: string
     OtpRequest:
       type: object
       required:
@@ -1168,6 +1533,83 @@ components:
           type:
             - string
             - 'null'
+        invitations:
+          type: array
+          items:
+            type: object
+            required:
+              - invitationId
+              - clinic
+            properties:
+              invitationId:
+                type: string
+                format: uuid
+              clinic:
+                type: object
+                required:
+                  - name
+                  - city
+                properties:
+                  name: { type: string }
+                  city: { type: [string, 'null'] }
+    Pet:
+      type: object
+      description: 'The listed shape of a pet, plus its latest weight, masked chip and referent vet.'
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        species:
+          type: string
+          enum:
+            - dog
+            - cat
+            - nac
+            - other
+        breed:
+          type:
+            - string
+            - 'null'
+        sex:
+          type: string
+          enum:
+            - male
+            - female
+            - unknown
+        sterilization:
+          type: string
+          enum:
+            - intact
+            - neutered
+            - unknown
+        birthDate:
+          type:
+            - string
+            - 'null'
+          format: date
+        initial:
+          type: string
+        lifeStatus:
+          type: string
+          enum:
+            - alive
+            - deceased
+            - missing
+        lastWeight:
+          anyOf:
+            -
+              $ref: '#/components/schemas/PetWeightView'
+            -
+              type: 'null'
+        chipNumberMasked:
+          type:
+            - string
+            - 'null'
+        referentVet:
+          type:
+            - string
+            - 'null'
     PetReferenceView:
       type: object
       properties:
@@ -1177,6 +1619,68 @@ components:
             - 'null'
         name:
           type: string
+    PetSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        species:
+          type: string
+          enum:
+            - dog
+            - cat
+            - nac
+            - other
+        breed:
+          type:
+            - string
+            - 'null'
+        sex:
+          type: string
+          enum:
+            - male
+            - female
+            - unknown
+        sterilization:
+          type: string
+          enum:
+            - intact
+            - neutered
+            - unknown
+        birthDate:
+          type:
+            - string
+            - 'null'
+          format: date
+        initial:
+          type: string
+        lifeStatus:
+          type: string
+          enum:
+            - alive
+            - deceased
+            - missing
+    PetTimeline:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelineEntryView'
+        nextCursor:
+          type:
+            - string
+            - 'null'
+    PetWeightView:
+      type: object
+      properties:
+        weightGrams:
+          type: integer
+        at:
+          type: string
+          format: date
     Prescription:
       type: object
       properties:
@@ -1245,6 +1749,37 @@ components:
         refreshTokenExpiresAt:
           type: string
           format: date-time
+    TimelineDocumentView:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum:
+            - report
+            - prescription
+            - invoice
+            - lab_result
+            - certificate
+    TimelineEntryView:
+      type: object
+      properties:
+        visitId:
+          type: string
+        date:
+          type: string
+          format: date-time
+        vet:
+          type:
+            - string
+            - 'null'
+        title:
+          type: string
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelineDocumentView'
   responses: {  }
   parameters: {  }
   examples: {  }
@@ -1260,6 +1795,9 @@ security:
   -
     Bearer: []
 tags:
+  -
+    name: Animaux
+    description: "Resource 'Animaux' operations."
   -
     name: CGU
     description: "Resource 'CGU' operations."

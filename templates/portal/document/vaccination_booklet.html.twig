@@ -1,0 +1,90 @@
+{#
+ # Kiveto — templates/portal/document/vaccination_booklet.html.twig
+ # ────────────────────────────────────────────────────────────────
+ # The vaccination booklet an owner downloads from the Portal: the animal's
+ # identity and every vaccination entered on its file, latest first.
+ #
+ # The PDF is cached under a hash of everything printed here: print nothing
+ # that is not in the booklet (no generation date), and bump
+ # VaccinationBookletFiles::TEMPLATE_VERSION when this template changes.
+ #
+ # Dates are calendar days: they are printed in their own zone (`false`),
+ # never converted.
+ #
+ # Variables:
+ #   booklet  VaccinationBooklet (clinic, pet, vaccinations)
+ #   clinic   DocumentClinic|null
+ #}
+{% extends 'clinic/document/_base.html.twig' %}
+
+{% set SPECIES_LABELS = { 'dog': 'Chien', 'cat': 'Chat', 'nac': 'NAC', 'other': 'Autre' } %}
+{% set SEX_LABELS = { 'male': 'Mâle', 'female': 'Femelle' } %}
+{% set pet = booklet.pet %}
+
+{% block doc_title %}Carnet de vaccination — {{ pet.name }}{% endblock %}
+
+{% block doc_kind %}Carnet de vaccination{% endblock %}
+
+{% block doc_meta %}
+  <b>{{ pet.name }}</b><br/>
+  {{ booklet.vaccinations|length }} vaccination{{ booklet.vaccinations|length > 1 ? 's' : '' }} enregistrée{{ booklet.vaccinations|length > 1 ? 's' : '' }}
+{% endblock %}
+
+{% block content %}
+
+  <table class="parties"><tr>
+    <td>
+      <p class="plabel">Animal</p>
+      <p class="pname">{{ pet.name }}</p>
+      <table class="pgrid">
+        <tr>
+          <td>Espèce, race</td>
+          <td>
+            {{ SPECIES_LABELS[pet.species]|default('Espèce non précisée') }}
+            {%- if pet.breedName %}, {{ pet.breedName }}{% elseif pet.isMixedBreed %}, croisé{% endif %}
+          </td>
+        </tr>
+        {% if SEX_LABELS[pet.sex] is defined %}
+          <tr><td>Sexe</td><td>{{ SEX_LABELS[pet.sex] }}</td></tr>
+        {% endif %}
+        {% if pet.birthDate %}
+          <tr><td>Naissance</td><td>{{ pet.birthDate|date('d/m/Y', false) }}</td></tr>
+        {% endif %}
+        <tr>
+          <td>Identification</td>
+          <td>{{ pet.microchipNumber ? pet.microchipNumber ~ ' (transpondeur)' : 'Non renseignée' }}</td>
+        </tr>
+      </table>
+    </td>
+  </tr></table>
+
+  <table class="h2"><tr><td>Vaccinations</td></tr></table>
+
+  {% if booklet.vaccinations is empty %}
+    <div class="box">
+      <p>Aucune vaccination enregistrée.</p>
+    </div>
+  {% else %}
+    <table class="data">
+      <thead>
+        <tr>
+          <th style="width:24mm;">Date</th>
+          <th>Vaccin</th>
+          <th style="width:32mm;">N° de lot</th>
+          <th style="width:28mm;">Rappel prévu</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for vaccination in booklet.vaccinations %}
+          <tr>
+            <td>{{ vaccination.administeredOn|date('d/m/Y', false) }}</td>
+            <td>{{ vaccination.label }}</td>
+            <td>{{ vaccination.batchNumber ?? '—' }}</td>
+            <td>{{ vaccination.nextDueOn ? vaccination.nextDueOn|date('d/m/Y', false) : '—' }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+{% endblock %}

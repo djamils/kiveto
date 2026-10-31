@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\ClientPortal\Application\Query\GetPortalInvitationByToken;
 
-use App\Context\ClientPortal\Application\Port\ClinicNamesInterface;
+use App\Context\ClientPortal\Application\Port\ClinicProfileInterface;
 use App\Context\ClientPortal\Application\Port\PetNamesInterface;
 use App\Context\ClientPortal\Domain\Exception\InvitationAlreadyUsedException;
 use App\Context\ClientPortal\Domain\Exception\InvitationExpiredException;
@@ -20,7 +20,7 @@ final readonly class GetPortalInvitationByTokenHandler
 {
     public function __construct(
         private PortalInvitationRepositoryInterface $invitations,
-        private ClinicNamesInterface $clinics,
+        private ClinicProfileInterface $clinics,
         private PetNamesInterface $pets,
         private OpaqueTokenHasherInterface $hasher,
         private ClockInterface $clock,
