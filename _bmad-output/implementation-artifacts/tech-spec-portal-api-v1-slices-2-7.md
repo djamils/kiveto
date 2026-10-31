@@ -443,7 +443,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
 
 #### Contract — `chore/portal-api-contract-v1-1`
 
-- [ ] Task 1: Update the Portal API contract for slices 2–7
+- [x] Task 1: Update the Portal API contract for slices 2–7
   - File: `openapi/portal-api-v1.md`
   - Action:
     - « Vision »: the rule « le Portal ne lit les autres contextes que par leurs bus de requêtes, jamais leurs agrégats ni leurs tables »; remove the `client_portal__*` projection list (X1).
