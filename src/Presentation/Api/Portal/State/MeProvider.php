@@ -6,6 +6,7 @@ namespace App\Presentation\Api\Portal\State;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
+use App\Context\ClientPortal\Application\Query\CountUnreadDocumentsPerClinic\CountUnreadDocumentsPerClinic;
 use App\Context\ClientPortal\Application\Query\ListOwnerClinics\ListOwnerClinics;
 use App\Context\ClientPortal\Application\Query\ListOwnerClinics\OwnerClinic;
 use App\Presentation\Api\Portal\Resource\Me;
@@ -17,7 +18,7 @@ use App\Shared\Application\Bus\QueryBusInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 
 /**
- * Tags and unread documents arrive with later slices: empty and 0 for now.
+ * Clinic tags arrive with the listing (slice 7): empty for now.
  *
  * @implements ProviderInterface<Me>
  */
@@ -37,13 +38,15 @@ final readonly class MeProvider implements ProviderInterface
 
         $clinics = $this->queryBus->ask(new ListOwnerClinics($user->id()));
         \assert(\is_array($clinics));
+        $unread = $this->queryBus->ask(new CountUnreadDocumentsPerClinic($user->id()));
+        \assert(\is_array($unread));
 
         return new Me(
             $this->accounts->of($user->id()),
-            array_values(array_map(static function (mixed $clinic): ClinicLinkView {
+            array_values(array_map(static function (mixed $clinic) use ($unread): ClinicLinkView {
                 \assert($clinic instanceof OwnerClinic);
 
-                return new ClinicLinkView($clinic->clinicId, $clinic->clinicName, $clinic->city, 'confirmed', ApiDate::format($clinic->linkedAt), $clinic->petNames, [], 0);
+                return new ClinicLinkView($clinic->clinicId, $clinic->clinicName, $clinic->city, 'confirmed', ApiDate::format($clinic->linkedAt), $clinic->petNames, [], \is_int($unread[$clinic->clinicId] ?? null) ? $unread[$clinic->clinicId] : 0);
             }, $clinics)),
         );
     }

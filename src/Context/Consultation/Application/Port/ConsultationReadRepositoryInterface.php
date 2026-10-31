@@ -56,6 +56,13 @@ interface ConsultationReadRepositoryInterface
     ): bool;
 
     /**
+     * The consultations of a visit, oldest first, whatever their status.
+     *
+     * @return list<string>
+     */
+    public function consultationIdsForAdmission(ClinicId $clinicId, AdmissionId $admissionId): array;
+
+    /**
      * Billing totals per visit, broken down by tax category and split by the
      * mode the line prices were entered in (pre-tax or all taxes included).
      *

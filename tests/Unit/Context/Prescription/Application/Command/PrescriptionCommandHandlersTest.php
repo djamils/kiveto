@@ -16,6 +16,8 @@ use App\Context\Prescription\Application\Command\RenewPrescription\RenewPrescrip
 use App\Context\Prescription\Application\Command\RenewPrescription\RenewPrescriptionHandler;
 use App\Context\Prescription\Application\Command\SetPrescriptionNotes\SetPrescriptionNotes;
 use App\Context\Prescription\Application\Command\SetPrescriptionNotes\SetPrescriptionNotesHandler;
+use App\Context\Prescription\Domain\Event\PrescriptionCancelled;
+use App\Context\Prescription\Domain\Event\PrescriptionIssued;
 use App\Context\Prescription\Domain\Prescription;
 use App\Context\Prescription\Domain\Repository\PrescriptionRepositoryInterface;
 use App\Context\Prescription\Domain\Service\PrescriptionNumberGeneratorInterface;
@@ -31,6 +33,8 @@ use App\Context\Prescription\Domain\ValueObject\PrescriptionLine;
 use App\Context\Prescription\Domain\ValueObject\PrescriptionLineId;
 use App\Context\Prescription\Domain\ValueObject\PrescriptionNumber;
 use App\Context\Prescription\Domain\ValueObject\PrescriptionStatus;
+use App\Shared\Application\Bus\EventBusInterface;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -73,12 +77,16 @@ final class PrescriptionCommandHandlersTest extends TestCase
             ->willReturn(PrescriptionNumber::of(2026, 12))
         ;
 
-        (new IssuePrescriptionHandler($this->prescriptions, $numbers, $this->clock))(
+        $published = [];
+
+        (new IssuePrescriptionHandler($this->prescriptions, $numbers, $this->clock, $this->publisher($published)))(
             new IssuePrescription(self::CLINIC_ID, self::PRESCRIPTION_ID),
         );
 
         self::assertSame('ORD-2026-000012', $prescription->number()?->toString());
         self::assertSame(PrescriptionStatus::ISSUED, $prescription->status());
+        // The signature reaches the event bus, where the Client Portal bridge listens.
+        self::assertInstanceOf(PrescriptionIssued::class, end($published));
     }
 
     public function testRenewingConsumesOneAllowanceAndKeepsWhoDidIt(): void
@@ -106,12 +114,15 @@ final class PrescriptionCommandHandlersTest extends TestCase
         $this->prescriptions->expects(self::once())->method('get')->willReturn($prescription);
         $this->prescriptions->expects(self::once())->method('save')->with($prescription);
 
-        (new CancelPrescriptionHandler($this->prescriptions, $this->clock))(
+        $published = [];
+
+        (new CancelPrescriptionHandler($this->prescriptions, $this->clock, $this->publisher($published)))(
             new CancelPrescription(self::CLINIC_ID, self::PRESCRIPTION_ID, 'Doublon'),
         );
 
         self::assertSame(PrescriptionStatus::CANCELLED, $prescription->status());
         self::assertSame('Doublon', $prescription->cancellationReason());
+        self::assertInstanceOf(PrescriptionCancelled::class, end($published));
     }
 
     public function testTheRenewalAllowanceIsSetOnTheDraft(): void
@@ -203,5 +214,20 @@ final class PrescriptionCommandHandlersTest extends TestCase
     private function now(): \DateTimeImmutable
     {
         return new \DateTimeImmutable('2026-08-22 10:00:00');
+    }
+
+    /**
+     * @param list<object> $published filled with whatever reaches the event bus
+     */
+    private function publisher(array &$published): DomainEventPublisher
+    {
+        $bus = $this->createMock(EventBusInterface::class);
+        $bus->method('publish')->willReturnCallback(
+            static function (array $stamps, object ...$events) use (&$published): void {
+                $published = [...$published, ...array_values($events)];
+            },
+        );
+
+        return new DomainEventPublisher($bus);
     }
 }

@@ -293,6 +293,211 @@ paths:
       summary: 'Le compte et ses cliniques rattachées.'
       description: 'Ne liste pas les invitations en attente : elles apparaissent à la prochaine connexion par code.'
       parameters: []
+  '/api/portal/v1/clinics/{clinicId}/documents':
+    get:
+      operationId: api_clinics_clinicIddocuments_get
+      tags:
+        - Documents
+      responses:
+        '200':
+          description: 'Une page de documents.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentList'
+        '400':
+          description: '`cursor_invalid`.'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: '`not_found` (pas de lien confirmé avec la clinique).'
+        '422':
+          description: '`validation_failed`.'
+      summary: 'Les documents publiés pour le propriétaire dans cette clinique.'
+      description: 'Du plus récent au plus ancien. Statut de paiement et état des ordonnances lus en direct.'
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'DocumentList identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: type
+          in: query
+          description: 'DocumentList type'
+          required: false
+          deprecated: false
+          schema:
+            type: string
+            enum:
+              - report
+              - prescription
+              - invoice
+              - lab_result
+              - certificate
+          style: form
+          explode: true
+        -
+          name: petId
+          in: query
+          description: 'DocumentList petId'
+          required: false
+          deprecated: false
+          schema:
+            type: string
+            format: uuid
+          style: form
+          explode: true
+        -
+          name: cursor
+          in: query
+          description: 'DocumentList cursor'
+          required: false
+          deprecated: false
+          schema:
+            type: string
+          style: form
+          explode: true
+        -
+          name: limit
+          in: query
+          description: 'DocumentList limit'
+          required: false
+          deprecated: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+          style: form
+          explode: true
+  '/api/portal/v1/clinics/{clinicId}/documents/{documentId}/file':
+    get:
+      operationId: api_portal_document_file
+      tags:
+        - Documents
+      responses:
+        '302':
+          description: "Redirection vers l'URL signée (`Cache-Control: private, no-store`)."
+        '404':
+          description: '`not_found`.'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+      summary: 'Télécharger un document.'
+      description: "Marque le document comme lu pour l'appelant, puis redirige vers une URL signée valable 5 minutes."
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: ''
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: documentId
+          in: path
+          description: ''
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+  '/api/portal/v1/clinics/{clinicId}/prescriptions/{prescriptionId}':
+    get:
+      operationId: api_clinics_clinicIdprescriptions_prescriptionId_get
+      tags:
+        - Documents
+      responses:
+        '200':
+          description: "L'ordonnance."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prescription'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: "`not_found` (non publiée, retirée ou d'un autre client)."
+      summary: 'Une ordonnance publiée et ses lignes.'
+      description: 'Une ordonnance publiée et ses lignes.'
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'Prescription identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: prescriptionId
+          in: path
+          description: 'Prescription identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+  '/api/portal/v1/files/documents/{clinicId}/{documentId}/{version}':
+    get:
+      operationId: api_portal_document_download
+      tags:
+        - Fichiers
+      responses:
+        '200':
+          description: 'Le PDF (`Cache-Control: private, no-store`).'
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: '`not_found`.'
+      summary: "Le PDF d'un document (URL signée)."
+      description: "Publique : la signature tient lieu d'authentification, 5 minutes. Sert la version signée même si une plus récente a été publiée depuis."
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: ''
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: documentId
+          in: path
+          description: ''
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: version
+          in: path
+          description: ''
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+      security: []
   /api/portal/v1/invitations/accept:
     post:
       operationId: api_invitationsaccept_post
@@ -624,6 +829,53 @@ components:
           type: string
         url:
           type: string
+    DocumentList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentView'
+        nextCursor:
+          type:
+            - string
+            - 'null'
+    DocumentView:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum:
+            - report
+            - prescription
+            - invoice
+            - lab_result
+            - certificate
+        title:
+          type: string
+        petIds:
+          type: array
+          items:
+            type: string
+        issuedAt:
+          type: string
+          format: date-time
+        unread:
+          type: boolean
+        invoice:
+          anyOf:
+            -
+              $ref: '#/components/schemas/InvoiceSummaryView'
+            -
+              type: 'null'
+        prescription:
+          anyOf:
+            -
+              $ref: '#/components/schemas/PrescriptionSummaryView'
+            -
+              type: 'null'
     Error:
       type: object
       description: 'A representation of common errors.'
@@ -775,6 +1027,18 @@ components:
         resendAvailableAt:
           type: string
           format: date-time
+    InvoiceSummaryView:
+      type: object
+      properties:
+        total:
+          $ref: '#/components/schemas/MoneyView'
+        paymentStatus:
+          type: string
+          enum:
+            - unpaid
+            - partially_paid
+            - paid
+            - credited
     Me:
       type: object
       properties:
@@ -784,6 +1048,13 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ClinicLinkView'
+    MoneyView:
+      type: object
+      properties:
+        amount:
+          type: integer
+        currency:
+          type: string
     OtpRequest:
       type: object
       required:
@@ -897,6 +1168,56 @@ components:
           type:
             - string
             - 'null'
+    PetReferenceView:
+      type: object
+      properties:
+        id:
+          type:
+            - string
+            - 'null'
+        name:
+          type: string
+    Prescription:
+      type: object
+      properties:
+        id:
+          type: string
+        issuedAt:
+          type: string
+          format: date-time
+        vet:
+          type: string
+        pet:
+          $ref: '#/components/schemas/PetReferenceView'
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrescriptionLineView'
+    PrescriptionLineView:
+      type: object
+      properties:
+        label:
+          type: string
+        quantity:
+          type: string
+        posologySummary:
+          type: string
+    PrescriptionSummaryView:
+      type: object
+      properties:
+        id:
+          type: string
+        validUntil:
+          type:
+            - string
+            - 'null'
+          format: date
+        renewable:
+          type: boolean
+        renewalStatus:
+          type:
+            - object
+            - 'null'
     SessionLogout:
       type: object
       required:
@@ -942,6 +1263,9 @@ tags:
   -
     name: CGU
     description: "Resource 'CGU' operations."
+  -
+    name: Documents
+    description: "Resource 'Documents' operations."
   -
     name: Invitation
     description: "Resource 'Invitation' operations."

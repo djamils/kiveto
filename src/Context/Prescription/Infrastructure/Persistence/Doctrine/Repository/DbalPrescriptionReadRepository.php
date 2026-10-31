@@ -8,14 +8,18 @@ use App\Context\Prescription\Application\Port\PrescriptionReadRepositoryInterfac
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\PrescriptionDetails;
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\PrescriptionLineView;
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\RenewalView;
+use App\Context\Prescription\Application\Query\ListPortalPublishablePrescriptions\PortalPublishablePrescription;
+use App\Context\Prescription\Application\Query\ListPrescriptionPortalSummaries\PrescriptionPortalSummary;
 use App\Context\Prescription\Application\Query\ListPrescriptionsForConsultation\ConsultationPrescriptionRow;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\PrescriptionListLine;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\PrescriptionListRow;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\SearchPrescriptionsCriteria;
+use App\Context\Prescription\Domain\Prescription;
 use App\Context\Prescription\Domain\Repository\PrescriptionRepositoryInterface;
 use App\Context\Prescription\Domain\ValueObject\ClinicId;
 use App\Context\Prescription\Domain\ValueObject\ConsultationId;
 use App\Context\Prescription\Domain\ValueObject\PrescriptionId;
+use App\Context\Prescription\Domain\ValueObject\PrescriptionStatus;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\ArrayParameterType;
@@ -119,6 +123,7 @@ final readonly class DbalPrescriptionReadRepository implements PrescriptionReadR
             prescriberId: $prescription->prescriber()->userId()->toString(),
             patientAnimalId: $prescription->patient()->animalId(),
             patientWeightKg: $prescription->patient()->weightKg(),
+            renewableByOwner: $prescription->isRenewableByOwner(),
         );
     }
 
@@ -238,6 +243,86 @@ final readonly class DbalPrescriptionReadRepository implements PrescriptionReadR
                 number: RowAccessor::nullableString($row, 'number'),
                 status: RowAccessor::string($row, 'status'),
                 lineCount: RowAccessor::int($row, 'line_count'),
+            ),
+            $rows,
+        );
+    }
+
+    public function portalSummaries(ClinicId $clinicId, array $prescriptionIds): array
+    {
+        // Ids come from the Client Portal registry; a malformed one cannot
+        // match a row, so it is dropped rather than failing the whole page.
+        $ids = array_values(array_unique(array_filter($prescriptionIds, Uuid::isValid(...))));
+
+        if ([] === $ids) {
+            return [];
+        }
+
+        $rows = $this->connection->fetchAllAssociative(
+            \sprintf(
+                'SELECT BIN_TO_UUID(p.id) AS id, p.status, p.valid_until, %s AS controlled_count
+                 FROM prescription__prescriptions p
+                 WHERE p.clinic_id = :clinicId
+                   AND p.id IN (:ids)
+                 ORDER BY p.id ASC',
+                $this->controlledCountExpression(),
+            ),
+            [
+                'clinicId' => Uuid::fromString($clinicId->toString())->toBinary(),
+                'ids'      => array_map(static fn (string $id): string => Uuid::fromString($id)->toBinary(), $ids),
+            ],
+            ['ids' => ArrayParameterType::BINARY],
+        );
+
+        return array_map(
+            static function (array $row): PrescriptionPortalSummary {
+                $status     = RowAccessor::string($row, 'status');
+                $validUntil = RowAccessor::nullableString($row, 'valid_until');
+
+                return new PrescriptionPortalSummary(
+                    id: RowAccessor::string($row, 'id'),
+                    status: $status,
+                    validUntil: null !== $validUntil ? new \DateTimeImmutable($validUntil) : null,
+                    renewableByOwner: Prescription::renewableByOwner(
+                        PrescriptionStatus::from($status),
+                        0 < RowAccessor::int($row, 'controlled_count'),
+                    ),
+                );
+            },
+            $rows,
+        );
+    }
+
+    public function portalPublishable(\DateTimeImmutable $issuedFrom, ?string $afterId, int $limit): array
+    {
+        $where  = ["p.status = 'ISSUED'", 'p.owner_client_id IS NOT NULL', 'p.issued_at >= :from'];
+        $params = ['from' => $issuedFrom->format('Y-m-d H:i:s')];
+
+        if (null !== $afterId) {
+            // Ids are UUIDv7 stored without byte swapping: the binary order is
+            // the order of their text form, so the keyset is stable.
+            $where[]           = 'p.id > :afterId';
+            $params['afterId'] = Uuid::fromString($afterId)->toBinary();
+        }
+
+        $rows = $this->connection->fetchAllAssociative(
+            \sprintf(
+                'SELECT BIN_TO_UUID(p.id) AS id, BIN_TO_UUID(p.clinic_id) AS clinic_id
+                 FROM prescription__prescriptions p
+                 WHERE %s
+                 ORDER BY p.id ASC
+                 LIMIT %d',
+                implode(' AND ', $where),
+                // Typed as int by the signature; MySQL refuses a bound LIMIT.
+                $limit,
+            ),
+            $params,
+        );
+
+        return array_map(
+            static fn (array $row): PortalPublishablePrescription => new PortalPublishablePrescription(
+                prescriptionId: RowAccessor::string($row, 'id'),
+                clinicId: RowAccessor::string($row, 'clinic_id'),
             ),
             $rows,
         );

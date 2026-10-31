@@ -326,6 +326,25 @@ final class Prescription extends AggregateRoot
     }
 
     /**
+     * Whether the owner may ask the clinic for a renewal from the Client
+     * Portal: a signed ordonnance without any controlled medicine. An expired
+     * one still qualifies — asking for a new one is precisely the point.
+     */
+    public function isRenewableByOwner(): bool
+    {
+        return self::renewableByOwner($this->status, $this->carriesControlledSubstance());
+    }
+
+    /**
+     * The same rule for read models that only hold the status and the
+     * controlled flag, so it is written down once.
+     */
+    public static function renewableByOwner(PrescriptionStatus $status, bool $carriesControlledSubstance): bool
+    {
+        return PrescriptionStatus::ISSUED === $status && !$carriesControlledSubstance;
+    }
+
+    /**
      * Whether the client could still walk into a pharmacy with it today.
      */
     public function isDispensableAt(\DateTimeImmutable $now): bool

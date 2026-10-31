@@ -1247,6 +1247,51 @@ export function init() {
       btn.disabled = false;
     }
   }
+  // « Partager sur le Portal »: the report goes to the animal's primary owner (state from the server, refreshed by each share).
+  let PORTAL = DOCS.portalShare || null;
+  const I_PORTAL = SV('<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/>');
+  /** Why the report cannot be shared now, or '' when it can (a consultation closed on this page is checked by the endpoint). */
+  function partageBloque() {
+    if (!PORTAL || !PORTAL.url) return 'Partage indisponible';
+    if (PORTAL.shareable) return '';
+    if (PORTAL.reason === 'La consultation doit être clôturée.' && closed()) return '';
+    return PORTAL.reason || 'Partage indisponible';
+  }
+  async function partagerPortal(btn) {
+    if (partageBloque()) return;
+    btn.disabled = true;
+    try {
+      const res = await send(PORTAL.url, {});
+      if (res.payload?.success) {
+        if (res.payload.portalShare) PORTAL = res.payload.portalShare;
+        showToast(res.payload.message);
+      } else {
+        showToast(res.payload?.error || 'Partage impossible — réessayez', 'danger');
+      }
+    } catch {
+      showToast('Connexion perdue — compte rendu non partagé', 'danger');
+    } finally {
+      rendreDrawer();
+    }
+  }
+  /** The Portal row, built node by node: the server strings are set as text. */
+  function rowPortal() {
+    const row = document.createElement('div');
+    row.className = 'drow';
+    row.innerHTML = `<span class="dic" style="background:#eef2ff;color:#4338ca">${I_PORTAL}</span><span class="dt"><b></b><small></small></span>`;
+    const bloque = partageBloque();
+    row.querySelector('b').textContent = 'Compte rendu sur le Portal client';
+    row.querySelector('small').textContent = bloque || (PORTAL.sharedAt ? `Partagé le ${PORTAL.sharedAt}` : 'Pas encore partagé avec le propriétaire');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn';
+    btn.style.flex = 'none';
+    btn.textContent = PORTAL?.sharedAt ? 'Partager à nouveau' : 'Partager sur le Portal';
+    if (bloque) { btn.disabled = true; btn.dataset.tip = bloque; } else btn.dataset.tip = 'Visible par le propriétaire principal dans son espace Portal';
+    btn.addEventListener('click', () => partagerPortal(btn));
+    row.append(btn);
+    return row;
+  }
   function rendreDocs(B, F, Sub) {
     Sub.textContent = 'Tous les documents de la consultation, à jour en direct.';
     const D = listeDocs();
@@ -1255,6 +1300,7 @@ export function init() {
         <span class="ck"></span><span class="dic" style="background:${bg};color:${c}">${SV(p)}</span>
         <span class="dt"><b>${esc(d.n)}</b><small>${esc(d.s)}</small></span>
         <span class="da"><button type="button" data-ap="${d.k}" data-tip="Aperçu">${I_EYE}</button>${d.pdf ? `<button type="button" data-pdf="${esc(d.pdf)}" data-tip="Télécharger le PDF">${I_PDF}</button>` : ''}${SENDABLE.includes(d.k) ? `<button type="button" data-env="${d.k}"${envoiBloque([d.k]) ? ` disabled data-tip="${esc(envoiBloque([d.k]))}"` : ' data-tip="Envoyer ce document par e-mail"'}>${I_SEND}</button>` : '<button type="button" disabled data-tip="Impression seule">' + I_SEND + '</button>'}</span></div>`; }).join('')
+      + '<p class="dgrp" style="margin-top:8px">Portal client</p><div id="docPortal"></div>'
       + `<p class="dgrp" style="margin-top:8px">Générer un document</p><div class="gen">${['Certificat de bonne santé', 'Consentement éclairé (anesthésie)', 'Devis chirurgie', 'Lettre de référé', 'Certificat de vaccination'].map((g) => `<button type="button" disabled data-tip="${SOON}">＋ ${g}</button>`).join('')}</div>`;
     const n = docSel.size;
     const nEnv = docsOf([...docSel]).length;
@@ -1264,6 +1310,7 @@ export function init() {
       if (e.target.closest('.da')) return;
       const k = r.dataset.k; if (docSel.has(k)) docSel.delete(k); else docSel.add(k); rendreDrawer();
     }));
+    B.querySelector('#docPortal').replaceWith(rowPortal());
     B.querySelectorAll('[data-ap]').forEach((b) => b.addEventListener('click', () => apercuDoc(b.dataset.ap)));
     B.querySelectorAll('[data-pdf]').forEach((b) => b.addEventListener('click', () => window.open(b.dataset.pdf, '_blank', 'noopener')));
     B.querySelectorAll('[data-env]').forEach((b) => b.addEventListener('click', () => envoyerDocs([b.dataset.env], b)));

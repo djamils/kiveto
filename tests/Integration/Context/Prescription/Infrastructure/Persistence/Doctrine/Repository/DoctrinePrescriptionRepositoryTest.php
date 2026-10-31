@@ -303,6 +303,146 @@ final class DoctrinePrescriptionRepositoryTest extends KernelTestCase
         self::assertNull($details->patientAnimalId);
         self::assertSame('28.5', $details->patientWeightKg);
         self::assertSame(self::CONSULTATION_ID, $details->consultationId);
+        self::assertTrue($details->renewableByOwner);
+    }
+
+    public function testTheDetailsTellAControlledOrdonnanceIsNotRenewableByTheOwner(): void
+    {
+        $prescription = $this->draft();
+        $prescription->addLine($this->line('Ketamine', DrugPrescriptionClass::RX_NARCOTIC), $this->now());
+        $prescription->issue(PrescriptionNumber::of(2026, 91), $this->now());
+        $this->prescriptions->save($prescription);
+
+        self::assertFalse($this->read->details($this->clinic(), $prescription->id())->renewableByOwner);
+    }
+
+    public function testThePortalSummariesReadThePageInOneGo(): void
+    {
+        $ordinary = $this->draft();
+        $ordinary->addLine($this->line('Meloxidyl'), $this->now());
+        $ordinary->issue(PrescriptionNumber::of(2026, 130), $this->now());
+        $this->prescriptions->save($ordinary);
+
+        $controlled = $this->draft(consultationId: $this->uuids->generate());
+        $controlled->addLine($this->line('Meloxidyl'), $this->now());
+        $controlled->addLine($this->line('Ketamine', DrugPrescriptionClass::RX_CONTROLLED), $this->now());
+        $controlled->issue(PrescriptionNumber::of(2026, 131), $this->now());
+        $this->prescriptions->save($controlled);
+
+        $cancelled = $this->draft(consultationId: $this->uuids->generate());
+        $cancelled->addLine($this->line('Synulox'), $this->now());
+        $cancelled->issue(PrescriptionNumber::of(2026, 132), $this->now());
+        $cancelled->cancel('Erreur', $this->now());
+        $this->prescriptions->save($cancelled);
+
+        $draft = $this->draft(consultationId: $this->uuids->generate());
+        $draft->addLine($this->line('Rilexine'), $this->now());
+        $this->prescriptions->save($draft);
+
+        $elsewhere = $this->draft(consultationId: $this->uuids->generate(), clinicId: self::OTHER_CLINIC);
+        $elsewhere->addLine($this->line('Meloxidyl'), $this->now());
+        $elsewhere->issue(PrescriptionNumber::of(2026, 133), $this->now());
+        $this->prescriptions->save($elsewhere);
+
+        $summaries = $this->read->portalSummaries($this->clinic(), [
+            $ordinary->id()->toString(),
+            $controlled->id()->toString(),
+            $cancelled->id()->toString(),
+            $draft->id()->toString(),
+            $elsewhere->id()->toString(),
+            $this->uuids->generate(),
+            'not-a-uuid',
+        ]);
+
+        $byId = [];
+        foreach ($summaries as $summary) {
+            $byId[$summary->id] = $summary;
+        }
+
+        // Another clinic's, unknown and malformed ids are left out.
+        self::assertCount(4, $byId);
+        self::assertArrayNotHasKey($elsewhere->id()->toString(), $byId);
+
+        $first = $byId[$ordinary->id()->toString()];
+        self::assertSame('ISSUED', $first->status);
+        self::assertSame('2027-08-22', $first->validUntil?->format('Y-m-d'));
+        self::assertTrue($first->renewableByOwner);
+
+        self::assertSame('ISSUED', $byId[$controlled->id()->toString()]->status);
+        self::assertFalse($byId[$controlled->id()->toString()]->renewableByOwner);
+
+        self::assertSame('CANCELLED', $byId[$cancelled->id()->toString()]->status);
+        self::assertFalse($byId[$cancelled->id()->toString()]->renewableByOwner);
+
+        self::assertSame('DRAFT', $byId[$draft->id()->toString()]->status);
+        self::assertNull($byId[$draft->id()->toString()]->validUntil);
+        self::assertFalse($byId[$draft->id()->toString()]->renewableByOwner);
+    }
+
+    public function testAPageWithoutAValidIdReadsNothing(): void
+    {
+        self::assertSame([], $this->read->portalSummaries($this->clinic(), []));
+        self::assertSame([], $this->read->portalSummaries($this->clinic(), ['not-a-uuid']));
+    }
+
+    public function testThePublishablePrescriptionsAreSignedRecentAndOwned(): void
+    {
+        $recent = $this->draft();
+        $recent->addLine($this->line('Meloxidyl'), $this->now());
+        $recent->issue(PrescriptionNumber::of(2026, 140), $this->now());
+        $this->prescriptions->save($recent);
+
+        $elsewhere = $this->draft(consultationId: $this->uuids->generate(), clinicId: self::OTHER_CLINIC);
+        $elsewhere->addLine($this->line('Meloxidyl'), $this->now());
+        $elsewhere->issue(PrescriptionNumber::of(2026, 141), $this->now());
+        $this->prescriptions->save($elsewhere);
+
+        $tooOld = $this->draft(consultationId: $this->uuids->generate());
+        $tooOld->addLine($this->line('Meloxidyl'), $this->now());
+        $tooOld->issue(PrescriptionNumber::of(2024, 1), new \DateTimeImmutable('2024-01-10 10:00:00'));
+        $this->prescriptions->save($tooOld);
+
+        $ownerless = $this->draft(consultationId: $this->uuids->generate(), withOwner: false);
+        $ownerless->addLine($this->line('Meloxidyl'), $this->now());
+        $ownerless->issue(PrescriptionNumber::of(2026, 142), $this->now());
+        $this->prescriptions->save($ownerless);
+
+        $cancelled = $this->draft(consultationId: $this->uuids->generate());
+        $cancelled->addLine($this->line('Meloxidyl'), $this->now());
+        $cancelled->issue(PrescriptionNumber::of(2026, 143), $this->now());
+        $cancelled->cancel('Erreur', $this->now());
+        $this->prescriptions->save($cancelled);
+
+        $draft = $this->draft(consultationId: $this->uuids->generate());
+        $draft->addLine($this->line('Meloxidyl'), $this->now());
+        $this->prescriptions->save($draft);
+
+        $mine = [
+            $recent->id()->toString(),
+            $elsewhere->id()->toString(),
+            $tooOld->id()->toString(),
+            $ownerless->id()->toString(),
+            $cancelled->id()->toString(),
+            $draft->id()->toString(),
+        ];
+        $from = new \DateTimeImmutable('2026-08-01');
+
+        $all = array_values(array_filter(
+            $this->read->portalPublishable($from, null, 1000),
+            static fn ($row): bool => \in_array($row->prescriptionId, $mine, true),
+        ));
+
+        // Both clinics, ordered by id: UUIDv7 follow their creation order.
+        self::assertCount(2, $all);
+        self::assertSame($recent->id()->toString(), $all[0]->prescriptionId);
+        self::assertSame(self::CLINIC_ID, $all[0]->clinicId);
+        self::assertSame($elsewhere->id()->toString(), $all[1]->prescriptionId);
+        self::assertSame(self::OTHER_CLINIC, $all[1]->clinicId);
+
+        // The keyset resumes strictly after the last id of the previous batch.
+        $next = $this->read->portalPublishable($from, $recent->id()->toString(), 1);
+        self::assertCount(1, $next);
+        self::assertSame($elsewhere->id()->toString(), $next[0]->prescriptionId);
     }
 
     public function testTheListFiltersOnStatusTermPeriodAndControlledSubstances(): void
@@ -472,10 +612,12 @@ final class DoctrinePrescriptionRepositoryTest extends KernelTestCase
     private function draft(
         ?string $consultationId = null,
         string $patientName = 'Rex',
+        ?string $clinicId = null,
+        bool $withOwner = true,
     ): Prescription {
         return Prescription::draft(
             id: PrescriptionId::fromString($this->uuids->generate()),
-            clinicId: $this->clinic(),
+            clinicId: null !== $clinicId ? ClinicId::fromString($clinicId) : $this->clinic(),
             consultationId: ConsultationId::fromString($consultationId ?? self::CONSULTATION_ID),
             prescriber: Prescriber::create(
                 PrescriberId::fromString(self::PRESCRIBER_ID),
@@ -493,7 +635,7 @@ final class DoctrinePrescriptionRepositoryTest extends KernelTestCase
                 microchipNumber: '250269801234567',
             ),
             owner: OwnerSnapshot::create(
-                OwnerId::fromString(self::CLIENT_ID),
+                $withOwner ? OwnerId::fromString(self::CLIENT_ID) : null,
                 'Sophie Dupont',
                 ['12 rue des Lilas'],
             ),

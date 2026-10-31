@@ -14,6 +14,8 @@ use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceDetails;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceLineView;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\PaymentView;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\TransmissionView;
+use App\Context\Billing\Application\Query\ListInvoicePortalStatuses\InvoicePortalStatus;
+use App\Context\Billing\Application\Query\ListPortalPublishableInvoices\PortalPublishableInvoice;
 use App\Context\Billing\Application\Query\SearchInvoices\InvoiceListRow;
 use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoicesCriteria;
 use App\Context\Billing\Domain\CreditNote;
@@ -31,6 +33,7 @@ use App\Context\Billing\Domain\ValueObject\ProcessingRule;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -57,6 +60,17 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
     ];
 
     private const array OUTSTANDING = [InvoiceStatus::ISSUED->value, InvoiceStatus::PARTIALLY_PAID->value];
+
+    /**
+     * Statuses of an invoice the Client Portal shows: issued, whatever was
+     * paid or credited since (never a draft nor a cancelled one).
+     */
+    private const array PORTAL_PUBLISHABLE = [
+        InvoiceStatus::ISSUED->value,
+        InvoiceStatus::PARTIALLY_PAID->value,
+        InvoiceStatus::PAID->value,
+        InvoiceStatus::CREDITED->value,
+    ];
 
     public function __construct(
         private Connection $connection,
@@ -421,6 +435,69 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
             payerClientId: RowAccessor::nullableUuid($row, 'payer_client_id'),
             issuedAt: new \DateTimeImmutable(RowAccessor::nullableString($row, 'issued_at') ?? RowAccessor::string($row, 'created_at')),
             balanceDueMinorUnits: $this->balanceOf($row),
+        ), $rows);
+    }
+
+    public function portalStatuses(ClinicId $clinicId, array $invoiceIds): array
+    {
+        if ([] === $invoiceIds) {
+            return [];
+        }
+
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT BIN_TO_UUID(i.id) AS id, i.status, i.total_gross, i.currency
+             FROM billing__invoices i
+             WHERE i.clinic_id = :clinicId AND i.id IN (:ids)
+             ORDER BY i.id ASC',
+            [
+                'clinicId' => Uuid::fromString($clinicId->toString())->toBinary(),
+                'ids'      => array_map(
+                    static fn (InvoiceId $id): string => Uuid::fromString($id->toString())->toBinary(),
+                    $invoiceIds,
+                ),
+            ],
+            ['ids' => ArrayParameterType::BINARY],
+        );
+
+        return array_map(static fn (array $row): InvoicePortalStatus => new InvoicePortalStatus(
+            invoiceId: RowAccessor::string($row, 'id'),
+            status: RowAccessor::string($row, 'status'),
+            totalGrossMinorUnits: RowAccessor::int($row, 'total_gross'),
+            currency: RowAccessor::string($row, 'currency'),
+        ), $rows);
+    }
+
+    public function portalPublishable(\DateTimeImmutable $issuedFrom, ?InvoiceId $afterId, int $limit): array
+    {
+        $params = [
+            'statuses'   => self::PORTAL_PUBLISHABLE,
+            'issuedFrom' => $issuedFrom->format('Y-m-d H:i:s'),
+            'limit'      => max(0, $limit),
+        ];
+        $types = ['statuses' => ArrayParameterType::STRING, 'limit' => ParameterType::INTEGER];
+
+        if (null !== $afterId) {
+            $params['afterId'] = Uuid::fromString($afterId->toString())->toBinary();
+            $types['afterId']  = ParameterType::BINARY;
+        }
+
+        $rows = $this->connection->fetchAllAssociative(
+            \sprintf(
+                'SELECT BIN_TO_UUID(i.id) AS id, BIN_TO_UUID(i.clinic_id) AS clinic_id
+                 FROM billing__invoices i
+                 WHERE i.status IN (:statuses) AND i.issued_at >= :issuedFrom
+                   AND i.payer_client_id IS NOT NULL%s
+                 ORDER BY i.id ASC
+                 LIMIT :limit',
+                null !== $afterId ? ' AND i.id > :afterId' : '',
+            ),
+            $params,
+            $types,
+        );
+
+        return array_map(static fn (array $row): PortalPublishableInvoice => new PortalPublishableInvoice(
+            invoiceId: RowAccessor::string($row, 'id'),
+            clinicId: RowAccessor::string($row, 'clinic_id'),
         ), $rows);
     }
 

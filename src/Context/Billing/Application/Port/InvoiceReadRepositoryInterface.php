@@ -8,6 +8,8 @@ use App\Context\Billing\Application\Query\FindInvoiceForAdmission\AdmissionInvoi
 use App\Context\Billing\Application\Query\GetBillingStats\BillingStats;
 use App\Context\Billing\Application\Query\GetCreditNoteDetails\CreditNoteDetails;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceDetails;
+use App\Context\Billing\Application\Query\ListInvoicePortalStatuses\InvoicePortalStatus;
+use App\Context\Billing\Application\Query\ListPortalPublishableInvoices\PortalPublishableInvoice;
 use App\Context\Billing\Application\Query\SearchInvoices\InvoiceListRow;
 use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoicesCriteria;
 use App\Context\Billing\Domain\ValueObject\AdmissionId;
@@ -70,4 +72,23 @@ interface InvoiceReadRepositoryInterface
      * @return list<OutstandingInvoiceRow>
      */
     public function outstandingInvoices(ClinicId $clinicId, ?array $only = null): array;
+
+    /**
+     * The live status and total of these invoices, in one read; ids that do
+     * not belong to the clinic are left out.
+     *
+     * @param list<InvoiceId> $invoiceIds
+     *
+     * @return list<InvoicePortalStatus>
+     */
+    public function portalStatuses(ClinicId $clinicId, array $invoiceIds): array;
+
+    /**
+     * Across all clinics: invoices issued since the date (issued, paid or
+     * credited — never draft or cancelled) whose payer is a client, ordered
+     * by id, after the given one, at most $limit.
+     *
+     * @return list<PortalPublishableInvoice>
+     */
+    public function portalPublishable(\DateTimeImmutable $issuedFrom, ?InvoiceId $afterId, int $limit): array;
 }
