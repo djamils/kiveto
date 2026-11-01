@@ -1,0 +1,16 @@
+Bonjour {{ addressee }},
+
+Votre demande de rendez-vous du {{ subjectDateLabel }} n'a pas pu être confirmée — choisissez un autre créneau dans l'app Kiveto.
+
+Animal : {{ animalName }}
+Date : {{ dateLabel }}
+Heure : {{ timeLabel }}
+Motif : {{ reason }}
+{% if practitionerName %}Vétérinaire : {{ practitionerName }}
+{% endif %}
+
+Une question ? Appelez-nous : {{ clinic.phone }}
+
+--
+{{ clinic.footerLine }}
+Vous recevez ce message suite à votre demande de rendez-vous en ligne.

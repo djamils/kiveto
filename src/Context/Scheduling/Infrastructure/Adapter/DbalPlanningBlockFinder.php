@@ -9,9 +9,11 @@ use App\Context\Scheduling\Application\Port\PlanningBlockAppointmentCounterInter
 use App\Context\Scheduling\Application\Port\PlanningBlockFinderInterface;
 use App\Context\Scheduling\Application\Port\PlanningBlockReadModel;
 use App\Context\Scheduling\Domain\Service\RecurrenceExpander;
+use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\PlanningBlockType;
 use App\Context\Scheduling\Domain\ValueObject\RecurrenceRule;
+use App\Context\Scheduling\Domain\ValueObject\TimeRange;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\Connection;
@@ -33,6 +35,7 @@ final readonly class DbalPlanningBlockFinder implements PlanningBlockFinderInter
         string $localDate,
         string $localStartTime,
         string $localEndTime,
+        ?AppointmentId $excludeAppointmentId = null,
     ): ?PlanningBlockReadModel {
         $sql = <<<'SQL'
             SELECT *
@@ -44,6 +47,7 @@ final readonly class DbalPlanningBlockFinder implements PlanningBlockFinderInter
                   JSON_UNQUOTE(JSON_EXTRACT(recurrence_rule, '$.until')) IS NULL
                   OR JSON_UNQUOTE(JSON_EXTRACT(recurrence_rule, '$.until')) >= :localDate
               )
+            FOR SHARE
         SQL;
 
         $rows = $this->connection->fetchAllAssociative($sql, [
@@ -77,7 +81,7 @@ final readonly class DbalPlanningBlockFinder implements PlanningBlockFinderInter
                     ->setTimezone(new \DateTimeZone('UTC'))
                 ;
 
-                $count = $this->counter->countActiveInWindow($clinicId, $staffUserId, $startUtc, $endUtc);
+                $count = $this->counter->countOccupyingInWindowLocked($clinicId, $staffUserId, $startUtc, $endUtc, $excludeAppointmentId);
                 $type  = PlanningBlockType::from(RowAccessor::string($row, 'type'));
 
                 return new PlanningBlockReadModel(
@@ -86,7 +90,8 @@ final readonly class DbalPlanningBlockFinder implements PlanningBlockFinderInter
                     capacityPerHour: RowAccessor::int($row, 'capacity_per_hour'),
                     currentAppointmentCount: $count,
                     acceptsAppointments: $type->acceptsAppointments(),
-                    durationMinutes: intdiv($endUtc->getTimestamp() - $startUtc->getTimestamp(), 60),
+                    // Local minutes: a DST change that day does not change the block's capacity
+                    durationMinutes: new TimeRange($localDate, $rowStartTime, $rowEndTime)->durationMinutes(),
                 );
             }
         }

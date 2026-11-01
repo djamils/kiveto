@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Context\Scheduling\Application\Command\CreatePlanningBlock;
 
+use App\Context\Scheduling\Application\Port\ClinicTimezoneResolverInterface;
 use App\Context\Scheduling\Application\Port\PlanningBlockOverlapCheckerInterface;
+use App\Context\Scheduling\Application\Port\PractitionerDayLockInterface;
 use App\Context\Scheduling\Domain\Exception\CannotCreateOverlappingPlanningBlock;
 use App\Context\Scheduling\Domain\PlanningBlock;
 use App\Context\Scheduling\Domain\Repository\PlanningBlockRepositoryInterface;
+use App\Context\Scheduling\Domain\Service\LockKeys;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\PlanningBlockId;
 use App\Context\Scheduling\Domain\ValueObject\PlanningBlockType;
@@ -15,6 +18,7 @@ use App\Context\Scheduling\Domain\ValueObject\RecurrenceRule;
 use App\Context\Scheduling\Domain\ValueObject\TimeRange;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
+use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
@@ -24,6 +28,9 @@ final readonly class CreatePlanningBlockHandler
         private PlanningBlockRepositoryInterface $repository,
         private PlanningBlockOverlapCheckerInterface $overlapChecker,
         private UuidGeneratorInterface $uuidGenerator,
+        private ClinicTimezoneResolverInterface $timezoneResolver,
+        private PractitionerDayLockInterface $dayLock,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -34,6 +41,10 @@ final readonly class CreatePlanningBlockHandler
         $type        = PlanningBlockType::from($command->type);
         $timeRange   = new TimeRange($command->date, $command->startTime, $command->endTime);
         $rule        = $this->buildRecurrenceRule($command->recurrenceFreq, $command->recurrenceUntil);
+
+        // A booking in flight on those days sees the new block or is not written yet (AC 149)
+        $today = $this->clock->now()->setTimezone($this->timezoneResolver->resolveTimezone($clinicId))->format('Y-m-d');
+        $this->dayLock->lock($clinicId, LockKeys::forBlock($staffUserId, $timeRange, $rule, $today));
 
         $hasOverlap = $this->overlapChecker->hasOverlap(
             $clinicId,

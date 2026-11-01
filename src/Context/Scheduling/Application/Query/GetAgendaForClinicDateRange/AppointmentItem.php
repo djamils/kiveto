@@ -4,8 +4,19 @@ declare(strict_types=1);
 
 namespace App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange;
 
+use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
+
 final readonly class AppointmentItem
 {
+    /** Holds its slot (planned or pending): busy on the agenda, counted as to come. */
+    public bool $occupiesSlot;
+
+    /** Booked online, waiting for the clinic's confirmation (« à confirmer »). */
+    public bool $isPending;
+
+    /** Cancelled or declined: shown as cancelled, never counted. */
+    public bool $isWithdrawn;
+
     public function __construct(
         public string $id,
         public string $clinicId,
@@ -26,7 +37,13 @@ final readonly class AppointmentItem
         public ?string $animalSpecies = null,
         public ?string $animalBirthDate = null,
         public ?string $animalBreed = null,
+        // When a pending request is auto-declined (UTC, `Y-m-d H:i:s`); null otherwise.
+        public ?string $pendingExpiresAtUtc = null,
     ) {
+        $appointmentStatus  = AppointmentStatus::from($status);
+        $this->occupiesSlot = $appointmentStatus->occupiesSlot();
+        $this->isPending    = $appointmentStatus->isPending();
+        $this->isWithdrawn  = $appointmentStatus->isWithdrawn();
     }
 
     public function withIsOrphaned(bool $isOrphaned): self
@@ -51,6 +68,7 @@ final readonly class AppointmentItem
             animalSpecies: $this->animalSpecies,
             animalBirthDate: $this->animalBirthDate,
             animalBreed: $this->animalBreed,
+            pendingExpiresAtUtc: $this->pendingExpiresAtUtc,
         );
     }
 }

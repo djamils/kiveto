@@ -11,8 +11,12 @@ use App\Context\Scheduling\Application\Port\ClinicTimezoneResolverInterface;
 use App\Context\Scheduling\Application\Port\MembershipEligibilityCheckerInterface;
 use App\Context\Scheduling\Application\Port\PlanningBlockFinderInterface;
 use App\Context\Scheduling\Application\Port\PlanningBlockReadModel;
+use App\Context\Scheduling\Application\Service\PlanningBlockGate;
 use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Event\AppointmentScheduled;
+use App\Context\Scheduling\Domain\Exception\BlockRefusesAppointmentsException;
+use App\Context\Scheduling\Domain\Exception\PractitionerNotBookableException;
+use App\Context\Scheduling\Domain\Exception\SlotTakenException;
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\PlanningBlockType;
@@ -22,6 +26,7 @@ use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Tests\Unit\Context\Scheduling\Support\CapturingEventBus;
+use App\Tests\Unit\Context\Scheduling\Support\RecordingDayLock;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -37,6 +42,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
     private ClinicTimezoneResolverInterface&MockObject $timezoneResolver;
     private ScheduleAppointmentHandler $handler;
     private CapturingEventBus $events;
+    private RecordingDayLock $dayLock;
 
     protected function setUp(): void
     {
@@ -54,9 +60,10 @@ final class ScheduleAppointmentHandlerTest extends TestCase
             conflictChecker: $this->conflictChecker,
             uuidGenerator: $this->uuidGenerator,
             clock: $this->clock,
-            planningBlockFinder: $this->planningBlockFinder,
+            planningBlockGate: new PlanningBlockGate($this->planningBlockFinder),
             timezoneResolver: $this->timezoneResolver,
             domainEventPublisher: new DomainEventPublisher($this->events = new CapturingEventBus()),
+            dayLock: $this->dayLock = new RecordingDayLock(),
         );
     }
 
@@ -91,7 +98,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
         ;
 
         $this->conflictChecker->expects(self::once())
-            ->method('hasOverlap')
+            ->method('hasOverlapLocked')
             ->with(
                 self::callback(fn ($id) => $id instanceof ClinicId),
                 self::callback(fn ($id) => $id instanceof UserId),
@@ -127,6 +134,31 @@ final class ScheduleAppointmentHandlerTest extends TestCase
         self::assertCount(1, $this->events->events);
         self::assertInstanceOf(AppointmentScheduled::class, $this->events->events[0]);
         self::assertSame(['owner-1', 'animal-1', 'actor-1'], [$this->events->events[0]->ownerId(), $this->events->events[0]->animalId(), $this->events->events[0]->actorUserId()]);
+        self::assertSame(['44444444-4444-4444-4444-444444444444|2026-02-01'], $this->dayLock->locked);
+        self::assertSame('11111111-1111-1111-1111-111111111111', $this->dayLock->clinicId);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testTheLockIsTakenBeforeTheOverlapCheckForEveryLocalDayOfTheSlot(): void
+    {
+        $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'));
+        $this->membershipEligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
+        $this->timezoneResolver->method('resolveTimezone')->willReturn(new \DateTimeZone('Europe/Paris'));
+        $this->conflictChecker->method('hasOverlapLocked')->willReturnCallback(function (): bool {
+            // 22:30–23:30 UTC on 11 March is 23:30–00:30 in Paris
+            self::assertSame(['44444444-4444-4444-4444-444444444444|2026-03-11', '44444444-4444-4444-4444-444444444444|2026-03-12'], $this->dayLock->locked);
+
+            return true;
+        });
+
+        $this->expectException(SlotTakenException::class);
+
+        ($this->handler)(new ScheduleAppointment(
+            clinicId: '11111111-1111-1111-1111-111111111111',
+            practitionerUserId: '44444444-4444-4444-4444-444444444444',
+            startsAtUtc: new \DateTimeImmutable('2026-03-11 22:30:00', new \DateTimeZone('UTC')),
+            durationMinutes: 60,
+        ));
     }
 
     #[AllowMockObjectsWithoutExpectations]
@@ -143,7 +175,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
 
         $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'));
         $this->membershipEligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
-        $this->conflictChecker->method('hasOverlap')->willReturn(false);
+        $this->conflictChecker->method('hasOverlapLocked')->willReturn(false);
         $this->timezoneResolver->method('resolveTimezone')->willReturn(new \DateTimeZone('Europe/Paris'));
         $this->planningBlockFinder->method('findActiveBlockFor')->willReturn(null);
         $this->uuidGenerator->method('generate')->willReturn('01234567-89ab-cdef-0123-456789abcdef');
@@ -168,7 +200,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
     #[AllowMockObjectsWithoutExpectations]
     public function testScheduleAppointmentFailsWhenPractitionerNotEligible(): void
     {
-        $this->expectException(\DomainException::class);
+        $this->expectException(PractitionerNotBookableException::class);
         $this->expectExceptionMessage('User "44444444-4444-4444-4444-444444444444" is not eligible as practitioner');
 
         $command = new ScheduleAppointment(
@@ -194,7 +226,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
     #[AllowMockObjectsWithoutExpectations]
     public function testScheduleAppointmentFailsWhenOverlapDetected(): void
     {
-        $this->expectException(\DomainException::class);
+        $this->expectException(SlotTakenException::class);
         $this->expectExceptionMessage(
             'Practitioner "44444444-4444-4444-4444-444444444444" has an overlapping appointment',
         );
@@ -216,8 +248,9 @@ final class ScheduleAppointmentHandlerTest extends TestCase
             ->willReturn(true)
         ;
 
+        $this->timezoneResolver->method('resolveTimezone')->willReturn(new \DateTimeZone('Europe/Paris'));
         $this->conflictChecker->expects(self::once())
-            ->method('hasOverlap')
+            ->method('hasOverlapLocked')
             ->willReturn(true)
         ;
 
@@ -227,7 +260,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
     #[AllowMockObjectsWithoutExpectations]
     public function testBlockNotAcceptingAppointmentsThrows(): void
     {
-        $this->expectException(\DomainException::class);
+        $this->expectException(BlockRefusesAppointmentsException::class);
         $this->expectExceptionMessage('leave');
 
         $command = new ScheduleAppointment(
@@ -239,7 +272,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
 
         $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'));
         $this->membershipEligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
-        $this->conflictChecker->method('hasOverlap')->willReturn(false);
+        $this->conflictChecker->method('hasOverlapLocked')->willReturn(false);
         $this->timezoneResolver->method('resolveTimezone')->willReturn(new \DateTimeZone('Europe/Paris'));
         $this->planningBlockFinder->method('findActiveBlockFor')->willReturn(
             new PlanningBlockReadModel(
@@ -257,7 +290,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
     #[AllowMockObjectsWithoutExpectations]
     public function testBlockAtCapacityThrows(): void
     {
-        $this->expectException(\DomainException::class);
+        $this->expectException(SlotTakenException::class);
         $this->expectExceptionMessage('capacity reached');
 
         $command = new ScheduleAppointment(
@@ -269,7 +302,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
 
         $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'));
         $this->membershipEligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
-        $this->conflictChecker->method('hasOverlap')->willReturn(false);
+        $this->conflictChecker->method('hasOverlapLocked')->willReturn(false);
         $this->timezoneResolver->method('resolveTimezone')->willReturn(new \DateTimeZone('Europe/Paris'));
         $this->planningBlockFinder->method('findActiveBlockFor')->willReturn(
             new PlanningBlockReadModel(
@@ -296,7 +329,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
 
         $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'));
         $this->membershipEligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
-        $this->conflictChecker->method('hasOverlap')->willReturn(false);
+        $this->conflictChecker->method('hasOverlapLocked')->willReturn(false);
         $this->timezoneResolver->method('resolveTimezone')->willReturn(new \DateTimeZone('Europe/Paris'));
         $this->planningBlockFinder->method('findActiveBlockFor')->willReturn(
             new PlanningBlockReadModel(
@@ -326,7 +359,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
 
         $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'));
         $this->membershipEligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
-        $this->conflictChecker->method('hasOverlap')->willReturn(false);
+        $this->conflictChecker->method('hasOverlapLocked')->willReturn(false);
         $this->timezoneResolver->method('resolveTimezone')->willReturn(new \DateTimeZone('Europe/Paris'));
         // 4 per hour over a 4-hour block: the 16th booking still fits
         $this->planningBlockFinder->method('findActiveBlockFor')->willReturn(
@@ -357,7 +390,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
 
         $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'));
         $this->membershipEligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
-        $this->conflictChecker->method('hasOverlap')->willReturn(false);
+        $this->conflictChecker->method('hasOverlapLocked')->willReturn(false);
         $this->timezoneResolver->method('resolveTimezone')->willReturn(new \DateTimeZone('Europe/Paris'));
         $this->planningBlockFinder->method('findActiveBlockFor')->willReturn(null);
         $this->uuidGenerator->method('generate')->willReturn('01234567-89ab-cdef-0123-456789abcdef');

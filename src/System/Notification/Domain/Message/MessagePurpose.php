@@ -14,6 +14,7 @@ enum MessagePurpose: string
     case APPOINTMENT_CHANGE       = 'APPOINTMENT_CHANGE';
     case APPOINTMENT_CANCELLATION = 'APPOINTMENT_CANCELLATION';
     case APPOINTMENT_REMINDER     = 'APPOINTMENT_REMINDER';
+    case APPOINTMENT_DECLINED     = 'APPOINTMENT_DECLINED';
     case INVOICE_SENT             = 'INVOICE_SENT';
     case INVOICE_REMINDER         = 'INVOICE_REMINDER';
     case CONSULTATION_DOCUMENTS   = 'CONSULTATION_DOCUMENTS';
@@ -68,6 +69,7 @@ enum MessagePurpose: string
             self::APPOINTMENT_CHANGE       => 'Modification de rendez-vous',
             self::APPOINTMENT_CANCELLATION => 'Annulation de rendez-vous',
             self::APPOINTMENT_REMINDER     => 'Rappel de rendez-vous',
+            self::APPOINTMENT_DECLINED     => 'Demande de RDV non confirmée',
             self::INVOICE_SENT             => 'Envoi de facture',
             self::INVOICE_REMINDER         => "Relance d'impayé",
             self::CONSULTATION_DOCUMENTS   => 'Documents de consultation',

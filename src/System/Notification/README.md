@@ -36,7 +36,7 @@ official Symfony bridges (`symfony/brevo-mailer` API transport,
 | Term | Definition |
 |------|------------|
 | **OutboundMessage** | One e-mail or one SMS to one recipient, with its content frozen at request time, its attachments, the provider message id and its status history. The bodies of `STAFF_INVITATION`, `PASSWORD_RESET`, `PORTAL_INVITATION` (one-time link) and `PORTAL_OTP` (one-time code) are erased once the message is handed over or fails (subject and metadata stay); such a message whose link or code expired while it waited (30 min / 72 h / 7 days / 10 min after the request) is not sent: FAILED « Lien expiré avant l'envoi ». |
-| **MessagePurpose** | Why the message is sent: `APPOINTMENT_CONFIRMATION`, `APPOINTMENT_CHANGE`, `APPOINTMENT_CANCELLATION`, `APPOINTMENT_REMINDER`, `INVOICE_SENT`, `INVOICE_REMINDER`, `CONSULTATION_DOCUMENTS`, `STAFF_INVITATION`, `PASSWORD_RESET`, `TEST`, `PORTAL_OTP` (« Code de connexion Portal »), `PORTAL_INVITATION` (« Invitation au Portal »). |
+| **MessagePurpose** | Why the message is sent: `APPOINTMENT_CONFIRMATION`, `APPOINTMENT_CHANGE`, `APPOINTMENT_CANCELLATION`, `APPOINTMENT_REMINDER`, `APPOINTMENT_DECLINED` (« Demande de RDV non confirmée »), `INVOICE_SENT`, `INVOICE_REMINDER`, `CONSULTATION_DOCUMENTS`, `STAFF_INVITATION`, `PASSWORD_RESET`, `TEST`, `PORTAL_OTP` (« Code de connexion Portal »), `PORTAL_INVITATION` (« Invitation au Portal »). |
 | **Criticality** | Fixed per purpose. `NON_CRITICAL` (appointment reminder, unpaid reminder) SMS are subject to the overage cap; everything else is `CRITICAL`. |
 | **DeliveryStatus** | `QUEUED` (0) → `SENT` / `DEFERRED` (1) → `DELIVERED` / `BOUNCED` / `REJECTED` / `FAILED` / `BLOCKED_CAP` (2, final). A complaint (spam) is a flag, not a status. |
 | **IdempotencyKey** | Opaque string built by the requester (`appointment:<id>:confirmation:1`, `invoice:<id>:send:<dispatchId>`, `invitation:<tokenId>`…), unique across messages. |
@@ -79,7 +79,7 @@ official Symfony bridges (`symfony/brevo-mailer` API transport,
 | `GetSmsUsage` | query | Month (Europe/Paris), quota, used, queued, overage, overage amount (cents HT), cap, percent, cap reached. |
 | `PreviewSmsSegments` | query | Segments that `count` SMS of a purpose would consume for a clinic (bulk reminder confirmation); 0 without messaging profile. |
 | `GetMessageStatuses` | query | Current status and French label of many messages, by id (invoice history). |
-| `PostInAppNotification` | command | One bell entry per user of a clinic (kinds `NEW_APPOINTMENT`, `CRITICAL_STOCK`, `EXPIRING_LOTS`, `SMS_QUOTA`, all under « Activité »), at most once per user and idempotency key (INSERT IGNORE). |
+| `PostInAppNotification` | command | One bell entry per user of a clinic (kinds `NEW_APPOINTMENT`, `CRITICAL_STOCK`, `EXPIRING_LOTS`, `SMS_QUOTA`, `ONLINE_BOOKING_PENDING` « RDV en ligne à confirmer », `ONLINE_BOOKING_CHANGED` « RDV modifié / annulé en ligne », all under « Activité »), at most once per user and idempotency key (INSERT IGNORE). |
 | `MarkInAppNotificationRead` / `MarkAllInAppNotificationsRead` | command | The user reads one of their entries / all their entries of the current clinic. |
 | `WithdrawInAppNotification` | command | Deletes the unread entries posted under a key (e.g. a new appointment cancelled before being seen). |
 | `ListInAppNotifications` / `CountUnreadInAppNotifications` | query | The user's entries of the current clinic over the last 30 days (newest first, optional limit) / their unread count. |
@@ -99,7 +99,7 @@ nothing automated.
 
 | Purpose | Requester | Channel(s) | Consent used |
 |---|---|---|---|
-| `APPOINTMENT_CONFIRMATION` / `_CHANGE` / `_CANCELLATION` | Scheduling (`SyncAppointmentNotification`) | one: `transactionalChannel()` | none — never blocked by a consent |
+| `APPOINTMENT_CONFIRMATION` / `_CHANGE` / `_CANCELLATION` / `_DECLINED` | Scheduling (`SyncAppointmentNotification`) | one: `transactionalChannel()` | none — never blocked by a consent |
 | `APPOINTMENT_REMINDER` | Scheduling (`RequestAppointmentReminder`) | SMS only, when `appointment_reminders` contains `sms` and a mobile exists; e-mail fallback (cap reached) only when the same consent also contains `email` and an e-mail exists | `appointment_reminders` (« Rappels de rendez-vous ») |
 | `INVOICE_SENT` | Billing (`SendInvoiceEmail`) | e-mail on file, whatever the consents (explicit staff action) | none |
 | `INVOICE_REMINDER` | Billing (`SendUnpaidReminder`) | the `billing` consent's reachable channels (SMS and / or e-mail), else `transactionalChannel()`; SMS e-mail fallback only when e-mail is not already a channel | `billing` (« Factures et relances de règlement ») |

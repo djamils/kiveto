@@ -211,6 +211,69 @@ final class AppointmentNotificationStateTest extends TestCase
         self::assertNull($state->reminderRequestedAt());
     }
 
+    public function testAPendingRequestCallsForNothing(): void
+    {
+        self::assertNull(self::fresh()->nextMessage(AppointmentStatus::PENDING_CLINIC_CONFIRMATION, Appointments::slot('2026-10-22 07:30'), Appointments::ROUSSEAU, self::now()));
+    }
+
+    public function testADeclinedRequestIsToldOnce(): void
+    {
+        $state = self::fresh();
+        $slot  = Appointments::slot('2026-10-22 07:30');
+
+        self::assertSame(AppointmentMessageKind::DECLINED, $state->nextMessage(AppointmentStatus::DECLINED, $slot, Appointments::ROUSSEAU, self::now()));
+        self::assertSame(1, $state->recordNotified(AppointmentMessageKind::DECLINED, $slot, Appointments::ROUSSEAU, self::now(), Appointments::OWNER));
+
+        self::assertSame(self::NOW, $state->declineNotifiedAt()?->format('Y-m-d H:i'));
+        self::assertNull($state->nextMessage(AppointmentStatus::DECLINED, $slot, Appointments::ROUSSEAU, self::now()));
+        // Nothing was confirmed: the decline records no slot told
+        self::assertNull($state->confirmedAt());
+        self::assertNull($state->notified());
+
+        $silenced = self::fresh();
+        $silenced->silence();
+        self::assertNull($silenced->nextMessage(AppointmentStatus::DECLINED, $slot, Appointments::ROUSSEAU, self::now()));
+    }
+
+    public function testASilentConfirmationMarksTheSlotToldWithoutAMessage(): void
+    {
+        $state = self::fresh();
+        $slot  = Appointments::slot('2026-10-22 07:30');
+
+        $state->markConfirmedSilently($slot, Appointments::ROUSSEAU, Appointments::OWNER, self::now());
+
+        self::assertNull($state->nextMessage(AppointmentStatus::PLANNED, $slot, Appointments::ROUSSEAU, self::now()));
+        self::assertSame([self::NOW, 0, Appointments::OWNER], [$state->confirmedAt()?->format('Y-m-d H:i'), $state->notificationCounter(), $state->notifiedOwnerId()]);
+        self::assertSame(['2026-10-22 07:30', 30, Appointments::ROUSSEAU], self::described($state->notified()));
+        // A later move is still told
+        self::assertSame(AppointmentMessageKind::CHANGE, $state->nextMessage(AppointmentStatus::PLANNED, Appointments::slot('2026-10-23 09:00'), Appointments::ROUSSEAU, self::now()));
+
+        // Once something was confirmed, a silent confirmation changes nothing
+        $confirmed = self::confirmed();
+        $confirmed->markConfirmedSilently(Appointments::slot('2026-10-23 09:00'), Appointments::LAMBERT, null, self::now()->modify('+1 day'));
+        self::assertSame(['2026-10-22 07:30', 30, Appointments::ROUSSEAU], self::described($confirmed->notified()));
+    }
+
+    public function testTheDeclineTimeIsReconstituted(): void
+    {
+        $state = AppointmentNotificationState::reconstitute(
+            AppointmentId::fromString(Appointments::ID),
+            ClinicId::fromString(Appointments::CLINIC),
+            null,
+            null,
+            false,
+            null,
+            1,
+            null,
+            null,
+            Appointments::OWNER,
+            self::now(),
+        );
+
+        self::assertSame(self::NOW, $state->declineNotifiedAt()?->format('Y-m-d H:i'));
+        self::assertNull(self::fresh()->declineNotifiedAt());
+    }
+
     private static function fresh(): AppointmentNotificationState
     {
         return AppointmentNotificationState::start(AppointmentId::fromString(Appointments::ID), ClinicId::fromString(Appointments::CLINIC));

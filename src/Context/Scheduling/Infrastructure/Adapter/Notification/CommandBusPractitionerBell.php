@@ -42,6 +42,48 @@ final readonly class CommandBusPractitionerBell implements PractitionerBellInter
         ));
     }
 
+    public function announcePendingBooking(
+        string $clinicId,
+        string $practitionerUserId,
+        string $appointmentId,
+        string $localDate,
+        string $title,
+        string $detail,
+        string $idempotencyKey,
+    ): void {
+        $this->commandBus->dispatch(new PostInAppNotification(
+            clinicId: $clinicId,
+            userIds: [$practitionerUserId],
+            kind: 'ONLINE_BOOKING_PENDING',
+            title: $title,
+            detail: $detail,
+            route: self::ROUTE,
+            routeParams: ['view' => 'day', 'date' => $localDate, 'rdv' => $appointmentId],
+            idempotencyKey: $idempotencyKey,
+        ));
+    }
+
+    public function announceOnlineChange(
+        string $clinicId,
+        array $practitionerUserIds,
+        string $appointmentId,
+        string $localDate,
+        string $title,
+        string $detail,
+        string $idempotencyKey,
+    ): void {
+        $this->commandBus->dispatch(new PostInAppNotification(
+            clinicId: $clinicId,
+            userIds: array_values(array_unique($practitionerUserIds)),
+            kind: 'ONLINE_BOOKING_CHANGED',
+            title: $title,
+            detail: $detail,
+            route: self::ROUTE,
+            routeParams: ['view' => 'day', 'date' => $localDate, 'rdv' => $appointmentId],
+            idempotencyKey: $idempotencyKey,
+        ));
+    }
+
     public function withdraw(string $idempotencyKey): void
     {
         $this->commandBus->dispatch(new WithdrawInAppNotification($idempotencyKey));

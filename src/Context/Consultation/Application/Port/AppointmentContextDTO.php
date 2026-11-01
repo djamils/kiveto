@@ -9,7 +9,8 @@ final readonly class AppointmentContextDTO
     public function __construct(
         public string $clinicId,
         public ?string $admissionId,
-        public string $status, // PLANNED, etc.
+        // The Scheduling status as stored, carried but never interpreted here
+        public string $status,
     ) {
     }
 }

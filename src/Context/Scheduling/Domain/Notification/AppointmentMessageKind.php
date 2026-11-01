@@ -13,4 +13,6 @@ enum AppointmentMessageKind: string
     case CONFIRMATION = 'confirmation';
     case CHANGE       = 'change';
     case CANCELLATION = 'cancellation';
+    // A pending request the clinic did not confirm (declined, expired, cancelled while pending)
+    case DECLINED = 'declined';
 }

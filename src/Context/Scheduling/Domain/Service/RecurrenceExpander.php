@@ -51,10 +51,10 @@ final class RecurrenceExpander
         while ($cursor->format('Y-m-d') <= $end->format('Y-m-d')) {
             $dow     = (int) $cursor->format('N');
             $matches = match ($rule->freq()) {
-                RecurrenceRule::DAILY    => true,
-                RecurrenceRule::WEEKLY   => $dow === $baseDow,
-                RecurrenceRule::WEEKDAYS => $dow <= 5,
-                default                  => false,
+                RecurrenceRule::DAILY  => true,
+                RecurrenceRule::WEEKLY => $dow === $baseDow,
+                // WEEKDAYS: NONE returned earlier and RecurrenceRule accepts no other frequency.
+                default => $dow <= 5,
             };
 
             if ($matches) {

@@ -17,4 +17,15 @@ interface AppointmentConflictCheckerInterface
         TimeSlot $timeSlot,
         ?AppointmentId $excludeAppointmentId = null,
     ): bool;
+
+    /**
+     * Same check as a current read (`FOR SHARE`): sees what another transaction
+     * committed after this one's snapshot. Call it under the practitioner-day lock.
+     */
+    public function hasOverlapLocked(
+        ClinicId $clinicId,
+        UserId $practitionerUserId,
+        TimeSlot $timeSlot,
+        ?AppointmentId $excludeAppointmentId = null,
+    ): bool;
 }

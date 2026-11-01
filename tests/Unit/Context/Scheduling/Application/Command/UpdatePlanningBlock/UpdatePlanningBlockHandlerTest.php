@@ -22,6 +22,8 @@ use App\Context\Scheduling\Domain\ValueObject\PlanningBlockType;
 use App\Context\Scheduling\Domain\ValueObject\RecurrenceRule;
 use App\Context\Scheduling\Domain\ValueObject\TimeRange;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
+use App\Tests\Unit\Context\Scheduling\Support\MovableClock;
+use App\Tests\Unit\Context\Scheduling\Support\RecordingDayLock;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -33,6 +35,7 @@ final class UpdatePlanningBlockHandlerTest extends TestCase
     private PlanningBlockAppointmentCounterInterface&MockObject $counter;
     private ClinicTimezoneResolverInterface&MockObject $timezoneResolver;
     private UpdatePlanningBlockHandler $handler;
+    private RecordingDayLock $dayLock;
 
     protected function setUp(): void
     {
@@ -46,6 +49,8 @@ final class UpdatePlanningBlockHandlerTest extends TestCase
             overlapChecker: $this->overlapChecker,
             appointmentCounter: $this->counter,
             timezoneResolver: $this->timezoneResolver,
+            dayLock: $this->dayLock = new RecordingDayLock(),
+            clock: new MovableClock(new \DateTimeImmutable('2026-04-01 08:00', new \DateTimeZone('UTC'))),
         );
     }
 
@@ -56,6 +61,33 @@ final class UpdatePlanningBlockHandlerTest extends TestCase
         $this->repository->expects(self::once())->method('save');
 
         ($this->handler)($this->baseCommand());
+
+        // The weekly block's Tuesdays of the next 60 days
+        self::assertCount(6, $this->dayLock->locked);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testAStaffChangeLocksTheDaysOfBothStaffMembers(): void
+    {
+        $this->setupHappyPath();
+
+        ($this->handler)(new UpdatePlanningBlock(
+            blockId: '11111111-1111-1111-1111-111111111111',
+            clinicId: '22222222-2222-2222-2222-222222222222',
+            staffUserId: '44444444-4444-4444-4444-444444444444',
+            type: 'consultation',
+            date: '2026-04-21',
+            startTime: '08:00',
+            endTime: '12:00',
+            capacityPerHour: 3,
+            recurrenceFreq: 'WEEKLY',
+            recurrenceUntil: null,
+            note: null,
+        ));
+
+        self::assertCount(12, $this->dayLock->locked);
+        self::assertSame('33333333-3333-3333-3333-333333333333|2026-04-21', $this->dayLock->locked[0]);
+        self::assertSame('44444444-4444-4444-4444-444444444444|2026-05-26', $this->dayLock->locked[11]);
     }
 
     #[AllowMockObjectsWithoutExpectations]
@@ -102,6 +134,15 @@ final class UpdatePlanningBlockHandlerTest extends TestCase
         $this->setupHappyPath();
 
         ($this->handler)($this->baseCommand(['recurrenceFreq' => 'DAILY']));
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testSwitchingAWeeklyBlockToWeekdaysThrows(): void
+    {
+        $this->expectException(CannotModifyRecurrenceRuleOnExistingBlock::class);
+        $this->setupHappyPath();
+
+        ($this->handler)($this->baseCommand(['recurrenceFreq' => 'weekdays']));
     }
 
     #[AllowMockObjectsWithoutExpectations]
@@ -155,6 +196,6 @@ final class UpdatePlanningBlockHandlerTest extends TestCase
         $this->repository->method('findById')->willReturn($this->sampleBlock());
         $this->overlapChecker->method('hasOverlap')->willReturn(false);
         $this->timezoneResolver->method('resolveTimezone')->willReturn(new \DateTimeZone('Europe/Paris'));
-        $this->counter->method('countActiveInWindow')->willReturn($appointmentCount);
+        $this->counter->method('countOccupyingInWindowLocked')->willReturn($appointmentCount);
     }
 }

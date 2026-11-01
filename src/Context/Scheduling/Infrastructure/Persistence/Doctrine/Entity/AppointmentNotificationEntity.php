@@ -44,6 +44,8 @@ class AppointmentNotificationEntity
         private ?\DateTimeImmutable $reminderRequestedAt = null,
         #[ORM\Column(name: 'notified_owner_id', type: UuidType::NAME, nullable: true)]
         private ?Uuid $notifiedOwnerId = null,
+        #[ORM\Column(name: 'decline_notified_at', type: 'datetime_immutable', nullable: true)]
+        private ?\DateTimeImmutable $declineNotifiedAt = null,
     ) {
     }
 
@@ -65,6 +67,7 @@ class AppointmentNotificationEntity
             'reminder_due_at_utc'           => $this->reminderDueAtUtc,
             'reminder_requested_at'         => $this->reminderRequestedAt,
             'notified_owner_id'             => $this->notifiedOwnerId,
+            'decline_notified_at'           => $this->declineNotifiedAt,
         ];
     }
 }

@@ -15,7 +15,7 @@ final readonly class PostInAppNotification implements CommandInterface
 {
     /**
      * @param list<string>          $userIds
-     * @param string                $kind        NEW_APPOINTMENT | CRITICAL_STOCK | EXPIRING_LOTS | SMS_QUOTA
+     * @param string                $kind        NEW_APPOINTMENT | CRITICAL_STOCK | EXPIRING_LOTS | SMS_QUOTA | ONLINE_BOOKING_PENDING | ONLINE_BOOKING_CHANGED
      * @param string                $route       Symfony route name of the screen the entry opens
      * @param array<string, string> $routeParams
      */

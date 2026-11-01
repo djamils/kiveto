@@ -13,7 +13,9 @@ use App\Context\Client\Domain\ValueObject\ClinicId as ClientClinicId;
 use App\Context\Client\Domain\ValueObject\ContactLabel;
 use App\Context\Client\Domain\ValueObject\ContactMethod;
 use App\Context\Scheduling\Application\Command\CancelAppointment\CancelAppointment;
+use App\Context\Scheduling\Application\Command\ConfirmAppointment\ConfirmAppointment;
 use App\Context\Scheduling\Application\Command\PostNewAppointmentNotice\PostNewAppointmentNotice;
+use App\Context\Scheduling\Application\Command\PostPendingBookingNotice\PostPendingBookingNotice;
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
 use App\Fixtures\Context\Clinic\Factory\ClinicEntityFactory;
 use App\Shared\Application\Bus\CommandBusInterface;
@@ -38,7 +40,8 @@ final class NewAppointmentBellPipelineTest extends KernelTestCase
 {
     use Factories;
 
-    private const string JULIE = '01960000-0000-7000-8000-0000000d0009';
+    private const string JULIE   = '01960000-0000-7000-8000-0000000d0009';
+    private const string REQUEST = '01960000-0000-7000-8000-0000000a0039';
 
     protected function setUp(): void
     {
@@ -83,6 +86,29 @@ final class NewAppointmentBellPipelineTest extends KernelTestCase
         MessengerDrain::drain(self::getContainer(), ['async']);
 
         self::assertCount(1, $this->bell());
+    }
+
+    public function testAPendingRequestIsInTheBellUntilTheClinicConfirmsIt(): void
+    {
+        // AC 39 / AC 35: « RDV en ligne à confirmer », withdrawn by the confirmation, no « Nouveau RDV »
+        $appointments = self::getContainer()->get(AppointmentRepositoryInterface::class);
+        \assert($appointments instanceof AppointmentRepositoryInterface);
+        $appointments->save(Appointments::pending('2030-03-06 08:30', '2030-03-05 08:30', id: self::REQUEST));
+
+        $bus = self::getContainer()->get('messenger.bus.command');
+        \assert($bus instanceof MessageBusInterface);
+        $bus->dispatch(new PostPendingBookingNotice(self::REQUEST));
+        MessengerDrain::drain(self::getContainer(), ['async']);
+
+        $entries = $this->bell();
+        self::assertCount(1, $entries);
+        self::assertSame(['ONLINE_BOOKING_PENDING', 'RDV en ligne à confirmer', 'Sophie Dubois · mercredi 06/03 à 9h30'], [$entries[0]->kind, $entries[0]->title, $entries[0]->detail]);
+        self::assertStringEndsWith('/scheduling/agenda?rdv=' . self::REQUEST . '&date=2030-03-06&view=day', $this->url($entries[0]));
+
+        $this->commandBus()->dispatch(new ConfirmAppointment(self::REQUEST, Appointments::CLINIC));
+        MessengerDrain::drain(self::getContainer(), ['async']);
+
+        self::assertSame([], $this->bell());
     }
 
     public function testNothingIsPostedWhenTheVeterinarianBookedThemself(): void

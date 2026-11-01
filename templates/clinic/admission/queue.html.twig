@@ -67,6 +67,7 @@
       </div>
       <div class="pm-foot">
         <span class="pm-sub">{{ p.motif }}{% if p.ownerShort %} · {{ p.ownerShort }}{% endif %}</span>
+        {% if p.isPending %}<span class="puce">À confirmer</span>{% endif %}
         <span class="puce retard" data-rdv="{{ p.sinceEpoch }}"{% if _late < 1 %} hidden{% endif %}>En retard · {{ max(_late, 1) }} min</span>
         {% if p.practitioner %}<span class="qui">{{ p.practitioner }}</span>{% endif %}
       </div>

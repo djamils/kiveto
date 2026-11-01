@@ -769,7 +769,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
 
 #### Slice 4a — booking setup — `feature/portal-booking-setup`
 
-- [ ] Task 18: Appointment statuses, fields and pending lifecycle (S4a, S4f, D18)
+- [x] Task 18: Appointment statuses, fields and pending lifecycle (S4a, S4f, D18)
   - Files:
     - `src/Context/Scheduling/Domain/ValueObject/{AppointmentStatus, AppointmentSource (clinic|portal), CancellationActor (clinic|client), CancellationReason (unavailable|no_longer_needed|seen_elsewhere|other), DeclineReason (declined|expired|clinic_cancelled)}.php`
     - `src/Context/Scheduling/Domain/Appointment.php`
@@ -797,7 +797,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
     - `CheckInAppointmentHandler` keeps its flow; the domain now confirms a PENDING silently before completing.
     - The death flow passes `CancellationActor::CLINIC` with `notifyClient: false`, so a pending one is declined silently (D3 kept).
   - Tests: `tests/Unit/Context/Scheduling/Domain/{AppointmentPendingLifecycleTest, AppointmentStatusTest}.php`; `tests/Integration/Context/Scheduling/Infrastructure/Persistence/AppointmentRoundTripTest.php` (persist and reload a pending appointment with every new field; backfill of `cancelled_by`).
-- [ ] Task 19: `occupiesSlot()` audit — every status literal classified (S4a, P5, S4a-F3/F4/F5)
+- [x] Task 19: `occupiesSlot()` audit — every status literal classified (S4a, P5, S4a-F3/F4/F5)
   - Files: the files of the table below, `src/Context/Scheduling/Application/Query/{GetAgendaForClinicDateRange, ListAppointmentsForAnimal, ListAppointmentsForOwner, GetAppointmentDetails}/*` (DTOs gain `bool occupiesSlot`, `bool isPending`, `bool isWithdrawn` = CANCELLED|DECLINED, computed in Scheduling), `tests/Architecture/AppointmentStatusLiteralTest.php` (new)
   - Action: apply the table. Outside `src/Context/Scheduling`, no code compares an appointment status string. Presentation reads the DTO flags. Other BCs keep only status columns they do not interpret.
 
@@ -838,7 +838,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
   - Tests:
     - `AppointmentStatusLiteralTest`: scans `src/Presentation` and `src/Context/*` except Scheduling for `'PLANNED'`, `'PENDING_CLINIC_CONFIRMATION'` and `'DECLINED'` literals. It fails if any appears, and replaces the mirrored-list idea (AC 89).
     - One VetApp integration test per screen (agenda range JSON, dashboard, flux board, shell, client sheet, animal sheet): a pending appointment shows « à confirmer » and busy, a declined one shows as cancelled and is not counted.
-- [ ] Task 20: Per-practitioner-day lock with current reads (S4d, P1, S4a-F1/F6/F13)
+- [x] Task 20: Per-practitioner-day lock with current reads (S4d, P1, S4a-F1/F6/F13)
   - Files:
     - `src/Context/Scheduling/Application/Port/PractitionerDayLockInterface.php`
     - `src/Context/Scheduling/Infrastructure/Adapter/DbalPractitionerDayLock.php`
@@ -862,7 +862,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
   - Tests:
     - `tests/Unit/Context/Scheduling/Domain/Service/{LockKeysTest, BlockCapacityTest}.php`
     - `tests/Integration/Context/Scheduling/Concurrency/PractitionerDayLockTest.php`, **outside DAMA, two connections**: each transaction runs a plain SELECT on `scheduling__appointments` before locking, to reproduce the REPEATABLE READ snapshot. Cases: concurrent schedule, midnight-spanning slots, crossed reschedules, deadlock retry.
-- [ ] Task 21: `BookingMotif` and `OnlineBookingSettings` (S4b, S4c, S4f, D15)
+- [x] Task 21: `BookingMotif` and `OnlineBookingSettings` (S4b, S4c, S4f, D15)
   - Files:
     - `src/Context/Scheduling/Domain/Booking/{BookingMotif, BookingMotifId, ConfirmationMode (auto|manual), OnlineBookingSettings, BookingMotifRepositoryInterface, OnlineBookingSettingsRepositoryInterface}.php`
     - ORM entities and mappers under `src/Context/Scheduling/Infrastructure/Persistence/Doctrine/`
@@ -888,7 +888,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
     - Constant `AUTO_DECLINE_MARGIN = 2 h` and `pendingExpiry(createdAt, startsAt) = min(createdAt + 48 h, startsAt − AUTO_DECLINE_MARGIN)`.
     - `isOpenForBooking()` = enabled and the clinic is active (status read through the Clinic port of Task 25).
   - Tests: `tests/Unit/Context/Scheduling/Domain/Booking/{BookingMotifTest, OnlineBookingSettingsTest}.php` (bounds, `pendingExpiry`), DBAL/ORM round-trip integration tests.
-- [ ] Task 22: Confirm, decline, auto-decline, messages, bells and integration events (S4e, S4j, P2, P7, D18)
+- [x] Task 22: Confirm, decline, auto-decline, messages, bells and integration events (S4e, S4j, P2, P7, D18)
   - Files:
     - `src/Context/Scheduling/Application/Command/{ConfirmAppointment, DeclineAppointment, ScanExpiredPendingAppointments, DeclineExpiredPendingAppointment}/…`
     - `src/Context/Scheduling/Infrastructure/Scheduler/SchedulingScheduleProvider.php` (scan every 15 min)
@@ -919,7 +919,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
     - an integration test for the scan + per-row decline;
     - a race test (confirm vs auto-decline, two connections);
     - a Notification `TemplateCatalog` test for the new purpose.
-- [ ] Task 23: VetApp — online booking settings, agenda and dashboard (S4h)
+- [x] Task 23: VetApp — online booking settings, agenda and dashboard (S4h)
   - Files:
     - Settings:
       - `src/Presentation/Clinic/Controller/Settings/{ShowOnlineBookingSettingsController, UpdateOnlineBookingSettingsController, SaveBookingMotifController, ArchiveBookingMotifController}.php`
@@ -943,7 +943,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
     - Pending card: dashed, badge « À confirmer », popover Confirm / Refuser, drag-move allowed, « Non venu » hidden.
     - Flashes: « RDV confirmé. », « Demande refusée — le client est prévenu. », « Demande expirée. », « Ce RDV a déjà été traité. »
   - Tests: `tests/Integration/Presentation/Clinic/{OnlineBookingSettingsTest, ConfirmDeclineAppointmentTest, AgendaPendingAppointmentTest}.php` (incl. a role without `manage_appointments` → refused).
-- [ ] Task 24: Fixtures for slice 4a
+- [x] Task 24: Fixtures for slice 4a
   - Files: `fixtures/Context/Scheduling/Story/OnlineBookingStory.php`, `fixtures/Context/Scheduling/Factory/{BookingMotifFactory, AppointmentEntityFactory}.php`, `fixtures/Dataset/DevDataset.php`
   - Action:
     - All dates are relative to the fixture clock (today + N in the clinic timezone).

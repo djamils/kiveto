@@ -1,0 +1,21 @@
+{% extends 'notification/email/_layout.html.twig' %}
+{% import 'notification/email/_macros.html.twig' as ui %}
+
+{% block subject %}Demande de rendez-vous non confirmée — {{ animalName }}, {{ subjectDateLabel }}{% endblock %}
+
+{% block body %}
+<p>Bonjour {{ addressee }},</p>
+<p>Votre demande de rendez-vous du {{ subjectDateLabel }} n'a pas pu être confirmée — choisissez un autre créneau dans l'app Kiveto.</p>
+<span class="badge">Non confirmée</span>
+{{ ui.details([
+    {label: 'Animal', value: animalName},
+    {label: 'Date', value: dateLabel},
+    {label: 'Heure', value: timeLabel},
+    {label: 'Motif', value: reason},
+]|merge(practitionerName ? [{label: 'Vétérinaire', value: practitionerName}] : [])) }}
+<table role="presentation" class="callout" cellpadding="0" cellspacing="0">
+  <tr><td>Une question ? Appelez-nous</td><td class="callout-phone">{{ clinic.phone }}</td></tr>
+</table>
+{% endblock %}
+
+{% block footer_note %}Vous recevez ce message suite à votre demande de rendez-vous en ligne.{% endblock %}

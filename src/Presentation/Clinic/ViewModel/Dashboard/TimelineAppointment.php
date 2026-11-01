@@ -8,15 +8,16 @@ namespace App\Presentation\Clinic\ViewModel\Dashboard;
  * A row of the « Fil du jour »: an appointment of the day, or an emergency
  * that walked in without one (`isWalkIn`, placed at its arrival time).
  *
- * `state`: `planned` (still to come or late), `onsite` (the patient is in
- * the clinic), `done` (seen) or `noshow`. `kind` colours the card: `consult`,
+ * `state`: `planned` (still to come or late), `pending` (booked online,
+ * « à confirmer »), `onsite` (the patient is in the clinic), `done` (seen)
+ * or `noshow`. `kind` colours the card: `consult`,
  * `chir` (surgery) or `urg` (emergency).
  */
 final readonly class TimelineAppointment
 {
     /**
-     * @param 'planned'|'onsite'|'done'|'noshow' $state
-     * @param 'consult'|'chir'|'urg'             $kind
+     * @param 'planned'|'pending'|'onsite'|'done'|'noshow' $state
+     * @param 'consult'|'chir'|'urg'                       $kind
      */
     public function __construct(
         public string $id,

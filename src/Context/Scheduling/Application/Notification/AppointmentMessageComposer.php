@@ -44,11 +44,12 @@ final readonly class AppointmentMessageComposer
     }
 
     /**
-     * The confirmation, change or cancellation numbered $number on the
-     * contact's transactional channel. A confirmation or a change shows the
-     * appointment as it is; a change also shows $notified, the slot the client
-     * knew; a cancellation shows that notified slot (the one the client knows),
-     * also to a former owner of the booking.
+     * The confirmation, change, cancellation or decline numbered $number on
+     * the contact's transactional channel. A confirmation or a change shows
+     * the appointment as it is; a change also shows $notified, the slot the
+     * client knew; a cancellation shows that notified slot (the one the client
+     * knows), also to a former owner of the booking. A decline shows the slot
+     * requested, with no calendar file (none was ever sent for it).
      */
     public function transactional(
         AppointmentMessageKind $kind,
@@ -88,9 +89,12 @@ final readonly class AppointmentMessageComposer
             AppointmentMessageKind::CANCELLATION => $email
                 ? ['addressee' => $contact->addressee, 'animalName' => $animal, 'subjectDateLabel' => AppointmentLabels::subjectDate($local), 'dateLabel' => AppointmentLabels::date($local), 'timeLabel' => AppointmentLabels::time($local), 'reason' => $reason, 'practitionerName' => $practitioner]
                 : ['animalName' => $animal, 'slotLabel' => AppointmentLabels::slot($local)],
+            AppointmentMessageKind::DECLINED => $email
+                ? ['addressee' => $contact->addressee, 'animalName' => $animal, 'subjectDateLabel' => AppointmentLabels::subjectDate($local), 'dateLabel' => AppointmentLabels::date($local), 'timeLabel' => AppointmentLabels::time($local), 'reason' => $reason, 'practitionerName' => $practitioner]
+                : ['slotLabel' => AppointmentLabels::slot($local)],
         };
 
-        $attachment = $email
+        $attachment = $email && AppointmentMessageKind::DECLINED !== $kind
             ? $this->invitation($key, $number, AppointmentMessageKind::CANCELLATION === $kind, $appointment, $shown, $animal, $reason, $practitioner, $contact, $clinic, $now)
             : null;
 
@@ -99,6 +103,7 @@ final readonly class AppointmentMessageComposer
                 AppointmentMessageKind::CONFIRMATION => AppointmentMessage::CONFIRMATION,
                 AppointmentMessageKind::CHANGE       => AppointmentMessage::CHANGE,
                 AppointmentMessageKind::CANCELLATION => AppointmentMessage::CANCELLATION,
+                AppointmentMessageKind::DECLINED     => AppointmentMessage::DECLINED,
             },
             channel: $channel,
             recipientAddress: (string) ($email ? $contact->email : $contact->mobile),

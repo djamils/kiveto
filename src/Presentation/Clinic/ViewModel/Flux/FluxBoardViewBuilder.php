@@ -393,6 +393,7 @@ final readonly class FluxBoardViewBuilder
                 isSurgical: self::isSurgical($appointment->reason ?? ''),
                 balanceLabel: $owed > 0 ? SheetText::money($owed, 'EUR') : null,
                 settleInvoiceId: null === $ownerId ? null : ($desk['invoices'][$ownerId] ?? null),
+                isPending: $appointment->isPending,
             );
 
             if (null !== $appointment->animalId && !isset($byAnimal[$appointment->animalId])) {
@@ -608,7 +609,8 @@ final readonly class FluxBoardViewBuilder
         foreach ($items as $item) {
             \assert($item instanceof AppointmentItem);
 
-            if ('PLANNED' === $item->status && null === $item->linkedAdmissionId) {
+            // A pending request is still to arrive (shown « à confirmer »)
+            if ($item->occupiesSlot && null === $item->linkedAdmissionId) {
                 $planned[] = $item;
             } elseif ('NO_SHOW' === $item->status) {
                 $missed[] = $item;

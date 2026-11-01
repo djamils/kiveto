@@ -93,6 +93,43 @@ final class ListPlanningBlocksForClinicDateRangeHandlerTest extends TestCase
     }
 
     #[AllowMockObjectsWithoutExpectations]
+    public function testBoundsWithATimePartAreStillReadAsDays(): void
+    {
+        $this->connection->method('fetchAllAssociative')->willReturn([$this->row('2026-04-22', 'consultation', 'DAILY')]);
+
+        $result = ($this->handler)(new ListPlanningBlocksForClinicDateRange(
+            clinicId: '22222222-2222-2222-2222-222222222222',
+            fromDate: '2026-04-21T00:00:00',
+            toDate: '2026-04-23T00:00:00',
+        ));
+
+        self::assertSame(['2026-04-22', '2026-04-23'], array_map(static fn (PlanningBlockView $v): string => $v->date, $result));
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testBlocksOfTheSameDayAndTimeAreOrderedByPractitioner(): void
+    {
+        $later                    = $this->row('2026-04-21');
+        $earlier                  = $this->row('2026-04-21');
+        $earlier['staff_str']     = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+        $laterStart               = $this->row('2026-04-21');
+        $laterStart['start_time'] = '07:00';
+
+        $this->connection->method('fetchAllAssociative')->willReturn([$later, $earlier, $laterStart]);
+
+        $result = ($this->handler)(new ListPlanningBlocksForClinicDateRange(
+            clinicId: '22222222-2222-2222-2222-222222222222',
+            fromDate: '2026-04-21',
+            toDate: '2026-04-21',
+        ));
+
+        self::assertSame(
+            ['07:00|33333333-3333-3333-3333-333333333333', '08:00|33333333-3333-3333-3333-333333333333', '08:00|aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'],
+            array_map(static fn (PlanningBlockView $v): string => $v->startTime . '|' . $v->staffUserId, $result),
+        );
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
     public function testSortingByDateThenStartTimeThenPractitioner(): void
     {
         $row1              = $this->row('2026-04-22');

@@ -6,15 +6,23 @@ namespace App\Context\Scheduling\Domain;
 
 use App\Context\Scheduling\Domain\Event\AppointmentCancelled;
 use App\Context\Scheduling\Domain\Event\AppointmentCompleted;
+use App\Context\Scheduling\Domain\Event\AppointmentConfirmed;
+use App\Context\Scheduling\Domain\Event\AppointmentDeclined;
 use App\Context\Scheduling\Domain\Event\AppointmentMarkedNoShow;
 use App\Context\Scheduling\Domain\Event\AppointmentOwnerChanged;
 use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeChanged;
+use App\Context\Scheduling\Domain\Event\AppointmentRequested;
 use App\Context\Scheduling\Domain\Event\AppointmentRescheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentScheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentServiceStarted;
+use App\Context\Scheduling\Domain\Exception\AppointmentNotModifiableException;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
+use App\Context\Scheduling\Domain\ValueObject\AppointmentSource;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
+use App\Context\Scheduling\Domain\ValueObject\CancellationActor;
+use App\Context\Scheduling\Domain\ValueObject\CancellationReason;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
+use App\Context\Scheduling\Domain\ValueObject\DeclineReason;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Shared\Domain\Aggregate\AggregateRoot;
@@ -33,6 +41,12 @@ final class Appointment extends AggregateRoot
     private ?string $notes;
     private \DateTimeImmutable $createdAt;
     private ?\DateTimeImmutable $serviceStartedAt;
+    private AppointmentSource $source;
+    private ?string $bookingMotifId;
+    private ?CancellationActor $cancelledBy;
+    private ?CancellationReason $cancellationReason;
+    private ?\DateTimeImmutable $pendingExpiresAt;
+    private bool $confirmedSilently;
 
     private function __construct()
     {
@@ -64,6 +78,12 @@ final class Appointment extends AggregateRoot
         $appointment->notes                = $notes;
         $appointment->createdAt            = $createdAt;
         $appointment->serviceStartedAt     = null;
+        $appointment->source               = AppointmentSource::CLINIC;
+        $appointment->bookingMotifId       = null;
+        $appointment->cancelledBy          = null;
+        $appointment->cancellationReason   = null;
+        $appointment->pendingExpiresAt     = null;
+        $appointment->confirmedSilently    = false;
 
         $appointment->recordDomainEvent(new AppointmentScheduled(
             appointmentId: $id->toString(),
@@ -82,6 +102,67 @@ final class Appointment extends AggregateRoot
         return $appointment;
     }
 
+    /**
+     * An online booking that waits for the clinic's confirmation. The caller
+     * computes when it expires (OnlineBookingSettings::pendingExpiry); it must
+     * be after the booking time, so a request never expires at creation.
+     */
+    public static function request(
+        AppointmentId $id,
+        ClinicId $clinicId,
+        PractitionerAssignee $practitionerAssignee,
+        TimeSlot $timeSlot,
+        ?string $reason,
+        ?string $notes,
+        \DateTimeImmutable $createdAt,
+        ?string $ownerId,
+        ?string $animalId,
+        ?string $bookingMotifId,
+        AppointmentSource $source,
+        \DateTimeImmutable $pendingExpiresAt,
+    ): self {
+        if ($pendingExpiresAt <= $createdAt) {
+            throw new \InvalidArgumentException('A pending appointment must expire after it is requested.');
+        }
+
+        $appointment                       = new self();
+        $appointment->id                   = $id;
+        $appointment->clinicId             = $clinicId;
+        $appointment->linkedAdmissionId    = null;
+        $appointment->ownerId              = $ownerId;
+        $appointment->animalId             = $animalId;
+        $appointment->practitionerAssignee = $practitionerAssignee;
+        $appointment->timeSlot             = $timeSlot;
+        $appointment->status               = AppointmentStatus::PENDING_CLINIC_CONFIRMATION;
+        $appointment->reason               = $reason;
+        $appointment->notes                = $notes;
+        $appointment->createdAt            = $createdAt;
+        $appointment->serviceStartedAt     = null;
+        $appointment->source               = $source;
+        $appointment->bookingMotifId       = $bookingMotifId;
+        $appointment->cancelledBy          = null;
+        $appointment->cancellationReason   = null;
+        $appointment->pendingExpiresAt     = $pendingExpiresAt;
+        $appointment->confirmedSilently    = false;
+
+        $appointment->recordDomainEvent(new AppointmentRequested(
+            appointmentId: $id->toString(),
+            clinicId: $clinicId->toString(),
+            linkedAdmissionId: null,
+            practitionerUserId: $practitionerAssignee->userId()->toString(),
+            startsAtUtc: $timeSlot->startsAtUtc()->format(\DateTimeInterface::ATOM),
+            durationMinutes: $timeSlot->durationMinutes(),
+            reason: $reason,
+            notes: $notes,
+            ownerId: $ownerId,
+            animalId: $animalId,
+            bookingMotifId: $bookingMotifId,
+            source: $source->value,
+        ));
+
+        return $appointment;
+    }
+
     public static function reconstitute(
         AppointmentId $id,
         ClinicId $clinicId,
@@ -95,6 +176,12 @@ final class Appointment extends AggregateRoot
         ?string $linkedAdmissionId = null,
         ?string $ownerId = null,
         ?string $animalId = null,
+        AppointmentSource $source = AppointmentSource::CLINIC,
+        ?string $bookingMotifId = null,
+        ?CancellationActor $cancelledBy = null,
+        ?CancellationReason $cancellationReason = null,
+        ?\DateTimeImmutable $pendingExpiresAt = null,
+        bool $confirmedSilently = false,
     ): self {
         $appointment                       = new self();
         $appointment->id                   = $id;
@@ -109,6 +196,12 @@ final class Appointment extends AggregateRoot
         $appointment->notes                = $notes;
         $appointment->createdAt            = $createdAt;
         $appointment->serviceStartedAt     = $serviceStartedAt;
+        $appointment->source               = $source;
+        $appointment->bookingMotifId       = $bookingMotifId;
+        $appointment->cancelledBy          = $cancelledBy;
+        $appointment->cancellationReason   = $cancellationReason;
+        $appointment->pendingExpiresAt     = $pendingExpiresAt;
+        $appointment->confirmedSilently    = $confirmedSilently;
 
         return $appointment;
     }
@@ -153,7 +246,11 @@ final class Appointment extends AggregateRoot
         $this->linkedAdmissionId = $admissionId;
     }
 
-    public function reschedule(TimeSlot $newTimeSlot): void
+    /**
+     * A pending request moved to another time gets a new expiry, computed by
+     * the caller for the new start (OnlineBookingSettings::pendingExpiry).
+     */
+    public function reschedule(TimeSlot $newTimeSlot, ?\DateTimeImmutable $newPendingExpiresAt = null): void
     {
         if ($this->status->isTerminal()) {
             throw new \DomainException('Cannot reschedule a terminated appointment.');
@@ -161,6 +258,19 @@ final class Appointment extends AggregateRoot
 
         if ($this->timeSlot->equals($newTimeSlot)) {
             return;
+        }
+
+        if ($this->status->isPending()) {
+            if (null === $newPendingExpiresAt) {
+                throw new \InvalidArgumentException('A rescheduled pending appointment needs its new expiry.');
+            }
+
+            // Moved too close to the time it was requested: it would expire at once
+            if ($newPendingExpiresAt <= $this->createdAt) {
+                throw new AppointmentNotModifiableException('Ce créneau est trop proche pour une demande à confirmer : confirmez-la d’abord.');
+            }
+
+            $this->pendingExpiresAt = $newPendingExpiresAt;
         }
 
         $oldTimeSlot    = $this->timeSlot;
@@ -198,11 +308,80 @@ final class Appointment extends AggregateRoot
     }
 
     /**
+     * The clinic confirms a pending request. `silent` when the client is on
+     * site (check-in, service started): the slot counts as confirmed without
+     * any confirmation message.
+     */
+    public function confirm(bool $silent = false): void
+    {
+        if (AppointmentStatus::PLANNED === $this->status) {
+            return;
+        }
+
+        if (!$this->status->isPending()) {
+            throw new AppointmentNotModifiableException('Cette demande de rendez-vous n’est plus en attente de confirmation.');
+        }
+
+        $this->status            = AppointmentStatus::PLANNED;
+        $this->confirmedSilently = $silent;
+        $this->pendingExpiresAt  = null;
+
+        $this->recordDomainEvent(new AppointmentConfirmed(
+            appointmentId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            practitionerUserId: $this->practitionerAssignee->userId()->toString(),
+            startsAtUtc: $this->timeSlot->startsAtUtc()->format(\DateTimeInterface::ATOM),
+            ownerId: $this->ownerId,
+            animalId: $this->animalId,
+            source: $this->source->value,
+            silent: $silent,
+        ));
+    }
+
+    /**
+     * The clinic does not confirm a pending request (declined, expired, or
+     * cancelled from the agenda while pending).
+     *
      * @param bool $notifyClient false when the client must not be told (death of the animal)
      */
-    public function cancel(bool $notifyClient = true): void
+    public function decline(DeclineReason $reason, bool $notifyClient = true): void
+    {
+        if (AppointmentStatus::DECLINED === $this->status) {
+            return;
+        }
+
+        if (!$this->status->isPending()) {
+            throw new AppointmentNotModifiableException('Cette demande de rendez-vous n’est plus en attente de confirmation.');
+        }
+
+        $this->status = AppointmentStatus::DECLINED;
+
+        $this->recordDomainEvent(new AppointmentDeclined(
+            appointmentId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            practitionerUserId: $this->practitionerAssignee->userId()->toString(),
+            startsAtUtc: $this->timeSlot->startsAtUtc()->format(\DateTimeInterface::ATOM),
+            ownerId: $this->ownerId,
+            animalId: $this->animalId,
+            source: $this->source->value,
+            reason: $reason->value,
+            notifyClient: $notifyClient,
+        ));
+    }
+
+    /**
+     * A clinic cancel of a pending request is a decline; a client cancel of
+     * it stays a cancellation (the client withdraws their own request).
+     *
+     * @param bool $notifyClient false when the client must not be told (death of the animal, D3)
+     */
+    public function cancel(CancellationActor $actor, ?CancellationReason $reason = null, bool $notifyClient = true): void
     {
         if (AppointmentStatus::CANCELLED === $this->status) {
+            return;
+        }
+
+        if (CancellationActor::CLINIC === $actor && AppointmentStatus::DECLINED === $this->status) {
             return;
         }
 
@@ -210,12 +389,29 @@ final class Appointment extends AggregateRoot
             throw new \DomainException('Cannot cancel an appointment that is already terminated.');
         }
 
-        $this->status = AppointmentStatus::CANCELLED;
+        $wasPending = $this->status->isPending();
+
+        if ($wasPending && CancellationActor::CLINIC === $actor) {
+            $this->decline(DeclineReason::CLINIC_CANCELLED, $notifyClient);
+
+            return;
+        }
+
+        $this->status             = AppointmentStatus::CANCELLED;
+        $this->cancelledBy        = $actor;
+        $this->cancellationReason = $reason;
 
         $this->recordDomainEvent(new AppointmentCancelled(
             appointmentId: $this->id->toString(),
             clinicId: $this->clinicId->toString(),
             notifyClient: $notifyClient,
+            cancelledBy: $actor->value,
+            cancellationReason: $reason?->value,
+            wasPending: $wasPending,
+            source: $this->source->value,
+            ownerId: $this->ownerId,
+            animalId: $this->animalId,
+            startsAtUtc: $this->timeSlot->startsAtUtc()->format(\DateTimeInterface::ATOM),
         ));
     }
 
@@ -223,6 +419,10 @@ final class Appointment extends AggregateRoot
     {
         if (AppointmentStatus::NO_SHOW === $this->status) {
             return;
+        }
+
+        if ($this->status->isPending()) {
+            throw new AppointmentNotModifiableException('Un rendez-vous à confirmer ne peut pas être marqué « Non venu ».');
         }
 
         if ($this->status->isTerminal()) {
@@ -237,6 +437,10 @@ final class Appointment extends AggregateRoot
         ));
     }
 
+    /**
+     * A pending request completed at the desk is confirmed first, silently:
+     * the client is on site.
+     */
     public function complete(): void
     {
         if (AppointmentStatus::COMPLETED === $this->status) {
@@ -245,6 +449,10 @@ final class Appointment extends AggregateRoot
 
         if ($this->status->isTerminal()) {
             throw new \DomainException('Cannot complete an appointment that is already terminated.');
+        }
+
+        if ($this->status->isPending()) {
+            $this->confirm(silent: true);
         }
 
         $this->status = AppointmentStatus::COMPLETED;
@@ -263,6 +471,11 @@ final class Appointment extends AggregateRoot
 
         if (null !== $this->serviceStartedAt) {
             return; // already started
+        }
+
+        // The client is on site: a pending request is confirmed silently
+        if ($this->status->isPending()) {
+            $this->confirm(silent: true);
         }
 
         $this->serviceStartedAt = $serviceStartedAt;
@@ -332,5 +545,35 @@ final class Appointment extends AggregateRoot
     public function serviceStartedAt(): ?\DateTimeImmutable
     {
         return $this->serviceStartedAt;
+    }
+
+    public function source(): AppointmentSource
+    {
+        return $this->source;
+    }
+
+    public function bookingMotifId(): ?string
+    {
+        return $this->bookingMotifId;
+    }
+
+    public function cancelledBy(): ?CancellationActor
+    {
+        return $this->cancelledBy;
+    }
+
+    public function cancellationReason(): ?CancellationReason
+    {
+        return $this->cancellationReason;
+    }
+
+    public function pendingExpiresAt(): ?\DateTimeImmutable
+    {
+        return $this->pendingExpiresAt;
+    }
+
+    public function confirmedSilently(): bool
+    {
+        return $this->confirmedSilently;
     }
 }

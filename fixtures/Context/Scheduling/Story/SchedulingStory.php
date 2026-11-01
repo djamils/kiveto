@@ -8,9 +8,19 @@ use App\Context\Scheduling\Application\Command\CancelAppointment\CancelAppointme
 use App\Context\Scheduling\Application\Command\CompleteAppointment\CompleteAppointment;
 use App\Context\Scheduling\Application\Command\MarkAppointmentNoShow\MarkAppointmentNoShow;
 use App\Context\Scheduling\Application\Command\ScheduleAppointment\ScheduleAppointment;
+use App\Context\Scheduling\Domain\Appointment;
+use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
+use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
+use App\Context\Scheduling\Domain\ValueObject\AppointmentSource;
+use App\Context\Scheduling\Domain\ValueObject\ClinicId;
+use App\Context\Scheduling\Domain\ValueObject\DeclineReason;
+use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
+use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
+use App\Context\Scheduling\Domain\ValueObject\UserId;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\Shared\Application\Bus\CommandBusInterface;
+use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\Connection;
@@ -28,6 +38,8 @@ final class SchedulingStory extends Story
         private readonly ClockInterface $clock,
         private readonly CommandBusInterface $commandBus,
         private readonly Connection $connection,
+        private readonly AppointmentRepositoryInterface $appointments,
+        private readonly UuidGeneratorInterface $uuidGenerator,
     ) {
     }
 
@@ -183,6 +195,52 @@ final class SchedulingStory extends Story
                 $this->commandBus->dispatch(new CompleteAppointment($appointmentId));
             }
         }
+
+        // Two online bookings of Lyon for tomorrow: one still waiting for the
+        // clinic (« à confirmer », busy on the agenda), one the clinic
+        // declined (shown as cancelled, its slot free).
+        $tomorrow = $today->modify('+1 day');
+        $this->request($lyon, $lyonVetUserId, $tomorrow->setTime(11, 45), $now, 20, 'Vaccination', false);
+        $this->request($lyon, $lyonVetUserId, $tomorrow->setTime(12, 15), $now, 30, 'Consultation', true);
+    }
+
+    /**
+     * An online request as the Portal books it: pending until the clinic
+     * confirms, expiring as OnlineBookingSettings::pendingExpiry() computes
+     * it (48 h, or 2 h before the start when sooner).
+     */
+    private function request(
+        string $clinicId,
+        string $practitionerId,
+        \DateTimeImmutable $localStart,
+        \DateTimeImmutable $now,
+        int $durationMinutes,
+        string $reason,
+        bool $declined,
+    ): void {
+        $patient = $this->nextPatient($clinicId);
+        $expires = min($now->modify('+48 hours'), $localStart->modify('-2 hours'));
+
+        $appointment = Appointment::request(
+            id: AppointmentId::fromString($this->uuidGenerator->generate()),
+            clinicId: ClinicId::fromString($clinicId),
+            practitionerAssignee: new PractitionerAssignee(UserId::fromString($practitionerId)),
+            timeSlot: new TimeSlot($localStart->setTimezone(new \DateTimeZone('UTC')), $durationMinutes),
+            reason: $reason,
+            notes: null,
+            createdAt: $now,
+            ownerId: $patient['clientId'] ?? null,
+            animalId: $patient['animalId'] ?? null,
+            bookingMotifId: null,
+            source: AppointmentSource::PORTAL,
+            pendingExpiresAt: $expires,
+        );
+
+        if ($declined) {
+            $appointment->decline(DeclineReason::DECLINED);
+        }
+
+        $this->appointments->save($appointment);
     }
 
     /**

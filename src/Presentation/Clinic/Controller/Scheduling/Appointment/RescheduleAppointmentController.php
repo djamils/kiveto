@@ -12,6 +12,9 @@ use App\Context\Scheduling\Application\Command\RescheduleAppointment\RescheduleA
 use App\Context\Scheduling\Application\Query\GetAppointmentClinicId\GetAppointmentClinicId;
 use App\Context\Scheduling\Application\Query\GetAppointmentDetails\AppointmentDetails;
 use App\Context\Scheduling\Application\Query\GetAppointmentDetails\GetAppointmentDetails;
+use App\Context\Scheduling\Domain\Exception\BlockRefusesAppointmentsException;
+use App\Context\Scheduling\Domain\Exception\PractitionerNotBookableException;
+use App\Context\Scheduling\Domain\Exception\SlotTakenException;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
@@ -146,12 +149,14 @@ final class RescheduleAppointmentController extends AbstractController
                     'animalLabel'        => $details->animalLabel,
                 ],
             ]);
+        } catch (SlotTakenException $e) {
+            return $this->refused($e->getMessage(), $e->isCapacity() ? 'VALIDATION_FAILED' : 'APPOINTMENT_CONFLICT');
+        } catch (BlockRefusesAppointmentsException $e) {
+            return $this->refused($e->getMessage(), 'VALIDATION_FAILED');
+        } catch (PractitionerNotBookableException $e) {
+            return $this->refused($e->getMessage(), 'VALIDATION_FAILED');
         } catch (\DomainException $e) {
-            $errorCode = match (true) {
-                str_contains($e->getMessage(), 'overlapping') => 'APPOINTMENT_CONFLICT',
-                str_contains($e->getMessage(), 'terminated')  => 'APPOINTMENT_TERMINAL_STATUS',
-                default                                       => 'VALIDATION_FAILED',
-            };
+            $errorCode = str_contains($e->getMessage(), 'terminated') ? 'APPOINTMENT_TERMINAL_STATUS' : 'VALIDATION_FAILED';
 
             return new JsonResponse(
                 ['success' => false, 'errors' => ['global' => [$e->getMessage()]], 'errorCode' => $errorCode],
@@ -163,6 +168,17 @@ final class RescheduleAppointmentController extends AbstractController
                 Response::HTTP_UNPROCESSABLE_ENTITY,
             );
         }
+    }
+
+    /**
+     * The agenda turns the English message into its French toast (agenda.js `message()`).
+     */
+    private function refused(string $message, string $errorCode): JsonResponse
+    {
+        return new JsonResponse(
+            ['success' => false, 'errors' => ['global' => [$message]], 'errorCode' => $errorCode],
+            Response::HTTP_UNPROCESSABLE_ENTITY,
+        );
     }
 
     private function primaryOwnerOf(string $clinicId, string $animalId): ?string

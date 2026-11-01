@@ -31,6 +31,7 @@
   vaccin: '<path d="m18 2 4 4"/><path d="m17 7 3-3"/><path d="M19 9 8.7 19.3c-1 1-2.5 1-3.4 0l-.6-.6c-1-1-1-2.5 0-3.4L15 5"/><path d="m9 11 4 4"/>',
   fact:   '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2Z"/><path d="M9 8h6M9 12h6"/>',
   stock:  '<path d="M21 8 12 3 3 8v8l9 5 9-5Z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
+  rdv:    '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4"/>',
 } %}
 {% set _tk_style = {
   urgent: { lbl: 'Urgent',         c: 'var(--garance)',  bg: 'var(--garance-pale)', fg: '#b91c1c' },
@@ -98,7 +99,7 @@
                   <div class="txt"><b>{{ a.title }}</b><span>{{ a.subtitle }}</span></div>
                   {% if a.tag %}<span class="tag">{{ a.tag }}</span>{% endif %}
                   {% if a.durationLabel %}<div class="dur">{{ a.durationLabel }}</div>{% endif %}
-                  {% if a.state == 'planned' %}
+                  {% if a.state in ['planned', 'pending'] %}
                     <div class="acts">
                       <form method="post" action="{{ path('clinic_admission_checkin') }}" data-turbo="false">
                         <input type="hidden" name="_token" value="{{ csrf_token('waiting_room_action') }}">
@@ -203,7 +204,17 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{{ _tk_ico[t.icon]|raw }}</svg>
                 </span>
                 <span class="txt"><b>{{ t.title }}{% if t.audience != 'clinique' %}<span class="tk-vis {{ t.audience }}">{{ _vis_lbl[t.audience] }}</span>{% endif %}</b><span>{{ t.subtitle }}</span></span>
-                <a class="go" href="{{ t.actionUrl }}">{{ t.actionLabel }}</a>
+                {% if t.forms is not empty %}
+                  {#- Online request: decided here, back on the dashboard with a flash -#}
+                  {% for f in t.forms %}
+                    <form method="post" action="{{ f.url }}" data-turbo="false" style="display:contents">
+                      <input type="hidden" name="_token" value="{{ csrf_token('appointment') }}">
+                      <button type="submit" class="go{{ f.danger ? ' non' }}">{{ f.label }}</button>
+                    </form>
+                  {% endfor %}
+                {% else %}
+                  <a class="go" href="{{ t.actionUrl }}">{{ t.actionLabel }}</a>
+                {% endif %}
               </div>
             {%- endfor -%}
           {% endif %}
@@ -237,12 +248,13 @@
     {% for slot in d.timeline %}
       {% for a in slot.appointments %}
         {% set _owner = a.facts ? a.facts.owner : null %}
-        {% set etat %}{% if a.isWalkIn %}<span>Arrivée à <b>{{ a.time }}</b> · sans rendez-vous</span>{% elseif a.isDone %}<span>RDV de <b>{{ a.time }}</b> · {{ a.state == 'noshow' ? 'absent' : 'terminé' }}</span>{% else %}<span>RDV à <b>{{ a.time }}</b>{% if a.durationLabel starts with '+' %} · <b style="color:var(--garance)">retard {{ a.durationLabel }}</b>{% elseif a.durationLabel %} · {{ a.durationLabel }}{% endif %}</span>{% endif %}{% endset %}
+        {% set etat %}{% if a.isWalkIn %}<span>Arrivée à <b>{{ a.time }}</b> · sans rendez-vous</span>{% elseif a.isDone %}<span>RDV de <b>{{ a.time }}</b> · {{ a.state == 'noshow' ? 'absent' : 'terminé' }}</span>{% else %}<span>RDV à <b>{{ a.time }}</b>{% if a.state == 'pending' %} · à confirmer{% endif %}{% if a.durationLabel starts with '+' %} · <b style="color:var(--garance)">retard {{ a.durationLabel }}</b>{% elseif a.durationLabel %} · {{ a.durationLabel }}{% endif %}</span>{% endif %}{% endset %}
         {% set sec %}{% if a.isWalkIn %}<a href="{{ path('clinic_admission_queue') }}">Voir dans le flux</a>{% else %}<a href="{{ path('clinic_scheduling_agenda') }}">Voir dans l'agenda</a>{% endif %}{% endset %}
         {% set pri %}
           {%- if a.isDone -%}
             {%- if a.consultationId %}<a class="pri" href="{{ path('clinic_consultation_details', {id: a.consultationId}) }}">Voir le compte rendu</a>{% endif -%}
-          {%- elseif a.state == 'planned' -%}
+          {#- Checking in a pending request confirms it, silently (D18) -#}
+          {%- elseif a.state in ['planned', 'pending'] -%}
             <form method="post" action="{{ path('clinic_admission_checkin') }}" data-turbo="false">
               <input type="hidden" name="_token" value="{{ csrf_token('waiting_room_action') }}">
               <input type="hidden" name="appointmentId" value="{{ a.id }}">

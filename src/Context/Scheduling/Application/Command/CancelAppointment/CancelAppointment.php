@@ -13,6 +13,10 @@ final readonly class CancelAppointment implements CommandInterface
         public string $clinicId,
         // false: the client is not told (death of the animal, D3)
         public bool $notifyClient = true,
+        // CancellationActor value: 'clinic' (VetApp) or 'client' (Portal)
+        public string $cancelledBy = 'clinic',
+        // CancellationReason value, picked by a client
+        public ?string $cancellationReason = null,
     ) {
     }
 }

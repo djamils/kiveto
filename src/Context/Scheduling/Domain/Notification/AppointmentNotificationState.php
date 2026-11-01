@@ -22,6 +22,10 @@ use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
  * state starts again for the new one, who then gets a confirmation: two
  * messages, to two clients, from one sync — still derived once, under the
  * lock, each with its own number.
+ *
+ * A pending request is told nothing. Its decline is told once
+ * (`declineNotifiedAt`); a silent confirmation (the client is on site) marks
+ * the slot as confirmed without any message.
  */
 final class AppointmentNotificationState
 {
@@ -36,12 +40,13 @@ final class AppointmentNotificationState
         private ?\DateTimeImmutable $reminderDueAt,
         private ?\DateTimeImmutable $reminderRequestedAt,
         private ?string $notifiedOwnerId,
+        private ?\DateTimeImmutable $declineNotifiedAt,
     ) {
     }
 
     public static function start(AppointmentId $appointmentId, ClinicId $clinicId): self
     {
-        return new self($appointmentId, $clinicId, null, null, false, null, 0, null, null, null);
+        return new self($appointmentId, $clinicId, null, null, false, null, 0, null, null, null, null);
     }
 
     public static function reconstitute(
@@ -55,8 +60,25 @@ final class AppointmentNotificationState
         ?\DateTimeImmutable $reminderDueAt,
         ?\DateTimeImmutable $reminderRequestedAt,
         ?string $notifiedOwnerId = null,
+        ?\DateTimeImmutable $declineNotifiedAt = null,
     ): self {
-        return new self($appointmentId, $clinicId, $confirmedAt, $cancellationNotifiedAt, $silenced, $notified, $notificationCounter, $reminderDueAt, $reminderRequestedAt, $notifiedOwnerId);
+        return new self($appointmentId, $clinicId, $confirmedAt, $cancellationNotifiedAt, $silenced, $notified, $notificationCounter, $reminderDueAt, $reminderRequestedAt, $notifiedOwnerId, $declineNotifiedAt);
+    }
+
+    /**
+     * A pending request confirmed while the client is on site (check-in,
+     * service started): the slot counts as told, with no message — a later
+     * move still gives a change. Nothing happens once something was confirmed.
+     */
+    public function markConfirmedSilently(TimeSlot $slot, string $practitionerUserId, ?string $ownerId, \DateTimeImmutable $at): void
+    {
+        if (null !== $this->confirmedAt) {
+            return;
+        }
+
+        $this->confirmedAt     = $at;
+        $this->notifiedOwnerId = $ownerId;
+        $this->notified        = new NotifiedSlot($slot->startsAtUtc(), $slot->durationMinutes(), $practitionerUserId);
     }
 
     /**
@@ -98,8 +120,10 @@ final class AppointmentNotificationState
      *   (a different duration or motif alone changes nothing);
      * - cancelled after a confirmation, the notified slot to come, not
      *   silenced, not announced yet → cancellation;
-     * - anything else (cancelled before any confirmation, no-show, completed,
-     *   past) → nothing.
+     * - declined (a pending request the clinic did not confirm), not
+     *   silenced, not announced yet → decline, once;
+     * - anything else (pending, cancelled before any confirmation, no-show,
+     *   completed, past) → nothing.
      */
     public function nextMessage(AppointmentStatus $status, TimeSlot $slot, string $practitionerUserId, \DateTimeImmutable $now): ?AppointmentMessageKind
     {
@@ -116,6 +140,10 @@ final class AppointmentNotificationState
                 || $this->notified->practitionerUserId !== $practitionerUserId;
 
             return $moved ? AppointmentMessageKind::CHANGE : null;
+        }
+
+        if (AppointmentStatus::DECLINED === $status) {
+            return !$this->silenced && null === $this->declineNotifiedAt ? AppointmentMessageKind::DECLINED : null;
         }
 
         $announce = AppointmentStatus::CANCELLED === $status
@@ -140,6 +168,12 @@ final class AppointmentNotificationState
 
         if (AppointmentMessageKind::CANCELLATION === $kind) {
             $this->cancellationNotifiedAt = $at;
+
+            return $this->notificationCounter;
+        }
+
+        if (AppointmentMessageKind::DECLINED === $kind) {
+            $this->declineNotifiedAt = $at;
 
             return $this->notificationCounter;
         }
@@ -271,6 +305,12 @@ final class AppointmentNotificationState
     public function reminderRequestedAt(): ?\DateTimeImmutable
     {
         return $this->reminderRequestedAt;
+    }
+
+    /** When the decline of the pending request was told to the client. */
+    public function declineNotifiedAt(): ?\DateTimeImmutable
+    {
+        return $this->declineNotifiedAt;
     }
 
     /** The client the last confirmation or change went to. */

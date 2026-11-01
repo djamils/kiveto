@@ -267,7 +267,7 @@ final readonly class AnimalSheetBuilder
 
         foreach ($appointments as $appointment) {
             $startsAt = new \DateTimeImmutable($appointment->startsAtUtc, $utc);
-            $upcoming = 'PLANNED' === $appointment->status && $startsAt >= $now;
+            $upcoming = $appointment->occupiesSlot && $startsAt >= $now;
             $missed   = 'NO_SHOW' === $appointment->status;
 
             if (!$upcoming && !$missed) {
@@ -277,25 +277,27 @@ final readonly class AnimalSheetBuilder
             $local = $startsAt->setTimezone($tz);
 
             $visits[] = [
-                'id'     => 'r-' . $appointment->id,
-                'd'      => $local->format('Y-m-d'),
-                'h'      => $local->format('H:i'),
-                'a'      => $animal->id,
-                'k'      => $this->visits->visitKind([], $appointment->reason),
-                't'      => $appointment->reason ?? 'Consultation',
-                'v'      => $practitioners[$appointment->practitionerUserId] ?? '—',
-                'st'     => $upcoming ? 'avenir' : 'absent',
-                'note'   => $appointment->notes ?? ($missed ? 'Non venu, sans prévenir' : null),
-                'syn'    => null,
-                'mes'    => [],
-                'lignes' => null,
-                'total'  => 0,
-                'fac'    => null,
-                'docs'   => [],
-                'ordos'  => [],
-                'href'   => null,
-                'report' => null,
-                'appt'   => [
+                'id' => 'r-' . $appointment->id,
+                'd'  => $local->format('Y-m-d'),
+                'h'  => $local->format('H:i'),
+                'a'  => $animal->id,
+                'k'  => $this->visits->visitKind([], $appointment->reason),
+                't'  => $appointment->reason ?? 'Consultation',
+                'v'  => $practitioners[$appointment->practitionerUserId] ?? '—',
+                'st' => $upcoming ? 'avenir' : 'absent',
+                // Booked online, waiting for the clinic (« à confirmer »)
+                'attente' => $appointment->isPending,
+                'note'    => $appointment->notes ?? ($missed ? 'Non venu, sans prévenir' : null),
+                'syn'     => null,
+                'mes'     => [],
+                'lignes'  => null,
+                'total'   => 0,
+                'fac'     => null,
+                'docs'    => [],
+                'ordos'   => [],
+                'href'    => null,
+                'report'  => null,
+                'appt'    => [
                     'id'     => $appointment->id,
                     'cancel' => $upcoming
                         ? $this->urls->generate('clinic_scheduling_appointment_cancel', ['appointmentId' => $appointment->id])

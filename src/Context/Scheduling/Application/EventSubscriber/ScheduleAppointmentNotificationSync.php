@@ -6,6 +6,8 @@ namespace App\Context\Scheduling\Application\EventSubscriber;
 
 use App\Context\Scheduling\Application\Port\NotificationJobsInterface;
 use App\Context\Scheduling\Domain\Event\AppointmentCancelled;
+use App\Context\Scheduling\Domain\Event\AppointmentConfirmed;
+use App\Context\Scheduling\Domain\Event\AppointmentDeclined;
 use App\Context\Scheduling\Domain\Event\AppointmentOwnerChanged;
 use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeChanged;
 use App\Context\Scheduling\Domain\Event\AppointmentRescheduled;
@@ -22,7 +24,10 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * changes in a row, give several syncs: the first one tells the final state,
  * the others find nothing left to tell. A cancellation the client must not
  * be told about (death of the animal, D3) first marks the appointment's
- * notification state silenced — the only write done here.
+ * notification state silenced — the only write done here; likewise for a
+ * decline the client must not be told about. A pending request queues
+ * nothing until it is confirmed (confirmation, or none when silent) or
+ * declined (APPOINTMENT_DECLINED).
  */
 final readonly class ScheduleAppointmentNotificationSync
 {
@@ -58,6 +63,22 @@ final readonly class ScheduleAppointmentNotificationSync
 
     #[AsMessageHandler(bus: 'messenger.bus.event')]
     public function onCancelled(AppointmentCancelled $event): void
+    {
+        if (!$event->notifyClient()) {
+            $this->states->silence(AppointmentId::fromString($event->appointmentId()), ClinicId::fromString($event->clinicId()));
+        }
+
+        $this->jobs->syncLater($event->appointmentId());
+    }
+
+    #[AsMessageHandler(bus: 'messenger.bus.event')]
+    public function onConfirmed(AppointmentConfirmed $event): void
+    {
+        $this->jobs->syncLater($event->appointmentId());
+    }
+
+    #[AsMessageHandler(bus: 'messenger.bus.event')]
+    public function onDeclined(AppointmentDeclined $event): void
     {
         if (!$event->notifyClient()) {
             $this->states->silence(AppointmentId::fromString($event->appointmentId()), ClinicId::fromString($event->clinicId()));

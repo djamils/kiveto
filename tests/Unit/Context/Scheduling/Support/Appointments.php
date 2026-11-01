@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Context\Scheduling\Support;
 
 use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
+use App\Context\Scheduling\Domain\ValueObject\AppointmentSource;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
@@ -50,6 +51,35 @@ final class Appointments
             serviceStartedAt: null,
             ownerId: $ownerId,
             animalId: $animalId,
+        );
+    }
+
+    /**
+     * An online request of Milo, waiting for the clinic; requested on 13
+     * October at 08:42 UTC, expiring 48 h later unless given.
+     */
+    public static function pending(
+        string $startsAtUtc = '2026-10-22 07:30',
+        string $expiresAtUtc = '2026-10-15 08:42',
+        AppointmentSource $source = AppointmentSource::PORTAL,
+        ?string $ownerId = self::OWNER,
+        string $id = self::ID,
+        string $practitioner = self::ROUSSEAU,
+    ): Appointment {
+        return Appointment::reconstitute(
+            id: AppointmentId::fromString($id),
+            clinicId: ClinicId::fromString(self::CLINIC),
+            practitionerAssignee: new PractitionerAssignee(UserId::fromString($practitioner)),
+            timeSlot: new TimeSlot(new \DateTimeImmutable($startsAtUtc, new \DateTimeZone('UTC')), 30),
+            status: AppointmentStatus::PENDING_CLINIC_CONFIRMATION,
+            reason: 'Vaccination',
+            notes: null,
+            createdAt: new \DateTimeImmutable('2026-10-13 08:42', new \DateTimeZone('UTC')),
+            serviceStartedAt: null,
+            ownerId: $ownerId,
+            animalId: self::ANIMAL,
+            source: $source,
+            pendingExpiresAt: new \DateTimeImmutable($expiresAtUtc, new \DateTimeZone('UTC')),
         );
     }
 

@@ -18,6 +18,8 @@ use App\Context\Scheduling\Domain\ValueObject\PlanningBlockType;
 use App\Context\Scheduling\Domain\ValueObject\RecurrenceRule;
 use App\Context\Scheduling\Domain\ValueObject\TimeRange;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
+use App\Tests\Unit\Context\Scheduling\Support\MovableClock;
+use App\Tests\Unit\Context\Scheduling\Support\RecordingDayLock;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -28,6 +30,7 @@ final class DeletePlanningBlockHandlerTest extends TestCase
     private PlanningBlockAppointmentCounterInterface&MockObject $counter;
     private ClinicTimezoneResolverInterface&MockObject $timezoneResolver;
     private DeletePlanningBlockHandler $handler;
+    private RecordingDayLock $dayLock;
 
     protected function setUp(): void
     {
@@ -39,6 +42,8 @@ final class DeletePlanningBlockHandlerTest extends TestCase
             repository: $this->repository,
             appointmentCounter: $this->counter,
             timezoneResolver: $this->timezoneResolver,
+            dayLock: $this->dayLock = new RecordingDayLock(),
+            clock: new MovableClock(new \DateTimeImmutable('2026-04-01 08:00', new \DateTimeZone('UTC'))),
         );
     }
 
@@ -48,13 +53,15 @@ final class DeletePlanningBlockHandlerTest extends TestCase
         $this->timezoneResolver->expects(self::once())->method('resolveTimezone')
             ->willReturn(new \DateTimeZone('Europe/Paris'))
         ;
-        $this->counter->expects(self::once())->method('countActiveInWindow')->willReturn(0);
+        $this->counter->expects(self::once())->method('countOccupyingInWindowLocked')->willReturn(0);
         $this->repository->expects(self::once())->method('delete');
 
         ($this->handler)(new DeletePlanningBlock(
             blockId: '11111111-1111-1111-1111-111111111111',
             clinicId: '22222222-2222-2222-2222-222222222222',
         ));
+
+        self::assertSame(['33333333-3333-3333-3333-333333333333|2026-04-21'], $this->dayLock->locked);
     }
 
     #[AllowMockObjectsWithoutExpectations]
@@ -73,7 +80,7 @@ final class DeletePlanningBlockHandlerTest extends TestCase
     public function testBlockOfAnotherClinicIsReportedAsNotFound(): void
     {
         $this->repository->expects(self::once())->method('findById')->willReturn($this->sampleBlock());
-        $this->counter->expects(self::never())->method('countActiveInWindow');
+        $this->counter->expects(self::never())->method('countOccupyingInWindowLocked');
         $this->repository->expects(self::never())->method('delete');
 
         $this->expectException(PlanningBlockNotFoundException::class);
@@ -90,7 +97,7 @@ final class DeletePlanningBlockHandlerTest extends TestCase
         $this->expectException(CannotDeletePlanningBlockWithAppointments::class);
         $this->repository->method('findById')->willReturn($this->sampleBlock());
         $this->timezoneResolver->method('resolveTimezone')->willReturn(new \DateTimeZone('Europe/Paris'));
-        $this->counter->method('countActiveInWindow')->willReturn(2);
+        $this->counter->method('countOccupyingInWindowLocked')->willReturn(2);
 
         ($this->handler)(new DeletePlanningBlock(
             blockId: '11111111-1111-1111-1111-111111111111',

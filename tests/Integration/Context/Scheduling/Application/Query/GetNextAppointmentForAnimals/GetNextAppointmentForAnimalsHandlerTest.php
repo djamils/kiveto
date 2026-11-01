@@ -83,8 +83,17 @@ final class GetNextAppointmentForAnimalsHandlerTest extends KernelTestCase
         $this->appointment('0192c000-0000-7000-8000-000000000001', self::ANIMAL_ID, '2026-11-01 08:00:00', AppointmentStatus::CANCELLED);
         $this->appointment('0192c000-0000-7000-8000-000000000002', self::ANIMAL_ID, '2026-11-02 08:00:00', AppointmentStatus::NO_SHOW);
         $this->appointment('0192c000-0000-7000-8000-000000000003', self::ANIMAL_ID, '2026-11-03 08:00:00', AppointmentStatus::COMPLETED);
+        $this->appointment('0192c000-0000-7000-8000-000000000004', self::ANIMAL_ID, '2026-11-04 08:00:00', AppointmentStatus::DECLINED);
 
         self::assertNull($this->ask([self::ANIMAL_ID]));
+    }
+
+    public function testAPendingRequestOccupiesItsSlotAndIsTheNextOne(): void
+    {
+        $this->appointment('0192c000-0000-7000-8000-000000000001', self::ANIMAL_ID, '2026-11-01 08:00:00', AppointmentStatus::PENDING_CLINIC_CONFIRMATION);
+        $this->appointment('0192c000-0000-7000-8000-000000000002', self::ANIMAL_ID, '2026-11-02 08:00:00');
+
+        self::assertSame('0192c000-0000-7000-8000-000000000001', $this->ask([self::ANIMAL_ID])?->id);
     }
 
     public function testIgnoresAppointmentsWithoutAnimal(): void

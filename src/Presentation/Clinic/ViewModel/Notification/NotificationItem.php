@@ -10,7 +10,7 @@ namespace App\Presentation\Clinic\ViewModel\Notification;
 final readonly class NotificationItem
 {
     /**
-     * @param string      $kind   NEW_APPOINTMENT | CRITICAL_STOCK | EXPIRING_LOTS | SMS_QUOTA
+     * @param string      $kind   NEW_APPOINTMENT | CRITICAL_STOCK | EXPIRING_LOTS | SMS_QUOTA | ONLINE_BOOKING_PENDING | ONLINE_BOOKING_CHANGED
      * @param string      $filter the bell filter it is listed under (« activite »)
      * @param string|null $url    the screen it opens (null when its route no longer exists)
      * @param string      $ago    « à l'instant », « 5 min », « 2 h », « 3 j »

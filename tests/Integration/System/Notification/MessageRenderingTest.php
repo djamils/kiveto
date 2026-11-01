@@ -48,6 +48,10 @@ final class MessageRenderingTest extends KernelTestCase
                 'EMAIL' => ['addressee' => 'Madame Dubois', 'animalName' => 'Milo', 'subjectDateLabel' => 'jeudi 22 octobre à 9h30', 'dateLabel' => 'Jeudi 22 octobre 2026', 'timeLabel' => '9h30', 'reason' => 'Vaccination', 'practitionerName' => 'Dr Rousseau'],
                 'SMS'   => ['animalName' => 'Milo', 'slotLabel' => 'jeudi 22/10 à 9h30'],
             ],
+            'APPOINTMENT_DECLINED' => [
+                'EMAIL' => ['addressee' => 'Madame Dubois', 'animalName' => 'Milo', 'subjectDateLabel' => 'jeudi 22 octobre à 9h30', 'dateLabel' => 'Jeudi 22 octobre 2026', 'timeLabel' => '9h30', 'reason' => 'Vaccination', 'practitionerName' => 'Dr Rousseau'],
+                'SMS'   => ['slotLabel' => 'jeudi 22/10 à 9h30'],
+            ],
             'APPOINTMENT_REMINDER' => [
                 'SMS'   => ['animalName' => 'Milo', 'whenLabel' => 'demain à 9h30', 'practitionerName' => 'Dr Rousseau'],
                 'EMAIL' => ['addressee' => 'Madame Dubois', 'animalName' => 'Milo', 'whenLabel' => 'demain à 9h30', 'practitionerName' => 'Dr Rousseau'],
@@ -129,6 +133,7 @@ final class MessageRenderingTest extends KernelTestCase
         self::assertSame('Clinique Montmartre : RDV confirmé pour Milo le jeudi 22/10 à 9h30 avec le Dr Rousseau. Pour le modifier ou l\'annuler : 01 42 64 18 00', $sms(MessagePurpose::APPOINTMENT_CONFIRMATION));
         self::assertSame('Clinique Montmartre : le RDV de Milo est déplacé au vendredi 23/10 à 11h00, avec le Dr Rousseau (au lieu du jeudi 22/10 à 9h30). Infos : 01 42 64 18 00', $sms(MessagePurpose::APPOINTMENT_CHANGE));
         self::assertSame('Clinique Montmartre : le RDV de Milo du jeudi 22/10 à 9h30 est annulé. Pour en fixer un nouveau : 01 42 64 18 00', $sms(MessagePurpose::APPOINTMENT_CANCELLATION));
+        self::assertSame('Clinique Montmartre : votre demande de rendez-vous du jeudi 22/10 à 9h30 n\'a pas été confirmée. Choisissez un autre créneau dans l\'app Kiveto.', $sms(MessagePurpose::APPOINTMENT_DECLINED));
         self::assertSame('Clinique Montmartre : rappel du RDV de Milo demain à 9h30 avec le Dr Rousseau. En cas d\'absence, merci de nous prévenir au 01 42 64 18 00', $sms(MessagePurpose::APPOINTMENT_REMINDER));
         self::assertSame('Clinique Montmartre : la facture FA-2026-0702 du 04/09 (64,50 €) reste à régler. Vous pouvez la régler à la clinique. Infos : 01 42 64 18 00', $sms(MessagePurpose::INVOICE_REMINDER));
         self::assertSame('Kiveto : message de test envoyé le 26/10/2026 à 10:42. Aucune action n\'est nécessaire.', $sms(MessagePurpose::TEST));
@@ -164,6 +169,17 @@ final class MessageRenderingTest extends KernelTestCase
         self::assertStringContainsString('background-color: #4338CA', $html, 'the clinic brand colour');
         self::assertStringContainsString('Vous recevez ce message suite à la prise de votre rendez-vous.', $html);
         self::assertStringContainsString('Pour modifier ou annuler, appelez-nous au 01 42 64 18 00.', (string) $content->text);
+    }
+
+    public function testTheDeclineEmailCarriesTheP7Sentence(): void
+    {
+        $content = $this->render(MessagePurpose::APPOINTMENT_DECLINED, Channel::EMAIL, self::reference()['APPOINTMENT_DECLINED']['EMAIL']);
+
+        self::assertSame('Demande de rendez-vous non confirmée — Milo, jeudi 22 octobre à 9h30', $content->subject);
+        $sentence = "Votre demande de rendez-vous du jeudi 22 octobre à 9h30 n'a pas pu être confirmée — choisissez un autre créneau dans l'app Kiveto.";
+        self::assertStringContainsString($sentence, (string) $content->text);
+        self::assertStringContainsString($sentence, (string) $content->html);
+        self::assertStringContainsString('Vétérinaire : Dr Rousseau', (string) $content->text);
     }
 
     public function testTheLogoIsReferencedByContentIdWhenItsFileExists(): void

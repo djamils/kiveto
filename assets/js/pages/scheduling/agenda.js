@@ -14,6 +14,8 @@
  *   modal (date / time pickers, patient search, practitioner, motif, note,
  *   overlap and outside-planning warnings);
  * - booking card: profile, edit, cancel (inline confirmation), no-show;
+ *   an online request waiting for the clinic (`pend`) is a dashed card with
+ *   « À confirmer », Confirmer / Refuser in its card and no « Non venu »;
  * - keys: T today, ← → period, Esc closes, R new booking.
  *
  * Data: the payload of AgendaViewBuilder::page() (#agenda-data) covers the
@@ -218,15 +220,15 @@ function evHtml(r, col) {
   const pl = blocsOn && vue === 'week' && col.vets.length > 1 ? (col.vets.length * RAIL + 4) + 'px' : '0px';
   const pos = `top:${(r.s - START) * PX + 1}px;height:${h - 2}px;left:calc(${pl} + (100% - ${pl}) * ${l} / ${n} + 2px);width:calc((100% - ${pl}) / ${n} - 4px)`;
   const passe = r.st === 'fait' || estPasse(parse(r.date), r.s + r.dur);
-  const cls = ['ev', h < 40 ? 'xs' : '', vue === 'week' && n >= 2 ? 'nar' : '', r.m === 'urg' ? 'urg' : '', r.st === 'annule' ? 'annule' : r.st === 'absent' ? 'absent' : passe ? 'passe' : '', popId === r.id ? 'sel' : '', r._busy ? 'busy' : ''].filter(Boolean).join(' ');
+  const cls = ['ev', h < 40 ? 'xs' : '', vue === 'week' && n >= 2 ? 'nar' : '', r.m === 'urg' ? 'urg' : '', r.st === 'annule' ? 'annule' : r.st === 'absent' ? 'absent' : passe ? 'passe' : '', r.pend ? 'attente' : '', popId === r.id ? 'sel' : '', r._busy ? 'busy' : ''].filter(Boolean).join(' ');
   const etroit = vue === 'week' && n >= 2;
   const corps = etroit
     ? `<span class="ea en"><i class="mdot" style="background:${mo.c}"></i>${esc(p.a)}</span>${h >= 40 ? `<span class="et">${hm(r.s)}</span>` : ''}`
     : h < 40
       ? `<span class="et"><i class="mdot" style="background:${mo.c}"></i>${hm(r.s)}</span><span class="ea">${esc(p.a)}</span>`
       : `<span class="et"><i class="mdot" style="background:${mo.c}"></i>${hm(r.s)} – ${hm(r.s + r.dur)}</span><span class="ea">${p.e} ${esc(p.a)}</span>${h >= 46 ? `<span class="em">${esc(r.note || motifTxt(r))} · ${esc(cliCourt(p.cli))}</span>` : ''}`;
-  const stc = !etroit && h >= 28 && (r.st === 'annule' || r.st === 'absent') ? `<span class="stc">${r.st === 'annule' ? 'Annulé' : 'Non venu'}</span>` : '';
-  const tip = `${r.st === 'annule' ? 'Annulé · ' : r.st === 'absent' ? 'Non venu · ' : ''}${p.a} · ${hm(r.s)}–${hm(r.s + r.dur)} · ${motifTxt(r)}`;
+  const stc = !etroit && h >= 28 && (r.st === 'annule' || r.st === 'absent' || r.pend) ? `<span class="stc">${r.pend ? 'À confirmer' : r.st === 'annule' ? 'Annulé' : 'Non venu'}</span>` : '';
+  const tip = `${r.pend ? 'À confirmer · ' : r.st === 'annule' ? 'Annulé · ' : r.st === 'absent' ? 'Non venu · ' : ''}${p.a} · ${hm(r.s)}–${hm(r.s + r.dur)} · ${motifTxt(r)}`;
   return `<div class="${cls}" data-id="${esc(r.id)}" style="${pos};--c:${v.c};--cbg:${v.c}38" data-tip="${esc(tip)}">${corps}${stc}</div>`;
 }
 
@@ -456,7 +458,17 @@ const ERREURS = {
   APPOINTMENT_TERMINAL_STATUS: 'Ce rendez-vous est clôturé — il ne peut plus être modifié',
   APPOINTMENT_NOT_MARKABLE: 'Ce rendez-vous ne peut pas être marqué non venu',
   CSRF_INVALID: 'Session expirée — rechargez la page',
+  PENDING_EXPIRED: 'Demande expirée.',
+  APPOINTMENT_ALREADY_HANDLED: 'Ce RDV a déjà été traité.',
+  FORBIDDEN: 'Vous n\'avez pas le droit de traiter les demandes de rendez-vous.',
 };
+/* « · expire le 3 nov. à 14:00 » from the clinic-local `Y-m-d H:i` of `exp` */
+function expTxt(exp) {
+  if (!exp) return '';
+  const [jour, heure] = exp.split(' ');
+  const d = parse(jour);
+  return ` · sans réponse, refusée ${memeJour(d, AUJ) ? 'aujourd\'hui' : 'le ' + jourCourt(d)} à ${heure}`;
+}
 function message(body, fallback) {
   const g = body?.errors?.global?.[0] || '';
   if (/capacity/i.test(g)) return 'Plage complète — la capacité du planning est atteinte';
@@ -507,11 +519,13 @@ function ouvrirPop(id, el) {
       ${r.note ? `<div class="pop-row note">${I_NOTE}<span>${esc(r.note)}</span></div>` : ''}
     </div>
     ${st ? `<div class="pop-st ${st}">${st === 'annule' ? 'Annulé — créneau libéré' : 'Non venu — l\'animal ne s\'est pas présenté'}</div>` : ''}
+    ${r.pend ? `<div class="pop-st attente">Demande en ligne à confirmer${expTxt(r.exp)}</div>` : ''}
     <div class="pop-foot">
       ${profil ? `<a class="btn primaire" href="${esc(profil)}" data-a="profil">Profil</a>` : '<button type="button" class="btn primaire" disabled data-tip="Rendez-vous sans fiche patient">Profil</button>'}
-      ${st || r.st === 'fait' ? ''
-        : passe ? '<button type="button" class="btn ghost-danger" data-a="absent">Marquer non venu</button>'
-          : '<button type="button" class="btn" data-a="modifier">Modifier</button><button type="button" class="btn ghost-danger" data-a="annuler">Annuler</button>'}
+      ${r.pend ? '<button type="button" class="btn ok" data-a="accepter">Confirmer</button><button type="button" class="btn" data-a="modifier">Modifier</button><button type="button" class="btn ghost-danger" data-a="refuser">Refuser</button>'
+        : st || r.st === 'fait' ? ''
+          : passe ? '<button type="button" class="btn ghost-danger" data-a="absent">Marquer non venu</button>'
+            : '<button type="button" class="btn" data-a="modifier">Modifier</button><button type="button" class="btn ghost-danger" data-a="annuler">Annuler</button>'}
     </div>
     <div class="pop-confirm">
       <p>Annuler le rendez-vous de ${esc(p.a)} ?</p>
@@ -531,6 +545,17 @@ function ouvrirPop(id, el) {
       const { ok, body } = await post(url('cancel', r.id), {});
       if (!ok) { r.st = avant; rendre(); showToast(message(body, 'Le rendez-vous n\'a pas pu être annulé'), 'danger'); return; }
       showToast(`RDV annulé — ${p.a}, ${jourCourt(d)} à ${hm(r.s)}`);
+      refresh(d);
+    }
+    if (a === 'accepter' || a === 'refuser') {
+      const accepte = a === 'accepter';
+      fermerPop();
+      r._busy = true; rendre();
+      const { ok, body } = await post(url(accepte ? 'confirm' : 'decline', r.id), {});
+      r._busy = false;
+      if (!ok) { rendre(); showToast(message(body, accepte ? 'La demande n\'a pas pu être confirmée' : 'La demande n\'a pas pu être refusée'), 'danger'); refresh(d); return; }
+      r.pend = false; r.st = accepte ? null : 'annule'; rendre();
+      showToast(body?.message || (accepte ? 'RDV confirmé.' : 'Demande refusée — le client est prévenu.'));
       refresh(d);
     }
     if (a === 'absent') {

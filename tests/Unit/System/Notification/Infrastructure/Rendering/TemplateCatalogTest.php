@@ -6,6 +6,7 @@ namespace App\Tests\Unit\System\Notification\Infrastructure\Rendering;
 
 use App\System\Notification\Application\Exception\InvalidNotificationRequestException;
 use App\System\Notification\Domain\Message\Channel;
+use App\System\Notification\Domain\Message\Criticality;
 use App\System\Notification\Domain\Message\MessagePurpose;
 use App\System\Notification\Infrastructure\Rendering\TemplateCatalog;
 use PHPUnit\Framework\TestCase;
@@ -33,6 +34,21 @@ final class TemplateCatalogTest extends TestCase
         self::assertSame($invitation, TemplateCatalog::parameters(MessagePurpose::PORTAL_INVITATION, Channel::SMS));
         self::assertSame($invitation, TemplateCatalog::parameters(MessagePurpose::PORTAL_INVITATION, Channel::EMAIL));
         self::assertSame('portal_invitation', TemplateCatalog::templateName(MessagePurpose::PORTAL_INVITATION));
+    }
+
+    public function testTheDeclineOfAPendingRequestGoesOnBothChannels(): void
+    {
+        self::assertTrue(TemplateCatalog::supports(MessagePurpose::APPOINTMENT_DECLINED, Channel::EMAIL));
+        self::assertTrue(TemplateCatalog::supports(MessagePurpose::APPOINTMENT_DECLINED, Channel::SMS));
+        self::assertSame('appointment_declined', TemplateCatalog::templateName(MessagePurpose::APPOINTMENT_DECLINED));
+        self::assertSame(['slotLabel' => 'scalar'], TemplateCatalog::parameters(MessagePurpose::APPOINTMENT_DECLINED, Channel::SMS));
+        self::assertSame(
+            TemplateCatalog::parameters(MessagePurpose::APPOINTMENT_CANCELLATION, Channel::EMAIL),
+            TemplateCatalog::parameters(MessagePurpose::APPOINTMENT_DECLINED, Channel::EMAIL),
+        );
+        self::assertSame('Demande de RDV non confirmée', MessagePurpose::APPOINTMENT_DECLINED->label());
+        self::assertSame(Criticality::CRITICAL, MessagePurpose::APPOINTMENT_DECLINED->criticality());
+        self::assertFalse(MessagePurpose::APPOINTMENT_DECLINED->isSentByKiveto());
     }
 
     public function testTheDeclaredParametersAreAccepted(): void

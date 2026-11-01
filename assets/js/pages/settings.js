@@ -2,7 +2,12 @@
  * Page module — Paramètres (parametres-v-topbar_5 mock-up). Loaded by the
  * app.js dispatcher on clinic_settings, clinic_settings_hours,
  * clinic_settings_notifications, clinic_settings_agenda,
- * clinic_settings_billing and clinic_settings_preferences.
+ * clinic_settings_online_booking, clinic_settings_billing and
+ * clinic_settings_preferences.
+ *
+ * « Réservation en ligne » saves its general settings like any section; its
+ * motifs are edited one at a time in their own form, saved and archived on
+ * their own endpoints.
  *
  * The mock-up renders its sections from a schema and a table of values; this
  * module does the same with the values of the `data-payload` of
@@ -51,6 +56,7 @@ const IC = {
   user: I('<circle cx="12" cy="8" r="4"/><path d="M4 21c.9-3.6 3.8-6 8-6s7.1 2.4 8 6"/>'),
   bell: I('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>'),
   warn: I('<path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/>'),
+  web: I('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>'),
   team: I('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.4 3.4-5.5 6.5-5.5s5.7 2.1 6.5 5.5"/><circle cx="17.5" cy="9" r="2.6"/><path d="M15.7 14.7c2.7.3 4.9 2.1 5.6 5.1"/>'),
   ext: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg>',
   rm: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
@@ -77,6 +83,12 @@ export function init() {
   const V = { ...(P.identite || {}), ...(P.facturation || {}), 'moi.clin': P.moi['moi.clin'] };
   if (P.notifications) { V['no.exp'] = P.notifications['no.exp']; V['no.cap'] = P.notifications['no.cap']; }
   if (P.agenda) V['ag.rappel'] = P.agenda['ag.rappel'];
+  /* Online booking: the general settings under `rl.` keys, the field names Scheduling answers with */
+  const RL = P['reservation-en-ligne'];
+  const RL_KEYS = { 'rl.on': 'enabled', 'rl.grille': 'gridStepMinutes', 'rl.delai': 'minLeadTimeMinutes', 'rl.manuel': 'minLeadTimeManualHours', 'rl.horizon': 'horizonDays', 'rl.annul': 'cancellationWindowHours', 'rl.nouveaux': 'newClientBookingEnabled' };
+  if (RL) Object.entries(RL_KEYS).forEach(([k, f]) => { V[k] = RL.settings[f]; });
+  let MOTIFS = RL ? RL.motifs : [];
+  let EDIT = null; // the motif being edited (a copy), `id` null for a new one
   const USAGE = P.notifications ? P.notifications.usage : null;
   let HORAIRES = P.horaires ? P.horaires.week : [];
   let FERMETURES = P.horaires ? P.horaires.closures : [];
@@ -131,6 +143,18 @@ export function init() {
     { id: 'agenda', g: 'Activité', l: 'Agenda', ico: IC.cal, d: 'Les rappels envoyés aux clients avant leurs rendez-vous.', blocks: [
       { t: 'Rappel de rendez-vous', d: 'Un seul rappel par RDV, par SMS, si le client l\'accepte.', rows: [R('ag.rappel', 'Envoi du rappel', 'Les rappels pas encore partis des rendez-vous à venir suivent aussitôt le nouveau réglage. Un rendez-vous pris trop tard pour ce délai n\'a pas de rappel : la confirmation suffit.', 'seg', { o: [['H24', '24 h avant'], ['H48', '48 h avant'], ['SAME_DAY_8', 'Le matin même à 8 h']], aff: ['agenda'] })] },
     ] },
+    { id: 'reservation-en-ligne', g: 'Activité', l: 'Réservation en ligne', ico: IC.web, d: 'Les rendez-vous que vos clients prennent eux-mêmes depuis le Portal : créneaux proposés, délais et motifs.', blocks: [
+      { t: 'Général', d: 'Les créneaux sont découpés dans les heures d\'ouverture et les plages du planning de chaque praticien.', custom: 'rlAlerte', rows: [
+        R('rl.on', 'Réservation en ligne', 'Les clients voient les créneaux libres et réservent depuis le Portal.', 'sw', { aff: ['agenda'] }),
+        R('rl.grille', 'Pas de la grille', 'Les créneaux proposés commencent sur ce pas, à partir du début de la plage.', 'seg', { o: [[5, '5 min'], [10, '10 min'], [15, '15 min'], [20, '20 min'], [30, '30 min']] }),
+        R('rl.delai', 'Délai minimum de réservation', 'Pas de créneau proposé plus tôt que maintenant + ce délai.', 'num', { u: 'minutes', max: 2880 }),
+        R('rl.manuel', 'Délai minimum d\'une demande à confirmer', 'Pour un motif confirmé par la clinique et pour les nouveaux clients : de 3 à 168 heures.', 'num', { u: 'heures', max: 168 }),
+        R('rl.horizon', 'Horizon de réservation', 'Jusqu\'où dans le futur un client peut réserver.', 'num', { u: 'jours', max: 180 }),
+        R('rl.annul', 'Annulation par le client', 'Le client peut annuler ou déplacer son rendez-vous jusqu\'à ce délai avant.', 'num', { u: 'heures', max: 168 }),
+        R('rl.nouveaux', 'Nouveaux clients', 'Une personne qui n\'est pas encore cliente peut demander un rendez-vous : la clinique le confirme toujours.', 'sw', { aff: ['agenda'] }),
+      ] },
+      { t: 'Motifs', d: 'Ce que le client choisit en réservant : sa durée, qui peut le recevoir et sur quelles plages.', custom: 'motifs' },
+    ] },
     { id: 'planning', g: 'Activité', l: 'Planning', ico: IC.plan, off: true },
     { id: 'alertes', g: 'Activité', l: 'Alertes de soins', ico: IC.steth, off: true },
     { id: 'ordonnances', g: 'Soins', l: 'Ordonnances', ico: IC.rx, off: true },
@@ -154,7 +178,7 @@ export function init() {
   const ouverte = s => !s.off && !!CAN[s.id];
   const ROWS = SECTIONS.filter(ouverte).flatMap(s => s.blocks.flatMap(b => (b.rows || []).map(r => ({ ...r, s }))));
   const secDe = k => ROWS.find(r => r.k === k || (r.type === 'adresse' && k.startsWith(r.pre + '.')))?.s.id
-    ?? (k.startsWith('id.') ? 'identite' : k.startsWith('moi.') ? 'moi' : k.startsWith('no.') ? 'notifications' : k.startsWith('ag.') ? 'agenda' : 'facturation');
+    ?? (k.startsWith('id.') ? 'identite' : k.startsWith('moi.') ? 'moi' : k.startsWith('no.') ? 'notifications' : k.startsWith('ag.') ? 'agenda' : k.startsWith('rl.') ? 'reservation-en-ligne' : 'facturation');
   const txt = d => typeof d === 'function' ? d() : (d || '');
 
   /* ═════════ State ═════════ */
@@ -167,6 +191,7 @@ export function init() {
   function valeurs(sec) {
     if (sec === 'horaires') return { week: HORAIRES.map(d => d[1]), closures: FERMETURES };
     if (sec === 'moi') return { 'moi.clin': V['moi.clin'] };
+    if (sec === 'reservation-en-ligne') return Object.fromEntries(Object.entries(RL_KEYS).map(([k, f]) => [f, V[k]]));
     const pre = sec === 'identite' ? ['id.'] : sec === 'notifications' ? ['no.'] : sec === 'agenda' ? ['ag.'] : ['fa.', 'fe.'];
     return Object.fromEntries(Object.entries(V).filter(([k]) => pre.some(p => k.startsWith(p))));
   }
@@ -192,7 +217,11 @@ export function init() {
       sv.classList.add('ko');
       $('savedT').textContent = 'Non enregistré';
       showToast(e.message);
-      if (e.field) { const t = $('pin').querySelector(`[data-txt="${e.field}"]`); if (t) erreur(t, e.message); }
+      if (e.field) {
+        const k = Object.keys(RL_KEYS).find(x => RL_KEYS[x] === e.field) || e.field;
+        const t = $('pin').querySelector(`[data-txt="${k}"]`); if (t) erreur(t, e.message);
+        const row = $('pin').querySelector(`[data-row="${k}"]`); if (row) { row.classList.remove('hl'); void row.offsetWidth; row.classList.add('hl'); }
+      }
     }).finally(() => { enCours--; if (!enCours) sv.classList.remove('busy'); });
     return file;
   }
@@ -285,14 +314,14 @@ export function init() {
     return `<div class="srow${r.col ? ' col' : ''}${r.off ? ' off' : ''}" data-row="${r.k}"><div class="sl"><b>${hl(r.l, q)}${r.off ? '<span class="soon" data-tip="Ce réglage n\'est pas encore pris en charge par Kiveto">Bientôt</span>' : ''}</b>${d ? `<small>${hl(d, q)}</small>` : ''}${affHtml(r.aff)}</div><div class="sc"${r.off ? ' aria-disabled="true"' : ''}>${ctrl(r)}</div></div>`;
   }
   function blockHtml(b, q) {
-    return `<section class="pcard">${b.t ? `<header><h3>${b.t}</h3>${b.d ? `<p>${b.d}</p>` : ''}${b.aff ? `<div class="aff" style="margin-top:7px">${affHtml(b.aff).replace(/^<span class="aff">|<\/span>$/g, '')}</div>` : ''}</header>` : ''}<div class="pb">${b.custom ? CUSTOM[b.custom]() : b.rows.map(r => rowHtml(r, q)).join('')}</div></section>`;
+    return `<section class="pcard">${b.t ? `<header><h3>${b.t}</h3>${b.d ? `<p>${b.d}</p>` : ''}${b.aff ? `<div class="aff" style="margin-top:7px">${affHtml(b.aff).replace(/^<span class="aff">|<\/span>$/g, '')}</div>` : ''}</header>` : ''}<div class="pb">${b.custom ? CUSTOM[b.custom]() : ''}${b.rows ? b.rows.map(r => rowHtml(r, q)).join('') : ''}</div></section>`;
   }
   function rendreContenu(anim) {
     const pin = $('pin'), q = norm(ST.q.trim());
     let h = '';
     if (q) {
       const M = ROWS.filter(r => norm(r.l + ' ' + txt(r.d) + ' ' + r.s.l).includes(q));
-      const B = SECTIONS.filter(ouverte).flatMap(s => s.blocks.filter(b => b.custom && norm((b.t || '') + ' ' + (b.d || '')).includes(q)).map(b => ({ s, b })));
+      const B = SECTIONS.filter(ouverte).flatMap(s => s.blocks.filter(b => b.custom && !b.rows && norm((b.t || '') + ' ' + (b.d || '')).includes(q)).map(b => ({ s, b })));
       if (!M.length && !B.length) h = `<div class="pvide"><b>Aucun réglage pour « ${esc(ST.q)} »</b>Essayez « TVA », « couleur », « SIRET », « fermeture »…</div>`;
       else {
         const parSec = {}; M.forEach(r => (parSec[r.s.id] = parSec[r.s.id] || []).push(r));
@@ -344,6 +373,79 @@ export function init() {
       ${banner ? `<div class="bandeau ${banner[0]}">${IC.warn}<div><b>${banner[1]}</b>${banner[2]}</div></div>` : ''}
     </div>`;
   };
+  /* Online booking: without opening hours no slot can be offered (AC 41). */
+  CUSTOM.rlAlerte = () => RL && RL.hoursMissing
+    ? `<div class="bandeau warn" style="margin:4px 0 8px">${IC.warn}<div><b>Horaires d'ouverture requis pour la réservation en ligne</b>Aucun créneau n'est proposé tant que la semaine de la clinique est vide. <a href="${esc(P.urls.sections.horaires)}">Renseigner les horaires</a></div></div>`
+    : '';
+  /* The motifs: one line each, one opened in its form at a time. */
+  const CONFIRM = [['auto', 'Confirmé aussitôt'], ['manual', 'À confirmer par la clinique']];
+  const nomsPrat = ids => ids.map(id => (RL.practitioners.find(p => p[0] === id) || [id, 'Praticien'])[1]).join(', ');
+  const chipsM = (f, opts, sel) => `<div class="chips" data-mchips="${f}">${opts.map(([v, l]) => `<button type="button" class="chip${sel.includes(v) ? ' on' : ''}" data-v="${esc(v)}">${esc(l)}</button>`).join('')}</div>`;
+  const segM = (f, opts, v) => `<div class="seg" data-mseg="${f}">${opts.map(([k, l]) => `<button type="button" data-v="${esc(k)}" class="${String(k) === String(v ?? '') ? 'on' : ''}">${esc(l)}</button>`).join('')}</div>`;
+  const swM = (f, v, l) => `<span class="sw${v ? ' on' : ''}" data-msw="${f}" role="switch" aria-checked="${!!v}" tabindex="0" aria-label="${esc(l)}"></span>`;
+  const ligneM = (l, d, c, col) => `<div class="srow${col ? ' col' : ''}"><div class="sl"><b>${l}</b>${d ? `<small>${d}</small>` : ''}</div><div class="sc">${c}</div></div>`;
+  const errM = f => `<small class="ferr" data-merr="${f}"></small>`;
+  function editeurMotif() {
+    const m = EDIT;
+    return `<div class="mform" data-mform>
+      ${ligneM('Libellé', 'Ce que le client lit sur le Portal.', `<span class="fld"><input class="finput" data-mf="label" value="${esc(m.label)}" maxlength="80" spellcheck="false" autocomplete="off">${errM('label')}</span>`)}
+      ${ligneM('Description', 'Facultative : précisions données au client.', `<textarea class="finput" data-mf="description" rows="2" maxlength="500">${esc(m.description || '')}</textarea>${errM('description')}`, true)}
+      ${ligneM('Durée', 'De 5 à 240 minutes, par pas de 5.', `<span class="fld"><label class="numu"><input data-mf="durationMin" value="${esc(m.durationMin)}" inputmode="numeric" aria-label="Durée"><span>minutes</span></label>${errM('durationMin')}</span>`)}
+      ${ligneM('Proposé en ligne', 'Décoché, le motif reste enregistré mais n\'apparaît plus sur le Portal.', swM('onlineEnabled', m.onlineEnabled, 'Proposé en ligne'))}
+      ${ligneM('Clients connus', 'Un nouveau client attend toujours la confirmation de la clinique.', `<span class="fld">${segM('confirmationKnownClient', CONFIRM, m.confirmationKnownClient)}${errM('confirmationKnownClient')}</span>`)}
+      ${ligneM('Nouveaux clients', 'Ce motif peut être demandé par une personne qui n\'est pas encore cliente.', swM('newClientsAllowed', m.newClientsAllowed, 'Nouveaux clients'))}
+      ${ligneM('Plages du planning', 'Les créneaux ne sont proposés que dans ces plages.', `<span class="fld">${chipsM('allowedBlockTypes', RL.blockTypes, m.allowedBlockTypes)}${errM('allowedBlockTypes')}</span>`, true)}
+      ${ligneM('Praticiens', 'Vétérinaires et ASV qui peuvent recevoir ce motif.', RL.practitioners.length ? `<span class="fld">${chipsM('practitionerIds', RL.practitioners, m.practitionerIds)}${errM('practitionerIds')}</span>` : '<span class="ferr">Aucun vétérinaire ni ASV actif dans l\'équipe.</span>', true)}
+      ${ligneM('Soin préventif', 'Proposé au client quand ce soin arrive à échéance pour son animal.', `<span class="fld">${segM('preventiveCareKind', [['', 'Aucun'], ...RL.careKinds], m.preventiveCareKind)}${errM('preventiveCareKind')}</span>`, true)}
+      ${ligneM('Ordre d\'affichage', 'Les motifs sont listés du plus petit au plus grand.', `<label class="numu"><input data-mf="sortOrder" value="${esc(m.sortOrder)}" inputmode="numeric" aria-label="Ordre d'affichage"><span>rang</span></label>`)}
+      <div class="mform-f"><button type="button" class="btn" data-mcancel>Annuler</button><button type="button" class="btn primaire" data-msave>${m.id ? 'Enregistrer' : 'Ajouter le motif'}</button></div>
+    </div>`;
+  }
+  CUSTOM.motifs = () => {
+    if (!RL) return '';
+    const lignes = [...MOTIFS].sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label, 'fr')).map(m => EDIT && EDIT.id === m.id ? editeurMotif() : `<div class="eli mot-g">
+      <span><b>${esc(m.label)}</b><small>${m.durationMin} min · ${m.confirmationKnownClient === 'manual' ? 'à confirmer' : 'confirmé aussitôt'}${m.newClientsAllowed ? ' · nouveaux clients' : ''} · ${esc(nomsPrat(m.practitionerIds) || 'aucun praticien')}</small></span>
+      <span class="mot-st${m.onlineEnabled ? ' on' : ''}">${m.onlineEnabled ? 'En ligne' : 'Masqué'}</span>
+      <button type="button" class="btn" data-medit="${esc(m.id)}" style="padding:6px 10px;font-size:.76rem">Modifier</button>
+      <button type="button" class="rm" data-march="${esc(m.id)}" aria-label="Archiver ${esc(m.label)}" data-tip="Archiver">${IC.rm}</button>
+    </div>`).join('');
+    return `<div class="elist">${lignes || (EDIT ? '' : '<div class="pvide" style="padding:18px">Aucun motif : ajoutez-en un pour ouvrir la réservation en ligne.</div>')}</div>${EDIT && !EDIT.id ? editeurMotif() : ''}${EDIT ? '' : '<button type="button" class="addl" data-madd>+ Ajouter un motif</button>'}`;
+  };
+  const nouveauMotif = () => ({ id: null, label: '', description: '', durationMin: 30, onlineEnabled: true, confirmationKnownClient: 'auto', allowedBlockTypes: ['consultation'], practitionerIds: RL.practitioners.map(p => p[0]), preventiveCareKind: null, newClientsAllowed: false, sortOrder: MOTIFS.length ? Math.max(...MOTIFS.map(m => m.sortOrder)) + 1 : 0 });
+  function posterMotif(target, values) {
+    const body = new FormData();
+    body.append('_token', P.token);
+    if (values) body.append('values', JSON.stringify(values));
+    return fetch(target, { method: 'POST', body, headers: { Accept: 'application/json' }, signal })
+      .then(r => r.json().catch(() => ({})).then(d => { if (!r.ok) { const e = new Error(d.error || 'Le motif n\'a pas pu être enregistré.'); e.field = d.field; throw e; } return d; }));
+  }
+  function enregistrerMotif() {
+    const m = { ...EDIT, durationMin: parseInt(EDIT.durationMin, 10), sortOrder: parseInt(EDIT.sortOrder, 10) || 0 };
+    if (isNaN(m.durationMin)) { const t = pin.querySelector('[data-merr="durationMin"]'); if (t) t.textContent = 'Indiquez la durée du motif.'; return; }
+    const sv = $('saved'); sv.classList.add('busy');
+    $('savedT').textContent = 'Enregistrement…';
+    pin.querySelectorAll('[data-merr]').forEach(x => { x.textContent = ''; });
+    posterMotif(P.urls.motifSave, m).then(d => {
+      m.id = d.id;
+      MOTIFS = m.id && MOTIFS.some(x => x.id === m.id) ? MOTIFS.map(x => x.id === m.id ? m : x) : [...MOTIFS, m];
+      const nouveau = !EDIT.id;
+      EDIT = null; rendreContenu(false);
+      sauver(nouveau ? 'Motif ajouté' : 'Motif', null);
+    }).catch(e => {
+      if (e.name === 'AbortError') return;
+      sv.classList.add('ko'); $('savedT').textContent = 'Non enregistré';
+      const t = e.field && pin.querySelector(`[data-merr="${e.field}"]`);
+      if (t) t.textContent = e.message; else showToast(e.message);
+    }).finally(() => sv.classList.remove('busy'));
+  }
+  function archiverMotif(id) {
+    const m = MOTIFS.find(x => x.id === id); if (!m) return;
+    posterMotif(P.urls.motifArchive.replace('__ID__', encodeURIComponent(id)), null).then(() => {
+      MOTIFS = MOTIFS.filter(x => x.id !== id); rendreContenu(false);
+      sauver(`Motif « ${m.label} » archivé`, null);
+    }).catch(e => { if (e.name !== 'AbortError') showToast(e.message); });
+  }
+
   /* A day's slots are in order and do not overlap: what the agenda can draw. */
   const plagesOk = PL => PL.every(([a, b], k) => a && b && toMin(a) < toMin(b) && (k === 0 || toMin(PL[k - 1][1]) <= toMin(a)));
 
@@ -442,6 +544,19 @@ export function init() {
       ouvrirCouleur(col, V['id.couleur'] || DEFAULT_COLOR, majCouleur, { titre: 'Couleur de la clinique', pris, note: 'Utilisée dans le sélecteur de clinique.' });
       return;
     }
+    // online booking motifs
+    if (t.closest('[data-madd]')) { EDIT = nouveauMotif(); rendreContenu(false); setTimeout(() => pin.querySelector('[data-mf="label"]')?.focus(), 30); return; }
+    const me = t.closest('[data-medit]'); if (me) { const m = MOTIFS.find(x => x.id === me.dataset.medit); if (m) { EDIT = structuredClone(m); rendreContenu(false); } return; }
+    const ma = t.closest('[data-march]'); if (ma) { archiverMotif(ma.dataset.march); return; }
+    if (t.closest('[data-mcancel]')) { EDIT = null; rendreContenu(false); return; }
+    if (t.closest('[data-msave]')) { enregistrerMotif(); return; }
+    const msw = t.closest('[data-msw]'); if (msw && EDIT) { EDIT[msw.dataset.msw] = !EDIT[msw.dataset.msw]; rendreContenu(false); return; }
+    const mseg = t.closest('[data-mseg] button'); if (mseg && EDIT) { EDIT[mseg.closest('[data-mseg]').dataset.mseg] = mseg.dataset.v || null; rendreContenu(false); return; }
+    const mch = t.closest('[data-mchips] .chip'); if (mch && EDIT) {
+      const f = mch.closest('[data-mchips]').dataset.mchips, v = mch.dataset.v;
+      EDIT[f] = EDIT[f].includes(v) ? EDIT[f].filter(x => x !== v) : [...EDIT[f], v];
+      rendreContenu(false); return;
+    }
     // hours
     const hs = t.closest('[data-hsw]'); if (hs) { const i = +hs.dataset.hsw; setH(`${HORAIRES[i][0]} ${HORAIRES[i][1].length ? 'fermé' : 'ouvert'}`, () => { HORAIRES[i][1] = HORAIRES[i][1].length ? [] : [['09:00', '12:30'], ['14:00', '19:00']]; }); return; }
     const ha = t.closest('[data-hadd]'); if (ha) {
@@ -472,6 +587,8 @@ export function init() {
     const c = t.dataset.txt && pin.querySelector(`[data-cnt="${t.dataset.txt}"]`);
     if (c) { const len = t.value.length, max = +c.dataset.max; c.textContent = `${len} / ${max}`; c.classList.toggle('ko', len > max); }
     if (t.dataset.num != null) { const v = t.value.replace(/\D/g, '').slice(0, 5); if (v !== t.value) t.value = v; }
+    // The motif being edited keeps what is typed, so a toggle re-rendering the form loses nothing.
+    if (t.dataset.mf && EDIT) { EDIT[t.dataset.mf] = t.value; const e = pin.querySelector(`[data-merr="${t.dataset.mf}"]`); if (e) e.textContent = ''; }
   });
   on(pin, 'change', e => {
     const t = e.target;

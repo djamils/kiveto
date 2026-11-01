@@ -48,7 +48,8 @@ final readonly class GetAgendaForClinicDateRangeHandler
                 an.name as animal_label,
                 an.species as animal_species,
                 an.birth_date as animal_birth_date,
-                an.breed_name as animal_breed
+                an.breed_name as animal_breed,
+                a.pending_expires_at
             FROM scheduling__appointments a
             LEFT JOIN identity_access__users u ON u.id = a.practitioner_user_id
             LEFT JOIN client__clients c ON c.id = a.owner_id
@@ -179,6 +180,7 @@ final readonly class GetAgendaForClinicDateRangeHandler
             animalSpecies: RowAccessor::nullableString($row, 'animal_species'),
             animalBirthDate: RowAccessor::nullableString($row, 'animal_birth_date'),
             animalBreed: RowAccessor::nullableString($row, 'animal_breed'),
+            pendingExpiresAtUtc: RowAccessor::nullableString($row, 'pending_expires_at'),
         );
     }
 }

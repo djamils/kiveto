@@ -26,6 +26,7 @@ use App\Fixtures\Context\Prescription\Story\PrescriptionDemoStory;
 use App\Fixtures\Context\Prescription\Story\PrescriptionRegisterStory;
 use App\Fixtures\Context\Procurement\Story\ProcurementDemoStory;
 use App\Fixtures\Context\Scheduling\Story\CalmDayClinicStory;
+use App\Fixtures\Context\Scheduling\Story\OnlineBookingStory;
 use App\Fixtures\Context\Scheduling\Story\SchedulingPlanningBlockStory;
 use App\Fixtures\Context\Scheduling\Story\SchedulingStory;
 use App\Fixtures\System\AccessControl\Story\RolePermissionSeedStory;
@@ -144,6 +145,12 @@ final class ClinicDataset extends Story
         // actif, accès retiré, not invitable) and the owner accounts behind
         // them; needs Julien Girard of the consultation demo.
         ClientPortalStatesStory::load();
+
+        // Online booking in every state: settings and motifs, the pending
+        // requests of Lyon and their outcomes, a clinic with an empty week.
+        // After the Portal links (its clients have none), before the
+        // notifications (they drain the bell entries its requests queued).
+        OnlineBookingStory::load();
 
         // The notifications: messaging profiles, the confirmations the
         // bookings above queued, SMS quotas, every delivery status, the bell,

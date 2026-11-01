@@ -7,13 +7,17 @@ namespace App\Tests\Integration\Context\Scheduling\Infrastructure\Persistence\Do
 use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
+use App\Context\Scheduling\Domain\ValueObject\AppointmentSource;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
+use App\Context\Scheduling\Domain\ValueObject\CancellationActor;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
 use App\Fixtures\Context\Scheduling\Factory\AppointmentEntityFactory;
+use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Test\Factories;
 
 final class DoctrineAppointmentRepositoryTest extends KernelTestCase
@@ -52,12 +56,51 @@ final class DoctrineAppointmentRepositoryTest extends KernelTestCase
         self::assertSame(AppointmentStatus::PLANNED, $loaded->status());
     }
 
+    public function testFindByIdForUpdateReadsTheCommittedRowAgain(): void
+    {
+        // A row lock needs a transaction (the command bus opens one)
+        $connection = self::getContainer()->get('doctrine.dbal.default_connection');
+        \assert($connection instanceof Connection);
+        $connection->beginTransaction();
+
+        self::assertNull($this->repository->findByIdForUpdate(AppointmentId::fromString('00000000-0000-0000-0000-000000000000')));
+
+        $appointment = $this->makeAppointment();
+        $this->repository->save($appointment);
+        // Loaded once (kept by the entity manager), then changed behind its back
+        $first = $this->repository->findById($appointment->id());
+        self::assertNotNull($first);
+        $connection->executeStatement("UPDATE scheduling__appointments SET status = 'CANCELLED' WHERE id = ?", [Uuid::fromString($appointment->id()->toString())->toBinary()]);
+
+        $plain = $this->repository->findById($appointment->id());
+        self::assertSame(AppointmentStatus::PLANNED, $plain?->status(), 'the plain read keeps what it loaded');
+        self::assertSame(AppointmentStatus::CANCELLED, $this->repository->findByIdForUpdate($appointment->id())?->status());
+
+        $connection->rollBack();
+    }
+
+    public function testExpiredPendingRequestsAreListedByExpiry(): void
+    {
+        $now = new \DateTimeImmutable('2026-10-15 09:00', new \DateTimeZone('UTC'));
+
+        $expired = $this->pending('01960000-0000-7000-8000-0000000a7001', '2026-10-15 08:42');
+        $atNow   = $this->pending('01960000-0000-7000-8000-0000000a7002', '2026-10-15 09:00');
+        $later   = $this->pending('01960000-0000-7000-8000-0000000a7003', '2026-10-15 09:01');
+        $handled = $this->pending('01960000-0000-7000-8000-0000000a7004', '2026-10-14 08:00');
+        $handled->confirm();
+        foreach ([$atNow, $expired, $later, $handled] as $appointment) {
+            $this->repository->save($appointment);
+        }
+
+        self::assertSame(['01960000-0000-7000-8000-0000000a7001', '01960000-0000-7000-8000-0000000a7002'], $this->repository->expiredPendingIds($now));
+    }
+
     public function testSaveUpdatesExistingAppointment(): void
     {
         $appointment = $this->makeAppointment();
         $this->repository->save($appointment);
 
-        $appointment->cancel();
+        $appointment->cancel(CancellationActor::CLINIC);
         $this->repository->save($appointment);
 
         $loaded = $this->repository->findById($appointment->id());
@@ -87,7 +130,7 @@ final class DoctrineAppointmentRepositoryTest extends KernelTestCase
         $updatedAt = new \DateTimeImmutable('2026-04-10 09:00:00');
 
         AppointmentEntityFactory::createOne([
-            'id'        => \Symfony\Component\Uid\Uuid::fromString($id),
+            'id'        => Uuid::fromString($id),
             'updatedAt' => $updatedAt,
         ]);
 
@@ -95,7 +138,7 @@ final class DoctrineAppointmentRepositoryTest extends KernelTestCase
         \assert($em instanceof \Doctrine\ORM\EntityManagerInterface);
         $entity = $em->find(
             \App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Entity\AppointmentEntity::class,
-            \Symfony\Component\Uid\Uuid::fromString($id),
+            Uuid::fromString($id),
         );
         self::assertNotNull($entity);
         self::assertSame(
@@ -147,6 +190,24 @@ final class DoctrineAppointmentRepositoryTest extends KernelTestCase
         $loaded = $this->repository->findById($appointment->id());
         self::assertNotNull($loaded);
         self::assertSame($admissionId, $loaded->linkedAdmissionId());
+    }
+
+    private function pending(string $id, string $expiresAtUtc): Appointment
+    {
+        return Appointment::request(
+            id: AppointmentId::fromString($id),
+            clinicId: ClinicId::fromString('01960000-0000-7000-8000-0000000c7001'),
+            practitionerAssignee: new PractitionerAssignee(UserId::fromString('01960000-0000-7000-8000-0000000d7001')),
+            timeSlot: new TimeSlot(new \DateTimeImmutable('2026-10-20 08:00', new \DateTimeZone('UTC')), 30),
+            reason: 'Vaccination',
+            notes: null,
+            createdAt: new \DateTimeImmutable('2026-10-13 08:00', new \DateTimeZone('UTC')),
+            ownerId: null,
+            animalId: null,
+            bookingMotifId: null,
+            source: AppointmentSource::PORTAL,
+            pendingExpiresAt: new \DateTimeImmutable($expiresAtUtc, new \DateTimeZone('UTC')),
+        );
     }
 
     private function makeAppointment(): Appointment
