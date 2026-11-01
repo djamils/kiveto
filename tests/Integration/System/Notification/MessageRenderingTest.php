@@ -93,6 +93,10 @@ final class MessageRenderingTest extends KernelTestCase
             'PORTAL_DATA_EXPORT_READY' => [
                 'EMAIL' => ['ownerFirstName' => 'Sophie', 'expiresAtLabel' => '04/11/2026 à 11:02'],
             ],
+            'PORTAL_REQUEST_RESOLVED' => [
+                'EMAIL' => ['addressee' => 'Sophie Martin', 'petName' => 'Milo', 'sentence' => 'Votre demande de renouvellement d\'ordonnance pour Milo a été traitée.', 'staffMessage' => 'Ordonnance prête.'],
+                'SMS'   => ['sentence' => 'Votre demande de modification pour Milo a été traitée.', 'staffMessage' => ''],
+            ],
         ];
     }
 
@@ -186,6 +190,24 @@ final class MessageRenderingTest extends KernelTestCase
         self::assertStringNotContainsString('http', (string) $notice->text);
         self::assertStringNotContainsString('href="http', (string) $notice->html);
         self::assertStringNotContainsString('Clinique Montmartre', (string) $notice->html, 'sent by Kiveto, not by a clinic');
+    }
+
+    /** AC 230: the fixed sentence, then the team's message when there is one. */
+    public function testTheAnswerToAPortalRequestCarriesTheSentenceAndTheTeamsMessage(): void
+    {
+        $email = $this->render(MessagePurpose::PORTAL_REQUEST_RESOLVED, Channel::EMAIL, self::reference()['PORTAL_REQUEST_RESOLVED']['EMAIL']);
+        self::assertSame('Votre demande pour Milo', $email->subject);
+        self::assertStringContainsString('Votre demande de renouvellement d\'ordonnance pour Milo a été traitée.', (string) $email->text);
+        self::assertStringContainsString("Message de l'équipe :\nOrdonnance prête.", (string) $email->text);
+        self::assertStringContainsString('Clinique Montmartre', (string) $email->html, 'sent by the clinic');
+
+        $without = $this->render(MessagePurpose::PORTAL_REQUEST_RESOLVED, Channel::EMAIL, ['staffMessage' => ''] + self::reference()['PORTAL_REQUEST_RESOLVED']['EMAIL']);
+        self::assertStringNotContainsString('Message de l\'équipe', (string) $without->text);
+
+        $sms = static fn (string $message): ?string => self::renderStatic(MessagePurpose::PORTAL_REQUEST_RESOLVED, Channel::SMS, ['sentence' => 'Votre demande de modification pour Milo n\'a pas pu être acceptée.', 'staffMessage' => $message])->smsText;
+        // GSM-7: « ê » is transliterated
+        self::assertSame('Clinique Montmartre : Votre demande de modification pour Milo n\'a pas pu etre acceptée.', $sms(''));
+        self::assertSame('Clinique Montmartre : Votre demande de modification pour Milo n\'a pas pu etre acceptée. Pesez-le à la clinique.', $sms('Pesez-le à la clinique.'));
     }
 
     /**

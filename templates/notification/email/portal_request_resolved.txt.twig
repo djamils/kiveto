@@ -1,0 +1,16 @@
+Bonjour {{ addressee }},
+
+{{ sentence }}
+{% if staffMessage %}
+
+Message de l'équipe :
+{{ staffMessage }}
+{% endif %}
+
+Retrouvez le suivi de vos demandes dans l'app Kiveto.
+
+Une question ? Appelez-nous : {{ clinic.phone }}
+
+--
+{{ clinic.footerLine }}
+Vous recevez ce message suite à votre demande envoyée depuis l'app Kiveto.

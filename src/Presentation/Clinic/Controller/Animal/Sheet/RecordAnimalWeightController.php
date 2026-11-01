@@ -46,7 +46,10 @@ final class RecordAnimalWeightController extends AbstractAnimalSheetAction
             weightGrams: (int) round((float) $raw * 1000),
             measuredOn: $request->request->getString('measured_on'),
             bodyConditionScore: null === $score ? null : (int) $score,
-            authorName: $this->staffNameResolver->resolve($animal->clinicId, $this->getUser()),
+            // A weight the owner declared on the Portal, entered by staff from « Demandes Portal ».
+            authorName: 'portal' === $request->request->getString('author')
+                ? 'Propriétaire (Portal)'
+                : $this->staffNameResolver->resolve($animal->clinicId, $this->getUser()),
         )));
 
         if ($recorded) {

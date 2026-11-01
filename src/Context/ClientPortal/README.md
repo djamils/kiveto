@@ -40,7 +40,9 @@ Portal **profile** (name, postal address, accepted terms of use).
   `PurgePortalPhoneTraces`, `AnonymisePortalUser` for the account deletion), Client (`GetClientConsents`, `ListClientConsentHistory`
   for the consents screen and the data export; `SetClientConsent` through
   `ClientConsentWriterInterface`), Notification (`RequestNotification`,
-  `MaskPortalRecipient`).
+  `MaskPortalRecipient`, `PostInAppNotification`); slice 6 adds Consultation
+  `ListAppointmentsWithConsultation` and Clinic `ListClinicMembersForNotification`
+  / `ListPermissionsForUserInClinic` (who is told of a request).
 
 ## Ubiquitous Language
 
@@ -201,7 +203,8 @@ The Portal status (`confirmed`, `pending_clinic_confirmation`,
 `no_show`) and `cancellableUntil` come mapped from Scheduling. An appointment
 without online motif shows `motif {id: null, label: « Rendez-vous »}`;
 `relatedCareItem` is the pet's nearest care item of the motif's kind;
-`questionnaireStatus` is `not_started` until slice 6.
+`questionnaireStatus` is `submitted` when the appointment has a submitted
+pre-visit questionnaire, else `not_started`.
 
 | Query | What it answers |
 |---|---|
@@ -355,6 +358,89 @@ confirms it (`RequestAccountDeletion`).
 | `RequestAccountDeletion(userId, challengeId, code)` | command | `DeletionCodeCheck` (`verified`, `otp_invalid`, `otp_expired`, `otp_attempts_exceeded`); verified → account disabled, erasure queued. |
 | `DeletePortalAccount(userId)` | command (`async`) | The erasure above. |
 
+## Requests (slice 6)
+
+What the owner asks the clinic to change is a **request** the clinic answers
+in VetApp; the Portal never writes the animal or the prescription itself.
+Three aggregates under `Domain/Request/` (tables
+`client_portal__pre_visit_questionnaires`, `client_portal__pet_change_requests`,
+`client_portal__prescription_renewal_requests`), each with the clinic, the
+client file reached at submit, the account, its subject, `submittedAt` and
+`updatedAt`.
+
+- **Life cycle.** Change and renewal requests: `submitted` → `done`
+  (« Traiter ») | `rejected` (« Refuser ») | `closed` (subject gone; reason
+  `link_revoked`, `client_archived`, `account_deleted`,
+  `prescription_cancelled`, `pet_archived`, `pet_deceased`; never notified,
+  out of the queue). Only a submitted request moves
+  (`PortalRequestAlreadyResolvedException`, with the name of whoever answered);
+  answers are taken under `FOR UPDATE`. A questionnaire is `submitted` or
+  `closed` (`appointment_cancelled`, `appointment_declined`,
+  `client_archived`, `account_deleted`) and never answered.
+- **Questionnaire** (`PreVisitQuestionnaire`, one per appointment, version
+  1): symptoms (`none` alone), ongoing treatment (details ≤ 500), temperament,
+  notes (≤ 1000). An appointment of the account's client files or of the
+  pets it sees, neither cancelled nor declined (else not found); editable
+  while it holds its slot, has not started and no consultation began from it
+  (Consultation `ListAppointmentsWithConsultation`). A write on a frozen
+  appointment records `lockedAt` and answers `LOCKED`: a reschedule never
+  reopens it.
+- **Pet change** (`PetChangeRequest`): `ProposedChange::of` validates and
+  normalises per field — `name` 1–60, `weight` 0.05–150 kg (comma or dot) →
+  `{weightGrams, measuredOn ≤ today}`, `sterilization` `neutered|intact`,
+  `chip_number` 15 digits, `other` needs a note; value ≤ 120, note ≤ 500. The
+  pet must be one the account sees and alive (`PetNotEligibleException` for
+  a deceased, missing or archived pet of its clients). The pet's value at
+  submit is snapshotted (weight in grams). At most 3 open per pet and field
+  (`PortalRequestRateLimitedException`).
+- **Renewal** (`PrescriptionRenewalRequest`, whole prescription): a listed
+  prescription of the account (a cancelled one of the account →
+  `not_renewable`, else not found), renewable by its owner (issued, no
+  controlled substance, expired allowed), its pet alive, no refusal in the
+  last 7 days (`PrescriptionNotRenewableException::reason`). A second submit
+  answers the open request: MySQL's generated `open_key` (the prescription
+  while submitted) carries a unique key, so concurrent submits leave one.
+  « Traiter » may link an issued prescription of the same pet issued after
+  the request (`resultingPrescriptionId`). `renewalStatus` of the documents
+  list is its latest request.
+- **Quota.** 10 change or renewal requests per 24 h per account and clinic
+  (`limiter.portal_requests`, port `PortalRequestQuotaInterface`), consumed by
+  the Portal API before it dispatches a submit.
+- **Bell.** A new change request rings the `MANAGE_ANIMALS` holders, a
+  renewal its prescriber (else every veterinarian): `PORTAL_REQUEST`, fixed
+  labels with the pet and client names only, one entry per request
+  (`portal-request:<id>`), opening `clinic_portal_requests_show`.
+- **Answer to the owner.** On « Traiter » / « Refuser », Notification
+  `PORTAL_REQUEST_RESOLVED` (clinic-sent, non-critical) on the client's
+  transactional channel, key `portal-request-resolved:<id>`: « Votre demande
+  de {modification | renouvellement d'ordonnance} pour {pet} a été traitée. »
+  / « … n'a pas pu être acceptée. » and the team's message (≤ 280). A client
+  without reachable address is flagged (« client injoignable »).
+- **Closures.** Client archived (`ClientArchived` consumer), prescription
+  cancelled (`PrescriptionCancelled` consumer), pending booking withdrawn or
+  declined (Scheduling `PendingAppointmentCancelled/Declined`), account
+  deleted (`PortalRequestAccountErasure`, an `AccountErasureStepInterface`:
+  closed and every request's free text erased). Animal publishes no archive
+  or death event: a request of an archived or deceased pet reads `closed` and
+  leaves the queue at read time, and is closed for good when someone answers
+  it. Other appointment cancellations hide the questionnaire at read time.
+- **Export.** Each `clinics/<clinicId>.json` lists the account's requests and
+  questionnaires in that clinic.
+
+| Command / Query | Bus | What it does |
+|---|---|---|
+| `SubmitQuestionnaire(userId, clinicId, appointmentId, version, symptoms, hasOngoingTreatment, ?ongoingTreatmentDetails, temperament, ?notes)` | command | `SubmitQuestionnaireOutcome` (`SUBMITTED`, `LOCKED`). |
+| `SubmitPetChangeRequest(userId, clinicId, petId, field, proposedValue, ?measuredOn, ?note)` | command | The request id. |
+| `SubmitRenewalRequest(userId, clinicId, prescriptionId, petCondition, ?note)` | command | The request id (the open one when there is one). |
+| `ResolvePortalRequest(clinicId, requestId, outcome, actorUserId, actorName, ?message, ?resultingPrescriptionId)` | command | The status afterwards (`done`, `rejected`, `closed`). |
+| `ClosePortalRequestsForSubject(subject, subjectId, reason, ?clinicId)` | command | How many requests were closed. |
+| `GetQuestionnaire(clinicId, appointmentId, ?userId)` | query | `PortalQuestionnaire` (owner-scoped with a user id). |
+| `ListQuestionnaireSummaries(clinicId, appointmentIds)` | query | `list<QuestionnaireSummary>` (agenda badge). |
+| `ListOwnerPortalRequests(userId, clinicId, ?cursor, ?limit)` | query | `CursorPage<OwnerPortalRequest>`, newest first. |
+| `ListClinicPortalRequests(clinicId, ?status, ?kind, ?cursor, ?limit)` | query | `CursorPage<ClinicPortalRequest>`, never closed ones. |
+| `GetPortalRequest(clinicId, requestId)` | query | `?PortalRequestDetails`. |
+| `GetLatestRenewalStatuses(clinicId, prescriptionIds)` | query | `array<string, RenewalStatus>`. |
+
 ## Events
 
 - `PortalInvitationSent` (`reissued` on a resend), `PortalInvitationAccepted`,
@@ -365,7 +451,11 @@ confirms it (`RequestAccountDeletion`).
 
 ## Consumers
 
-- `ClientArchivedIntegrationEventConsumer` (Client) → `RevokeClientPortalAccess`.
+- `ClientArchivedIntegrationEventConsumer` (Client) → `RevokeClientPortalAccess`,
+  `ClosePortalRequestsForSubject` (`client_archived`).
+- `PrescriptionCancelledIntegrationEventConsumer` also closes the open renewal
+  (`prescription_cancelled`); Scheduling `PendingAppointmentCancelled` /
+  `PendingAppointmentDeclined` close the questionnaire.
 - Billing `InvoiceIssuedForPortal` / `InvoiceCancelled`, Prescription
   `PrescriptionIssued` / `PrescriptionCancelled`, Patient `PatientLinkedToAnimal`
   / `PatientReconciledInto` and our own `ClientLinkConfirmed` integration events
@@ -384,7 +474,9 @@ client_id`), `client_portal__owner_profiles` (PK `user_id`),
 `client_portal__document_reads` (PK `document_id, user_id`),
 `client_portal__booklet_files` (PK `animal_id`) and
 `client_portal__data_exports` (indexes `user_id, requested_at` and
-`status, expires_at`). Migrations in
+`status, expires_at`), the three request tables (unique `clinic_id,
+appointment_id` for questionnaires; unique `clinic_id, open_key` on the
+generated column of renewals). Migrations in
 `migrations/ClientPortal/`.
 
 ## Configuration

@@ -46,6 +46,10 @@ final class PortalProblemMap implements ProblemFactoryInterface
     public const string EXPORT_RATE_LIMITED     = 'export_rate_limited';
     public const string EMAIL_TAKEN             = 'email_taken';
     public const string CONFLICT                = 'conflict';
+    public const string RATE_LIMITED            = 'rate_limited';
+    public const string PET_NOT_ELIGIBLE        = 'pet_not_eligible';
+    public const string QUESTIONNAIRE_LOCKED    = 'questionnaire_locked';
+    public const string NOT_RENEWABLE           = 'prescription_not_renewable';
 
     /** The code of every violation built by violation(). */
     private const string VIOLATION_CODE = 'portal_rule';
@@ -78,6 +82,10 @@ final class PortalProblemMap implements ProblemFactoryInterface
         self::EXPORT_RATE_LIMITED     => [429, 'Un export de vos données a déjà été demandé : réessayez dans 24 heures.'],
         self::EMAIL_TAKEN             => [422, 'Cette adresse e-mail est déjà vérifiée par un autre compte.'],
         self::CONFLICT                => [409, 'Modification concurrente : rechargez puis réessayez.'],
+        self::RATE_LIMITED            => [429, 'Trop de demandes : réessayez plus tard.'],
+        self::PET_NOT_ELIGIBLE        => [422, 'Cet animal ne peut pas faire l\'objet d\'une demande de modification.'],
+        self::QUESTIONNAIRE_LOCKED    => [422, 'Ce questionnaire ne peut plus être modifié : le rendez-vous a commencé.'],
+        self::NOT_RENEWABLE           => [422, 'Cette ordonnance ne peut pas être renouvelée en ligne : contactez la clinique.'],
         self::IDEMPOTENCY_KEY_MISSING => [400, 'En-tête Idempotency-Key manquant ou invalide.'],
         self::IDEMPOTENCY_KEY_REUSED  => [422, 'Cette clé Idempotency-Key a déjà servi pour une autre requête.'],
     ];

@@ -18,6 +18,8 @@ enum InAppKind: string
     case ONLINE_BOOKING_PENDING = 'ONLINE_BOOKING_PENDING';
     // An online booking moved or cancelled by the client
     case ONLINE_BOOKING_CHANGED = 'ONLINE_BOOKING_CHANGED';
+    // A pet change or renewal request sent from the Portal (« Demandes Portal »)
+    case PORTAL_REQUEST = 'PORTAL_REQUEST';
 
     public const string FILTER_ACTIVITY = 'activite';
 

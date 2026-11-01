@@ -627,3 +627,11 @@
   body.cs-print .cs #paper,body.cs-print .cs #paper *{visibility:visible}
   body.cs-print .cs #paper{position:fixed;left:0;top:0;width:100%;box-shadow:none;border-radius:0}
 }
+/* Pre-visit questionnaire sent by the owner from the Portal */
+.cs .qn-card{margin-top:12px}
+.cs .qn-card[hidden]{display:none}
+.cs .qn-chip{display:inline-block;padding:1px 8px;border-radius:999px;background:#fef2f2;color:#b91c1c;font-size:.66rem;font-weight:700;text-transform:none;letter-spacing:0}
+.cs .qn-dl{display:grid;grid-template-columns:max-content 1fr;gap:5px 14px;font-size:.8rem;margin:0}
+.cs .qn-dl dt{color:var(--encre-60);font-weight:600}
+.cs .qn-dl dd{margin:0}
+.cs .qn-dl dd.txt{white-space:pre-wrap;overflow-wrap:anywhere}

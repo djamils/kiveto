@@ -25,6 +25,8 @@ const PAGE_MODULES = {
   clinic_checkout:               'pages/billing/register',
   clinic_prescriptions:          'pages/prescription/register',
   clinic_prescription_details:   'pages/prescription/register',
+  clinic_portal_requests:        'pages/portal-requests',
+  clinic_portal_requests_show:   'pages/portal-requests',
   clinic_catalogue:              'pages/catalog',
   clinic_catalogue_articles:     'pages/catalog',
   clinic_catalogue_packages:     'pages/catalog',

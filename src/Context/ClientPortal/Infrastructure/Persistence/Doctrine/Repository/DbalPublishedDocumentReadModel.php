@@ -101,6 +101,14 @@ final readonly class DbalPublishedDocumentReadModel implements PublishedDocument
         return $this->one('d.type = :type AND d.source_ref = :source', ['type' => $type, 'source' => SqlValues::binary($sourceRef)], $userId, $clinicId);
     }
 
+    public function wasPublished(string $userId, string $clinicId, string $type, string $sourceRef): bool
+    {
+        return false !== $this->connection->fetchOne(
+            'SELECT 1 FROM ' . self::DOCUMENTS . ' d WHERE d.type = :type AND d.source_ref = :source AND ' . self::SCOPE,
+            ['type' => $type, 'source' => SqlValues::binary($sourceRef), 'user' => SqlValues::binary($userId), 'clinic' => SqlValues::binary($clinicId)],
+        );
+    }
+
     public function versionKey(string $clinicId, string $documentId, int $version): ?string
     {
         $row = $this->connection->fetchAssociative(

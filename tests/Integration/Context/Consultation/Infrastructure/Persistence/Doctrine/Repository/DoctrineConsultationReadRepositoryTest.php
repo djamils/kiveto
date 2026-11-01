@@ -591,6 +591,27 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
         );
     }
 
+    public function testTheAppointmentsAConsultationWasStartedFromAreFound(): void
+    {
+        $appointment = Uuid::v7()->toRfc4122();
+        $other       = Uuid::v7()->toRfc4122();
+        $this->startAndSave(self::CONSULTATION_1, self::CLINIC_ID, self::PATIENT_ID, '2026-04-10 09:00:00');
+        $this->startAndSave(self::CONSULTATION_2, self::OTHER_CLINIC_ID, self::PATIENT_ID, '2026-04-10 09:00:00');
+
+        $connection = self::getContainer()->get(Connection::class);
+        \assert($connection instanceof Connection);
+        foreach ([self::CONSULTATION_1 => $appointment, self::CONSULTATION_2 => $other] as $consultationId => $appointmentId) {
+            $connection->executeStatement(
+                'UPDATE consultation__consultations SET appointment_id = :appointment WHERE id = :id',
+                ['appointment' => Uuid::fromString($appointmentId)->toBinary(), 'id' => Uuid::fromString($consultationId)->toBinary()],
+                ['appointment' => ParameterType::BINARY, 'id' => ParameterType::BINARY],
+            );
+        }
+
+        self::assertSame([$appointment], $this->readRepository->appointmentIdsWithConsultation(ClinicId::fromString(self::CLINIC_ID), [$appointment, $other, Uuid::v7()->toRfc4122()]));
+        self::assertSame([], $this->readRepository->appointmentIdsWithConsultation(ClinicId::fromString(self::CLINIC_ID), []));
+    }
+
     public function testTheMedicinesOfAConsultationComeBackInOrder(): void
     {
         $consultation = $this->startConsultation(

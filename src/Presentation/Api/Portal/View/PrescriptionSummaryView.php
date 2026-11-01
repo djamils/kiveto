@@ -6,7 +6,7 @@ namespace App\Presentation\Api\Portal\View;
 
 use ApiPlatform\Metadata\ApiProperty;
 
-/** `renewalStatus` stays null until owner renewal requests exist (slice 6). */
+/** `renewalStatus`: the latest renewal request of the prescription, null without one. */
 final readonly class PrescriptionSummaryView
 {
     public function __construct(

@@ -1022,6 +1022,322 @@ paths:
             schema:
               $ref: '#/components/schemas/ConsentUpdate'
         required: true
+  '/api/portal/v1/clinics/{clinicId}/appointments/{appointmentId}/questionnaire':
+    get:
+      operationId: api_clinics_clinicIdappointments_appointmentIdquestionnaire_get
+      tags:
+        - Demandes
+      responses:
+        '200':
+          description: 'Le questionnaire.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Questionnaire.QuestionnaireView'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: "`not_found` (pas de lien confirmé ; rendez-vous inconnu, d'un autre client, annulé ou refusé)."
+      summary: "Le questionnaire pré-visite d'un rendez-vous."
+      description: "Version 1. `status` : `not_started` (sans `answers` ni `updatedAt`) ou `submitted`. `editable` = modifiable par `PUT` : le rendez-vous occupe son créneau, n'a pas commencé et aucune consultation n'a démarré."
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'Questionnaire identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: appointmentId
+          in: path
+          description: 'Questionnaire identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+    put:
+      operationId: api_clinics_clinicIdappointments_appointmentIdquestionnaire_put
+      tags:
+        - Demandes
+      responses:
+        '200':
+          description: 'Le questionnaire enregistré.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionnaireUpdate.QuestionnaireView'
+          links: {  }
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: "`not_found` (pas de lien confirmé ; rendez-vous inconnu, d'un autre client, annulé ou refusé)."
+        '422':
+          description: '`questionnaire_locked` ou `validation_failed` (dont `version` différente de 1).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+      summary: "Remplit ou modifie le questionnaire pré-visite d'un rendez-vous."
+      description: "Naturellement idempotente : les réponses remplacent les précédentes. `symptoms` : `none` ne se combine avec aucun autre. Modifiable tant que le rendez-vous occupe son créneau, n'a pas commencé et qu'aucune consultation n'a démarré ; ensuite `questionnaire_locked` (un report ne le rouvre pas). Renvoie la même forme que `GET`."
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'QuestionnaireUpdate identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: appointmentId
+          in: path
+          description: 'QuestionnaireUpdate identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+      requestBody:
+        description: 'The updated QuestionnaireUpdate resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuestionnaireUpdate'
+        required: true
+  '/api/portal/v1/clinics/{clinicId}/pets/{petId}/change-requests':
+    post:
+      operationId: api_clinics_clinicIdpets_petIdchange-requests_post
+      tags:
+        - Demandes
+      responses:
+        '202':
+          description: 'La demande envoyée à la clinique.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetChangeRequestCreation.PortalRequestCreatedView'
+          links: {  }
+        '400':
+          description: '`idempotency_key_missing`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: "`not_found` (pas de lien confirmé ; animal inconnu ou d'un autre client)."
+        '422':
+          description: '`pet_not_eligible` (animal décédé, disparu ou archivé), `idempotency_key_reused` ou `validation_failed`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+        '429':
+          description: '`rate_limited` (`Retry-After` pour le quota de 24 h).'
+      summary: "Demande à la clinique de modifier une information de l'animal."
+      description: "La clinique applique la modification à la main ; l'animal ne change pas avant. Règles par champ : `name` 1 à 60 caractères ; `weight` décimal (virgule ou point) de 0,05 à 150 kg, `measuredOn` facultatif (pas dans le futur, par défaut le jour de la demande) ; `sterilization` `neutered` ou `intact` ; `chip_number` 15 chiffres ; `other` exige `note`. 10 demandes (modification ou renouvellement) par 24 h et par clinique, et 3 demandes ouvertes au plus par animal et par champ. Pas d'annulation ni de modification d'une demande envoyée. Rejouer la requête avec la même clé Idempotency-Key rend la même réponse sans seconde demande."
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          description: 'Clé aléatoire (UUID) propre à cette demande, réutilisée pour ses nouvelles tentatives.'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+            maxLength: 128
+          style: simple
+          explode: false
+        -
+          name: clinicId
+          in: path
+          description: 'PetChangeRequestCreation identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: petId
+          in: path
+          description: 'PetChangeRequestCreation identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+      requestBody:
+        description: 'The new PetChangeRequestCreation resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PetChangeRequestCreation'
+        required: true
+  '/api/portal/v1/clinics/{clinicId}/prescriptions/{prescriptionId}/renewal-requests':
+    post:
+      operationId: api_clinics_clinicIdprescriptions_prescriptionIdrenewal-requests_post
+      tags:
+        - Demandes
+      responses:
+        '202':
+          description: "La demande ouverte de l'ordonnance."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RenewalRequestCreation.RenewalRequestCreatedView'
+          links: {  }
+        '400':
+          description: '`idempotency_key_missing`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: "`not_found` (pas de lien confirmé ; ordonnance inconnue ou d'un autre client)."
+        '422':
+          description: '`prescription_not_renewable` (non émise, substance contrôlée, animal non vivant, refus de moins de 7 jours), `idempotency_key_reused` ou `validation_failed`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+        '429':
+          description: '`rate_limited` (`Retry-After`).'
+      summary: "Demande le renouvellement d'une ordonnance."
+      description: "Porte sur toute l'ordonnance ; la clinique rédige au besoin une nouvelle ordonnance, liée à la demande (`renewalStatus` de la liste des documents). Une seconde demande alors qu'une est ouverte rend 202 avec la même `{ requestId, status }`. 10 demandes (modification ou renouvellement) par 24 h et par clinique. Pas d'annulation d'une demande envoyée. Rejouer la requête avec la même clé Idempotency-Key rend la même réponse."
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          description: 'Clé aléatoire (UUID) propre à cette demande, réutilisée pour ses nouvelles tentatives.'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+            maxLength: 128
+          style: simple
+          explode: false
+        -
+          name: clinicId
+          in: path
+          description: 'RenewalRequestCreation identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: prescriptionId
+          in: path
+          description: 'RenewalRequestCreation identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+      requestBody:
+        description: 'The new RenewalRequestCreation resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RenewalRequestCreation'
+        required: true
+  '/api/portal/v1/clinics/{clinicId}/requests':
+    get:
+      operationId: api_clinics_clinicIdrequests_get
+      tags:
+        - Demandes
+      responses:
+        '200':
+          description: 'Une page de demandes.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerRequestList'
+        '400':
+          description: '`cursor_invalid`.'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: '`not_found` (pas de lien confirmé avec la clinique).'
+      summary: 'Les demandes de modification et de renouvellement du propriétaire dans cette clinique.'
+      description: "De la plus récente à la plus ancienne. `closed` = close sans traitement (lien révoqué, client archivé, ordonnance annulée, animal archivé ou décédé). Pas d'annulation ni de modification d'une demande envoyée en v1."
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'OwnerRequestList identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: cursor
+          in: query
+          description: 'OwnerRequestList cursor'
+          required: false
+          deprecated: false
+          schema:
+            type: string
+          style: form
+          explode: true
+        -
+          name: limit
+          in: query
+          description: 'Taille de page : 20 par défaut, ramenée à 50 au plus.'
+          required: false
+          deprecated: false
+          schema:
+            type: integer
+          style: form
+          explode: true
   '/api/portal/v1/clinics/{clinicId}/documents':
     get:
       operationId: api_clinics_clinicIddocuments_get
@@ -3257,6 +3573,29 @@ components:
             - cat
             - nac
             - other
+    OngoingTreatment:
+      type: object
+      required:
+        - has
+      properties:
+        has:
+          type:
+            - boolean
+            - 'null'
+        details:
+          type:
+            - string
+            - 'null'
+          maxLength: 500
+    OngoingTreatmentView:
+      type: object
+      properties:
+        has:
+          type: boolean
+        details:
+          type:
+            - string
+            - 'null'
     OtpRequest:
       type: object
       required:
@@ -3390,6 +3729,17 @@ components:
                 properties:
                   name: { type: string }
                   city: { type: [string, 'null'] }
+    OwnerRequestList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortalRequestView'
+        nextCursor:
+          type:
+            - string
+            - 'null'
     Pet:
       type: object
       description: 'The listed shape of a pet, plus its latest weight, masked chip and referent vet.'
@@ -3448,6 +3798,38 @@ components:
           type:
             - string
             - 'null'
+    PetChangeRequestCreation:
+      type: object
+      required:
+        - field
+        - proposedValue
+      properties:
+        field:
+          type: string
+          enum:
+            - name
+            - weight
+            - sterilization
+            - chip_number
+            - other
+        proposedValue:
+          type: string
+          maxLength: 120
+        measuredOn:
+          type:
+            - string
+            - 'null'
+          format: date
+        note:
+          type:
+            - string
+            - 'null'
+          maxLength: 500
+    PetChangeRequestCreation.PortalRequestCreatedView:
+      type: object
+      properties:
+        requestId:
+          type: string
     PetReferenceView:
       type: object
       properties:
@@ -3519,6 +3901,60 @@ components:
         at:
           type: string
           format: date
+    PortalRequestView:
+      type: object
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum:
+            - pet_change
+            - prescription_renewal
+        petId:
+          type: string
+        field:
+          type:
+            - string
+            - 'null'
+          enum:
+            - name
+            - weight
+            - sterilization
+            - chip_number
+            - other
+            - null
+        proposedValue:
+          type:
+            - string
+            - 'null'
+        prescriptionId:
+          type:
+            - string
+            - 'null'
+        status:
+          type: string
+          enum:
+            - submitted
+            - done
+            - rejected
+            - closed
+        submittedAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        resolutionMessage:
+          type:
+            - string
+            - 'null'
+        resultingPrescriptionId:
+          type:
+            - string
+            - 'null'
     PractitionerView:
       type: object
       properties:
@@ -3590,6 +4026,127 @@ components:
           type: string
           pattern: '^[A-Z]{2}$'
           example: FR
+    Questionnaire.QuestionnaireView:
+      type: object
+      description: 'The pre-visit questionnaire of an appointment of the owner (QuestionnaireView).'
+      properties:
+        version:
+          type: integer
+          enum:
+            - 1
+        status:
+          type: string
+          enum:
+            - not_started
+            - submitted
+        answers:
+          anyOf:
+            -
+              $ref: '#/components/schemas/QuestionnaireAnswersView'
+            -
+              type: 'null'
+        updatedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        editable:
+          type: boolean
+    QuestionnaireAnswersView:
+      type: object
+      properties:
+        symptoms:
+          type: array
+          items:
+            type: string
+            enum:
+              - none
+              - cough
+              - vomiting
+              - diarrhea
+              - appetite_loss
+              - itching
+              - lameness
+        ongoingTreatment:
+          $ref: '#/components/schemas/OngoingTreatmentView'
+        temperament:
+          type: string
+          enum:
+            - calm
+            - stressed
+            - may_bite
+        notes:
+          type:
+            - string
+            - 'null'
+    QuestionnaireUpdate:
+      type: object
+      required:
+        - version
+        - symptoms
+        - ongoingTreatment
+        - temperament
+      properties:
+        version:
+          type: integer
+          enum:
+            - 1
+        symptoms:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+              - none
+              - cough
+              - vomiting
+              - diarrhea
+              - appetite_loss
+              - itching
+              - lameness
+        ongoingTreatment:
+          anyOf:
+            -
+              $ref: '#/components/schemas/OngoingTreatment'
+            -
+              type: 'null'
+        temperament:
+          type: string
+          enum:
+            - calm
+            - stressed
+            - may_bite
+        notes:
+          type:
+            - string
+            - 'null'
+          maxLength: 1000
+    QuestionnaireUpdate.QuestionnaireView:
+      type: object
+      properties:
+        version:
+          type: integer
+          enum:
+            - 1
+        status:
+          type: string
+          enum:
+            - not_started
+            - submitted
+        answers:
+          anyOf:
+            -
+              $ref: '#/components/schemas/QuestionnaireAnswersView'
+            -
+              type: 'null'
+        updatedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        editable:
+          type: boolean
     RelatedCareItemView:
       type: object
       properties:
@@ -3607,6 +4164,31 @@ components:
             - overdue
             - due_soon
             - up_to_date
+    RenewalRequestCreation:
+      type: object
+      required:
+        - petCondition
+      properties:
+        petCondition:
+          type: string
+          enum:
+            - improved
+            - no_improvement
+            - adverse_effects
+        note:
+          type:
+            - string
+            - 'null'
+          maxLength: 500
+    RenewalRequestCreation.RenewalRequestCreatedView:
+      type: object
+      properties:
+        requestId:
+          type: string
+        status:
+          type: string
+          enum:
+            - submitted
     SessionLogout:
       type: object
       required:
@@ -3704,4 +4286,7 @@ tags:
   -
     name: Authentification
     description: "Resource 'Authentification' operations."
+  -
+    name: Demandes
+    description: "Resource 'Demandes' operations."
 webhooks: {  }

@@ -18,7 +18,7 @@ final readonly class DashboardTask
 {
     /**
      * @param 'urgent'|'jour'|'fond'                                $group
-     * @param 'labo'|'cr'|'vaccin'|'fact'|'stock'|'rdv'             $icon
+     * @param 'labo'|'cr'|'vaccin'|'fact'|'stock'|'rdv'|'portal'    $icon
      * @param 'clinique'|'asv'|'veto'                               $audience
      * @param list<array{label: string, url: string, danger: bool}> $forms
      */

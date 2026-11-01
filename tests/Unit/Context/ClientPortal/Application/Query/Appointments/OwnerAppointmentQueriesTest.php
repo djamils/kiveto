@@ -17,7 +17,10 @@ use App\Context\ClientPortal\Application\Query\ListOwnerAppointments\ListOwnerAp
 use App\Context\ClientPortal\Application\Query\ListOwnerAppointments\ListOwnerAppointmentsHandler;
 use App\Context\ClientPortal\Application\Service\PortalAppointments;
 use App\Context\ClientPortal\Domain\Exception\PetNotFoundException;
+use App\Context\ClientPortal\Domain\Request\ClosureReason;
+use App\Tests\Unit\Context\ClientPortal\Support\InMemoryQuestionnaires;
 use App\Tests\Unit\Context\ClientPortal\Support\PetWorld as W;
+use App\Tests\Unit\Context\ClientPortal\Support\Requests;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -39,6 +42,8 @@ final class OwnerAppointmentQueriesTest extends TestCase
     private const string A3        = '01960000-0000-7000-8000-000000000103';
     private const string A4        = '01960000-0000-7000-8000-000000000104';
 
+    private InMemoryQuestionnaires $questionnaires;
+
     public function testThePageIsOfTheLinkedClientsAndTheirPetsInTheClinicsTimeZone(): void
     {
         $world                      = $this->world();
@@ -50,6 +55,11 @@ final class OwnerAppointmentQueriesTest extends TestCase
         ];
         $world->act(W::PET, 'Rage', '2025-11-10', '2026-11-10');
         $world->fakes->careBookings = [new CareBooking(W::PET, new \DateTimeImmutable('2026-11-05 09:00:00', new \DateTimeZone('UTC')), 'vaccination')];
+        // A2 has a submitted questionnaire; A1's was closed: it reads not started
+        $this->questionnaires->save(Requests::questionnaire('01960000-0000-7000-8000-0000000f9001', self::A2));
+        $closed = Requests::questionnaire('01960000-0000-7000-8000-0000000f9002', self::A1);
+        $closed->close(ClosureReason::APPOINTMENT_CANCELLED, Requests::utc('2026-10-28 09:00:00'));
+        $this->questionnaires->save($closed);
 
         $page = $this->listHandler($world)(new ListOwnerAppointments(W::USER, W::CLINIC, AppointmentScope::UPCOMING, 'cursor', 10));
 
@@ -64,7 +74,7 @@ final class OwnerAppointmentQueriesTest extends TestCase
         );
         self::assertSame(['vaccination', 'Rage', '2026-11-10', 'booked'], [$a1->relatedCareItem?->kind, $a1->relatedCareItem?->label, $a1->relatedCareItem?->dueOn->format('Y-m-d'), $a1->relatedCareItem?->status->value]);
         // No animal, no motif: « Rendez-vous », an unnamed practitioner.
-        self::assertSame([null, null, null, 'Rendez-vous', null, 'pending_clinic_confirmation', true, 'portal', null, null], [$a2->petId, $a2->petName, $a2->motifId, $a2->motifLabel, $a2->practitionerName, $a2->status, $a2->isPending, $a2->source, $a2->cancellableUntil, $a2->relatedCareItem]);
+        self::assertSame([null, null, null, 'Rendez-vous', null, 'pending_clinic_confirmation', true, 'portal', null, null, 'submitted'], [$a2->petId, $a2->petName, $a2->motifId, $a2->motifLabel, $a2->practitionerName, $a2->status, $a2->isPending, $a2->source, $a2->cancellableUntil, $a2->relatedCareItem, $a2->questionnaireStatus]);
         // An animal the account does not see is not named.
         self::assertSame([null, null, 'cancelled_by_client', false], [$a3->petId, $a3->petName, $a3->status, $a3->occupiesSlot]);
     }
@@ -179,7 +189,8 @@ final class OwnerAppointmentQueriesTest extends TestCase
 
     private function world(): W
     {
-        $world = new W();
+        $this->questionnaires = new InMemoryQuestionnaires();
+        $world                = new W();
         $world->pet();
         $world->pet(W::PET2, 'Rex');
         $world->pet(W::PET3, 'Filou', 'alive', W::CLIENT2);
@@ -225,7 +236,7 @@ final class OwnerAppointmentQueriesTest extends TestCase
 
     private function views(W $world): PortalAppointments
     {
-        return new PortalAppointments($world->careItems(), $world->fakes, $world->documents->fakes);
+        return new PortalAppointments($world->careItems(), $world->fakes, $world->documents->fakes, $this->questionnaires);
     }
 
     private function listHandler(W $world): ListOwnerAppointmentsHandler

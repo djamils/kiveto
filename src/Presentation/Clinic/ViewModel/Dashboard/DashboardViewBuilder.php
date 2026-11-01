@@ -15,6 +15,7 @@ use App\Context\Catalog\Application\Query\Catalog\ListCatalog\ArticleListRow;
 use App\Context\Catalog\Application\Query\Catalog\ListCatalog\CatalogListCriteria;
 use App\Context\Catalog\Application\Query\Catalog\ListCatalog\CatalogPage;
 use App\Context\Catalog\Application\Query\Catalog\ListCatalog\ListArticles;
+use App\Context\ClientPortal\Application\Query\ListClinicPortalRequests\ClinicPortalRequest;
 use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\ClinicSettingsView;
 use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\GetClinicSettings;
 use App\Context\Clinic\Application\Query\Staff\GetUserMembershipInClinic\GetUserMembershipInClinic;
@@ -39,6 +40,8 @@ use App\Context\Scheduling\Application\Query\GetOnlineBookingSettings\OnlineBook
 use App\Context\Scheduling\Application\Query\ListPlanningBlocksForClinicDateRange\ListPlanningBlocksForClinicDateRange;
 use App\Context\Scheduling\Application\Query\ListPlanningBlocksForClinicDateRange\PlanningBlockView;
 use App\Presentation\Clinic\ViewModel\Agenda\AgendaViewBuilder;
+use App\Presentation\Clinic\ViewModel\PortalRequest\PortalRequestQueue;
+use App\Presentation\Clinic\ViewModel\PortalRequest\PortalRequestText;
 use App\Presentation\Clinic\ViewModel\Shared\SheetText;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Domain\Time\ClockInterface;
@@ -92,6 +95,7 @@ final readonly class DashboardViewBuilder
         private ClockInterface $clock,
         private UrlGeneratorInterface $urls,
         private PatientFactsReader $facts,
+        private PortalRequestQueue $portalRequests,
     ) {
     }
 
@@ -1000,7 +1004,7 @@ final readonly class DashboardViewBuilder
             );
         }
 
-        $tasks = [...$tasks, ...$this->pendingRequestTasks($clinicId, $now)];
+        $tasks = [...$tasks, ...$this->pendingRequestTasks($clinicId, $now), ...$this->portalRequestTasks($clinicId, $now)];
 
         usort(
             $alerts,
@@ -1139,6 +1143,67 @@ final readonly class DashboardViewBuilder
                 assigneeUserId: null,
                 actionLabel: 'Voir',
                 actionUrl: $this->urls->generate('clinic_scheduling_agenda'),
+            );
+        }
+
+        return $tasks;
+    }
+
+    /**
+     * « Demandes Portal » waiting for an answer: a renewal with adverse
+     * effects first (urgent), then the oldest. Renewals are for the
+     * veterinarians, file changes for the assistants; questionnaires are not
+     * queue items. Owner free text never reaches a task.
+     *
+     * @return list<DashboardTask>
+     */
+    private function portalRequestTasks(string $clinicId, \DateTimeImmutable $now): array
+    {
+        $open = $this->portalRequests->open($clinicId);
+
+        usort($open, static fn (ClinicPortalRequest $a, ClinicPortalRequest $b): int => [
+            'adverse_effects' === $a->petCondition ? 0 : 1, $a->submittedAt,
+        ] <=> [
+            'adverse_effects' === $b->petCondition ? 0 : 1, $b->submittedAt,
+        ]);
+
+        $tasks = [];
+
+        foreach (\array_slice($open, 0, self::TASKS_PER_SOURCE) as $request) {
+            $isRenewal = 'prescription_renewal' === $request->kind;
+            $received  = $request->submittedAt->setTimezone($now->getTimezone());
+            $when      = $received->format('Y-m-d') === $now->format('Y-m-d')
+                ? 'reçue à ' . $received->format('H:i')
+                : 'reçue le ' . SheetText::date($received, 'd MMM');
+
+            $tasks[] = new DashboardTask(
+                group: $isRenewal && 'adverse_effects' === $request->petCondition ? 'urgent' : 'jour',
+                icon: 'portal',
+                title: ($isRenewal ? 'Renouvellement d\'ordonnance — ' : 'Modification de fiche — ') . ($request->petName ?? 'animal'),
+                subtitle: implode(' · ', array_filter([
+                    $isRenewal
+                        ? PortalRequestText::label(PortalRequestText::CONDITION, $request->petCondition)
+                        : PortalRequestText::label(PortalRequestText::FIELD, $request->field),
+                    $request->clientName,
+                    $when,
+                ])),
+                audience: $isRenewal ? 'veto' : 'asv',
+                assigneeUserId: null,
+                actionLabel: 'Répondre',
+                actionUrl: $this->urls->generate('clinic_portal_requests_show', ['id' => $request->id]),
+            );
+        }
+
+        if (\count($open) > self::TASKS_PER_SOURCE) {
+            $tasks[] = new DashboardTask(
+                group: 'jour',
+                icon: 'portal',
+                title: SheetText::plural(\count($open) - self::TASKS_PER_SOURCE, 'autre demande Portal', 'autres demandes Portal'),
+                subtitle: 'Modifications de fiche et renouvellements à traiter',
+                audience: 'clinique',
+                assigneeUserId: null,
+                actionLabel: 'Voir',
+                actionUrl: $this->urls->generate('clinic_portal_requests'),
             );
         }
 

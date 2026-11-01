@@ -17,7 +17,9 @@ use App\Shared\Domain\ValueObject\PostalAddress;
 /**
  * Client's GetClientNotificationContact (the SMS-capable phone, primary
  * first, and the e-mail) and GetClientById (identity and postal address).
- * Consents are not applied: an invitation is an explicit staff action.
+ * Consents are not applied: an invitation is an explicit staff action; the
+ * transactional channel (preferred, else e-mail, else SMS) carries the
+ * answer to a Portal request.
  */
 final readonly class QueryBusClientDirectory implements ClientDirectoryInterface
 {
@@ -40,6 +42,7 @@ final readonly class QueryBusClientDirectory implements ClientDirectoryInterface
             email: $contact->email,
             mobile: $contact->mobile,
             archived: $contact->archived,
+            transactionalChannel: $contact->transactionalChannel(),
         );
     }
 

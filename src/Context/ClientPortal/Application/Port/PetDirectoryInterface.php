@@ -19,4 +19,14 @@ interface PetDirectoryInterface
 
     /** The identity of an animal of the clinic, whatever its owner, or null when unknown. */
     public function identityOf(string $clinicId, string $animalId): ?PetIdentity;
+
+    /**
+     * The current file of each animal of the clinic, archived ones included,
+     * keyed by id; an unknown id (or another clinic's) is left out.
+     *
+     * @param list<string> $animalIds
+     *
+     * @return array<string, PetState>
+     */
+    public function statesOf(string $clinicId, array $animalIds): array;
 }

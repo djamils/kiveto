@@ -15,13 +15,20 @@ use App\Context\ClientPortal\Domain\Link\ClientLink;
 use App\Context\ClientPortal\Domain\Link\ClientLinkId;
 use App\Context\ClientPortal\Domain\Link\ClientLinkStatus;
 use App\Context\ClientPortal\Domain\Profile\OwnerProfile;
+use App\Context\ClientPortal\Domain\Request\ChangeField;
+use App\Context\ClientPortal\Domain\Request\RequestResolution;
+use App\Context\ClientPortal\Domain\Request\RequestStatus;
 use App\Context\ClientPortal\Infrastructure\Export\DataExportBuilder;
 use App\Shared\Application\Pagination\CursorPage;
 use App\Shared\Domain\ValueObject\PostalAddress;
 use App\Tests\Support\Document\CapturingDocumentPdfRenderer;
 use App\Tests\Unit\Context\ClientPortal\Support\DataExportFakes;
+use App\Tests\Unit\Context\ClientPortal\Support\InMemoryChangeRequests;
 use App\Tests\Unit\Context\ClientPortal\Support\InMemoryOwnerProfiles;
+use App\Tests\Unit\Context\ClientPortal\Support\InMemoryQuestionnaires;
+use App\Tests\Unit\Context\ClientPortal\Support\InMemoryRenewalRequests;
 use App\Tests\Unit\Context\ClientPortal\Support\PetWorld as W;
+use App\Tests\Unit\Context\ClientPortal\Support\Requests;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -38,11 +45,23 @@ final class DataExportBuilderTest extends TestCase
     public const string PAST_2          = '01960000-0000-7000-8000-000000000104';
     private const string REVOKED_CLINIC = '01960000-0000-7000-8000-0000000c0009';
     private const string VET            = '01960000-0000-7000-8000-00000000d001';
+    private const string OTHER_USER     = '01960000-0000-7000-8000-0000000c0099';
+    private const string PRESCRIPTION   = '01960000-0000-7000-8000-0000000b0001';
+    private const string RESULTING      = '01960000-0000-7000-8000-0000000b0002';
+    private const string APPOINTMENT    = '01960000-0000-7000-8000-0000000b0003';
+    private const string RENEWAL        = '01960000-0000-7000-8000-0000000e0001';
+    private const string CHANGE         = '01960000-0000-7000-8000-0000000e0002';
+    private const string OTHER_CHANGE   = '01960000-0000-7000-8000-0000000e0003';
+    private const string OLD_CHANGE     = '01960000-0000-7000-8000-0000000e0004';
+    private const string QUESTIONNAIRE  = '01960000-0000-7000-8000-0000000e0005';
 
     private W $world;
     private DataExportFakes $fakes;
     private InMemoryOwnerProfiles $profiles;
     private CapturingDocumentPdfRenderer $pdf;
+    private InMemoryChangeRequests $changes;
+    private InMemoryRenewalRequests $renewals;
+    private InMemoryQuestionnaires $questionnaires;
 
     /** @var list<string> */
     private array $pages = [];
@@ -53,6 +72,9 @@ final class DataExportBuilderTest extends TestCase
         $this->fakes                          = new DataExportFakes();
         $this->profiles                       = new InMemoryOwnerProfiles();
         $this->pdf                            = new CapturingDocumentPdfRenderer();
+        $this->changes                        = new InMemoryChangeRequests();
+        $this->renewals                       = new InMemoryRenewalRequests();
+        $this->questionnaires                 = new InMemoryQuestionnaires();
         $this->fakes->accounts[W::USER]       = new OwnerAccount(W::USER, '+33612345678', 'sophie@example.com', true);
         $this->world->documents->links->links = [];
     }
@@ -71,6 +93,15 @@ final class DataExportBuilderTest extends TestCase
             'consents' => [['kind' => 'appointment_reminders', 'channels' => ['sms', 'email']]],
             'history'  => [['kind' => 'appointment_reminders', 'channel' => 'email', 'action' => 'granted', 'source' => 'portal', 'at' => new \DateTimeImmutable('2026-10-10 12:00:00', new \DateTimeZone('UTC'))]],
         ];
+
+        // The account's requests and questionnaires, in their clinic; another account's are not exported
+        $renewal = Requests::renewal(self::RENEWAL, self::PRESCRIPTION, at: '2026-10-20 08:00:00');
+        $renewal->resolve(RequestResolution::of(RequestStatus::DONE, self::VET, 'Dr Claire Lambert', 'Nouvelle ordonnance prête.', Requests::utc('2026-10-21 08:00:00')), self::RESULTING);
+        $this->renewals->save($renewal);
+        $this->changes->save(Requests::change(self::CHANGE, at: '2026-10-19 08:00:00'));
+        $this->changes->save(Requests::change(self::OTHER_CHANGE, userId: self::OTHER_USER));
+        $this->changes->save(Requests::change(self::OLD_CHANGE, petId: W::PET3, field: ChangeField::NAME, value: 'Filou II', at: '2026-06-01 08:00:00', clientId: W::CLIENT2, clinicId: self::REVOKED_CLINIC, note: null));
+        $this->questionnaires->save(Requests::questionnaire(self::QUESTIONNAIRE, self::APPOINTMENT, '2026-10-27 08:00:00', answers: Requests::answers('may_bite')));
 
         $files = $this->unzip($this->builder()->build(W::USER));
 
@@ -100,6 +131,23 @@ final class DataExportBuilderTest extends TestCase
                 ['startAt' => '2026-11-05T10:00:00+01:00', 'pet' => 'Moka', 'motif' => 'Rendez-vous', 'status' => 'no_show'],
             ],
             'documents' => [['type' => 'report', 'title' => 'Compte rendu 01960000-0000-7000-8000-0000000f0001', 'issuedAt' => '2026-10-20T10:30:00+02:00']],
+            'requests'  => [
+                [
+                    'kind'              => 'pet_change', 'petId' => W::PET, 'field' => 'weight', 'proposedValue' => '12,4', 'prescriptionId' => null, 'petCondition' => null,
+                    'note'              => 'Pesé à la maison', 'status' => 'submitted', 'submittedAt' => '2026-10-19T10:00:00+02:00', 'resolvedAt' => null,
+                    'resolutionMessage' => null, 'resultingPrescriptionId' => null,
+                ],
+                [
+                    'kind'              => 'prescription_renewal', 'petId' => W::PET, 'field' => null, 'proposedValue' => null, 'prescriptionId' => self::PRESCRIPTION, 'petCondition' => 'improved',
+                    'note'              => 'Va mieux', 'status' => 'done', 'submittedAt' => '2026-10-20T10:00:00+02:00', 'resolvedAt' => '2026-10-21T10:00:00+02:00',
+                    'resolutionMessage' => 'Nouvelle ordonnance prête.', 'resultingPrescriptionId' => self::RESULTING,
+                ],
+            ],
+            'questionnaires' => [[
+                'appointmentId'    => self::APPOINTMENT, 'version' => 1, 'status' => 'submitted', 'symptoms' => ['cough'],
+                'ongoingTreatment' => ['has' => true, 'details' => 'Sirop'], 'temperament' => 'may_bite', 'notes' => 'Il tousse la nuit.',
+                'updatedAt'        => '2026-10-27T09:00:00+01:00',
+            ]],
         ], self::decode($files['clinics/' . W::CLINIC . '.json']));
         self::assertSame([W::CLINIC . ':' . W::CLIENT], $this->fakes->consentCalls);
         self::assertSame(['upcoming:-', 'past:-', 'past:p2'], $this->pages, 'both scopes, every page');
@@ -113,6 +161,12 @@ final class DataExportBuilderTest extends TestCase
             'consentHistory' => [],
             'appointments'   => [],
             'documents'      => [],
+            'requests'       => [[
+                'kind'              => 'pet_change', 'petId' => W::PET3, 'field' => 'name', 'proposedValue' => 'Filou II', 'prescriptionId' => null, 'petCondition' => null,
+                'note'              => null, 'status' => 'submitted', 'submittedAt' => '2026-06-01T04:00:00-04:00', 'resolvedAt' => null,
+                'resolutionMessage' => null, 'resultingPrescriptionId' => null,
+            ]],
+            'questionnaires' => [],
         ], self::decode($files['clinics/' . self::REVOKED_CLINIC . '.json']));
 
         self::assertSame('%PDF portal/export/summary.html.twig', $files['summary.pdf']);
@@ -194,9 +248,12 @@ final class DataExportBuilderTest extends TestCase
             $this->world->documents->fakes,
             $this->world->ownerPets(),
             $appointments,
-            new PortalAppointments($this->world->careItems(), $this->world->fakes, $this->world->documents->fakes),
+            new PortalAppointments($this->world->careItems(), $this->world->fakes, $this->world->documents->fakes, $this->questionnaires),
             $this->world->model,
             $this->fakes,
+            $this->changes,
+            $this->renewals,
+            $this->questionnaires,
             $this->pdf,
             $this->world->documents->clock,
         );

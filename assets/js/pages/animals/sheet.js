@@ -480,6 +480,18 @@ export function init() {
     if (!lireChamps(wForm)) { wForm.querySelector('.ko')?.focus(); return false; }
     return true;
   });
+  // From a Portal weight request (« Demandes Portal »): the weighing form opens
+  // filled with the owner's figure, still to be checked and saved by staff.
+  const portalWeight = new URLSearchParams(window.location.search);
+  if (portalWeight.has('pesee') && !LECTURE) {
+    ouvrirForm('mPoids', wForm, 'f_wkg');
+    $('f_wkg').value = portalWeight.get('pesee');
+    const day = portalWeight.get('pesee_le');
+    if (day && /^\d{4}-\d{2}-\d{2}$/.test(day) && day <= TODAY_ISO) $('f_wday').value = day;
+    const author = wForm.querySelector('input[name="author"]');
+    if (author) author.value = 'portal';
+    $('wSub').textContent = `${A.nom || $('wSub').textContent} · pesée déclarée par le propriétaire (Portal)`;
+  }
   envoyer('pvOk', pvForm, () => {
     if (!lireChamps(pvForm)) { pvForm.querySelector('.ko')?.focus(); return false; }
     const n = $('f_pvn'), d = $('f_pvd');

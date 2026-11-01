@@ -26,15 +26,17 @@ enum MessagePurpose: string
     case PORTAL_EMAIL_VERIFICATION   = 'PORTAL_EMAIL_VERIFICATION';
     case PORTAL_EMAIL_CHANGED_NOTICE = 'PORTAL_EMAIL_CHANGED_NOTICE';
     case PORTAL_DATA_EXPORT_READY    = 'PORTAL_DATA_EXPORT_READY';
+    case PORTAL_REQUEST_RESOLVED     = 'PORTAL_REQUEST_RESOLVED';
 
     /**
-     * Only reminders may be held back by the SMS overage cap; e-mail-only
-     * purposes are critical too (the cap concerns SMS alone).
+     * Only reminders and the answer to a Portal request may be held back by
+     * the SMS overage cap; e-mail-only purposes are critical too (the cap
+     * concerns SMS alone).
      */
     public function criticality(): Criticality
     {
         return match ($this) {
-            self::APPOINTMENT_REMINDER, self::INVOICE_REMINDER => Criticality::NON_CRITICAL,
+            self::APPOINTMENT_REMINDER, self::INVOICE_REMINDER, self::PORTAL_REQUEST_RESOLVED => Criticality::NON_CRITICAL,
             default => Criticality::CRITICAL,
         };
     }
@@ -95,6 +97,7 @@ enum MessagePurpose: string
             self::PORTAL_EMAIL_VERIFICATION   => 'Vérification de l\'adresse e-mail Portal',
             self::PORTAL_EMAIL_CHANGED_NOTICE => 'Adresse e-mail Portal modifiée',
             self::PORTAL_DATA_EXPORT_READY    => 'Export de données Portal prêt',
+            self::PORTAL_REQUEST_RESOLVED     => 'Réponse à une demande Portal',
         };
     }
 }

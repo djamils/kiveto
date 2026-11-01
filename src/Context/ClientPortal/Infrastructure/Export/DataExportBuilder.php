@@ -23,6 +23,14 @@ use App\Context\ClientPortal\Domain\Link\ClientLink;
 use App\Context\ClientPortal\Domain\Link\ClientLinkRepositoryInterface;
 use App\Context\ClientPortal\Domain\Profile\OwnerProfile;
 use App\Context\ClientPortal\Domain\Profile\OwnerProfileRepositoryInterface;
+use App\Context\ClientPortal\Domain\Request\PetChangeRequest;
+use App\Context\ClientPortal\Domain\Request\PetChangeRequestRepositoryInterface;
+use App\Context\ClientPortal\Domain\Request\PortalRequestKind;
+use App\Context\ClientPortal\Domain\Request\PrescriptionRenewalRequest;
+use App\Context\ClientPortal\Domain\Request\PrescriptionRenewalRequestRepositoryInterface;
+use App\Context\ClientPortal\Domain\Request\PreVisitQuestionnaire;
+use App\Context\ClientPortal\Domain\Request\PreVisitQuestionnaireRepositoryInterface;
+use App\Context\ClientPortal\Domain\Request\Symptom;
 use App\Shared\Application\Document\DocumentFooter;
 use App\Shared\Application\Document\DocumentPdfRendererInterface;
 use App\Shared\Domain\Time\ClockInterface;
@@ -35,7 +43,9 @@ use App\Shared\Domain\Time\ClockInterface;
  *   to: the clinic, the links' status and dates and, through the confirmed
  *   links only, the consents and their history, the appointments
  *   `{startAt, pet, motif, status}` and the published documents
- *   `{type, title, issuedAt}` (no file);
+ *   `{type, title, issuedAt}` (no file); and, whatever the links, the
+ *   account's own requests (pet changes, renewals) and pre-visit
+ *   questionnaires in that clinic;
  * - `summary.pdf`: the same, readable.
  *
  * Account instants are UTC; a clinic's instants are in its time zone. The
@@ -61,6 +71,9 @@ final readonly class DataExportBuilder implements DataExportBuilderInterface
         private PortalAppointments $appointmentViews,
         private PublishedDocumentReadModelInterface $documents,
         private ClientConsentsInterface $consents,
+        private PetChangeRequestRepositoryInterface $changes,
+        private PrescriptionRenewalRequestRepositoryInterface $renewals,
+        private PreVisitQuestionnaireRepositoryInterface $questionnaires,
         private DocumentPdfRendererInterface $pdf,
         private ClockInterface $clock,
     ) {
@@ -76,9 +89,10 @@ final readonly class DataExportBuilder implements DataExportBuilderInterface
             $byClinic[$link->clinicId()][] = $link;
         }
 
-        $clinics = [];
+        $requests = $this->requestsOf($userId);
+        $clinics  = [];
         foreach ($byClinic as $clinicId => $links) {
-            $clinics[(string) $clinicId] = $this->clinic($userId, (string) $clinicId, $links, $now);
+            $clinics[(string) $clinicId] = $this->clinic($userId, (string) $clinicId, $links, $now) + $this->requestsIn((string) $clinicId, $requests);
         }
 
         $accountFile = $this->account($account, $this->profiles->findByUserId($userId), array_keys($clinics), $now);
@@ -224,6 +238,78 @@ final readonly class DataExportBuilder implements DataExportBuilderInterface
             'title'    => $document->title,
             'issuedAt' => self::instant($document->issuedAt, $zone),
         ], $documents);
+    }
+
+    /**
+     * The account's requests and questionnaires, any clinic.
+     *
+     * @return array{changes: list<PetChangeRequest>, renewals: list<PrescriptionRenewalRequest>, questionnaires: list<PreVisitQuestionnaire>}
+     */
+    private function requestsOf(string $userId): array
+    {
+        return [
+            'changes'        => $this->changes->findByUser($userId),
+            'renewals'       => $this->renewals->findByUser($userId),
+            'questionnaires' => $this->questionnaires->findByUser($userId),
+        ];
+    }
+
+    /**
+     * The account's requests (oldest first) and questionnaires in one clinic.
+     *
+     * @param array{changes: list<PetChangeRequest>, renewals: list<PrescriptionRenewalRequest>, questionnaires: list<PreVisitQuestionnaire>} $all
+     *
+     * @return array{requests: list<array<string, mixed>>, questionnaires: list<array<string, mixed>>}
+     */
+    private function requestsIn(string $clinicId, array $all): array
+    {
+        $zone     = $this->clinics->clinicOf($clinicId)->timeZone;
+        $requests = [];
+
+        foreach ([...$all['changes'], ...$all['renewals']] as $request) {
+            if ($request->clinicId() !== $clinicId) {
+                continue;
+            }
+
+            $change  = $request instanceof PetChangeRequest ? $request->change() : null;
+            $renewal = $request instanceof PrescriptionRenewalRequest ? $request : null;
+
+            $requests[] = [
+                'kind'                    => (null === $renewal ? PortalRequestKind::PET_CHANGE : PortalRequestKind::PRESCRIPTION_RENEWAL)->value,
+                'petId'                   => $request->petId(),
+                'field'                   => $change?->field()->value,
+                'proposedValue'           => $change?->proposedValue(),
+                'prescriptionId'          => $renewal?->prescriptionId(),
+                'petCondition'            => $renewal?->petCondition()->value,
+                'note'                    => $change?->note() ?? $renewal?->note(),
+                'status'                  => $request->status()->value,
+                'submittedAt'             => self::instant($request->submittedAt(), $zone),
+                'resolvedAt'              => self::nullableInstant($request->resolution()?->resolvedAt(), $zone),
+                'resolutionMessage'       => $request->resolution()?->message(),
+                'resultingPrescriptionId' => $renewal?->resultingPrescriptionId(),
+            ];
+        }
+
+        usort($requests, static fn (array $a, array $b): int => $a['submittedAt'] <=> $b['submittedAt']);
+
+        $questionnaires = array_values(array_filter($all['questionnaires'], static fn (PreVisitQuestionnaire $q): bool => $q->clinicId() === $clinicId));
+
+        return [
+            'requests'       => $requests,
+            'questionnaires' => array_map(static fn (PreVisitQuestionnaire $questionnaire): array => [
+                'appointmentId'    => $questionnaire->appointmentId(),
+                'version'          => $questionnaire->version(),
+                'status'           => $questionnaire->status()->value,
+                'symptoms'         => array_map(static fn (Symptom $symptom): string => $symptom->value, $questionnaire->answers()->symptoms()),
+                'ongoingTreatment' => [
+                    'has'     => $questionnaire->answers()->hasOngoingTreatment(),
+                    'details' => $questionnaire->answers()->ongoingTreatmentDetails(),
+                ],
+                'temperament' => $questionnaire->answers()->temperament()->value,
+                'notes'       => $questionnaire->answers()->notes(),
+                'updatedAt'   => self::instant($questionnaire->updatedAt(), $zone),
+            ], $questionnaires),
+        ];
     }
 
     /**

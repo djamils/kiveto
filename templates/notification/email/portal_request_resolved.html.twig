@@ -1,0 +1,18 @@
+{% extends 'notification/email/_layout.html.twig' %}
+
+{% block subject %}Votre demande pour {{ petName }}{% endblock %}
+
+{% block body %}
+<p>Bonjour {{ addressee }},</p>
+<p>{{ sentence }}</p>
+{% if staffMessage %}
+<p><b>Message de l'équipe :</b></p>
+<p>{{ staffMessage }}</p>
+{% endif %}
+<p>Retrouvez le suivi de vos demandes dans l'app Kiveto.</p>
+<table role="presentation" class="callout" cellpadding="0" cellspacing="0">
+  <tr><td>Une question ? Appelez-nous</td><td class="callout-phone">{{ clinic.phone }}</td></tr>
+</table>
+{% endblock %}
+
+{% block footer_note %}Vous recevez ce message suite à votre demande envoyée depuis l'app Kiveto.{% endblock %}

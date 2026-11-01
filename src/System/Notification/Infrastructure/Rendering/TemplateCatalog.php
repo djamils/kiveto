@@ -111,6 +111,12 @@ final class TemplateCatalog
             // expiresAtLabel « 04/11/2026 à 10:00 » (Europe/Paris)
             'EMAIL' => ['ownerFirstName' => self::SCALAR, 'expiresAtLabel' => self::SCALAR],
         ],
+        'PORTAL_REQUEST_RESOLVED' => [
+            // The clinic's answer to an owner's request (ClientPortal). sentence « Votre demande de renouvellement d'ordonnance
+            // pour Oslo a été traitée. » / « … n'a pas pu être acceptée. »; staffMessage the team's message or '' (omitted)
+            'EMAIL' => ['addressee' => self::SCALAR, 'petName' => self::SCALAR, 'sentence' => self::SCALAR, 'staffMessage' => self::SCALAR],
+            'SMS'   => ['sentence' => self::SCALAR, 'staffMessage' => self::SCALAR],
+        ],
     ];
 
     public static function supports(MessagePurpose $purpose, Channel $channel): bool

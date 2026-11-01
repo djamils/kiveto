@@ -16,6 +16,7 @@ use App\Context\ClientPortal\Application\Port\OwnerAppointment;
 use App\Context\ClientPortal\Application\Port\OwnerAppointmentsInterface;
 use App\Context\ClientPortal\Application\Port\PetDirectoryInterface;
 use App\Context\ClientPortal\Application\Port\PetIdentity;
+use App\Context\ClientPortal\Application\Port\PetState;
 use App\Context\ClientPortal\Application\Port\PortalPet;
 use App\Context\ClientPortal\Application\Port\PractitionerNamesInterface;
 use App\Context\ClientPortal\Application\Port\PreventiveAct;
@@ -52,6 +53,9 @@ final class PetFakes implements
 
     /** @var array<string, PetIdentity> by animal id */
     public array $identities = [];
+
+    /** @var array<string, PetState> by animal id; a listed pet without entry answers its PortalPet as an active file */
+    public array $states = [];
 
     /** @var list<PreventiveAct> */
     public array $acts = [];
@@ -103,6 +107,27 @@ final class PetFakes implements
     public function identityOf(string $clinicId, string $animalId): ?PetIdentity
     {
         return $this->identities[$animalId] ?? null;
+    }
+
+    public function statesOf(string $clinicId, array $animalIds): array
+    {
+        $states = [];
+
+        foreach ($animalIds as $animalId) {
+            $state = $this->states[$animalId] ?? null;
+
+            foreach ($this->pets as $pet) {
+                if (null === $state && $pet->id === $animalId) {
+                    $state = new PetState($pet->id, $pet->name, $pet->primaryOwnerClientId, $pet->reproductiveStatus, $pet->microchipNumber, $pet->lifeStatus, false);
+                }
+            }
+
+            if (null !== $state) {
+                $states[$animalId] = $state;
+            }
+        }
+
+        return $states;
     }
 
     public function latestActs(string $clinicId, array $animalIds): array

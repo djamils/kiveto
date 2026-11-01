@@ -15,6 +15,8 @@ final readonly class PortalAppointment
 
     public const string QUESTIONNAIRE_NOT_STARTED = 'not_started';
 
+    public const string QUESTIONNAIRE_SUBMITTED = 'submitted';
+
     /**
      * @param \DateTimeImmutable  $startAt             in the clinic's time zone
      * @param \DateTimeImmutable  $endAt               in the clinic's time zone
@@ -24,7 +26,7 @@ final readonly class PortalAppointment
      * @param string              $status              confirmed|pending_clinic_confirmation|cancelled_by_client|cancelled_by_clinic|declined|completed|no_show
      * @param string              $source              clinic|portal
      * @param ?\DateTimeImmutable $cancellableUntil    in the clinic's time zone; null once the slot is no longer held or the start is past
-     * @param string              $questionnaireStatus not_started until the pre-visit questionnaire exists
+     * @param string              $questionnaireStatus not_started|submitted (the pre-visit questionnaire, closed ones read not_started)
      * @param ?OwnerCareItem      $relatedCareItem     the pet's care item of the motif's kind
      */
     public function __construct(

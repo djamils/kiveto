@@ -25,6 +25,8 @@ final readonly class ShellView
         public int $stockAlertCount,
         // Unread bell entries of the member in the current clinic
         public int $unreadNotifications = 0,
+        // « Demandes Portal » waiting for an answer (0 without `manage_animals`)
+        public int $portalRequestCount = 0,
     ) {
     }
 
