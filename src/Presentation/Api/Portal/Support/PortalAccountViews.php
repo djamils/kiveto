@@ -36,6 +36,7 @@ final readonly class PortalAccountViews
             firstName: $profile?->firstName,
             lastName: $profile?->lastName,
             email: $account->email,
+            emailVerified: $account->emailVerified,
             maskedPhone: PhoneMasker::mask($account->phone),
             address: null === $address ? null : new AddressView($address->line1, $address->line2, $address->postalCode, $address->city, $address->country),
         );

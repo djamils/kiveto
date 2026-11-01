@@ -154,6 +154,11 @@ final class PortalInvitationPipelineTest extends KernelTestCase
                 throw new \RuntimeException('Profile store down.');
             }
 
+            public function updateIdentity(OwnerProfile $profile): void
+            {
+                throw new \LogicException('Not used by the acceptance.');
+            }
+
             public function findByUserId(string $userId): ?OwnerProfile
             {
                 return null;

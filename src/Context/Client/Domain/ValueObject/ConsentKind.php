@@ -12,6 +12,18 @@ enum ConsentKind: string
     case BILLING               = 'billing';
     case MARKETING             = 'marketing';
 
+    /**
+     * The kinds the owner may withdraw: withdrawing one stops the sending.
+     * The other kinds are sent anyway, their consent only picks the channel.
+     * An archived client receives none of the optional kinds.
+     */
+    public const array OPTIONAL = [self::MARKETING, self::APPOINTMENT_REMINDERS, self::VACCINATION_REMINDERS];
+
+    public function isOptional(): bool
+    {
+        return \in_array($this, self::OPTIONAL, true);
+    }
+
     public function label(): string
     {
         return match ($this) {

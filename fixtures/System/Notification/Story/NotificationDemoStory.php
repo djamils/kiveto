@@ -214,7 +214,7 @@ final class NotificationDemoStory extends Story
 
         $this->drain();
 
-        $this->commandBus->dispatch(new UpdateClientCommunicationPreferences(self::LYON, $lea, null, ['appointment_reminders' => ['email']] + self::LEA_EMAIL_CONSENTS));
+        $this->commandBus->dispatch(new UpdateClientCommunicationPreferences(self::LYON, $lea, null, ['appointment_reminders' => ['email']] + self::LEA_EMAIL_CONSENTS, 'system', 'system', null, 'Données de démonstration'));
 
         $this->longJournal($nathalie);
 
@@ -566,6 +566,8 @@ final class NotificationDemoStory extends Story
             civility: $civility,
             preferredChannel: $preferred,
             channelsByConsentKind: ([] !== $reminderChannels ? ['appointment_reminders' => $reminderChannels] : []) + $otherConsents,
+            actorType: 'system',
+            authorLabel: 'Données de démonstration',
         ));
         \assert(\is_string($clientId));
 

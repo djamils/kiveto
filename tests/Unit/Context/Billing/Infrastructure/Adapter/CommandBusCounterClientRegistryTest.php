@@ -38,6 +38,7 @@ final class CommandBusCounterClientRegistryTest extends TestCase
         self::assertSame('madam', $sent[0]->civility);
         self::assertSame(['mobile', 'home'], array_map(static fn ($c): string => $c->label, $sent[0]->contactMethods));
         self::assertSame(['appointment_reminders' => ['sms']], $sent[0]->channelsByConsentKind, 'SMS reminders on by default with a mobile (D9)');
+        self::assertSame(['staff', null, 'Équipe de la clinique'], [$sent[0]->actorType, $sent[0]->actorId, $sent[0]->authorLabel], 'the consent history names the clinic team');
     }
 
     public function testAPersonsLandlineIsNoMobileAndGetsNoSmsReminder(): void

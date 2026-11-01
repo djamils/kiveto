@@ -106,13 +106,21 @@ final readonly class ClientNotificationContact
 
     /**
      * The channels the client agreed to for this kind of message and has an
-     * address for (`email` and / or `sms`), in the consent's order.
+     * address for (`email` and / or `sms`), in the consent's order. An
+     * archived client receives no optional message (marketing, appointment
+     * and vaccination reminders): none for those kinds, its consents kept
+     * untouched for the day it is unarchived. Every sender of an optional
+     * message reads its channels here.
      *
      * @return list<string>
      */
     public function channelsFor(string $consentKind): array
     {
         $kind = ConsentKind::from($consentKind);
+
+        if ($this->archived && $kind->isOptional()) {
+            return [];
+        }
 
         return array_values(array_filter(
             $this->consents[$kind->value] ?? [],

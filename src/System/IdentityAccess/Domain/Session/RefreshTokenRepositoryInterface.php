@@ -16,4 +16,7 @@ interface RefreshTokenRepositoryInterface
 
     /** Revokes every token of the family (grace pairs included); returns how many. */
     public function revokeFamily(RefreshTokenFamilyId $familyId, \DateTimeImmutable $at): int;
+
+    /** Revokes every live token of the user, whatever its family; returns how many. */
+    public function revokeAllForUser(string $userId, \DateTimeImmutable $at): int;
 }

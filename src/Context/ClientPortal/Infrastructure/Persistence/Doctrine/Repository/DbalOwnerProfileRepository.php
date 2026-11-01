@@ -11,8 +11,10 @@ use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\Connection;
 
 /**
- * Identity and address are written once; later saves only move the terms
- * acceptance. Dates are written in UTC.
+ * A save writes the identity and address once, later saves only move the
+ * terms acceptance (a second invitation never overwrites them); only
+ * updateIdentity(), the owner's own edit, rewrites them. Dates are written
+ * in UTC.
  */
 final readonly class DbalOwnerProfileRepository implements OwnerProfileRepositoryInterface
 {
@@ -43,6 +45,26 @@ final readonly class DbalOwnerProfileRepository implements OwnerProfileRepositor
                 'terms'   => $profile->termsVersion(),
                 'termsAt' => SqlValues::utc($profile->termsAcceptedAt()),
                 'created' => SqlValues::utc($profile->createdAt()),
+            ],
+        );
+    }
+
+    public function updateIdentity(OwnerProfile $profile): void
+    {
+        $address = $profile->address();
+
+        $this->connection->executeStatement(
+            'UPDATE ' . self::TABLE . ' SET first_name = :first, last_name = :last, address_line1 = :line1, address_line2 = :line2,'
+            . ' address_postal_code = :postal, address_city = :city, address_country = :country WHERE user_id = :user',
+            [
+                'user'    => SqlValues::binary($profile->userId()),
+                'first'   => $profile->firstName(),
+                'last'    => $profile->lastName(),
+                'line1'   => $address?->streetLine1,
+                'line2'   => $address?->streetLine2,
+                'postal'  => $address?->postalCode,
+                'city'    => $address?->city,
+                'country' => $address?->countryCode,
             ],
         );
     }

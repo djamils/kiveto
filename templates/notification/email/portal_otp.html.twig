@@ -1,0 +1,13 @@
+{% extends 'notification/email/_account_layout.html.twig' %}
+
+{% block subject %}Votre code de connexion Kiveto{% endblock %}
+
+{% block body %}
+<p>Bonjour,</p>
+<p>Voici le code demandé pour vous connecter à l'app Kiveto :</p>
+<p style="font-size: 28px; font-weight: 700; letter-spacing: 6px;">{{ code }}</p>
+<p class="muted">Il expire dans {{ validityMinutes }} minutes. Ne le communiquez à personne.</p>
+<div class="note">Vous n'êtes pas à l'origine de cette demande ? Ignorez ce message : personne ne peut se connecter sans ce code.</div>
+{% endblock %}
+
+{% block footer_note %}Ce code vous est envoyé parce que cette adresse est vérifiée sur votre compte Kiveto.{% endblock %}

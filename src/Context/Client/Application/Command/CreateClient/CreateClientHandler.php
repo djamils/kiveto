@@ -11,7 +11,10 @@ use App\Context\Client\Domain\ValueObject\Civility;
 use App\Context\Client\Domain\ValueObject\ClientId;
 use App\Context\Client\Domain\ValueObject\ClientIdentity;
 use App\Context\Client\Domain\ValueObject\ClinicId;
+use App\Context\Client\Domain\ValueObject\ConsentActor;
+use App\Context\Client\Domain\ValueObject\ConsentActorType;
 use App\Context\Client\Domain\ValueObject\ConsentKind;
+use App\Context\Client\Domain\ValueObject\ConsentSource;
 use App\Context\Client\Domain\ValueObject\ContactChannel;
 use App\Context\Client\Domain\ValueObject\ContactLabel;
 use App\Context\Client\Domain\ValueObject\ContactMethod;
@@ -75,6 +78,8 @@ final readonly class CreateClientHandler
                 null === $command->preferredChannel ? null : ContactChannel::from($command->preferredChannel),
                 $this->channelsByKind($command->channelsByConsentKind),
                 $now,
+                ConsentSource::CLINIC,
+                new ConsentActor(ConsentActorType::from($command->actorType), $command->actorId, $command->authorLabel),
             );
         }
 

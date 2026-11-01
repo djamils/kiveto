@@ -146,6 +146,11 @@ framework:
             # Client Portal: replaced document files deleted 10 minutes later (DelayStamp), and the reconciliation of the expected files
             App\Context\ClientPortal\Application\Command\DeleteStoredDocumentFile\DeleteStoredDocumentFile: async
             App\Context\ClientPortal\Application\Command\ReconcilePublishedDocuments\ReconcilePublishedDocuments: async
+            # Client Portal data exports: the archive deleted 48 hours after it is ready (DelayStamp), and the nightly sweep
+            App\Context\ClientPortal\Application\Command\DeleteDataExportFile\DeleteDataExportFile: async
+            App\Context\ClientPortal\Application\Command\SweepExpiredDataExports\SweepExpiredDataExports: async
+            # Client Portal account deletion: the erasure queued by the confirmed request (one transaction, retry-safe)
+            App\Context\ClientPortal\Application\Command\DeletePortalAccount\DeletePortalAccount: async
             App\Context\Billing\Application\Command\SendUnpaidReminder\SendUnpaidReminder: async
             # Consultation documents e-mail: « Envoyer par e-mail » only checks and queues it; a worker renders the PDFs
             App\Context\Consultation\Application\Command\EmailConsultationDocuments\EmailConsultationDocuments: async

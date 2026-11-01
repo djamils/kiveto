@@ -82,4 +82,14 @@ final class InMemoryPortalInvitations implements PortalInvitationRepositoryInter
             static fn (PortalInvitation $i): bool => $i->phone()->equals($phone) && $i->isOpen($now),
         ));
     }
+
+    public function findPendingByPhoneForUpdate(PhoneNumber $phone): array
+    {
+        $this->locks[] = 'phone';
+
+        return array_values(array_filter(
+            $this->invitations,
+            static fn (PortalInvitation $i): bool => $i->phone()->equals($phone) && PortalInvitationStatus::PENDING === $i->status(),
+        ));
+    }
 }

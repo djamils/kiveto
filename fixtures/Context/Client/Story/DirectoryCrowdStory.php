@@ -227,6 +227,8 @@ final class DirectoryCrowdStory extends Story
                 // Adopted abroad: a German chip, outside the I-CAD file.
                 new NewAnimalDto('Pistou', 'dog', 'male', 'intact', true, 'Croisé', $today->modify('-5 years')->format('Y-m-d'), '276098106543210'),
             ],
+            actorType: 'system',
+            authorLabel: 'Données de démonstration',
         ));
     }
 

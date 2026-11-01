@@ -7,6 +7,8 @@ namespace App\System\IdentityAccess\Infrastructure\Adapter\Notification;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\System\IdentityAccess\Application\Port\NotificationRequesterInterface;
 use App\System\IdentityAccess\Application\Port\PasswordResetRequest;
+use App\System\IdentityAccess\Application\Port\PortalEmailChangedNoticeRequest;
+use App\System\IdentityAccess\Application\Port\PortalEmailVerificationRequest;
 use App\System\IdentityAccess\Application\Port\PortalOtpRequest;
 use App\System\IdentityAccess\Application\Port\StaffInvitationRequest;
 use App\System\Notification\Application\Command\RequestNotification\RequestNotification;
@@ -18,6 +20,7 @@ use App\System\Notification\Application\Command\RequestNotification\RequestNotif
 final readonly class CommandBusNotificationRequester implements NotificationRequesterInterface
 {
     private const string SUBJECT_USER = 'user';
+    private const string SUBJECT_OTP  = 'otp_challenge';
 
     public function __construct(private CommandBusInterface $commandBus)
     {
@@ -75,12 +78,71 @@ final readonly class CommandBusNotificationRequester implements NotificationRequ
             recipientName: '',
             clinicId: null,
             clientId: null,
-            subjectType: 'otp_challenge',
+            subjectType: self::SUBJECT_OTP,
             subjectId: $request->challengeId,
             idempotencyKey: \sprintf('otp:%s:%d', $request->challengeId, $request->sendCount),
             parameters: [
                 'code'            => $request->code,
                 'validityMinutes' => $request->validityMinutes,
+                'purpose'         => $request->purpose,
+            ],
+        ));
+    }
+
+    /** Same key space as the SMS: each send of a challenge is one message, whatever its channel. */
+    public function requestPortalOtpByEmail(PortalOtpRequest $request, string $email): void
+    {
+        $this->commandBus->dispatch(new RequestNotification(
+            purpose: 'PORTAL_OTP',
+            channel: 'EMAIL',
+            recipientAddress: $email,
+            recipientName: '',
+            clinicId: null,
+            clientId: null,
+            subjectType: self::SUBJECT_OTP,
+            subjectId: $request->challengeId,
+            idempotencyKey: \sprintf('otp:%s:%d', $request->challengeId, $request->sendCount),
+            parameters: [
+                'code'            => $request->code,
+                'validityMinutes' => $request->validityMinutes,
+            ],
+        ));
+    }
+
+    public function requestPortalEmailVerification(PortalEmailVerificationRequest $request): void
+    {
+        $this->commandBus->dispatch(new RequestNotification(
+            purpose: 'PORTAL_EMAIL_VERIFICATION',
+            channel: 'EMAIL',
+            recipientAddress: $request->email,
+            recipientName: '',
+            clinicId: null,
+            clientId: null,
+            subjectType: self::SUBJECT_OTP,
+            subjectId: $request->challengeId,
+            idempotencyKey: \sprintf('otp:%s:1', $request->challengeId),
+            parameters: [
+                'code'            => $request->code,
+                'validityMinutes' => $request->validityMinutes,
+            ],
+        ));
+    }
+
+    public function requestPortalEmailChangedNotice(PortalEmailChangedNoticeRequest $request): void
+    {
+        $this->commandBus->dispatch(new RequestNotification(
+            purpose: 'PORTAL_EMAIL_CHANGED_NOTICE',
+            channel: 'EMAIL',
+            recipientAddress: $request->previousEmail,
+            recipientName: '',
+            clinicId: null,
+            clientId: null,
+            subjectType: self::SUBJECT_USER,
+            subjectId: $request->userId,
+            idempotencyKey: 'email-changed:' . $request->challengeId,
+            parameters: [
+                'maskedNewEmail' => $request->maskedNewEmail,
+                'changedAtLabel' => $request->changedAtLabel,
             ],
         ));
     }

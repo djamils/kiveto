@@ -1,0 +1,13 @@
+{% extends 'notification/email/_account_layout.html.twig' %}
+
+{% block subject %}Confirmez votre adresse e-mail Kiveto{% endblock %}
+
+{% block body %}
+<p>Bonjour,</p>
+<p>Pour utiliser cette adresse avec votre compte Kiveto, saisissez ce code dans l'app :</p>
+<p style="font-size: 28px; font-weight: 700; letter-spacing: 6px;">{{ code }}</p>
+<p class="muted">Il expire dans {{ validityMinutes }} minutes. Ne le communiquez à personne.</p>
+<div class="note">Vous n'êtes pas à l'origine de cette demande ? Ignorez ce message : votre adresse ne sera pas ajoutée.</div>
+{% endblock %}
+
+{% block footer_note %}Une fois confirmée, cette adresse pourra aussi recevoir vos codes de connexion.{% endblock %}

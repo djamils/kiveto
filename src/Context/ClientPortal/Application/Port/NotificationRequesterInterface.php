@@ -8,4 +8,7 @@ namespace App\Context\ClientPortal\Application\Port;
 interface NotificationRequesterInterface
 {
     public function requestPortalInvitation(PortalInvitationMessage $message): void;
+
+    /** The e-mail notice of a ready data export (no link: the archive is downloaded in the app). */
+    public function requestDataExportReady(DataExportReadyMessage $message): void;
 }

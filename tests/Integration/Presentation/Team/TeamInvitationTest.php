@@ -11,6 +11,8 @@ use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\Fixtures\System\IdentityAccess\Factory\PortalUserFactory;
 use App\System\IdentityAccess\Application\Port\NotificationRequesterInterface;
 use App\System\IdentityAccess\Application\Port\PasswordResetRequest;
+use App\System\IdentityAccess\Application\Port\PortalEmailChangedNoticeRequest;
+use App\System\IdentityAccess\Application\Port\PortalEmailVerificationRequest;
 use App\System\IdentityAccess\Application\Port\PortalOtpRequest;
 use App\System\IdentityAccess\Application\Port\StaffInvitationRequest;
 use Doctrine\DBAL\Connection;
@@ -171,6 +173,18 @@ final class TeamInvitationTest extends WebTestCase
             }
 
             public function requestPortalOtp(PortalOtpRequest $request): void
+            {
+            }
+
+            public function requestPortalOtpByEmail(PortalOtpRequest $request, string $email): void
+            {
+            }
+
+            public function requestPortalEmailVerification(PortalEmailVerificationRequest $request): void
+            {
+            }
+
+            public function requestPortalEmailChangedNotice(PortalEmailChangedNoticeRequest $request): void
             {
             }
         });

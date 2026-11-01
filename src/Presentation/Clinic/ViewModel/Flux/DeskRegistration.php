@@ -9,6 +9,7 @@ use App\Context\Client\Application\Command\CreateClient\ContactMethodDto;
 use App\Context\Client\Application\Command\CreateClient\CreateClient;
 use App\Context\Client\Application\Command\UpdateClientIdentity\UpdateClientIdentity;
 use App\Context\Client\Domain\ValueObject\MobileNumberPolicy;
+use App\Presentation\Clinic\ViewModel\Client\StaffConsentAuthor;
 use App\Shared\Application\Bus\CommandBusInterface;
 
 /**
@@ -23,6 +24,7 @@ final readonly class DeskRegistration
 
     public function __construct(
         private CommandBusInterface $commandBus,
+        private StaffConsentAuthor $staffConsentAuthor,
     ) {
     }
 
@@ -46,6 +48,7 @@ final readonly class DeskRegistration
         $number = self::e164($phone);
         $mobile = MobileNumberPolicy::isMobile($number);
 
+        $author   = $this->staffConsentAuthor->of($clinicId);
         $clientId = $this->commandBus->dispatch(new CreateClient(
             clinicId: $clinicId,
             firstName: $firstName,
@@ -56,6 +59,9 @@ final readonly class DeskRegistration
             ],
             // SMS appointment reminders are on by default with a mobile (D9).
             channelsByConsentKind: $mobile ? ['appointment_reminders' => ['sms']] : [],
+            actorType: 'staff',
+            actorId: $author['id'],
+            authorLabel: $author['label'],
         ));
         \assert(\is_string($clientId));
 

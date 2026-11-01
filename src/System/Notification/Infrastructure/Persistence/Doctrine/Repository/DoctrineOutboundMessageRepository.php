@@ -8,11 +8,13 @@ use App\System\Notification\Domain\Exception\OutboundMessageNotFoundException;
 use App\System\Notification\Domain\Message\Channel;
 use App\System\Notification\Domain\Message\DeliveryStatus;
 use App\System\Notification\Domain\Message\IdempotencyKey;
+use App\System\Notification\Domain\Message\MessagePurpose;
 use App\System\Notification\Domain\Message\OutboundMessage;
 use App\System\Notification\Domain\Message\OutboundMessageId;
 use App\System\Notification\Domain\Message\OutboundMessageRepositoryInterface;
 use App\System\Notification\Infrastructure\Persistence\Doctrine\Entity\OutboundMessageEntity;
 use App\System\Notification\Infrastructure\Persistence\Doctrine\Mapper\OutboundMessageMapper;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\Exception\RecoverableMessageHandlingException;
@@ -103,6 +105,24 @@ final readonly class DoctrineOutboundMessageRepository implements OutboundMessag
             . ' WHERE content_purged_at IS NULL AND created_at < :before AND COALESCE(sent_at, created_at) < :before'
             . ' ORDER BY created_at, id LIMIT ' . max(1, $limit),
             ['before' => OutboundMessageMapper::utc($before)->format('Y-m-d H:i:s')],
+        );
+
+        return array_map(static fn (mixed $id): OutboundMessageId => OutboundMessageId::fromString(Uuid::fromBinary(\is_string($id) ? $id : '')->toRfc4122()), $ids);
+    }
+
+    public function findPortalAccountMessagesTo(array $addresses): array
+    {
+        $purposes = array_values(array_map(
+            static fn (MessagePurpose $purpose): string => $purpose->value,
+            array_filter(MessagePurpose::cases(), static fn (MessagePurpose $purpose): bool => $purpose->isPortalAccountMessage()),
+        ));
+
+        $ids = $this->em->getConnection()->fetchFirstColumn(
+            'SELECT id FROM notification__outbound_messages'
+            . ' WHERE content_purged_at IS NULL AND recipient_address IN (:addresses) AND purpose IN (:purposes) AND status <> :queued'
+            . ' ORDER BY created_at, id',
+            ['addresses' => $addresses, 'purposes' => $purposes, 'queued' => DeliveryStatus::QUEUED->value],
+            ['addresses' => ArrayParameterType::STRING, 'purposes' => ArrayParameterType::STRING],
         );
 
         return array_map(static fn (mixed $id): OutboundMessageId => OutboundMessageId::fromString(Uuid::fromBinary(\is_string($id) ? $id : '')->toRfc4122()), $ids);

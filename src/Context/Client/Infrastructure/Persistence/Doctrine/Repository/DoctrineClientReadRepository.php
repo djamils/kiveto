@@ -100,6 +100,7 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
                 static fn (TaxProfileWarning $warning): string => $warning->value,
                 $verification->warnings($entity->getLegalName()),
             ) : [],
+            version: $entity->getVersion(),
         );
     }
 

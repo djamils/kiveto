@@ -28,6 +28,6 @@ final readonly class GetPortalAccountHandler
             return null;
         }
 
-        return new PortalAccount($user->id()->toString(), $user->email(), $phone->toString());
+        return new PortalAccount($user->id()->toString(), $user->email(), $phone->toString(), $user->hasVerifiedEmail());
     }
 }

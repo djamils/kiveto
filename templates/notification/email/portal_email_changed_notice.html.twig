@@ -1,0 +1,11 @@
+{% extends 'notification/email/_account_layout.html.twig' %}
+
+{% block subject %}L'adresse e-mail de votre compte Kiveto a changé{% endblock %}
+
+{% block body %}
+<p>Bonjour,</p>
+<p>Le {{ changedAtLabel }}, l'adresse e-mail de votre compte Kiveto a été remplacée par <strong>{{ maskedNewEmail }}</strong>. Cette adresse-ci ne reçoit plus de messages de votre compte.</p>
+<div class="note">Vous n'êtes pas à l'origine de ce changement ? Connectez-vous à l'app Kiveto avec votre numéro de mobile et vérifiez votre compte.</div>
+{% endblock %}
+
+{% block footer_note %}Message envoyé à votre ancienne adresse vérifiée.{% endblock %}

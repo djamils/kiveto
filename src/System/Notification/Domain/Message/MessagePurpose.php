@@ -10,19 +10,22 @@ namespace App\System\Notification\Domain\Message;
  */
 enum MessagePurpose: string
 {
-    case APPOINTMENT_CONFIRMATION = 'APPOINTMENT_CONFIRMATION';
-    case APPOINTMENT_CHANGE       = 'APPOINTMENT_CHANGE';
-    case APPOINTMENT_CANCELLATION = 'APPOINTMENT_CANCELLATION';
-    case APPOINTMENT_REMINDER     = 'APPOINTMENT_REMINDER';
-    case APPOINTMENT_DECLINED     = 'APPOINTMENT_DECLINED';
-    case INVOICE_SENT             = 'INVOICE_SENT';
-    case INVOICE_REMINDER         = 'INVOICE_REMINDER';
-    case CONSULTATION_DOCUMENTS   = 'CONSULTATION_DOCUMENTS';
-    case STAFF_INVITATION         = 'STAFF_INVITATION';
-    case PASSWORD_RESET           = 'PASSWORD_RESET';
-    case TEST                     = 'TEST';
-    case PORTAL_OTP               = 'PORTAL_OTP';
-    case PORTAL_INVITATION        = 'PORTAL_INVITATION';
+    case APPOINTMENT_CONFIRMATION    = 'APPOINTMENT_CONFIRMATION';
+    case APPOINTMENT_CHANGE          = 'APPOINTMENT_CHANGE';
+    case APPOINTMENT_CANCELLATION    = 'APPOINTMENT_CANCELLATION';
+    case APPOINTMENT_REMINDER        = 'APPOINTMENT_REMINDER';
+    case APPOINTMENT_DECLINED        = 'APPOINTMENT_DECLINED';
+    case INVOICE_SENT                = 'INVOICE_SENT';
+    case INVOICE_REMINDER            = 'INVOICE_REMINDER';
+    case CONSULTATION_DOCUMENTS      = 'CONSULTATION_DOCUMENTS';
+    case STAFF_INVITATION            = 'STAFF_INVITATION';
+    case PASSWORD_RESET              = 'PASSWORD_RESET';
+    case TEST                        = 'TEST';
+    case PORTAL_OTP                  = 'PORTAL_OTP';
+    case PORTAL_INVITATION           = 'PORTAL_INVITATION';
+    case PORTAL_EMAIL_VERIFICATION   = 'PORTAL_EMAIL_VERIFICATION';
+    case PORTAL_EMAIL_CHANGED_NOTICE = 'PORTAL_EMAIL_CHANGED_NOTICE';
+    case PORTAL_DATA_EXPORT_READY    = 'PORTAL_DATA_EXPORT_READY';
 
     /**
      * Only reminders may be held back by the SMS overage cap; e-mail-only
@@ -42,7 +45,17 @@ enum MessagePurpose: string
      */
     public function isSentByKiveto(): bool
     {
-        return \in_array($this, [self::STAFF_INVITATION, self::PASSWORD_RESET, self::TEST, self::PORTAL_OTP, self::PORTAL_INVITATION], true);
+        return \in_array($this, [self::STAFF_INVITATION, self::PASSWORD_RESET, self::TEST, self::PORTAL_OTP, self::PORTAL_INVITATION, self::PORTAL_EMAIL_VERIFICATION, self::PORTAL_EMAIL_CHANGED_NOTICE, self::PORTAL_DATA_EXPORT_READY], true);
+    }
+
+    /**
+     * Kiveto's own messages to an owner account (codes and account notices),
+     * erased when the account is deleted. The Portal invitation is a clinic's
+     * message to its client, journaled in the client file: it is kept.
+     */
+    public function isPortalAccountMessage(): bool
+    {
+        return \in_array($this, [self::PORTAL_OTP, self::PORTAL_EMAIL_VERIFICATION, self::PORTAL_EMAIL_CHANGED_NOTICE, self::PORTAL_DATA_EXPORT_READY], true);
     }
 
     /**
@@ -53,11 +66,12 @@ enum MessagePurpose: string
     public function linkValidity(): ?\DateInterval
     {
         return match ($this) {
-            self::STAFF_INVITATION  => new \DateInterval('PT72H'),
-            self::PASSWORD_RESET    => new \DateInterval('PT30M'),
-            self::PORTAL_OTP        => new \DateInterval('PT10M'),
-            self::PORTAL_INVITATION => new \DateInterval('P7D'),
-            default                 => null,
+            self::STAFF_INVITATION          => new \DateInterval('PT72H'),
+            self::PASSWORD_RESET            => new \DateInterval('PT30M'),
+            self::PORTAL_OTP                => new \DateInterval('PT10M'),
+            self::PORTAL_INVITATION         => new \DateInterval('P7D'),
+            self::PORTAL_EMAIL_VERIFICATION => new \DateInterval('PT10M'),
+            default                         => null,
         };
     }
 
@@ -65,19 +79,22 @@ enum MessagePurpose: string
     public function label(): string
     {
         return match ($this) {
-            self::APPOINTMENT_CONFIRMATION => 'Confirmation de rendez-vous',
-            self::APPOINTMENT_CHANGE       => 'Modification de rendez-vous',
-            self::APPOINTMENT_CANCELLATION => 'Annulation de rendez-vous',
-            self::APPOINTMENT_REMINDER     => 'Rappel de rendez-vous',
-            self::APPOINTMENT_DECLINED     => 'Demande de RDV non confirmée',
-            self::INVOICE_SENT             => 'Envoi de facture',
-            self::INVOICE_REMINDER         => "Relance d'impayé",
-            self::CONSULTATION_DOCUMENTS   => 'Documents de consultation',
-            self::STAFF_INVITATION         => "Invitation d'un membre",
-            self::PASSWORD_RESET           => 'Réinitialisation du mot de passe',
-            self::TEST                     => 'Message de test Kiveto',
-            self::PORTAL_OTP               => 'Code de connexion Portal',
-            self::PORTAL_INVITATION        => 'Invitation au Portal',
+            self::APPOINTMENT_CONFIRMATION    => 'Confirmation de rendez-vous',
+            self::APPOINTMENT_CHANGE          => 'Modification de rendez-vous',
+            self::APPOINTMENT_CANCELLATION    => 'Annulation de rendez-vous',
+            self::APPOINTMENT_REMINDER        => 'Rappel de rendez-vous',
+            self::APPOINTMENT_DECLINED        => 'Demande de RDV non confirmée',
+            self::INVOICE_SENT                => 'Envoi de facture',
+            self::INVOICE_REMINDER            => "Relance d'impayé",
+            self::CONSULTATION_DOCUMENTS      => 'Documents de consultation',
+            self::STAFF_INVITATION            => "Invitation d'un membre",
+            self::PASSWORD_RESET              => 'Réinitialisation du mot de passe',
+            self::TEST                        => 'Message de test Kiveto',
+            self::PORTAL_OTP                  => 'Code de connexion Portal',
+            self::PORTAL_INVITATION           => 'Invitation au Portal',
+            self::PORTAL_EMAIL_VERIFICATION   => 'Vérification de l\'adresse e-mail Portal',
+            self::PORTAL_EMAIL_CHANGED_NOTICE => 'Adresse e-mail Portal modifiée',
+            self::PORTAL_DATA_EXPORT_READY    => 'Export de données Portal prêt',
         };
     }
 }

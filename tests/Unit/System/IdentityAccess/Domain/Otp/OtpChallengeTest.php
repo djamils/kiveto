@@ -35,7 +35,7 @@ final class OtpChallengeTest extends TestCase
         $challenge = $this->login();
 
         self::assertSame([self::ID, '+33612345678', OtpPurpose::LOGIN, null, $this->digest('111111'), 0, 1], [
-            $challenge->id()->toString(), $challenge->phone()->toString(), $challenge->purpose(), $challenge->invitationRef(), $challenge->codeHash(), $challenge->attempts(), $challenge->sendCount(),
+            $challenge->id()->toString(), $challenge->phone()->toString(), $challenge->purpose(), $challenge->subjectRef(), $challenge->codeHash(), $challenge->attempts(), $challenge->sendCount(),
         ]);
         self::assertSame(['07:24:00', '07:14:30', '07:14:00'], [$challenge->expiresAt()->format('H:i:s'), $challenge->resendAvailableAt()->format('H:i:s'), $challenge->createdAt()->format('H:i:s')]);
         self::assertSame([OtpChannel::SMS, false, null, null, null, null], [
@@ -47,14 +47,18 @@ final class OtpChallengeTest extends TestCase
     public function testAnInvitationChallengeIsBoundToItsInvitationAndALoginChallengeToNone(): void
     {
         $invitation = $this->invitation(smsSuppressed: true);
-        self::assertSame([OtpPurpose::INVITATION, self::INVITATION, true], [$invitation->purpose(), $invitation->invitationRef(), $invitation->isSmsSuppressed()]);
+        self::assertSame([OtpPurpose::INVITATION, self::INVITATION, true], [$invitation->purpose(), $invitation->subjectRef(), $invitation->isSmsSuppressed()]);
 
-        foreach ([[OtpPurpose::INVITATION, null], [OtpPurpose::LOGIN, self::INVITATION]] as [$purpose, $ref]) {
+        $expected = [
+            [OtpPurpose::INVITATION, null, 'A code of purpose "invitation" is bound to its invitation.'],
+            [OtpPurpose::LOGIN, self::INVITATION, 'A code of purpose "login" is bound to no subject.'],
+        ];
+        foreach ($expected as [$purpose, $ref, $message]) {
             try {
                 OtpChallenge::start(OtpChallengeId::fromString(self::ID), PhoneNumber::fromString('+33612345678'), $purpose, $ref, $this->digest('111111'), $this->now);
-                self::fail('The invitation reference must match the purpose.');
+                self::fail('The subject must match the purpose.');
             } catch (\InvalidArgumentException $exception) {
-                self::assertSame('An invitation code, and only it, is bound to an invitation.', $exception->getMessage());
+                self::assertSame($message, $exception->getMessage());
             }
         }
     }
@@ -243,7 +247,7 @@ final class OtpChallengeTest extends TestCase
             $c->id(),
             $c->phone(),
             $c->purpose(),
-            $c->invitationRef(),
+            $c->subjectRef(),
             $c->codeHash(),
             $c->attempts(),
             $c->sendCount(),

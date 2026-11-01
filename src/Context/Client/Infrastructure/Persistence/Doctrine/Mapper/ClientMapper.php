@@ -65,6 +65,7 @@ final readonly class ClientMapper
             communicationPreferences: $this->communicationPreferencesToDomain($entity),
             taxProfile: $this->taxProfileToDomain($entity),
             taxProfileVerification: $this->taxProfileVerificationToDomain($entity),
+            version: $entity->getVersion(),
         );
     }
 

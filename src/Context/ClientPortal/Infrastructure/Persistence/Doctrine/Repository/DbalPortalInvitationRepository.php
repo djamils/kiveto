@@ -92,6 +92,14 @@ final readonly class DbalPortalInvitationRepository implements PortalInvitationR
         );
     }
 
+    public function findPendingByPhoneForUpdate(PhoneNumber $phone): array
+    {
+        return $this->list(
+            'phone = :phone AND status = :pending ORDER BY sent_at ASC, id ASC FOR UPDATE',
+            ['phone' => $phone->toString(), 'pending' => self::PENDING],
+        );
+    }
+
     /**
      * @param array<string, string> $parameters
      */

@@ -8,6 +8,7 @@ use App\Shared\Domain\ValueObject\PhoneNumber;
 use App\System\IdentityAccess\Domain\Otp\OtpChallenge;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeId;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeRepositoryInterface;
+use App\System\IdentityAccess\Domain\Otp\OtpSubjectType;
 
 final class InMemoryOtpChallenges implements OtpChallengeRepositoryInterface
 {
@@ -62,6 +63,17 @@ final class InMemoryOtpChallenges implements OtpChallengeRepositoryInterface
         }
 
         return $count;
+    }
+
+    public function deleteForPhoneOrUser(PhoneNumber $phone, string $userId): int
+    {
+        $before           = \count($this->challenges);
+        $this->challenges = array_filter(
+            $this->challenges,
+            static fn (OtpChallenge $c): bool => !$c->phone()->equals($phone) && !(OtpSubjectType::USER === $c->subjectType() && $c->subjectRef() === $userId),
+        );
+
+        return $before - \count($this->challenges);
     }
 
     /** The only challenge stored, for the use cases that create one. */

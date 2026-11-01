@@ -42,6 +42,27 @@ final class DbalOwnerProfileRepositoryTest extends KernelTestCase
         self::assertNull($profiles->findByUserId('01960000-0000-7000-8000-0000000c2e09'));
     }
 
+    public function testTheOwnersEditRewritesTheNameAndTheAddressOnly(): void
+    {
+        $profiles = $this->profiles();
+        $created  = new \DateTimeImmutable('2026-10-29 10:00', new \DateTimeZone('UTC'));
+        $profiles->save(OwnerProfile::createFromClient(self::USER, 'Sophie', 'Martin', PostalAddress::create('12 rue des Lilas', 'Lyon', 'FR', 'Bât. B', '69003'), 'v1', $created));
+        $profiles->save(OwnerProfile::createFromClient(self::USER2, 'Paul', 'Durand', null, 'v1', $created));
+
+        $profile = $profiles->findByUserId(self::USER);
+        self::assertNotNull($profile);
+        $profile->rename('Sophia', 'Morel');
+        $profile->changeAddress(PostalAddress::create('3 quai Rambaud', 'Lyon', 'FR'));
+        $profiles->updateIdentity($profile);
+
+        $found = $profiles->findByUserId(self::USER);
+        self::assertSame(['Sophia', 'Morel', '3 quai Rambaud', null, null, 'Lyon', 'FR', 'v1', '2026-10-29 10:00'], [
+            $found?->firstName(), $found?->lastName(), $found?->address()?->streetLine1, $found?->address()?->streetLine2, $found?->address()?->postalCode,
+            $found?->address()?->city, $found?->address()?->countryCode, $found?->termsVersion(), $found?->termsAcceptedAt()->format('Y-m-d H:i'),
+        ]);
+        self::assertSame('Paul', $profiles->findByUserId(self::USER2)?->firstName());
+    }
+
     public function testTheTableIsMappedForTheSchemaTools(): void
     {
         $this->profiles()->save(OwnerProfile::createFromClient(self::USER, 'Sophie', 'Martin', null, 'v1', new \DateTimeImmutable()));

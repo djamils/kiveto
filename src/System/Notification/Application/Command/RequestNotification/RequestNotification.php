@@ -13,12 +13,14 @@ use App\Shared\Application\Bus\CommandInterface;
  *
  * - purpose: APPOINTMENT_CONFIRMATION, APPOINTMENT_CHANGE, APPOINTMENT_CANCELLATION,
  *   APPOINTMENT_REMINDER, INVOICE_SENT, INVOICE_REMINDER, CONSULTATION_DOCUMENTS,
- *   STAFF_INVITATION, PASSWORD_RESET, TEST, PORTAL_OTP or PORTAL_INVITATION; criticality
- *   and sender follow from it.
+ *   STAFF_INVITATION, PASSWORD_RESET, TEST, PORTAL_OTP, PORTAL_INVITATION,
+ *   PORTAL_EMAIL_VERIFICATION, PORTAL_EMAIL_CHANGED_NOTICE or PORTAL_DATA_EXPORT_READY
+ *   (see MessagePurpose);
+ *   criticality and sender follow from it.
  * - channel: EMAIL or SMS; the recipient address is an e-mail address or an E.164 number.
  * - clinicId: the clinic the message is sent on behalf of (required except
  *   for the purposes sent by Kiveto: staff invitation, password reset, test,
- *   Portal code and Portal invitation); clientId: the client it
+ *   Portal codes, invitation and e-mail notices); clientId: the client it
  *   is journaled for, if any.
  * - subjectType / subjectId: the business object (appointment, invoice, consultation, user…).
  * - idempotencyKey: an opaque key built by the requester, unique per message,

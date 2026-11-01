@@ -13,6 +13,7 @@ use App\Context\Client\Application\Port\ClientAnimalRegistryInterface;
 use App\Context\Client\Domain\Client;
 use App\Context\Client\Domain\Repository\ClientRepositoryInterface;
 use App\Context\Client\Domain\ValueObject\Civility;
+use App\Context\Client\Domain\ValueObject\ConsentHistoryEntry;
 use App\Context\Client\Domain\ValueObject\ConsentKind;
 use App\Context\Client\Domain\ValueObject\ContactChannel;
 use App\Shared\Application\Bus\EventBusInterface;
@@ -225,5 +226,42 @@ final class CreateClientHandlerTest extends TestCase
             contactMethods: [new ContactMethodDto('email', 'home', 'john@example.com', true)],
             channelsByConsentKind: ['marketing' => ['email']],
         ));
+    }
+
+    /** AC 203: a client created at the desk with consents has one granted row per channel, source clinic, signed by the staff member. */
+    public function testTheConsentsGivenAreGrantedInTheHistoryByTheStaffMember(): void
+    {
+        $history          = [];
+        $clientRepository = $this->createMock(ClientRepositoryInterface::class);
+        $clientRepository->expects(self::once())
+            ->method('save')
+            ->with(self::callback(static function (Client $client) use (&$history): bool {
+                $history = array_map(
+                    static fn (ConsentHistoryEntry $entry): array => [$entry->change->kind->value, $entry->change->channel->value, $entry->change->action->value, $entry->source->value, $entry->actor->type->value, $entry->actor->id, $entry->actor->label],
+                    $client->pullConsentHistory(),
+                );
+
+                return true;
+            }))
+        ;
+        $clock = $this->createStub(ClockInterface::class);
+        $clock->method('now')->willReturn(new \DateTimeImmutable('2026-10-16'));
+
+        (new CreateClientHandler($clientRepository, new DomainEventPublisher($this->createStub(EventBusInterface::class)), $clock, $this->createStub(ClientAnimalRegistryInterface::class)))(new CreateClient(
+            clinicId: '12345678-9abc-def0-1234-56789abcdef0',
+            firstName: 'John',
+            lastName: 'Doe',
+            contactMethods: [new ContactMethodDto('phone', 'mobile', '+33612345678', true)],
+            channelsByConsentKind: ['appointment_reminders' => ['sms'], 'marketing' => ['sms', 'email']],
+            actorType: 'staff',
+            actorId: '0192a000-0000-7000-8000-0000000c07a1',
+            authorLabel: 'Julie Martin',
+        ));
+
+        self::assertSame([
+            ['appointment_reminders', 'sms', 'granted', 'clinic', 'staff', '0192a000-0000-7000-8000-0000000c07a1', 'Julie Martin'],
+            ['marketing', 'sms', 'granted', 'clinic', 'staff', '0192a000-0000-7000-8000-0000000c07a1', 'Julie Martin'],
+            ['marketing', 'email', 'granted', 'clinic', 'staff', '0192a000-0000-7000-8000-0000000c07a1', 'Julie Martin'],
+        ], $history);
     }
 }

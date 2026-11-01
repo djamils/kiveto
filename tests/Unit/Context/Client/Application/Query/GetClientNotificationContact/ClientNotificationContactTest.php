@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Context\Client\Application\Query\GetClientNotificationContact;
 
 use App\Context\Client\Application\Query\GetClientNotificationContact\ClientNotificationContact;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -137,6 +138,53 @@ final class ClientNotificationContactTest extends TestCase
         // No e-mail: SMS, whatever the preference.
         self::assertSame('sms', $this->contact(null, '+33611223344', [], 'email')->transactionalChannel());
         self::assertNull($this->contact(null, null, [], 'sms')->transactionalChannel());
+    }
+
+    /**
+     * AC 57, AC 200: an archived client receives no optional message, while
+     * billing and clinical documents still pick their channel.
+     *
+     * @return iterable<string, array{string, bool, list<string>}>
+     */
+    public static function provideAnArchivedClientGetsNoOptionalMessageCases(): iterable
+    {
+        yield 'marketing, active' => ['marketing', false, ['email']];
+        yield 'marketing, archived' => ['marketing', true, []];
+        yield 'appointment reminders, archived' => ['appointment_reminders', true, []];
+        yield 'vaccination reminders, archived' => ['vaccination_reminders', true, []];
+        yield 'billing, archived' => ['billing', true, ['email']];
+        yield 'clinical documents, archived' => ['clinical_documents', true, ['sms', 'email']];
+    }
+
+    /**
+     * @param list<string> $expected
+     */
+    #[DataProvider('provideAnArchivedClientGetsNoOptionalMessageCases')]
+    public function testAnArchivedClientGetsNoOptionalMessage(string $kind, bool $archived, array $expected): void
+    {
+        $contact = ClientNotificationContact::compose(
+            clientId: self::CLIENT_ID,
+            firstName: 'Hélène',
+            lastName: 'Lambert',
+            legalName: null,
+            civility: 'madam',
+            archived: $archived,
+            contactMethods: [
+                self::method('email', 'home', 'h.lambert@example.com', true),
+                self::method('phone', 'mobile', '+33611223344', true),
+            ],
+            preferredChannel: 'sms',
+            consents: [
+                'marketing'             => ['email'],
+                'appointment_reminders' => ['sms'],
+                'vaccination_reminders' => ['sms', 'email'],
+                'billing'               => ['email'],
+                'clinical_documents'    => ['sms', 'email'],
+            ],
+        );
+
+        self::assertSame($expected, $contact->channelsFor($kind));
+        self::assertSame($archived, $contact->archived, 'the consents stay on file');
     }
 
     /**

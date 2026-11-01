@@ -21,4 +21,10 @@ interface OtpChallengeRepositoryInterface
 
     /** Revokes every live onboarding grant of the phone; returns how many. */
     public function revokeOnboardingGrantsForPhone(PhoneNumber $phone, \DateTimeImmutable $at): int;
+
+    /**
+     * Deletes every challenge sent to the phone or bound to the user (their
+     * onboarding grants with them); returns how many.
+     */
+    public function deleteForPhoneOrUser(PhoneNumber $phone, string $userId): int;
 }

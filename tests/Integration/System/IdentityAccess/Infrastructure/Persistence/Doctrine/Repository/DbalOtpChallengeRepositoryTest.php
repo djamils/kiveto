@@ -10,6 +10,7 @@ use App\System\IdentityAccess\Domain\Otp\OtpChallengeId;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeRepositoryInterface;
 use App\System\IdentityAccess\Domain\Otp\OtpChannel;
 use App\System\IdentityAccess\Domain\Otp\OtpPurpose;
+use App\System\IdentityAccess\Domain\Otp\OtpSubjectType;
 use App\System\IdentityAccess\Domain\Otp\OtpVerificationResult;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -21,6 +22,7 @@ final class DbalOtpChallengeRepositoryTest extends KernelTestCase
     private const string OTHER      = '01960000-0000-7000-8000-0000000005a3';
     private const string INVITE_REF = '01960000-0000-7000-8000-0000000005b1';
     private const string PHONE      = '+33612340501';
+    private const string USER       = '01960000-0000-7000-8000-0000000005e1';
 
     public function testEveryColumnOfANewChallengeIsReadBack(): void
     {
@@ -33,12 +35,36 @@ final class DbalOtpChallengeRepositoryTest extends KernelTestCase
         $found = $challenges->findById(OtpChallengeId::fromString(self::INVITATION));
         self::assertNotNull($found);
         self::assertSame([self::INVITATION, self::PHONE, OtpPurpose::INVITATION, self::INVITE_REF, hash('sha256', 'c1'), 0, 1, OtpChannel::SMS, true], [
-            $found->id()->toString(), $found->phone()->toString(), $found->purpose(), $found->invitationRef(), $found->codeHash(), $found->attempts(), $found->sendCount(), $found->lastChannel(), $found->isSmsSuppressed(),
+            $found->id()->toString(), $found->phone()->toString(), $found->purpose(), $found->subjectRef(), $found->codeHash(), $found->attempts(), $found->sendCount(), $found->lastChannel(), $found->isSmsSuppressed(),
         ]);
         self::assertSame(['2026-10-26 07:24:00', '2026-10-26 07:14:30', '2026-10-26 07:14:00', 'UTC'], [
             $found->expiresAt()->format('Y-m-d H:i:s'), $found->resendAvailableAt()->format('Y-m-d H:i:s'), $found->createdAt()->format('Y-m-d H:i:s'), $found->createdAt()->getTimezone()->getName(),
         ]);
         self::assertSame([null, null, null, null], [$found->consumedAt(), $found->onboardingTokenHash(), $found->onboardingExpiresAt(), $found->onboardingRevokedAt()]);
+    }
+
+    /** S5e: the subject and the target address survive the round trip; the subject type is written for the readers of the table. */
+    public function testAnEmailVerificationChallengeKeepsItsSubjectAndAddress(): void
+    {
+        $challenges = $this->challenges();
+        $now        = new \DateTimeImmutable('2026-11-01 13:05:00', new \DateTimeZone('UTC'));
+        $challenges->save(OtpChallenge::start(OtpChallengeId::fromString(self::OTHER), PhoneNumber::fromString(self::PHONE), OtpPurpose::EMAIL_VERIFICATION, self::USER, hash('sha256', 'c1'), $now, targetEmail: 'new@example.com'));
+        $challenges->save(OtpChallenge::start(OtpChallengeId::fromString(self::INVITATION), PhoneNumber::fromString(self::PHONE), OtpPurpose::INVITATION, self::INVITE_REF, hash('sha256', 'c1'), $now));
+
+        $found = $challenges->findById(OtpChallengeId::fromString(self::OTHER));
+        self::assertNotNull($found);
+        self::assertSame([OtpPurpose::EMAIL_VERIFICATION, OtpSubjectType::USER, self::USER, 'new@example.com', OtpChannel::EMAIL], [
+            $found->purpose(), $found->subjectType(), $found->subjectRef(), $found->targetEmail(), $found->lastChannel(),
+        ]);
+
+        $connection = $this->em()->getConnection();
+        self::assertSame(
+            [['email_verification', 'user', self::USER, 'new@example.com'], ['invitation', 'invitation', self::INVITE_REF, null]],
+            array_map(static fn (array $row): array => array_values($row), $connection->fetchAllAssociative(
+                'SELECT purpose, subject_type, subject_ref, target_email FROM identity_access__otp_challenges WHERE phone = ? ORDER BY purpose',
+                [self::PHONE],
+            )),
+        );
     }
 
     public function testTheStateOfAKnownChallengeIsUpdatedUnderLock(): void
@@ -66,7 +92,7 @@ final class DbalOtpChallengeRepositoryTest extends KernelTestCase
             $found->codeHash(), $found->attempts(), $found->sendCount(), $found->expiresAt()->format('H:i:s'), $found->resendAvailableAt()->format('H:i:s'),
             $found->consumedAt()?->format('H:i:s'), $found->onboardingTokenHash(), $found->onboardingExpiresAt()?->format('H:i:s'), $found->onboardingRevokedAt()?->format('H:i:s'),
         ]);
-        self::assertSame([self::PHONE, OtpPurpose::LOGIN, null, false, '07:14:00'], [$found->phone()->toString(), $found->purpose(), $found->invitationRef(), $found->isSmsSuppressed(), $found->createdAt()->format('H:i:s')]);
+        self::assertSame([self::PHONE, OtpPurpose::LOGIN, null, false, '07:14:00'], [$found->phone()->toString(), $found->purpose(), $found->subjectRef(), $found->isSmsSuppressed(), $found->createdAt()->format('H:i:s')]);
     }
 
     public function testAGrantIsFoundByItsDigestAndTheGrantsOfAPhoneAreRevokedTogether(): void

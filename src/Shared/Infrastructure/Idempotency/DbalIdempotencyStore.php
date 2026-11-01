@@ -71,6 +71,14 @@ final readonly class DbalIdempotencyStore implements IdempotencyStoreInterface
         }
     }
 
+    public function forgetPrincipal(string $principalId): int
+    {
+        return (int) $this->connection->executeStatement(
+            'DELETE FROM ' . self::TABLE . ' WHERE principal_id = :principal',
+            ['principal' => Uuid::fromString($principalId)->toBinary()],
+        );
+    }
+
     /**
      * @return array{fingerprint: RequestFingerprint, response: StoredResponse}|null
      */

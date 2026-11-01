@@ -11,6 +11,8 @@ final readonly class PortalAccount
         public string $userId,
         public ?string $email,
         public string $phone,
+        /** The owner proved the e-mail (a code sent to it). */
+        public bool $emailVerified = false,
     ) {
     }
 }

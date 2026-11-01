@@ -35,4 +35,7 @@ interface IdempotencyStoreInterface
         RequestFingerprint $fingerprint,
         \Closure $operation,
     ): StoredResponse;
+
+    /** Deletes every record of the principal (account deletion); returns how many. */
+    public function forgetPrincipal(string $principalId): int;
 }

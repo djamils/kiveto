@@ -173,6 +173,8 @@
   <form id="prefForm" method="post" action="{{ path('clinic_clients_communication_preferences_update', {id: client.id}) }}" hidden>
     <input type="hidden" name="_token" value="{{ token }}">{{ rt|raw }}
     <input type="hidden" name="preferred_channel" value="{{ sheet.prefs.preferred ?? '' }}">
+    {# The version the consents were read at: a record changed since is not overwritten. #}
+    <input type="hidden" name="version" value="{{ client.version }}">
   </form>
   <form id="persForm" method="post" action="{{ path('clinic_clients_authorized_person_update', {id: client.id}) }}" hidden>
     <input type="hidden" name="_token" value="{{ token }}">{{ rt|raw }}

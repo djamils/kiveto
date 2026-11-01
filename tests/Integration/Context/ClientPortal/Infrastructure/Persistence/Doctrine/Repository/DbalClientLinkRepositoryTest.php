@@ -58,6 +58,8 @@ final class DbalClientLinkRepositoryTest extends KernelTestCase
         $ids = static fn (array $list): array => array_map(static fn (mixed $l): string => $l instanceof ClientLink ? $l->id()->toString() : '', $list);
         self::assertSame([self::L1, self::L3], $ids($links->findByClient(self::CLINIC, self::CLIENT)));
         self::assertSame([self::L2, self::L1], $ids($links->findConfirmedByUser(self::USER)));
+        self::assertSame([self::L1, self::L2], $ids($links->findByUser(self::USER)));
+        self::assertSame([self::L3], $ids($links->findByUser(self::USER2)));
         self::assertSame([], $links->findConfirmedByUser(self::USER2), 'pending');
         self::assertFalse($links->hasConfirmed(self::USER2, self::CLINIC));
         self::assertNull($links->findByClient(self::CLINIC, self::CLIENT)[1]->linkedAt());

@@ -38,4 +38,11 @@ interface PortalInvitationRepositoryInterface
      * @return list<PortalInvitation>
      */
     public function findPendingByPhone(PhoneNumber $phone, \DateTimeImmutable $now): array;
+
+    /**
+     * Every pending invitation of a phone, expired ones included, oldest first.
+     *
+     * @return list<PortalInvitation>
+     */
+    public function findPendingByPhoneForUpdate(PhoneNumber $phone): array;
 }

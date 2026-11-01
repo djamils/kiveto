@@ -23,11 +23,11 @@ use Symfony\Component\Validator\Constraints as Assert;
             openapi: new Operation(
                 tags: ['Authentification'],
                 summary: 'Renvoie un nouveau code pour le même challenge.',
-                description: 'Le code précédent ne fonctionne plus. Seul le canal `sms` existe pour l\'instant.',
+                description: 'Le code précédent ne fonctionne plus. `email` n\'est honoré que pour un code de **connexion** dont le numéro a un compte actif avec e-mail **vérifié** (second facteur) ; sinon même 202, rien ne change et le code SMS reste valable. Les codes d\'action (changement d\'e-mail, suppression) ne sont jamais renvoyés par e-mail ; un code de vérification d\'e-mail n\'est jamais renvoyé.',
                 responses: [
                     '202' => new Response(description: 'Nouveau code envoyé.'),
                     '404' => new Response(description: '`otp_challenge_not_found`.'),
-                    '422' => new Response(description: '`validation_failed` (canal inconnu).'),
+                    '422' => new Response(description: '`validation_failed` (canal autre que `sms` ou `email`).'),
                     '429' => new Response(description: '`otp_rate_limited` (avant `resendAvailableAt`, ou quotas), avec `Retry-After`.'),
                 ],
             ),
@@ -40,6 +40,6 @@ use Symfony\Component\Validator\Constraints as Assert;
 final class OtpResend
 {
     #[Assert\NotBlank]
-    #[Assert\Choice(choices: ['sms'])]
+    #[Assert\Choice(choices: ['sms', 'email'])]
     public string $channel;
 }

@@ -77,4 +77,52 @@ final readonly class CommunicationPreferences
 
         return new self($preferredChannel, $consents);
     }
+
+    /**
+     * The same preferences with one kind changed: its channels replaced, or
+     * the consent withdrawn when none is left. The other kinds and the
+     * preferred channel are kept.
+     *
+     * @param list<ContactChannel> $channels
+     */
+    public function withConsent(ConsentKind $kind, array $channels, \DateTimeImmutable $now): self
+    {
+        $channelsByKind = [];
+
+        foreach ($this->consents as $consent) {
+            $channelsByKind[$consent->kind->value] = $consent->channels;
+        }
+
+        $channelsByKind[$kind->value] = $channels;
+
+        return $this->revise($this->preferredChannel, $channelsByKind, $now);
+    }
+
+    /**
+     * What moving to the next preferences grants and withdraws, one change
+     * per kind and channel, in kind then channel order. The same consents
+     * give no change, whatever their dates.
+     *
+     * @return list<ConsentChange>
+     */
+    public function changesTo(self $next): array
+    {
+        $changes = [];
+
+        foreach (ConsentKind::cases() as $kind) {
+            $before = $this->consentFor($kind);
+            $after  = $next->consentFor($kind);
+
+            foreach (ContactChannel::cases() as $channel) {
+                $had = null !== $before && $before->allows($channel);
+                $has = null !== $after && $after->allows($channel);
+
+                if ($had !== $has) {
+                    $changes[] = new ConsentChange($kind, $channel, $has ? ConsentChangeAction::GRANTED : ConsentChangeAction::WITHDRAWN);
+                }
+            }
+        }
+
+        return $changes;
+    }
 }

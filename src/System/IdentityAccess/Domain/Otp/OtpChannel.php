@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\System\IdentityAccess\Domain\Otp;
 
-/** Codes go to the mobile phone only; e-mail joins once addresses are verified. */
+/**
+ * How the last code of a challenge was sent: by SMS, or by e-mail (an
+ * address being verified, or a login code resent to a verified address).
+ */
 enum OtpChannel: string
 {
-    case SMS = 'sms';
+    case SMS   = 'sms';
+    case EMAIL = 'email';
 }

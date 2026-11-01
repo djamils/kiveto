@@ -66,6 +66,14 @@ final readonly class DbalRefreshTokenRepository implements RefreshTokenRepositor
         );
     }
 
+    public function revokeAllForUser(string $userId, \DateTimeImmutable $at): int
+    {
+        return (int) $this->connection->executeStatement(
+            'UPDATE ' . self::TABLE . ' SET revoked_at = :at WHERE user_id = :user AND revoked_at IS NULL',
+            ['at' => self::utc($at), 'user' => self::binary($userId)],
+        );
+    }
+
     private function find(string $condition, string $key): ?RefreshToken
     {
         $row = $this->connection->fetchAssociative('SELECT * FROM ' . self::TABLE . ' WHERE ' . $condition, ['key' => $key]);

@@ -35,8 +35,8 @@ official Symfony bridges (`symfony/brevo-mailer` API transport,
 
 | Term | Definition |
 |------|------------|
-| **OutboundMessage** | One e-mail or one SMS to one recipient, with its content frozen at request time, its attachments, the provider message id and its status history. The bodies of `STAFF_INVITATION`, `PASSWORD_RESET`, `PORTAL_INVITATION` (one-time link) and `PORTAL_OTP` (one-time code) are erased once the message is handed over or fails (subject and metadata stay); such a message whose link or code expired while it waited (30 min / 72 h / 7 days / 10 min after the request) is not sent: FAILED « Lien expiré avant l'envoi ». |
-| **MessagePurpose** | Why the message is sent: `APPOINTMENT_CONFIRMATION`, `APPOINTMENT_CHANGE`, `APPOINTMENT_CANCELLATION`, `APPOINTMENT_REMINDER`, `APPOINTMENT_DECLINED` (« Demande de RDV non confirmée »), `INVOICE_SENT`, `INVOICE_REMINDER`, `CONSULTATION_DOCUMENTS`, `STAFF_INVITATION`, `PASSWORD_RESET`, `TEST`, `PORTAL_OTP` (« Code de connexion Portal »), `PORTAL_INVITATION` (« Invitation au Portal »). |
+| **OutboundMessage** | One e-mail or one SMS to one recipient, with its content frozen at request time, its attachments, the provider message id and its status history. The bodies of `STAFF_INVITATION`, `PASSWORD_RESET`, `PORTAL_INVITATION` (one-time link), `PORTAL_OTP` and `PORTAL_EMAIL_VERIFICATION` (one-time codes) are erased once the message is handed over or fails (subject and metadata stay); such a message whose link or code expired while it waited (30 min / 72 h / 7 days / 10 min after the request) is not sent: FAILED « Lien expiré avant l'envoi ». |
+| **MessagePurpose** | Why the message is sent: `APPOINTMENT_CONFIRMATION`, `APPOINTMENT_CHANGE`, `APPOINTMENT_CANCELLATION`, `APPOINTMENT_REMINDER`, `APPOINTMENT_DECLINED` (« Demande de RDV non confirmée »), `INVOICE_SENT`, `INVOICE_REMINDER`, `CONSULTATION_DOCUMENTS`, `STAFF_INVITATION`, `PASSWORD_RESET`, `TEST`, `PORTAL_OTP` (« Code de connexion Portal »), `PORTAL_INVITATION` (« Invitation au Portal »), `PORTAL_EMAIL_VERIFICATION` (« Vérification de l'adresse e-mail Portal »), `PORTAL_EMAIL_CHANGED_NOTICE` (« Adresse e-mail Portal modifiée »), `PORTAL_DATA_EXPORT_READY` (« Export de données Portal prêt »). |
 | **Criticality** | Fixed per purpose. `NON_CRITICAL` (appointment reminder, unpaid reminder) SMS are subject to the overage cap; everything else is `CRITICAL`. |
 | **DeliveryStatus** | `QUEUED` (0) → `SENT` / `DEFERRED` (1) → `DELIVERED` / `BOUNCED` / `REJECTED` / `FAILED` / `BLOCKED_CAP` (2, final). A complaint (spam) is a flag, not a status. |
 | **IdempotencyKey** | Opaque string built by the requester (`appointment:<id>:confirmation:1`, `invoice:<id>:send:<dispatchId>`, `invitation:<tokenId>`…), unique across messages. |
@@ -79,6 +79,7 @@ official Symfony bridges (`symfony/brevo-mailer` API transport,
 | `GetSmsUsage` | query | Month (Europe/Paris), quota, used, queued, overage, overage amount (cents HT), cap, percent, cap reached. |
 | `PreviewSmsSegments` | query | Segments that `count` SMS of a purpose would consume for a clinic (bulk reminder confirmation); 0 without messaging profile. |
 | `GetMessageStatuses` | query | Current status and French label of many messages, by id (invoice history). |
+| `MaskPortalRecipient(phone, ?email)` | command | An owner account was deleted (ClientPortal): the messages of `MessagePurpose::isPortalAccountMessage()` (`PORTAL_OTP`, `PORTAL_EMAIL_VERIFICATION`, `PORTAL_EMAIL_CHANGED_NOTICE`, `PORTAL_DATA_EXPORT_READY`) to that phone or e-mail, handed over or final, lose recipient and bodies like the 24-month purge (`purgeContent()`); a still QUEUED one keeps them for its dispatch. The clinics' messages, `PORTAL_INVITATION` included (journaled in the client file), are kept. |
 | `PostInAppNotification` | command | One bell entry per user of a clinic (kinds `NEW_APPOINTMENT`, `CRITICAL_STOCK`, `EXPIRING_LOTS`, `SMS_QUOTA`, `ONLINE_BOOKING_PENDING` « RDV en ligne à confirmer », `ONLINE_BOOKING_CHANGED` « RDV modifié / annulé en ligne », all under « Activité »), at most once per user and idempotency key (INSERT IGNORE). |
 | `MarkInAppNotificationRead` / `MarkAllInAppNotificationsRead` | command | The user reads one of their entries / all their entries of the current clinic. |
 | `WithdrawInAppNotification` | command | Deletes the unread entries posted under a key (e.g. a new appointment cancelled before being seen). |
@@ -105,8 +106,11 @@ nothing automated.
 | `INVOICE_REMINDER` | Billing (`SendUnpaidReminder`) | the `billing` consent's reachable channels (SMS and / or e-mail), else `transactionalChannel()`; SMS e-mail fallback only when e-mail is not already a channel | `billing` (« Factures et relances de règlement ») |
 | `CONSULTATION_DOCUMENTS` | Consultation (`EmailConsultationDocuments`) | e-mail on file, whatever the consents (explicit staff action) | none |
 | `STAFF_INVITATION`, `PASSWORD_RESET` | IdentityAccess | e-mail | none (staff accounts) |
-| `PORTAL_OTP` | IdentityAccess (`RequestPortalOtp`) | SMS only, to the phone being verified (`{code, validityMinutes}`) | none |
+| `PORTAL_OTP` | IdentityAccess (`RequestPortalOtp`, `RequestPortalActionOtp`, `ResendPortalOtp`) | SMS to the phone being verified (`{code, validityMinutes, purpose}`: the wording follows the OTP purpose, `portal_otp_<purpose>.txt.twig` for `email_change` and `account_deletion`); e-mail (`{code, validityMinutes}`) only for a sign-in code resent to the verified address of the account | none |
+| `PORTAL_EMAIL_VERIFICATION` | IdentityAccess (`StartPortalEmailChange`) | e-mail, to the address being verified (`{code, validityMinutes}`) | none |
+| `PORTAL_EMAIL_CHANGED_NOTICE` | IdentityAccess (`ConfirmPortalEmailChange`) | e-mail, to the previous verified address (`{maskedNewEmail, changedAtLabel}`) | none |
 | `PORTAL_INVITATION` | ClientPortal (`SendPortalInvitation`) | the channel the staff chose, SMS or e-mail (`{clinicName, ownerFirstName, link, expiresOn}` on both; the SMS takes two segments, the link being long) | none (explicit staff action) |
+| `PORTAL_DATA_EXPORT_READY` | ClientPortal (`RecordDataExport`) | e-mail only, to the account's **verified** address, when it has one (`{ownerFirstName, expiresAtLabel}`); a notice without link — the archive is downloaded in the app | none (requested by the owner) |
 
 ## SMS quota
 

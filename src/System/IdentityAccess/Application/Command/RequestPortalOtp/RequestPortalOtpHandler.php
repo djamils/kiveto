@@ -57,6 +57,10 @@ final readonly class RequestPortalOtpHandler
         $purpose = OtpPurpose::from($command->purpose);
         $now     = $this->clock->now();
 
+        if (OtpPurpose::LOGIN !== $purpose && OtpPurpose::INVITATION !== $purpose) {
+            throw new \InvalidArgumentException('Action codes are requested by RequestPortalActionOtp, for a user.');
+        }
+
         $suppressed = false;
         if (OtpPurpose::LOGIN === $purpose) {
             if (!$this->mobilePolicy->isPortalMobile($phone->toString())) {
@@ -85,6 +89,7 @@ final readonly class RequestPortalOtpHandler
                 code: $code,
                 sendCount: $challenge->sendCount(),
                 validityMinutes: self::VALIDITY_MINUTES,
+                purpose: $purpose->value,
             ));
         }
 

@@ -69,7 +69,7 @@ final class PortalOtpUseCasesTest extends TestCase
 
         self::assertSame([$challenge->id()->toString(), '07:24:00', '07:14:30'], [$issued->challengeId, $issued->expiresAt->format('H:i:s'), $issued->resendAvailableAt->format('H:i:s')]);
         self::assertSame([self::PHONE, OtpPurpose::LOGIN, null, $this->portal->hash('654321'), false], [
-            $challenge->phone()->toString(), $challenge->purpose(), $challenge->invitationRef(), $challenge->codeHash(), $challenge->isSmsSuppressed(),
+            $challenge->phone()->toString(), $challenge->purpose(), $challenge->subjectRef(), $challenge->codeHash(), $challenge->isSmsSuppressed(),
         ]);
         self::assertSame([self::PHONE], $this->portal->policyChecks);
         self::assertSame([1, 199], [$this->portal->budgetConsumptions, $this->portal->budget]);
@@ -130,7 +130,7 @@ final class PortalOtpUseCasesTest extends TestCase
         $this->request(self::PHONE, OtpPurpose::INVITATION, self::INVITATION);
 
         $challenge = $this->challenges->single();
-        self::assertSame([OtpPurpose::INVITATION, self::INVITATION, false], [$challenge->purpose(), $challenge->invitationRef(), $challenge->isSmsSuppressed()]);
+        self::assertSame([OtpPurpose::INVITATION, self::INVITATION, false], [$challenge->purpose(), $challenge->subjectRef(), $challenge->isSmsSuppressed()]);
         self::assertSame([[], 0], [$this->portal->policyChecks, $this->portal->budgetConsumptions]);
         self::assertCount(1, $this->fakes->portalOtps);
     }
@@ -331,7 +331,7 @@ final class PortalOtpUseCasesTest extends TestCase
 
     private function resend(string $challengeId, \DateTimeImmutable $at): OtpChallengeIssued
     {
-        return (new ResendPortalOtpHandler($this->challenges, $this->portal, $this->portal, $this->fakes, new FrozenClock($at)))(new ResendPortalOtp($challengeId, 'sms'));
+        return (new ResendPortalOtpHandler($this->challenges, $this->users, $this->portal, $this->portal, $this->fakes, new FrozenClock($at)))(new ResendPortalOtp($challengeId, 'sms'));
     }
 
     private function verify(string $challengeId, string $code, string $after = '+1 minute'): LoginOtpOutcome

@@ -17,7 +17,10 @@ use App\Context\Client\Domain\ValueObject\ClientStatus;
 use App\Context\Client\Domain\ValueObject\ClinicId;
 use App\Context\Client\Domain\ValueObject\CommunicationPreferences;
 use App\Context\Client\Domain\ValueObject\Consent;
+use App\Context\Client\Domain\ValueObject\ConsentActor;
+use App\Context\Client\Domain\ValueObject\ConsentActorType;
 use App\Context\Client\Domain\ValueObject\ConsentKind;
+use App\Context\Client\Domain\ValueObject\ConsentSource;
 use App\Context\Client\Domain\ValueObject\ContactChannel;
 use App\Context\Client\Domain\ValueObject\ContactLabel;
 use App\Context\Client\Domain\ValueObject\ContactMethod;
@@ -158,6 +161,8 @@ final class ClientAuthorizedPersonAndPreferencesTest extends TestCase
             ContactChannel::SMS,
             [ConsentKind::APPOINTMENT_REMINDERS->value => [ContactChannel::SMS, ContactChannel::EMAIL]],
             $now,
+            ConsentSource::CLINIC,
+            new ConsentActor(ConsentActorType::SYSTEM, null, 'Test'),
         );
 
         $preferences = $client->communicationPreferences();
@@ -187,7 +192,7 @@ final class ClientAuthorizedPersonAndPreferencesTest extends TestCase
             new Consent(ConsentKind::MARKETING, [ContactChannel::EMAIL], new \DateTimeImmutable('2024-02-08')),
         ]));
 
-        $client->updateCommunicationPreferences(null, [], new \DateTimeImmutable('2026-09-30'));
+        $client->updateCommunicationPreferences(null, [], new \DateTimeImmutable('2026-09-30'), ConsentSource::CLINIC, new ConsentActor(ConsentActorType::SYSTEM, null, 'Test'));
 
         self::assertNull($client->communicationPreferences()->preferredChannel);
         self::assertSame([], $client->communicationPreferences()->consents);
@@ -200,7 +205,7 @@ final class ClientAuthorizedPersonAndPreferencesTest extends TestCase
 
         $this->expectException(ClientArchivedCannotBeModifiedException::class);
 
-        $client->updateCommunicationPreferences(null, [], new \DateTimeImmutable());
+        $client->updateCommunicationPreferences(null, [], new \DateTimeImmutable(), ConsentSource::CLINIC, new ConsentActor(ConsentActorType::SYSTEM, null, 'Test'));
     }
 
     private function marc(\DateTimeImmutable $authorizedAt): AuthorizedPerson
