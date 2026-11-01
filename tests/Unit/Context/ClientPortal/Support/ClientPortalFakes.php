@@ -19,6 +19,7 @@ use App\Context\ClientPortal\Application\Port\PortalClientContact;
 use App\Context\ClientPortal\Application\Port\PortalClientSnapshot;
 use App\Context\ClientPortal\Application\Port\PortalIdentityInterface;
 use App\Context\ClientPortal\Application\Port\PortalInvitationMessage;
+use App\Context\ClientPortal\Application\Port\PortalRequestResolvedMessage;
 use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Application\Document\DocumentClinic;
 use App\Shared\Domain\Event\DomainEventInterface;
@@ -57,6 +58,9 @@ final class ClientPortalFakes implements ClientDirectoryInterface, ClinicProfile
 
     /** @var list<DataExportReadyMessage> */
     public array $exportNotices = [];
+
+    /** @var list<PortalRequestResolvedMessage> */
+    public array $resolutionNotices = [];
 
     /** @var list<IdentityClaimRequest> */
     public array $claims = [];
@@ -125,6 +129,13 @@ final class ClientPortalFakes implements ClientDirectoryInterface, ClinicProfile
     public function requestDataExportReady(DataExportReadyMessage $message): void
     {
         $this->exportNotices[] = $message;
+    }
+
+    public function requestPortalRequestResolved(PortalRequestResolvedMessage $message): string
+    {
+        $this->resolutionNotices[] = $message;
+
+        return \sprintf('01960000-0000-7000-8000-0000000e%04d', \count($this->resolutionNotices));
     }
 
     public function invitationLink(string $token): string

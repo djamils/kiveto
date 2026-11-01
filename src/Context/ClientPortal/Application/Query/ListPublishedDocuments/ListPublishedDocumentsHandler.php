@@ -10,6 +10,7 @@ use App\Context\ClientPortal\Application\Port\ListedDocument;
 use App\Context\ClientPortal\Application\Port\PrescriptionDocumentsInterface;
 use App\Context\ClientPortal\Application\Port\PublishedDocumentReadModelInterface;
 use App\Context\ClientPortal\Application\Service\DocumentCursor;
+use App\Context\ClientPortal\Application\Service\RenewalStatuses;
 use App\Context\ClientPortal\Domain\Document\DocumentType;
 use App\Shared\Application\Pagination\Cursor;
 use App\Shared\Application\Pagination\CursorPage;
@@ -18,7 +19,8 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
  * The payment status of an invoice and the state of a prescription are
- * read live, one batch per page. A row whose source is no longer listable
+ * read live, one batch per page, as is the latest renewal request of each
+ * prescription (`renewalStatus`). A row whose source is no longer listable
  * (cancelled before its withdrawal was consumed) is left out with a
  * warning, so a page can hold fewer items than the limit.
  */
@@ -30,6 +32,7 @@ final readonly class ListPublishedDocumentsHandler
         private InvoiceDocumentsInterface $invoices,
         private PrescriptionDocumentsInterface $prescriptions,
         private ClinicProfileInterface $clinics,
+        private RenewalStatuses $renewals,
         private LoggerInterface $logger,
     ) {
     }
@@ -63,7 +66,9 @@ final readonly class ListPublishedDocumentsHandler
     {
         $timeZone      = new \DateTimeZone($this->clinics->clinicOf($clinicId)->timeZone);
         $invoices      = $this->invoices->states($clinicId, self::sources($rows, DocumentType::INVOICE));
-        $prescriptions = $this->prescriptions->states($clinicId, self::sources($rows, DocumentType::PRESCRIPTION));
+        $prescribed    = self::sources($rows, DocumentType::PRESCRIPTION);
+        $prescriptions = $this->prescriptions->states($clinicId, $prescribed);
+        $renewals      = [] === $prescribed ? [] : $this->renewals->of($clinicId, $prescribed);
         $documents     = [];
 
         foreach ($rows as $row) {
@@ -89,7 +94,7 @@ final readonly class ListPublishedDocumentsHandler
                     continue;
                 }
 
-                $prescription = new PortalPrescriptionSummary($row->sourceRef, $state->validUntil, $state->renewable);
+                $prescription = new PortalPrescriptionSummary($row->sourceRef, $state->validUntil, $state->renewable, $renewals[$row->sourceRef] ?? null);
             }
 
             $documents[] = new PortalDocument(

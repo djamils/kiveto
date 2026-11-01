@@ -222,6 +222,45 @@ export function init() {
     }
   }
 
+  // ═════════ Questionnaire pré-visite (Portal) ═════════
+  // The owner's answers; their free text only ever goes through textContent.
+  function rendreQuestionnaire() {
+    const box = $('qnBox');
+    const q = H.questionnaire;
+    if (!box || !q) return;
+    box.replaceChildren();
+    const titre = document.createElement('p');
+    titre.className = 'wcard-t';
+    titre.textContent = 'Questionnaire pré-visite';
+    const quand = document.createElement('span');
+    quand.className = 'orig';
+    quand.textContent = `Rempli sur le Portal · mis à jour le ${q.updatedAt}`;
+    titre.append(quand);
+    if (q.mayBite) {
+      const chip = document.createElement('span');
+      chip.className = 'qn-chip';
+      chip.textContent = 'peut mordre';
+      titre.append(chip);
+    }
+    const dl = document.createElement('dl');
+    dl.className = 'qn-dl';
+    const ligne = (label, value, cls) => {
+      if (value === null || value === undefined || value === '') return;
+      const dt = document.createElement('dt');
+      dt.textContent = label;
+      const dd = document.createElement('dd');
+      if (cls) dd.className = cls;
+      dd.textContent = value;
+      dl.append(dt, dd);
+    };
+    ligne('Symptômes', (q.symptoms || []).join(', '));
+    ligne('Traitement en cours', q.ongoingTreatment ? (q.ongoingTreatmentDetails || 'Oui') : 'Non', 'txt');
+    ligne('Tempérament', q.temperament);
+    ligne('Notes', q.notes, 'txt');
+    box.append(titre, dl);
+    box.hidden = false;
+  }
+
   // ═════════ Origine & motifs ═════════
   function rendreOrigine() {
     const o = CTX.origin || {};
@@ -1344,6 +1383,7 @@ export function init() {
     const live = root.querySelector('.live'); if (live) live.style.cssText = 'background:var(--encre-35);animation:none';
   }
   rendreOrigine();
+  rendreQuestionnaire();
   rendreTout();
   setSave(closed() ? 'closed' : 'idle');
 }

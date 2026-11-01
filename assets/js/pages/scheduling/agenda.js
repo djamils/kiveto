@@ -229,7 +229,9 @@ function evHtml(r, col) {
       : `<span class="et"><i class="mdot" style="background:${mo.c}"></i>${hm(r.s)} – ${hm(r.s + r.dur)}</span><span class="ea">${p.e} ${esc(p.a)}</span>${h >= 46 ? `<span class="em">${esc(r.note || motifTxt(r))} · ${esc(cliCourt(p.cli))}</span>` : ''}`;
   const stc = !etroit && h >= 28 && (r.st === 'annule' || r.st === 'absent' || r.pend) ? `<span class="stc">${r.pend ? 'À confirmer' : r.st === 'annule' ? 'Annulé' : 'Non venu'}</span>` : '';
   const tip = `${r.pend ? 'À confirmer · ' : r.st === 'annule' ? 'Annulé · ' : r.st === 'absent' ? 'Non venu · ' : ''}${p.a} · ${hm(r.s)}–${hm(r.s + r.dur)} · ${motifTxt(r)}`;
-  return `<div class="${cls}" data-id="${esc(r.id)}" style="${pos};--c:${v.c};--cbg:${v.c}38" data-tip="${esc(tip)}">${corps}${stc}</div>`;
+  // The owner sent a pre-visit questionnaire from the Portal (red when « peut mordre »).
+  const qn = r.qn ? `<span class="qnb${r.qn.bite ? ' bite' : ''}" title="${r.qn.bite ? 'Questionnaire Portal · peut mordre' : 'Questionnaire Portal reçu'}">Q</span>` : '';
+  return `<div class="${cls}" data-id="${esc(r.id)}" style="${pos};--c:${v.c};--cbg:${v.c}38" data-tip="${esc(tip)}">${corps}${stc}${qn}</div>`;
 }
 
 /* Grid bounds: 08:00–20:00, stretched to whole hours around what the period holds */
@@ -520,6 +522,7 @@ function ouvrirPop(id, el) {
     </div>
     ${st ? `<div class="pop-st ${st}">${st === 'annule' ? 'Annulé — créneau libéré' : 'Non venu — l\'animal ne s\'est pas présenté'}</div>` : ''}
     ${r.pend ? `<div class="pop-st attente">Demande en ligne à confirmer${expTxt(r.exp)}</div>` : ''}
+    ${r.qn ? '<div class="pop-qn" data-qn><b>Questionnaire pré-visite</b><span class="pop-qn-load">Chargement…</span></div>' : ''}
     <div class="pop-foot">
       ${profil ? `<a class="btn primaire" href="${esc(profil)}" data-a="profil">Profil</a>` : '<button type="button" class="btn primaire" disabled data-tip="Rendez-vous sans fiche patient">Profil</button>'}
       ${r.pend ? '<button type="button" class="btn ok" data-a="accepter">Confirmer</button><button type="button" class="btn" data-a="modifier">Modifier</button><button type="button" class="btn ghost-danger" data-a="refuser">Refuser</button>'
@@ -568,6 +571,52 @@ function ouvrirPop(id, el) {
     }
   }));
   ancrer(pop, el);
+  if (r.qn) chargerQuestionnaire(r, $('[data-qn]', pop));
+}
+
+/* The owner's answers, fetched when the card opens. Owner text only ever
+   goes through textContent. */
+async function chargerQuestionnaire(r, box) {
+  const id = r.id;
+  let q = null;
+  try {
+    const res = await fetch(url('questionnaire', id), { headers: { Accept: 'application/json' } });
+    if (res.ok) q = await res.json();
+  } catch { /* offline: the message below says so */ }
+  if (popId !== id || !box.isConnected) return;
+  box.replaceChildren();
+  const titre = document.createElement('b');
+  titre.textContent = 'Questionnaire pré-visite';
+  box.append(titre);
+  if (!q) {
+    const vide = document.createElement('span');
+    vide.className = 'pop-qn-load';
+    vide.textContent = 'Le questionnaire n\'a pas pu être chargé.';
+    box.append(vide);
+    return;
+  }
+  const ligne = (label, value, cls) => {
+    if (value === null || value === undefined || value === '') return;
+    const row = document.createElement('div');
+    row.className = 'pop-qn-row' + (cls ? ' ' + cls : '');
+    const k = document.createElement('span');
+    k.textContent = label;
+    const v = document.createElement('span');
+    v.textContent = value;
+    row.append(k, v);
+    box.append(row);
+  };
+  if (q.mayBite) {
+    const chip = document.createElement('span');
+    chip.className = 'qn-chip';
+    chip.textContent = 'peut mordre';
+    titre.append(' ', chip);
+  }
+  ligne('Mis à jour', q.updatedAt);
+  ligne('Symptômes', (q.symptoms || []).join(', '));
+  ligne('Traitement en cours', q.ongoingTreatment ? (q.ongoingTreatmentDetails || 'Oui') : 'Non');
+  ligne('Tempérament', q.temperament);
+  ligne('Notes', q.notes, 'note');
 }
 function fermerPop() {
   if (!pop) return;

@@ -148,6 +148,15 @@ final class DbalPublishedDocumentReadModelTest extends KernelTestCase
         self::assertNull($model->findBySource(self::USER2, self::CLINIC2, 'invoice', self::source(self::H)));
     }
 
+    public function testASourceWithdrawnSinceWasStillPublishedToTheAccount(): void
+    {
+        self::assertTrue($this->model->wasPublished(self::USER, self::CLINIC, 'report', self::source(self::F)), 'withdrawn');
+        self::assertTrue($this->model->wasPublished(self::USER, self::CLINIC, 'prescription', self::source(self::B)));
+        self::assertFalse($this->model->wasPublished(self::USER, self::CLINIC, 'invoice', self::source(self::G)), 'revoked link');
+        self::assertFalse($this->model->wasPublished(self::USER, self::CLINIC, 'invoice', self::source(self::I)), 'no link');
+        self::assertFalse($this->model->wasPublished(self::USER, self::CLINIC, 'report', self::source(self::B)), 'another type');
+    }
+
     public function testTheKeyOfAServedVersion(): void
     {
         $prefix = 'client_portal/documents/';

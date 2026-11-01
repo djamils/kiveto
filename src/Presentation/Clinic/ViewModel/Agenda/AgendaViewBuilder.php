@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\ViewModel\Agenda;
 
+use App\Context\ClientPortal\Application\Query\ListQuestionnaireSummaries\ListQuestionnaireSummaries;
+use App\Context\ClientPortal\Application\Query\ListQuestionnaireSummaries\QuestionnaireSummary;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ClinicVeterinarianItem;
@@ -29,7 +31,7 @@ use App\Shared\Domain\Time\ClockInterface;
  *     a: ?string, e: string, cli: ?string, tel: ?string,
  *     animalId: ?string, ownerId: ?string,
  *     m: string, reason: ?string, note: ?string, st: ?string,
- *     pend: bool, exp: ?string
+ *     pend: bool, exp: ?string, qn: ?array{at: string, bite: bool}
  * }
  * @phpstan-type AgendaBlock array{id: string, date: string, vet: string, s: int, e: int, t: string, note: ?string}
  * @phpstan-type AgendaRange array{from: string, to: string, appointments: list<AgendaAppointment>, blocks: list<AgendaBlock>}
@@ -136,6 +138,13 @@ final readonly class AgendaViewBuilder
             $appointments[] = $this->appointment($item, $tz);
         }
 
+        // The Portal pre-visit questionnaires of the range, in one batch: a
+        // badge on the card, the answers fetched when its popover opens.
+        $questionnaires = $this->questionnaires($clinicId, array_map(static fn (array $a): string => $a['id'], $appointments), $tz);
+        foreach ($appointments as $index => $appointment) {
+            $appointments[$index]['qn'] = $questionnaires[$appointment['id']] ?? null;
+        }
+
         $views = $this->queryBus->ask(new ListPlanningBlocksForClinicDateRange(
             clinicId: $clinicId,
             fromDate: $from->format('Y-m-d'),
@@ -240,7 +249,35 @@ final readonly class AgendaViewBuilder
             'exp' => $item->isPending && null !== $item->pendingExpiresAtUtc
                 ? new \DateTimeImmutable($item->pendingExpiresAtUtc, new \DateTimeZone('UTC'))->setTimezone($tz)->format('Y-m-d H:i')
                 : null,
+            // Filled by range(): the owner's pre-visit questionnaire, if submitted
+            'qn' => null,
         ];
+    }
+
+    /**
+     * @param list<string> $appointmentIds
+     *
+     * @return array<string, array{at: string, bite: bool}> by appointment id
+     */
+    private function questionnaires(string $clinicId, array $appointmentIds, \DateTimeZone $tz): array
+    {
+        if ([] === $appointmentIds) {
+            return [];
+        }
+
+        $summaries = $this->queryBus->ask(new ListQuestionnaireSummaries($clinicId, $appointmentIds));
+        $byId      = [];
+
+        foreach (\is_array($summaries) ? $summaries : [] as $summary) {
+            if ($summary instanceof QuestionnaireSummary) {
+                $byId[$summary->appointmentId] = [
+                    'at'   => $summary->updatedAt->setTimezone($tz)->format('d/m H:i'),
+                    'bite' => $summary->mayBite,
+                ];
+            }
+        }
+
+        return $byId;
     }
 
     private function monday(\DateTimeImmutable $day): \DateTimeImmutable

@@ -65,6 +65,16 @@ interface ConsultationReadRepositoryInterface
     public function latestClosedWeight(ClinicId $clinicId, array $patientIds): ?array;
 
     /**
+     * The appointments of the list a consultation of the clinic was started
+     * from, whatever its status.
+     *
+     * @param list<string> $appointmentIds
+     *
+     * @return list<string>
+     */
+    public function appointmentIdsWithConsultation(ClinicId $clinicId, array $appointmentIds): array;
+
+    /**
      * Whether the admission still has a consultation running, ignoring one.
      *
      * A visit can carry several consultations; it is only over for the

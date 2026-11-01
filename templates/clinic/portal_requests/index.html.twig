@@ -1,0 +1,81 @@
+{#
+ # Kiveto — templates/clinic/portal_requests/index.html.twig
+ # ────────────────────────────────────────────────────────
+ # « Demandes Portal »: the owners' change and renewal requests, the ones
+ # waiting for an answer first. A row opens the request
+ # (clinic_portal_requests_show). Owner free text is autoescaped, never |raw.
+ #
+ # Variables:
+ #   queue  PortalRequestPageBuilder::list() — rows, status, kind, next
+ #
+ # Behaviour: assets/js/pages/portal-requests.js — styles: assets/styles/pages/portal-requests.css
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block page_body_class %}vt page-scroll{% endblock %}
+{% block title %}Demandes Portal{% endblock %}
+
+{% set _status_tabs = [
+  { v: 'submitted', l: 'À traiter' },
+  { v: 'done', l: 'Traitées' },
+  { v: 'rejected', l: 'Refusées' },
+  { v: '', l: 'Toutes' },
+] %}
+{% set _kind_tabs = [
+  { v: '', l: 'Tous types' },
+  { v: 'pet_change', l: 'Modifications de fiche' },
+  { v: 'prescription_renewal', l: 'Renouvellements' },
+] %}
+
+{% block main %}
+<div class="prq" data-page="clinic_portal_requests">
+  <div class="pagehead">
+    <h1>Demandes Portal<small>Ce que les propriétaires demandent depuis leur espace Portal</small></h1>
+  </div>
+
+  <nav class="prq-tabs" aria-label="Filtrer les demandes">
+    <span class="prq-seg">
+      {% for t in _status_tabs %}
+        <a href="{{ path('clinic_portal_requests', { statut: t.v, type: queue.kind ?? '' }) }}"
+           class="{{ (queue.status ?? '') == t.v ? 'on' }}"{% if (queue.status ?? '') == t.v %} aria-current="page"{% endif %}>{{ t.l }}</a>
+      {% endfor %}
+    </span>
+    <span class="prq-seg">
+      {% for t in _kind_tabs %}
+        <a href="{{ path('clinic_portal_requests', { statut: queue.status ?? '', type: t.v }) }}"
+           class="{{ (queue.kind ?? '') == t.v ? 'on' }}">{{ t.l }}</a>
+      {% endfor %}
+    </span>
+  </nav>
+
+  {% if queue.rows is empty %}
+    <div class="prq-vide">
+      <b>{{ queue.status == 'submitted' ? 'Aucune demande en attente' : 'Aucune demande' }}</b>
+      <span>Les demandes envoyées depuis le Portal arrivent ici.</span>
+    </div>
+  {% else %}
+    <table class="prq-table">
+      <thead>
+        <tr><th>Reçue</th><th>Demande</th><th>Animal</th><th>Client</th><th>Note du propriétaire</th><th>Statut</th></tr>
+      </thead>
+      <tbody>
+        {% for r in queue.rows %}
+          <tr data-href="{{ r.url }}" class="{{ r.urgent ? 'urgent' }}">
+            <td class="prq-when">{{ r.submittedAt }}</td>
+            <td><a href="{{ r.url }}"><b>{{ r.kindLabel }}</b></a><small>{{ r.subject }}</small></td>
+            <td>{{ r.petName }}</td>
+            <td>{{ r.clientName }}{% if r.unreachable %}<span class="prq-chip warn">client injoignable</span>{% endif %}</td>
+            <td class="prq-note" title="{{ r.note }}">{{ r.note ?? '—' }}</td>
+            <td><span class="prq-st {{ r.status }}">{{ r.statusLabel }}</span>{% if r.resolvedBy %}<small>par {{ r.resolvedBy }}</small>{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if queue.next %}
+      <div class="prq-more">
+        <a class="btn" href="{{ path('clinic_portal_requests', { statut: queue.status ?? '', type: queue.kind ?? '', apres: queue.next }) }}">Demandes plus anciennes</a>
+      </div>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

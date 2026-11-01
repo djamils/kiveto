@@ -287,6 +287,14 @@ services:
             - '@portal.rate_limiter.storage'
             - '@portal.rate_limiter.lock_factory'
 
+    # Ten pet change or renewal requests per account and clinic per 24 hours (S6e).
+    limiter.portal_requests:
+        class: Symfony\Component\RateLimiter\RateLimiterFactory
+        arguments:
+            - { id: 'portal_requests', policy: 'sliding_window', limit: 10, interval: '24 hours' }
+            - '@portal.rate_limiter.storage'
+            - '@portal.rate_limiter.lock_factory'
+
     limiter.portal_otp_unknown_global:
         class: Symfony\Component\RateLimiter\RateLimiterFactory
         arguments:
@@ -445,6 +453,32 @@ services:
 
     App\Context\ClientPortal\Application\Port\AccountDeletionJobsInterface:
         class: App\Context\ClientPortal\Infrastructure\Messaging\MessengerAccountDeletionJobs
+
+    # Slice 6 — owners' requests (questionnaires, pet changes, renewals)
+    App\Context\ClientPortal\Domain\Request\PreVisitQuestionnaireRepositoryInterface:
+        class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalPreVisitQuestionnaireRepository
+
+    App\Context\ClientPortal\Domain\Request\PetChangeRequestRepositoryInterface:
+        class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalPetChangeRequestRepository
+
+    App\Context\ClientPortal\Domain\Request\PrescriptionRenewalRequestRepositoryInterface:
+        class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalPrescriptionRenewalRequestRepository
+
+    App\Context\ClientPortal\Application\Port\PortalRequestReadModelInterface:
+        class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalPortalRequestReadModel
+
+    App\Context\ClientPortal\Application\Port\ConsultationStartsInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Consultation\QueryBusConsultationStarts
+
+    App\Context\ClientPortal\Application\Port\PrescriberDirectoryInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Clinic\QueryBusPrescriberDirectory
+
+    App\Context\ClientPortal\Application\Port\PortalRequestBellInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Notification\CommandBusPortalRequestBell
+
+    # Consumed by the Portal API before a change or renewal submit (limiter.portal_requests)
+    App\Context\ClientPortal\Application\Port\PortalRequestQuotaInterface:
+        class: App\Context\ClientPortal\Infrastructure\RateLimit\RateLimiterPortalRequestQuota
 
     # ============================================================================
     # BOUNDED CONTEXT: TRANSLATION

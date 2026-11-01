@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Context\ClientPortal\Infrastructure\Messaging\Consumer;
 use App\Context\Billing\Domain\Event\InvoiceCancelledIntegrationEvent;
 use App\Context\Billing\Domain\Event\InvoiceIssuedForPortalIntegrationEvent;
 use App\Context\ClientPortal\Application\Command\BackfillDocumentPets\BackfillDocumentPets;
+use App\Context\ClientPortal\Application\Command\ClosePortalRequestsForSubject\ClosePortalRequestsForSubject;
 use App\Context\ClientPortal\Application\Command\PublishInvoice\PublishInvoice;
 use App\Context\ClientPortal\Application\Command\PublishPrescription\PublishPrescription;
 use App\Context\ClientPortal\Application\Command\ReleaseAwaitingDocuments\ReleaseAwaitingDocuments;
@@ -14,6 +15,8 @@ use App\Context\ClientPortal\Application\Command\RepointDocumentPatient\RepointD
 use App\Context\ClientPortal\Application\Command\WithdrawPublishedDocument\WithdrawPublishedDocument;
 use App\Context\ClientPortal\Domain\Document\DocumentType;
 use App\Context\ClientPortal\Domain\Event\ClientLinkConfirmedIntegrationEvent;
+use App\Context\ClientPortal\Domain\Request\ClosureReason;
+use App\Context\ClientPortal\Domain\Request\RequestSubject;
 use App\Context\ClientPortal\Infrastructure\Messaging\Consumer\ClientLinkConfirmedDocumentsConsumer;
 use App\Context\ClientPortal\Infrastructure\Messaging\Consumer\InvoiceCancelledIntegrationEventConsumer;
 use App\Context\ClientPortal\Infrastructure\Messaging\Consumer\InvoiceIssuedForPortalIntegrationEventConsumer;
@@ -75,11 +78,18 @@ final class DocumentConsumersTest extends TestCase
         $event = new PrescriptionCancelledIntegrationEvent('rx-1', 'clinic-1');
         new PrescriptionCancelledIntegrationEventConsumer($this->bus)($event);
 
-        $command = $this->only();
+        self::assertCount(2, $this->bus->commands);
+        [$command, $close] = $this->bus->commands;
         self::assertInstanceOf(WithdrawPublishedDocument::class, $command);
         self::assertSame(
             ['clinic-1', DocumentType::PRESCRIPTION, 'rx-1'],
             [$command->clinicId, $command->type, $command->sourceRef],
+        );
+        // Its open renewal request is closed (AC 238)
+        self::assertInstanceOf(ClosePortalRequestsForSubject::class, $close);
+        self::assertSame(
+            [RequestSubject::PRESCRIPTION, 'rx-1', ClosureReason::PRESCRIPTION_CANCELLED, 'clinic-1'],
+            [$close->subject, $close->subjectId, $close->reason, $close->clinicId],
         );
     }
 

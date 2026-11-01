@@ -34,7 +34,7 @@ final class QueryBusAdaptersTest extends TestCase
 
         $found = $clients->contactOf('clinic-1', 'client-1');
         self::assertNotNull($found);
-        self::assertSame(['client-1', 'Sophie Martin', 'Sophie', 's@example.com', '+33612345678', true], [$found->clientId, $found->displayName, $found->firstName, $found->email, $found->mobile, $found->archived]);
+        self::assertSame(['client-1', 'Sophie Martin', 'Sophie', 's@example.com', '+33612345678', true, 'email'], [$found->clientId, $found->displayName, $found->firstName, $found->email, $found->mobile, $found->archived, $found->transactionalChannel]);
 
         $snapshot = $clients->snapshotOf('clinic-1', 'client-1');
         self::assertNotNull($snapshot);

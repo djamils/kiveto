@@ -24,6 +24,12 @@ final readonly class ClinicPermissionGuard
     // Confirm or decline an online booking request (ClinicPermission::MANAGE_APPOINTMENTS).
     public const string MANAGE_APPOINTMENTS = 'manage_appointments';
 
+    // See the « Demandes Portal » queue and answer pet change requests (ClinicPermission::MANAGE_ANIMALS).
+    public const string MANAGE_ANIMALS = 'manage_animals';
+
+    // Answer a prescription renewal request (ClinicPermission::CREATE_PRESCRIPTION).
+    public const string CREATE_PRESCRIPTION = 'create_prescription';
+
     public function __construct(
         private QueryBusInterface $queryBus,
         private CurrentClinicContextInterface $currentClinicContext,

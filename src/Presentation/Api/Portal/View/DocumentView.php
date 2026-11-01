@@ -44,7 +44,7 @@ final readonly class DocumentView
                 $document->prescription->prescriptionId,
                 ApiDate::nullableDate($document->prescription->validUntil),
                 $document->prescription->renewable,
-                null,
+                RenewalStatusView::of($document->prescription->renewalStatus),
             ),
         );
     }

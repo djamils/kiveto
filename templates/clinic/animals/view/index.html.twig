@@ -117,6 +117,8 @@
     <form class="mbody fg" id="wForm" method="post" action="{{ path('clinic_animals_weight_record', {id: animal.id}) }}" novalidate>
       <input type="hidden" name="_token" value="{{ token }}">
       <input type="hidden" name="body_condition_score" value="">
+      {#- `portal` when opened from a Portal weight request: the owner is the author -#}
+      <input type="hidden" name="author" value="">
       <div class="f2">
         <div><label class="flbl" for="f_wkg">Poids (kg) <span class="req">*</span></label><input class="finput" id="f_wkg" name="weight" data-k="wkg" data-m="kg" data-req="1" inputmode="decimal" maxlength="8" autocomplete="off" placeholder="Ex. 14,2"><small class="ferr"></small></div>
         <div><label class="flbl" for="f_wday">Date</label><input class="finput" id="f_wday" name="measured_on" type="date" value="{{ today }}" max="{{ today }}"><small class="ferr"></small></div>

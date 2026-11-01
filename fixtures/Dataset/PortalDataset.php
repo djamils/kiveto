@@ -11,6 +11,7 @@ use App\Fixtures\Context\ClientPortal\Story\PortalAccountStatesStory;
 use App\Fixtures\Context\ClientPortal\Story\PortalBookingStory;
 use App\Fixtures\Context\ClientPortal\Story\PortalDocumentsStory;
 use App\Fixtures\Context\ClientPortal\Story\PortalPetsStory;
+use App\Fixtures\Context\ClientPortal\Story\PortalRequestsStory;
 use App\Fixtures\Context\Scheduling\Story\PortalPetsAppointmentsStory;
 use App\Fixtures\System\IdentityAccess\Factory\PortalUserFactory;
 use App\Fixtures\System\IdentityAccess\Story\PortalUserStory;
@@ -49,6 +50,12 @@ final class PortalDataset extends Story
         // Their accounts: verified e-mail, pending e-mail change, data
         // exports pending / ready / expired, and an account deleted.
         PortalAccountStatesStory::load();
+
+        // Their requests: pet changes and renewals in every state (open,
+        // urgent, done, refused, closed by a cancelled ordonnance), the
+        // pre-visit questionnaires (editable, locked, opened in the cockpit),
+        // and the clinics with an empty queue.
+        PortalRequestsStory::load();
 
         PortalUserFactory::createMany(5);
     }

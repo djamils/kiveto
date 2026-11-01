@@ -1,0 +1,109 @@
+{#
+ # Kiveto — templates/clinic/portal_requests/show.html.twig
+ # ───────────────────────────────────────────────────────
+ # One Portal request: what the owner asked, the values side by side for a
+ # change (« Valeur à la demande / Valeur actuelle / Valeur proposée »), a
+ # one-click weighing for a weight, and « Traiter » / « Refuser » while it
+ # waits (a renewal may link the prescription written for it). Owner free
+ # text is autoescaped, never |raw.
+ #
+ # Variables:
+ #   request     PortalRequestPageBuilder::detail()
+ #   canResolve  bool  the member may answer this kind of request
+ #
+ # Behaviour: assets/js/pages/portal-requests.js — styles: assets/styles/pages/portal-requests.css
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block page_body_class %}vt page-scroll{% endblock %}
+{% block title %}{{ request.kindLabel }} — {{ request.petName }}{% endblock %}
+
+{% block main %}
+{% set r = request %}
+<div class="prq prq-detail" data-page="clinic_portal_requests_show">
+  <div class="pagehead">
+    <h1>{{ r.kindLabel }}{% if not r.isRenewal %} · {{ r.fieldLabel }}{% endif %}<small>Reçue le {{ r.submittedAt }} depuis le Portal</small></h1>
+    <div class="right">
+      <a class="btn" href="{{ path('clinic_portal_requests') }}">Toutes les demandes</a>
+    </div>
+  </div>
+
+  <div class="prq-cards">
+    <section class="prq-card">
+      <div class="prq-head">
+        <span class="prq-st {{ r.status }}">{{ r.statusLabel }}</span>
+        {% if r.urgent %}<span class="prq-chip danger">Effets indésirables signalés</span>{% endif %}
+        {% if r.unreachable %}<span class="prq-chip warn">client injoignable</span>{% endif %}
+      </div>
+      <dl class="prq-dl">
+        <dt>Animal</dt><dd><a href="{{ r.petUrl }}">{{ r.petName }}</a></dd>
+        <dt>Client</dt><dd><a href="{{ r.clientUrl }}">{{ r.clientName }}</a></dd>
+        {% if r.isRenewal %}
+          <dt>État de l’animal</dt><dd>{{ r.conditionLabel }}</dd>
+          {% if r.prescriptionUrl %}<dt>Ordonnance</dt><dd><a href="{{ r.prescriptionUrl }}">Voir l’ordonnance à renouveler</a></dd>{% endif %}
+        {% endif %}
+        <dt>Note du propriétaire</dt><dd class="prq-text">{{ r.note ?? '—' }}</dd>
+      </dl>
+
+      {% if r.values is not null %}
+        <div class="prq-values">
+          <div><span>Valeur à la demande</span><b>{{ r.values.atSubmit ?? '—' }}</b></div>
+          <div><span>Valeur actuelle</span><b>{{ r.values.current ?? '—' }}</b></div>
+          <div class="new"><span>Valeur proposée</span><b class="prq-text">{{ r.values.proposed ?? '—' }}</b>{% if r.measuredOn %}<small>pesé le {{ r.measuredOn }}</small>{% endif %}</div>
+        </div>
+        {% if r.weighUrl %}
+          <p class="prq-hint"><a class="btn" href="{{ r.weighUrl }}">Saisir cette pesée sur la fiche</a> Le formulaire de pesée s’ouvre prérempli : vérifiez puis enregistrez (pesée déclarée par le propriétaire via le Portal).</p>
+        {% elseif r.status == 'submitted' %}
+          <p class="prq-hint">La fiche n’est pas modifiée automatiquement : appliquez le changement sur la <a href="{{ r.petUrl }}">fiche de l’animal</a>, puis traitez la demande.</p>
+        {% endif %}
+      {% endif %}
+    </section>
+
+    <section class="prq-card">
+      {% if r.status == 'submitted' %}
+        <h2>Répondre</h2>
+        {% if canResolve %}
+          <form method="post" action="{{ path('clinic_portal_requests_resolve', { id: r.id }) }}" class="prq-form" data-turbo="false" id="prqForm">
+            <input type="hidden" name="_token" value="{{ csrf_token('portal_request') }}">
+            <fieldset class="prq-outcome">
+              <label><input type="radio" name="outcome" value="done" checked> Traiter</label>
+              <label><input type="radio" name="outcome" value="rejected"> Refuser</label>
+            </fieldset>
+            {% if r.isRenewal %}
+              <label class="prq-field" data-outcome-only="done">
+                <span>Ordonnance émise pour cette demande <em>· facultatif</em></span>
+                <select name="resulting_prescription_id">
+                  <option value="">— Aucune —</option>
+                  {% for c in r.candidates %}<option value="{{ c.id }}">{{ c.label }}</option>{% endfor %}
+                </select>
+                {% if r.candidates is empty %}<small>Aucune ordonnance émise pour {{ r.petName }} depuis la demande.</small>{% endif %}
+              </label>
+            {% endif %}
+            <label class="prq-field">
+              <span>Message au client <em>· facultatif</em></span>
+              <textarea name="message" maxlength="280" rows="3" placeholder="Ex. L’ordonnance est prête à l’accueil."></textarea>
+              <small class="prq-count" data-max="280">0 / 280</small>
+            </label>
+            <div class="prq-actions">
+              <button type="submit" class="btn primaire">Envoyer la réponse</button>
+            </div>
+          </form>
+        {% else %}
+          <p class="prq-hint">Seul un membre habilité à prescrire peut répondre à une demande de renouvellement.</p>
+        {% endif %}
+      {% else %}
+        <h2>Réponse</h2>
+        <dl class="prq-dl">
+          {% if r.status == 'closed' %}
+            <dt>Close</dt><dd>{{ r.closedReason ?? 'sans suite' }}</dd>
+          {% else %}
+            <dt>{{ r.statusLabel }}</dt><dd>{{ r.resolvedAt ? 'le ' ~ r.resolvedAt }}{% if r.resolvedBy %} par {{ r.resolvedBy }}{% endif %}</dd>
+            <dt>Message</dt><dd class="prq-text">{{ r.resolutionMessage ?? '—' }}</dd>
+            {% if r.resultingPrescriptionUrl %}<dt>Ordonnance</dt><dd><a href="{{ r.resultingPrescriptionUrl }}">Voir l’ordonnance émise</a></dd>{% endif %}
+          {% endif %}
+        </dl>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

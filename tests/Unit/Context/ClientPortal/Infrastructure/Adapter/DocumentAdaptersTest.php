@@ -144,8 +144,8 @@ final class DocumentAdaptersTest extends TestCase
         $publication = $prescriptions->publication('clinic-1', 'rx-1');
 
         self::assertNotNull($publication);
-        self::assertSame(['rx-1', 'client-1', 'ORD-2026-000391', self::ISSUED_AT, 'cons-1', 'animal-1', 'Dr Claire Lambert'], [
-            $publication->prescriptionId, $publication->ownerClientId, $publication->number, $publication->issuedAt->format('Y-m-d H:i:s'), $publication->consultationId, $publication->animalId, $publication->prescriberName,
+        self::assertSame(['rx-1', 'client-1', 'ORD-2026-000391', self::ISSUED_AT, 'cons-1', 'animal-1', 'Dr Claire Lambert', 'user-1'], [
+            $publication->prescriptionId, $publication->ownerClientId, $publication->number, $publication->issuedAt->format('Y-m-d H:i:s'), $publication->consultationId, $publication->animalId, $publication->prescriberName, $publication->prescriberUserId,
         ]);
         $query = $bus->asked[0];
         self::assertInstanceOf(GetPrescriptionDetails::class, $query);

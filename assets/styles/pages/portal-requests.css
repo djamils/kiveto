@@ -1,0 +1,55 @@
+/* assets/styles/pages/portal-requests.css
+   « Demandes Portal »: the queue (filters, table) and the detail of one
+   request (values side by side, the answer form). Anchored on `.prq`. */
+.prq{padding:0 0 32px}
+.prq .pagehead h1{white-space:nowrap}
+.prq-tabs{display:flex;flex-wrap:wrap;gap:12px;padding:10px 20px;border-bottom:1px solid var(--trait);background:var(--carte)}
+.prq-seg{display:inline-flex;gap:2px;background:var(--brume);border-radius:8px;padding:2px}
+.prq-seg a{padding:6px 12px;border-radius:6px;font-size:.8rem;font-weight:600;color:var(--encre-60);text-decoration:none;white-space:nowrap}
+.prq-seg a.on{background:var(--carte);color:var(--pin-fonce);box-shadow:0 1px 2px rgba(15,23,42,.08)}
+.prq-vide{padding:60px 20px;text-align:center;color:var(--encre-60);font-size:.86rem}
+.prq-vide b{display:block;color:var(--encre);font-size:.95rem;margin-bottom:4px}
+.prq-table{width:100%;border-collapse:collapse;font-size:.84rem;background:var(--carte)}
+.prq-table th{text-align:left;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--encre-35);padding:11px 12px;border-bottom:1px solid var(--trait);white-space:nowrap}
+.prq-table td{padding:9px 12px;border-bottom:1px solid var(--brume);vertical-align:top}
+.prq-table td small{display:block;font-size:.74rem;color:var(--encre-60)}
+.prq-table td a{color:inherit;text-decoration:none}
+.prq-table tbody tr{cursor:pointer}
+.prq-table tbody tr:hover{background:#fafbff}
+.prq-table tr.urgent{box-shadow:inset 3px 0 0 var(--garance)}
+.prq-when{white-space:nowrap;color:var(--encre-60)}
+.prq-note{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--encre-60)}
+.prq-st{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:700;background:var(--brume);color:var(--encre-60)}
+.prq-st.submitted{background:var(--ambre-pale);color:#92550a}
+.prq-st.done{background:#ecfdf5;color:#047857}
+.prq-st.rejected{background:var(--garance-pale);color:#b91c1c}
+.prq-chip{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;font-size:.7rem;font-weight:700}
+.prq-chip.warn{background:var(--ambre-pale);color:#92550a}
+.prq-chip.danger{background:var(--garance-pale);color:#b91c1c}
+.prq-more{padding:14px 20px}
+.prq-cards{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px;padding:16px 20px}
+@media (max-width:900px){.prq-cards{grid-template-columns:1fr}}
+.prq-card{background:var(--carte);border:1px solid var(--trait);border-radius:12px;padding:16px 18px}
+.prq-card h2{font-size:.95rem;font-weight:700;margin:0 0 12px}
+.prq-head{display:flex;align-items:center;gap:6px;margin-bottom:12px}
+.prq-dl{display:grid;grid-template-columns:max-content 1fr;gap:8px 16px;font-size:.85rem;margin:0}
+.prq-dl dt{color:var(--encre-60);font-weight:600}
+.prq-dl dd{margin:0}
+.prq-text{white-space:pre-wrap;overflow-wrap:anywhere}
+.prq-values{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:16px}
+.prq-values > div{border:1px solid var(--trait);border-radius:10px;padding:10px 12px}
+.prq-values > div.new{border-color:rgba(67,56,202,.35);background:var(--pin-pale)}
+.prq-values span{display:block;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--encre-35);margin-bottom:4px}
+.prq-values b{font-size:.95rem}
+.prq-values small{display:block;font-size:.72rem;color:var(--encre-60);margin-top:2px}
+.prq-hint{font-size:.8rem;color:var(--encre-60);margin-top:12px;line-height:1.5}
+.prq-hint .btn{margin-right:8px}
+.prq-form{display:flex;flex-direction:column;gap:12px}
+.prq-outcome{display:flex;gap:16px;border:none;padding:0;margin:0;font-weight:600;font-size:.86rem}
+.prq-field{display:flex;flex-direction:column;gap:4px;font-size:.8rem;font-weight:600;color:var(--encre-60)}
+.prq-field em{font-style:normal;font-weight:400}
+.prq-field select,.prq-field textarea{border:1px solid var(--trait);border-radius:8px;padding:8px 10px;font:inherit;font-weight:400;color:var(--encre);background:var(--carte)}
+.prq-field small{font-weight:400}
+.prq-count{align-self:flex-end}
+.prq-actions{display:flex;justify-content:flex-end}
+.prq-field[hidden]{display:none}

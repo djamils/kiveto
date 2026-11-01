@@ -16,6 +16,8 @@ use App\Context\Inventory\Application\Query\WatchStock\WatchStock;
 use App\Context\Inventory\Domain\StockAlert\ValueObject\StockAlertSeverity;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\AppointmentItem;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\GetAgendaForClinicDateRange;
+use App\Presentation\Clinic\Security\ClinicPermissionGuard;
+use App\Presentation\Clinic\ViewModel\PortalRequest\PortalRequestQueue;
 use App\Presentation\Clinic\ViewModel\Shared\SheetText;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
@@ -29,7 +31,7 @@ use Symfony\Contracts\Service\ResetInterface;
  * Builds what the application shell shows on every clinic page: the member's
  * clinics for the switcher, the member themselves for the topbar, and the few
  * live figures the shell surfaces (practitioners, today's appointments, critical
- * stock alerts, unread bell entries). Every figure comes from a query; nothing
+ * stock alerts, unread bell entries, Portal requests to answer). Every figure comes from a query; nothing
  * is made up.
  */
 final class ShellViewBuilder implements ResetInterface
@@ -54,6 +56,8 @@ final class ShellViewBuilder implements ResetInterface
         private readonly CurrentClinicContextInterface $currentClinicContext,
         private readonly Security $security,
         private readonly ClockInterface $clock,
+        private readonly ClinicPermissionGuard $permissions,
+        private readonly PortalRequestQueue $portalRequests,
     ) {
     }
 
@@ -143,6 +147,9 @@ final class ShellViewBuilder implements ResetInterface
             address: null === $settings ? null : $this->address($settings),
             stockAlertCount: $critical,
             unreadNotifications: $this->unreadNotifications($user->id(), $currentClinicId),
+            portalRequestCount: $this->permissions->has(ClinicPermissionGuard::MANAGE_ANIMALS)
+                ? \count($this->portalRequests->open($currentClinicId))
+                : 0,
         );
     }
 

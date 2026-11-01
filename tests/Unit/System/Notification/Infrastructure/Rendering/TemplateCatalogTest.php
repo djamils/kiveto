@@ -53,6 +53,13 @@ final class TemplateCatalogTest extends TestCase
         self::assertSame('portal_data_export_ready', TemplateCatalog::templateName(MessagePurpose::PORTAL_DATA_EXPORT_READY));
     }
 
+    public function testTheAnswerToAPortalRequestGoesOnBothChannels(): void
+    {
+        self::assertSame(['addressee' => 'scalar', 'petName' => 'scalar', 'sentence' => 'scalar', 'staffMessage' => 'scalar'], TemplateCatalog::parameters(MessagePurpose::PORTAL_REQUEST_RESOLVED, Channel::EMAIL));
+        self::assertSame(['sentence' => 'scalar', 'staffMessage' => 'scalar'], TemplateCatalog::parameters(MessagePurpose::PORTAL_REQUEST_RESOLVED, Channel::SMS));
+        self::assertSame('portal_request_resolved', TemplateCatalog::templateName(MessagePurpose::PORTAL_REQUEST_RESOLVED));
+    }
+
     public function testTheDeclineOfAPendingRequestGoesOnBothChannels(): void
     {
         self::assertTrue(TemplateCatalog::supports(MessagePurpose::APPOINTMENT_DECLINED, Channel::EMAIL));

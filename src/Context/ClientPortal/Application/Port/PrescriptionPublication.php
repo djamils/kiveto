@@ -14,6 +14,7 @@ final readonly class PrescriptionPublication
         public string $consultationId,
         public ?string $animalId,
         public string $prescriberName,
+        public ?string $prescriberUserId = null,
     ) {
     }
 }

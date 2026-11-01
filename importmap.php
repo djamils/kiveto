@@ -105,6 +105,9 @@ return [
     'pages/stock' => [
         'path' => './assets/js/pages/stock.js',
     ],
+    'pages/portal-requests' => [
+        'path' => './assets/js/pages/portal-requests.js',
+    ],
     'pages/auth' => [
         'path' => './assets/js/pages/auth.js',
     ],

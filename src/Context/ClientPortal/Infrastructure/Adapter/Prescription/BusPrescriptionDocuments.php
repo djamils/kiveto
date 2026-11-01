@@ -48,6 +48,7 @@ final readonly class BusPrescriptionDocuments implements PrescriptionDocumentsIn
             $prescription->consultationId,
             $prescription->patientAnimalId,
             $prescription->prescriberName,
+            $prescription->prescriberId,
         );
     }
 

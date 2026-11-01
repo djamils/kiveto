@@ -17,6 +17,7 @@ use App\Presentation\Clinic\ViewModel\Consultation\CockpitPatientBuilder;
 use App\Presentation\Clinic\ViewModel\Consultation\CockpitReferenceData;
 use App\Presentation\Clinic\ViewModel\Consultation\CockpitStateBuilder;
 use App\Presentation\Clinic\ViewModel\Consultation\PortalShareViewBuilder;
+use App\Presentation\Clinic\ViewModel\PortalRequest\QuestionnaireView;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use App\Shared\Domain\Time\ClockInterface;
@@ -36,6 +37,7 @@ final class ConsultationDetailsController extends AbstractController
         private readonly CockpitContextBuilder $contextBuilder,
         private readonly ClockInterface $clock,
         private readonly PortalShareViewBuilder $portalShare,
+        private readonly QuestionnaireView $questionnaires,
     ) {
     }
 
@@ -75,7 +77,9 @@ final class ConsultationDetailsController extends AbstractController
                 'serverNowUtc' => $this->clock->now()->format('Y-m-d H:i:s'),
                 'endpoints'    => $this->endpoints($id),
                 'documents'    => $this->documents($id, $clinicId, $consultation->admissionId, $clientId, $letterhead['timeZone']),
-                'context'      => [
+                // Started from an appointment: the owner's pre-visit questionnaire, if any
+                'questionnaire' => null === $consultation->appointmentId ? null : $this->questionnaires->of($clinicId, $consultation->appointmentId),
+                'context'       => [
                     'origin'       => $this->contextBuilder->origin($consultation, $letterhead['timeZone']),
                     'letterhead'   => $letterhead,
                     'due'          => $this->contextBuilder->due($animalId, $clinicId),

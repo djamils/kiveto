@@ -231,6 +231,26 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
         ];
     }
 
+    public function appointmentIdsWithConsultation(ClinicId $clinicId, array $appointmentIds): array
+    {
+        if ([] === $appointmentIds) {
+            return [];
+        }
+
+        $ids = $this->connection->fetchFirstColumn(
+            'SELECT appointment_id FROM consultation__consultations
+             WHERE clinic_id = :clinicId AND appointment_id IN (:appointmentIds)
+             ORDER BY appointment_id',
+            [
+                'clinicId'       => Uuid::fromString($clinicId->toString())->toBinary(),
+                'appointmentIds' => self::toBinaryIds($appointmentIds),
+            ],
+            ['appointmentIds' => ArrayParameterType::BINARY],
+        );
+
+        return array_map(static fn (mixed $id): string => Uuid::fromBinary(\is_string($id) ? $id : '')->toRfc4122(), $ids);
+    }
+
     public function hasOpenConsultationForAdmission(
         AdmissionId $admissionId,
         ClinicId $clinicId,

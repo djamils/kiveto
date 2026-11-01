@@ -36,6 +36,13 @@ interface PublishedDocumentReadModelInterface
     public function findBySource(string $userId, string $clinicId, string $type, string $sourceRef): ?ListedDocument;
 
     /**
+     * Whether the source was ever published to a client file the account
+     * reaches through a confirmed link, withdrawn since or not (a cancelled
+     * prescription is still the account's, just no longer listed).
+     */
+    public function wasPublished(string $userId, string $clinicId, string $type, string $sourceRef): bool;
+
+    /**
      * The storage key of one served version of a document still published,
      * or null (unknown, withdrawn, never served, version not yet stored).
      * No account scope: the caller holds a signed URL.

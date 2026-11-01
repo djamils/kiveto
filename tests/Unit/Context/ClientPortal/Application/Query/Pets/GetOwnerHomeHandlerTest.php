@@ -13,6 +13,9 @@ use App\Context\ClientPortal\Application\Query\ListOwnerPets\OwnerPet;
 use App\Context\ClientPortal\Application\Query\ListPublishedDocuments\ListPublishedDocumentsHandler;
 use App\Context\ClientPortal\Application\Query\ListPublishedDocuments\PortalDocument;
 use App\Context\ClientPortal\Application\Service\PortalAppointments;
+use App\Context\ClientPortal\Application\Service\RenewalStatuses;
+use App\Tests\Unit\Context\ClientPortal\Support\InMemoryQuestionnaires;
+use App\Tests\Unit\Context\ClientPortal\Support\InMemoryRenewalRequests;
 use App\Tests\Unit\Context\ClientPortal\Support\PetWorld as W;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\ErrorHandler\BufferingLogger;
@@ -144,9 +147,9 @@ final class GetOwnerHomeHandlerTest extends TestCase
             $world->ownerPets(),
             $world->careItems(),
             $world->fakes,
-            new PortalAppointments($world->careItems(), $world->fakes, $documents->fakes),
+            new PortalAppointments($world->careItems(), $world->fakes, $documents->fakes, new InMemoryQuestionnaires()),
             $world->model,
-            new ListPublishedDocumentsHandler($world->model, $documents->invoices, $documents->prescriptions, $documents->fakes, new BufferingLogger()),
+            new ListPublishedDocumentsHandler($world->model, $documents->invoices, $documents->prescriptions, $documents->fakes, new RenewalStatuses(new InMemoryRenewalRequests()), new BufferingLogger()),
             $documents->clock,
         );
     }

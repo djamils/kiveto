@@ -10,11 +10,13 @@ use App\Context\ClientPortal\Application\Port\PortalPet;
 use App\Context\ClientPortal\Application\Port\PractitionerNamesInterface;
 use App\Context\ClientPortal\Application\Query\ListOwnerAppointments\PortalAppointment;
 use App\Context\ClientPortal\Application\Query\ListOwnerCareItems\OwnerCareItem;
+use App\Context\ClientPortal\Domain\Request\PreVisitQuestionnaireRepositoryInterface;
 
 /**
  * Turns Scheduling's appointments into the owner's view: pet names from
  * the visible pets, printed practitioner names looked up once, instants in the
- * clinic's time zone, the related care item of the motif's kind.
+ * clinic's time zone, the related care item of the motif's kind, the
+ * questionnaire status of the page (one read).
  */
 final readonly class PortalAppointments
 {
@@ -22,6 +24,7 @@ final readonly class PortalAppointments
         private CareItems $careItems,
         private PractitionerNamesInterface $practitioners,
         private ClinicProfileInterface $clinics,
+        private PreVisitQuestionnaireRepositoryInterface $questionnaires,
     ) {
     }
 
@@ -59,8 +62,9 @@ final readonly class PortalAppointments
             $petNames[$pet->id] = $pet->name;
         }
 
-        $care  = $this->relatedCare($clinicId, $appointments, $pets);
-        $views = [];
+        $care      = $this->relatedCare($clinicId, $appointments, $pets);
+        $submitted = $this->submittedQuestionnaires($clinicId, $appointments);
+        $views     = [];
 
         foreach ($appointments as $appointment) {
             $petName = null === $appointment->animalId ? null : ($petNames[$appointment->animalId] ?? null);
@@ -81,12 +85,30 @@ final readonly class PortalAppointments
                 $appointment->isPending,
                 $appointment->source,
                 $appointment->cancellableUntil?->setTimezone($timeZone),
-                PortalAppointment::QUESTIONNAIRE_NOT_STARTED,
+                isset($submitted[$appointment->id]) ? PortalAppointment::QUESTIONNAIRE_SUBMITTED : PortalAppointment::QUESTIONNAIRE_NOT_STARTED,
                 $care[$appointment->animalId ?? ''][$appointment->preventiveCareKind ?? ''] ?? null,
             );
         }
 
         return $views;
+    }
+
+    /**
+     * @param list<OwnerAppointment> $appointments
+     *
+     * @return array<string, true> the appointments with a submitted questionnaire
+     */
+    private function submittedQuestionnaires(string $clinicId, array $appointments): array
+    {
+        $submitted = [];
+
+        foreach ($this->questionnaires->findByAppointments($clinicId, array_map(static fn (OwnerAppointment $a): string => $a->id, $appointments)) as $questionnaire) {
+            if ($questionnaire->isSubmitted()) {
+                $submitted[$questionnaire->appointmentId()] = true;
+            }
+        }
+
+        return $submitted;
     }
 
     /**

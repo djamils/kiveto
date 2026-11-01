@@ -7,7 +7,8 @@ namespace App\Context\ClientPortal\Application\Port;
 final readonly class PortalClientContact
 {
     /**
-     * @param string|null $mobile the SMS-capable phone on file (E.164), primary first
+     * @param string|null $mobile               the SMS-capable phone on file (E.164), primary first
+     * @param string|null $transactionalChannel `sms` or `email`: the single channel of a transactional message, null when unreachable
      */
     public function __construct(
         public string $clientId,
@@ -16,6 +17,7 @@ final readonly class PortalClientContact
         public ?string $email,
         public ?string $mobile,
         public bool $archived,
+        public ?string $transactionalChannel = null,
     ) {
     }
 }

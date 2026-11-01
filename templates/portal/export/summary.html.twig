@@ -34,6 +34,9 @@
   'completed': 'Effectué',
   'no_show': 'Non honoré',
 } %}
+{% set REQUEST_LABELS = { 'pet_change': 'Modification de la fiche', 'prescription_renewal': 'Renouvellement d’ordonnance' } %}
+{% set FIELD_LABELS = { 'name': 'Nom', 'weight': 'Poids', 'sterilization': 'Stérilisation', 'chip_number': 'Numéro d’identification', 'other': 'Autre' } %}
+{% set REQUEST_STATUS_LABELS = { 'submitted': 'Envoyée', 'done': 'Traitée', 'rejected': 'Refusée', 'closed': 'Close' } %}
 {% set DOCUMENT_LABELS = { 'invoice': 'Facture', 'prescription': 'Ordonnance', 'report': 'Compte rendu', 'lab_result': 'Résultat d’analyse', 'certificate': 'Certificat' } %}
 {% set profile = account.profile %}
 
@@ -149,6 +152,43 @@
               <td>{{ document.issuedAt|date('d/m/Y', false) }}</td>
               <td>{{ DOCUMENT_LABELS[document.type]|default(document.type) }}</td>
               <td>{{ document.title }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+
+    <p class="plabel">Demandes</p>
+    {% if file.requests is empty %}
+      <div class="box"><p>Aucune demande.</p></div>
+    {% else %}
+      <table class="data">
+        <thead><tr><th style="width:28mm;">Date</th><th style="width:45mm;">Demande</th><th>Détail</th><th style="width:22mm;">Statut</th></tr></thead>
+        <tbody>
+          {% for request in file.requests %}
+            <tr>
+              <td>{{ request.submittedAt|date('d/m/Y H:i', false) }}</td>
+              <td>{{ REQUEST_LABELS[request.kind]|default(request.kind) }}{% if request.field %} — {{ FIELD_LABELS[request.field]|default(request.field) }}{% endif %}</td>
+              <td>{{ request.proposedValue ?? '' }}{% if request.note %} {{ request.note }}{% endif %}{% if request.resolutionMessage %} — Réponse : {{ request.resolutionMessage }}{% endif %}</td>
+              <td>{{ REQUEST_STATUS_LABELS[request.status]|default(request.status) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+
+    <p class="plabel">Questionnaires avant visite</p>
+    {% if file.questionnaires is empty %}
+      <div class="box"><p>Aucun questionnaire.</p></div>
+    {% else %}
+      <table class="data">
+        <thead><tr><th style="width:28mm;">Mis à jour</th><th>Remarques</th><th style="width:22mm;">Statut</th></tr></thead>
+        <tbody>
+          {% for questionnaire in file.questionnaires %}
+            <tr>
+              <td>{{ questionnaire.updatedAt|date('d/m/Y H:i', false) }}</td>
+              <td>{{ questionnaire.notes ?? '—' }}</td>
+              <td>{{ REQUEST_STATUS_LABELS[questionnaire.status]|default(questionnaire.status) }}</td>
             </tr>
           {% endfor %}
         </tbody>

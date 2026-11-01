@@ -26,6 +26,9 @@ final class FakePublishedDocumentReadModel implements PublishedDocumentReadModel
     /** @var array<string, ListedDocument> by "type/source" */
     public array $bySource = [];
 
+    /** @var list<string> `<type>/<source>` published to the account then withdrawn */
+    public array $withdrawnSources = [];
+
     /** @var array<string, string> by "document/version" */
     public array $versionKeys = [];
 
@@ -73,6 +76,11 @@ final class FakePublishedDocumentReadModel implements PublishedDocumentReadModel
         $this->calls[] = 'findBySource:' . $userId . ':' . $clinicId . ':' . $type . ':' . $sourceRef;
 
         return $this->bySource[$type . '/' . $sourceRef] ?? null;
+    }
+
+    public function wasPublished(string $userId, string $clinicId, string $type, string $sourceRef): bool
+    {
+        return isset($this->bySource[$type . '/' . $sourceRef]) || \in_array($type . '/' . $sourceRef, $this->withdrawnSources, true);
     }
 
     public function versionKey(string $clinicId, string $documentId, int $version): ?string
