@@ -10,7 +10,9 @@ final readonly class LoginOtpOutcome
 {
     /**
      * @param string|null                   $userId             the active owner account, when authenticated only
-     * @param string|null                   $onboardingToken    in clear, when invitations are pending: it only
+     * @param string|null                   $onboardingToken    in clear, when invitations are pending (an
+     *                                                          `invitation` grant) or when the phone must
+     *                                                          register (a `registration` grant): it only
      *                                                          exists in this answer
      * @param list<PendingPortalInvitation> $pendingInvitations
      */

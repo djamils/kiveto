@@ -152,6 +152,26 @@ services:
         alias: limiter.portal_otp_unknown_global
         public: true
 
+    test.limiter.portal_otp_unknown_network:
+        alias: limiter.portal_otp_unknown_network
+        public: true
+
+    test.limiter.portal_otp_unknown_alert:
+        alias: limiter.portal_otp_unknown_alert
+        public: true
+
+    test.limiter.portal_register:
+        alias: limiter.portal_register
+        public: true
+
+    test.limiter.portal_listing_booking:
+        alias: limiter.portal_listing_booking
+        public: true
+
+    test.limiter.portal_public_listing:
+        alias: limiter.portal_public_listing
+        public: true
+
     # Both DBAL connections run inside DAMA's per-test transaction, so the
     # rate limiters' lock rows (rate_limiter connection) and the shared lock
     # rows (default connection, e.g. Idempotency-Key) would hold InnoDB locks

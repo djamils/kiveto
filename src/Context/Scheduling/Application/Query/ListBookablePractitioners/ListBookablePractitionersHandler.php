@@ -42,7 +42,7 @@ final readonly class ListBookablePractitionersHandler
         $clinicId = ClinicId::fromString($query->clinicId);
         $motif    = $this->motifs->findInClinic(BookingMotifId::fromString($query->motifId), $clinicId);
 
-        if (null === $motif || $motif->isArchived() || !$motif->isOnlineEnabled()) {
+        if (null === $motif || $motif->isArchived() || !$motif->isOnlineEnabled() || ($query->newClient && !$motif->newClientsAllowed())) {
             return null;
         }
 

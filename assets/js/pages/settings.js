@@ -2,12 +2,13 @@
  * Page module — Paramètres (parametres-v-topbar_5 mock-up). Loaded by the
  * app.js dispatcher on clinic_settings, clinic_settings_hours,
  * clinic_settings_notifications, clinic_settings_agenda,
- * clinic_settings_online_booking, clinic_settings_billing and
- * clinic_settings_preferences.
+ * clinic_settings_online_booking, clinic_settings_directory,
+ * clinic_settings_billing and clinic_settings_preferences.
  *
  * « Réservation en ligne » saves its general settings like any section; its
  * motifs are edited one at a time in their own form, saved and archived on
- * their own endpoints.
+ * their own endpoints. « Annuaire » keeps its tags as one comma-separated
+ * field and posts them as a list.
  *
  * The mock-up renders its sections from a schema and a table of values; this
  * module does the same with the values of the `data-payload` of
@@ -57,6 +58,7 @@ const IC = {
   bell: I('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>'),
   warn: I('<path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/>'),
   web: I('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>'),
+  pin: I('<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>'),
   team: I('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.4 3.4-5.5 6.5-5.5s5.7 2.1 6.5 5.5"/><circle cx="17.5" cy="9" r="2.6"/><path d="M15.7 14.7c2.7.3 4.9 2.1 5.6 5.1"/>'),
   ext: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg>',
   rm: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
@@ -88,6 +90,10 @@ export function init() {
   const RL_KEYS = { 'rl.on': 'enabled', 'rl.grille': 'gridStepMinutes', 'rl.delai': 'minLeadTimeMinutes', 'rl.manuel': 'minLeadTimeManualHours', 'rl.horizon': 'horizonDays', 'rl.annul': 'cancellationWindowHours', 'rl.nouveaux': 'newClientBookingEnabled' };
   if (RL) Object.entries(RL_KEYS).forEach(([k, f]) => { V[k] = RL.settings[f]; });
   let MOTIFS = RL ? RL.motifs : [];
+  /* Directory: its settings under `an.` keys, the field names ClinicListing answers with; the tags edited as one text */
+  const AN = P.annuaire;
+  const AN_KEYS = { 'an.liste': 'listed', 'an.nouveaux': 'acceptsNewClients', 'an.tags': 'tags' };
+  if (AN) { V['an.liste'] = AN.listed; V['an.nouveaux'] = AN.acceptsNewClients; V['an.tags'] = AN.tags.join(', ') || null; }
   let EDIT = null; // the motif being edited (a copy), `id` null for a new one
   const USAGE = P.notifications ? P.notifications.usage : null;
   let HORAIRES = P.horaires ? P.horaires.week : [];
@@ -155,6 +161,13 @@ export function init() {
       ] },
       { t: 'Motifs', d: 'Ce que le client choisit en réservant : sa durée, qui peut le recevoir et sur quelles plages.', custom: 'motifs' },
     ] },
+    { id: 'annuaire', g: 'Activité', l: 'Annuaire', ico: IC.pin, d: 'Votre fiche dans l\'annuaire des cliniques du Portal, où de futurs clients vous trouvent par nom, ville ou distance.', blocks: [
+      { t: 'Fiche', d: 'Le nom, l\'adresse, le téléphone et les horaires viennent de l\'Identité et des Horaires de la clinique.', custom: 'anAlerte', rows: [
+        R('an.liste', 'Figurer dans l\'annuaire', 'Les utilisateurs du Portal trouvent la clinique et consultent sa fiche.', 'sw'),
+        R('an.nouveaux', 'Accepte de nouveaux clients', 'Décoché, la fiche reste visible mais la prise de rendez-vous en ligne n\'est pas proposée aux nouveaux clients.', 'sw'),
+        R('an.tags', 'Spécialités affichées', '8 au plus, séparées par des virgules : NAC, Urgences, Équidés…', 'text', { max: 300, w: 360 }),
+      ] },
+    ] },
     { id: 'planning', g: 'Activité', l: 'Planning', ico: IC.plan, off: true },
     { id: 'alertes', g: 'Activité', l: 'Alertes de soins', ico: IC.steth, off: true },
     { id: 'ordonnances', g: 'Soins', l: 'Ordonnances', ico: IC.rx, off: true },
@@ -178,7 +191,7 @@ export function init() {
   const ouverte = s => !s.off && !!CAN[s.id];
   const ROWS = SECTIONS.filter(ouverte).flatMap(s => s.blocks.flatMap(b => (b.rows || []).map(r => ({ ...r, s }))));
   const secDe = k => ROWS.find(r => r.k === k || (r.type === 'adresse' && k.startsWith(r.pre + '.')))?.s.id
-    ?? (k.startsWith('id.') ? 'identite' : k.startsWith('moi.') ? 'moi' : k.startsWith('no.') ? 'notifications' : k.startsWith('ag.') ? 'agenda' : k.startsWith('rl.') ? 'reservation-en-ligne' : 'facturation');
+    ?? (k.startsWith('id.') ? 'identite' : k.startsWith('moi.') ? 'moi' : k.startsWith('no.') ? 'notifications' : k.startsWith('ag.') ? 'agenda' : k.startsWith('rl.') ? 'reservation-en-ligne' : k.startsWith('an.') ? 'annuaire' : 'facturation');
   const txt = d => typeof d === 'function' ? d() : (d || '');
 
   /* ═════════ State ═════════ */
@@ -192,6 +205,7 @@ export function init() {
     if (sec === 'horaires') return { week: HORAIRES.map(d => d[1]), closures: FERMETURES };
     if (sec === 'moi') return { 'moi.clin': V['moi.clin'] };
     if (sec === 'reservation-en-ligne') return Object.fromEntries(Object.entries(RL_KEYS).map(([k, f]) => [f, V[k]]));
+    if (sec === 'annuaire') return { listed: !!V['an.liste'], acceptsNewClients: !!V['an.nouveaux'], tags: String(V['an.tags'] || '').split(',').map(t => t.trim()).filter(Boolean) };
     const pre = sec === 'identite' ? ['id.'] : sec === 'notifications' ? ['no.'] : sec === 'agenda' ? ['ag.'] : ['fa.', 'fe.'];
     return Object.fromEntries(Object.entries(V).filter(([k]) => pre.some(p => k.startsWith(p))));
   }
@@ -218,7 +232,7 @@ export function init() {
       $('savedT').textContent = 'Non enregistré';
       showToast(e.message);
       if (e.field) {
-        const k = Object.keys(RL_KEYS).find(x => RL_KEYS[x] === e.field) || e.field;
+        const k = Object.keys(RL_KEYS).find(x => RL_KEYS[x] === e.field) || (sec === 'annuaire' && Object.keys(AN_KEYS).find(x => AN_KEYS[x] === e.field)) || e.field;
         const t = $('pin').querySelector(`[data-txt="${k}"]`); if (t) erreur(t, e.message);
         const row = $('pin').querySelector(`[data-row="${k}"]`); if (row) { row.classList.remove('hl'); void row.offsetWidth; row.classList.add('hl'); }
       }
@@ -376,6 +390,10 @@ export function init() {
   /* Online booking: without opening hours no slot can be offered (AC 41). */
   CUSTOM.rlAlerte = () => RL && RL.hoursMissing
     ? `<div class="bandeau warn" style="margin:4px 0 8px">${IC.warn}<div><b>Horaires d'ouverture requis pour la réservation en ligne</b>Aucun créneau n'est proposé tant que la semaine de la clinique est vide. <a href="${esc(P.urls.sections.horaires)}">Renseigner les horaires</a></div></div>`
+    : '';
+  /* Directory: without a letterhead address the card has no address and no distance (S7c). */
+  CUSTOM.anAlerte = () => AN && AN.addressMissing
+    ? `<div class="bandeau warn" style="margin:4px 0 8px">${IC.warn}<div><b>Adresse de la clinique manquante</b>La fiche s'affiche sans adresse et n'apparaît pas dans les recherches autour d'un lieu. <a href="${esc(P.urls.sections.identite)}">Renseigner l'adresse</a></div></div>`
     : '';
   /* The motifs: one line each, one opened in its form at a time. */
   const CONFIRM = [['auto', 'Confirmé aussitôt'], ['manual', 'À confirmer par la clinique']];

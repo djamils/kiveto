@@ -22,7 +22,7 @@ use Symfony\Component\Validator\Constraints as Assert;
                 tags: ['Authentification'],
                 summary: 'Vérifie un code de connexion.',
                 responses: [
-                    '200' => new Response(description: '`status` = `authenticated` (paire de jetons, invitations en attente), `invitation_pending` (jeton d\'onboarding, invitations) ou `registration_required`.'),
+                    '200' => new Response(description: '`status` = `authenticated` (paire de jetons, invitations en attente), `invitation_pending` (jeton d\'onboarding, invitations) ou `registration_required` (`registrationToken`, 15 min, usage unique, à présenter à `POST /auth/register`).'),
                     '403' => new Response(description: '`account_disabled`.'),
                     '422' => new Response(description: '`otp_invalid`, `otp_expired`, `otp_attempts_exceeded` ou `validation_failed`.'),
                 ],

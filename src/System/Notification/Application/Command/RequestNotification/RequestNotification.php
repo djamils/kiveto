@@ -15,7 +15,7 @@ use App\Shared\Application\Bus\CommandInterface;
  *   APPOINTMENT_REMINDER, INVOICE_SENT, INVOICE_REMINDER, CONSULTATION_DOCUMENTS,
  *   STAFF_INVITATION, PASSWORD_RESET, TEST, PORTAL_OTP, PORTAL_INVITATION,
  *   PORTAL_EMAIL_VERIFICATION, PORTAL_EMAIL_CHANGED_NOTICE, PORTAL_DATA_EXPORT_READY or
- *   PORTAL_REQUEST_RESOLVED (see MessagePurpose);
+ *   PORTAL_REQUEST_RESOLVED or PORTAL_BOOKING_DECLINED (see MessagePurpose);
  *   criticality and sender follow from it.
  * - channel: EMAIL or SMS; the recipient address is an e-mail address or an E.164 number.
  * - clinicId: the clinic the message is sent on behalf of (required except

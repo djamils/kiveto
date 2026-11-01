@@ -1,0 +1,107 @@
+{#
+ # Kiveto — templates/clinic/portal_requests/booking_request.html.twig
+ # ──────────────────────────────────────────────────────────────
+ # One « Nouveau client » request: a Portal account asks for a first
+ # appointment through the clinic directory. Staff check the profile name
+ # against the files whose mobile is the account's phone (« Nom différent »,
+ # « Déjà relié à un autre compte Portal »), pick a file or create one, pick
+ # an animal of it or create the new pet, then « Confirmer » or « Refuser ».
+ # The profile and pet names are owner text: autoescaped, never |raw.
+ #
+ # Variables:
+ #   request  PortalRequestPageBuilder::bookingDetail()
+ #
+ # Behaviour: assets/js/pages/portal-requests.js — styles: assets/styles/pages/portal-requests.css
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block page_body_class %}vt page-scroll{% endblock %}
+{% block title %}{{ request.kindLabel }} — {{ request.ownerName }}{% endblock %}
+
+{% block main %}
+{% set r = request %}
+{% set _client_default = r.attachedClientId ?? (r.matches|length == 1 and not r.matches[0].mismatch ? r.matches[0].clientId : 'new') %}
+<div class="prq prq-detail" data-page="clinic_portal_booking_requests_show">
+  <div class="pagehead">
+    <h1>{{ r.kindLabel }} · demande de rendez-vous<small>Reçue le {{ r.submittedAt }} depuis l’annuaire du Portal</small></h1>
+    <div class="right">
+      <a class="btn" href="{{ path('clinic_portal_requests') }}">Toutes les demandes</a>
+    </div>
+  </div>
+
+  <div class="prq-cards">
+    <section class="prq-card">
+      <div class="prq-head">
+        <span class="prq-st {{ r.pending ? 'submitted' : r.status }}">{{ r.statusLabel }}</span>
+      </div>
+      <dl class="prq-dl">
+        <dt>Profil Portal</dt><dd class="prq-text" data-owner-name>{{ r.ownerName }}</dd>
+        <dt>Mobile</dt><dd>{{ r.phone ?? '—' }}</dd>
+        <dt>Animal</dt><dd class="prq-text" data-pet-name>{{ r.petName }} ({{ r.petSpecies }})</dd>
+        <dt>Motif</dt><dd>{{ r.motif }}</dd>
+        <dt>Créneau</dt><dd>{{ r.slot }} · <a href="{{ r.agendaUrl }}">voir l’agenda</a></dd>
+      </dl>
+      {% if r.pending %}
+        <p class="prq-hint">Le créneau est réservé en attente. Le propriétaire n’accède à aucune donnée de la clinique tant que vous n’avez pas confirmé.</p>
+      {% endif %}
+    </section>
+
+    {% if r.pending %}
+      <section class="prq-card">
+        <h2>Répondre</h2>
+        <form method="post" action="{{ path('clinic_portal_booking_requests_confirm', { id: r.id }) }}" data-turbo="false" data-prq-once id="prqBookingConfirm">
+          <input type="hidden" name="_token" value="{{ csrf_token('portal_booking_request') }}">
+
+          <p class="prq-label">Dossier client</p>
+          <table class="prq-table prq-files">
+            <thead>
+              <tr><th></th><th>Dossier avec ce mobile</th><th>Animaux</th><th>Vérifications</th></tr>
+            </thead>
+            <tbody>
+              {% for m in r.matches %}
+                <tr data-client-id="{{ m.clientId }}">
+                  <td><input type="radio" name="client" value="{{ m.clientId }}" id="prqClient{{ loop.index }}" {{ _client_default == m.clientId ? 'checked' }}></td>
+                  <td><label for="prqClient{{ loop.index }}"><a href="{{ m.url }}">{{ m.name }}</a></label><small>Profil Portal : {{ r.ownerName }}</small></td>
+                  <td>{{ m.pets is empty ? '—' : m.pets|map(p => p.label)|join(', ') }}</td>
+                  <td>
+                    {% if m.mismatch %}<span class="prq-chip warn" data-badge="mismatch">Nom différent du profil Portal</span>{% endif %}
+                    {% if m.linkedElsewhere %}<span class="prq-chip warn" data-badge="linked-elsewhere">Déjà relié à un autre compte Portal</span>{% endif %}
+                    {% if m.attached %}<span class="prq-chip" data-badge="attached">Dossier d’une autre demande confirmée</span>{% endif %}
+                    {% if not m.mismatch and not m.linkedElsewhere %}<span class="prq-chip">Nom identique</span>{% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+              {% if r.attachedClientId is null %}
+                <tr data-client-id="new">
+                  <td><input type="radio" name="client" value="new" id="prqClientNew" {{ _client_default == 'new' ? 'checked' }}></td>
+                  <td colspan="3"><label for="prqClientNew">Créer un dossier client « {{ r.ownerName }} » avec ce mobile</label></td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+
+          <p class="prq-label">Animal</p>
+          <ul class="prq-choices">
+            {% for m in r.matches %}
+              {% for p in m.pets %}
+                <li><label><input type="radio" name="animal" value="{{ p.id }}" {{ p.same and _client_default == m.clientId ? 'checked' }}> {{ p.label }} — {{ m.name }}</label></li>
+              {% endfor %}
+            {% endfor %}
+            <li><label><input type="radio" name="animal" value="new" {{ r.matches|filter(m => m.clientId == _client_default and m.pets|filter(p => p.same) is not empty) is empty ? 'checked' }}> Créer « {{ r.petName }} » ({{ r.petSpecies }}) pour le dossier choisi</label></li>
+          </ul>
+
+          <div class="prq-actions">
+            <button type="submit" class="btn primaire">Confirmer le rendez-vous</button>
+          </div>
+        </form>
+        <form method="post" action="{{ path('clinic_portal_booking_requests_decline', { id: r.id }) }}" data-turbo="false" data-prq-once data-confirm-message="Refuser cette demande ? Le créneau sera libéré et le propriétaire prévenu par SMS." id="prqBookingDecline">
+          <input type="hidden" name="_token" value="{{ csrf_token('portal_booking_request') }}">
+          <div class="prq-actions">
+            <button type="submit" class="btn">Refuser</button>
+          </div>
+        </form>
+      </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

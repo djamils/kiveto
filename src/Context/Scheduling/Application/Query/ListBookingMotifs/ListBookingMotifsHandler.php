@@ -38,7 +38,10 @@ final readonly class ListBookingMotifsHandler
                 sortOrder: $motif->sortOrder(),
                 archivedAt: $motif->archivedAt(),
             ),
-            $this->motifs->listForClinic(ClinicId::fromString($query->clinicId), $query->includeArchived),
+            array_values(array_filter(
+                $this->motifs->listForClinic(ClinicId::fromString($query->clinicId), $query->includeArchived),
+                static fn (BookingMotif $motif): bool => !$query->newClientsOnly || ($motif->isOnlineEnabled() && $motif->newClientsAllowed()),
+            )),
         );
     }
 }

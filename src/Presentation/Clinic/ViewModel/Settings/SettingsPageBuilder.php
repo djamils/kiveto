@@ -16,6 +16,8 @@ use App\Context\Clinic\Application\Query\Staff\ListAllMemberships\MembershipColl
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipStatus;
 use App\Context\Clinic\Domain\ValueObject\OrdinalCouncil;
+use App\Context\ClinicListing\Application\Query\GetListingSettings\GetListingSettings;
+use App\Context\ClinicListing\Application\Query\GetListingSettings\ListingSettingsView;
 use App\Context\Scheduling\Application\Query\GetOnlineBookingSettings\GetOnlineBookingSettings;
 use App\Context\Scheduling\Application\Query\GetOnlineBookingSettings\OnlineBookingSettingsView;
 use App\Context\Scheduling\Application\Query\GetReminderDelay\GetReminderDelay;
@@ -33,9 +35,9 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
 /**
- * Everything the settings page draws, in one payload: the seven sections the
+ * Everything the settings page draws, in one payload: the eight sections the
  * clinic can set today (identity, hours, notifications, agenda, online
- * booking, billing, the member's own preferences) with their current values, which of them the member may open,
+ * booking, directory, billing, the member's own preferences) with their current values, which of them the member may open,
  * and where each one is saved. The page module renders the sections from it
  * and posts a whole section back on every change.
  */
@@ -51,8 +53,10 @@ final readonly class SettingsPageBuilder
         'agenda'        => 'clinic_settings_agenda',
         // Paramètres › Réservation en ligne (Portal bookings, S4h)
         'reservation-en-ligne' => 'clinic_settings_online_booking',
-        'facturation'          => 'clinic_settings_billing',
-        'moi'                  => 'clinic_settings_preferences',
+        // Paramètres › Annuaire (the Portal's clinic directory, S7c)
+        'annuaire'    => 'clinic_settings_directory',
+        'facturation' => 'clinic_settings_billing',
+        'moi'         => 'clinic_settings_preferences',
     ];
 
     /** Who can take an online booking: the same roles as an appointment's practitioner. */
@@ -127,6 +131,7 @@ final readonly class SettingsPageBuilder
             'agenda'        => $this->guard->has(ClinicPermissionGuard::MANAGE_STAFF),
             // Same right as the agenda: the clinic's administrators.
             'reservation-en-ligne' => $this->guard->has(ClinicPermissionGuard::MANAGE_STAFF),
+            'annuaire'             => $this->guard->has(ClinicPermissionGuard::MANAGE_STAFF),
             'facturation'          => $this->guard->has(ClinicPermissionGuard::MANAGE_BILLING),
             'moi'                  => true,
         ];
@@ -142,6 +147,7 @@ final readonly class SettingsPageBuilder
             'notifications'        => $can['notifications'] ? $this->notifications($settings) : null,
             'agenda'               => $can['agenda'] ? $this->agenda($settings) : null,
             'reservation-en-ligne' => $can['reservation-en-ligne'] ? $this->onlineBooking($settings) : null,
+            'annuaire'             => $can['annuaire'] ? $this->directory($settings) : null,
             'facturation'          => $can['facturation'] ? $this->billing($settings) : null,
             'moi'                  => $this->preferences(),
             'options'              => [
@@ -348,6 +354,26 @@ final readonly class SettingsPageBuilder
     }
 
     /**
+     * The clinic in the Portal's directory: whether it is listed, takes new
+     * clients, the tags on its card, and whether the letterhead address it is
+     * shown and placed on the map with is missing.
+     *
+     * @return array{listed: bool, acceptsNewClients: bool, tags: list<string>, addressMissing: bool}
+     */
+    public function directory(ClinicSettingsView $settings): array
+    {
+        $listing = $this->queryBus->ask(new GetListingSettings($settings->id));
+        \assert($listing instanceof ListingSettingsView);
+
+        return [
+            'listed'            => $listing->listed,
+            'acceptsNewClients' => $listing->acceptsNewClients,
+            'tags'              => $listing->tags,
+            'addressMissing'    => null === ($settings->letterhead['streetLine1'] ?? null) || null === ($settings->letterhead['city'] ?? null),
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function billing(ClinicSettingsView $settings): array
@@ -465,6 +491,7 @@ final readonly class SettingsPageBuilder
                 'notifications'        => $go('clinic_settings_notifications_save'),
                 'agenda'               => $go('clinic_settings_agenda_save'),
                 'reservation-en-ligne' => $go('clinic_settings_online_booking_save'),
+                'annuaire'             => $go('clinic_settings_directory_save'),
                 'facturation'          => $go('clinic_settings_billing_save'),
                 'moi'                  => $go('clinic_settings_preferences_save'),
             ],

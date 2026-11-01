@@ -165,6 +165,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Context/ClientPortal/Infrastructure/Persistence/Doctrine/Entity'
                 prefix: 'App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Entity'
                 alias: ClientPortal
+            ClinicListing:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Context/ClinicListing/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\Context\ClinicListing\Infrastructure\Persistence\Doctrine\Entity'
+                alias: ClinicListing
         controller_resolver:
             auto_mapping: false
 

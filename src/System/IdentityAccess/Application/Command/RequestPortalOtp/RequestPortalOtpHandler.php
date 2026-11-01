@@ -27,10 +27,12 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 /**
  * A sign-in code goes to a phone of the Portal's coverage only. To a phone
  * with neither an active owner account nor a pending invitation (a phone a
- * clinic chose counts as known), it spends the global budget of unknown
- * numbers: once exhausted, the challenge exists (same answer) but no SMS
- * leaves, now or on a resend. An invitation code goes to the phone a clinic
- * chose and never spends that budget.
+ * clinic chose counts as known), it spends the budget of unknown numbers,
+ * in three layers checked in order (S7a'): the client's network (/24, /64),
+ * the device hint when the request carries one, then the global cap. A
+ * refused layer stops there (the next ones are not spent): the challenge
+ * exists (same answer) but no SMS leaves, now or on a resend. An invitation
+ * code goes to the phone a clinic chose and never spends that budget.
  */
 #[AsMessageHandler]
 final readonly class RequestPortalOtpHandler
@@ -67,7 +69,7 @@ final readonly class RequestPortalOtpHandler
                 throw new PhoneNotSupportedException();
             }
 
-            $suppressed = !$this->isKnown($phone) && !$this->unknownNumberBudget->consume();
+            $suppressed = !$this->isKnown($phone) && !$this->spendUnknownNumberBudget($command->requestContext);
         }
 
         $code      = $this->codes->generate();
@@ -94,6 +96,24 @@ final readonly class RequestPortalOtpHandler
         }
 
         return new OtpChallengeIssued($challenge->id()->toString(), $challenge->expiresAt(), $challenge->resendAvailableAt());
+    }
+
+    /** False as soon as one layer is exhausted. */
+    private function spendUnknownNumberBudget(?OtpRequestContext $context): bool
+    {
+        $network = $context?->networkKey();
+
+        if (null !== $network && !$this->unknownNumberBudget->consumeNetwork($network)) {
+            return false;
+        }
+
+        $device = $context?->deviceId;
+
+        if (null !== $device && !$this->unknownNumberBudget->consumeDevice($device)) {
+            return false;
+        }
+
+        return $this->unknownNumberBudget->consumeGlobal();
     }
 
     private function isKnown(PhoneNumber $phone): bool

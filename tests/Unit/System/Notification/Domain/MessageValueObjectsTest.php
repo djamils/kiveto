@@ -30,8 +30,8 @@ final class MessageValueObjectsTest extends TestCase
         $nonCritical = array_values(array_filter(MessagePurpose::cases(), static fn (MessagePurpose $p): bool => Criticality::NON_CRITICAL === $p->criticality()));
         $kiveto      = array_values(array_filter(MessagePurpose::cases(), static fn (MessagePurpose $p): bool => $p->isSentByKiveto()));
 
-        self::assertSame([MessagePurpose::APPOINTMENT_REMINDER, MessagePurpose::INVOICE_REMINDER, MessagePurpose::PORTAL_REQUEST_RESOLVED], $nonCritical);
-        self::assertSame([MessagePurpose::STAFF_INVITATION, MessagePurpose::PASSWORD_RESET, MessagePurpose::TEST, MessagePurpose::PORTAL_OTP, MessagePurpose::PORTAL_INVITATION, MessagePurpose::PORTAL_EMAIL_VERIFICATION, MessagePurpose::PORTAL_EMAIL_CHANGED_NOTICE, MessagePurpose::PORTAL_DATA_EXPORT_READY], $kiveto);
+        self::assertSame([MessagePurpose::APPOINTMENT_REMINDER, MessagePurpose::INVOICE_REMINDER, MessagePurpose::PORTAL_REQUEST_RESOLVED, MessagePurpose::PORTAL_BOOKING_DECLINED], $nonCritical);
+        self::assertSame([MessagePurpose::STAFF_INVITATION, MessagePurpose::PASSWORD_RESET, MessagePurpose::TEST, MessagePurpose::PORTAL_OTP, MessagePurpose::PORTAL_INVITATION, MessagePurpose::PORTAL_EMAIL_VERIFICATION, MessagePurpose::PORTAL_EMAIL_CHANGED_NOTICE, MessagePurpose::PORTAL_DATA_EXPORT_READY, MessagePurpose::PORTAL_BOOKING_DECLINED], $kiveto);
 
         $labels = array_map(static fn (MessagePurpose $p): string => $p->label(), MessagePurpose::cases());
         self::assertSame($labels, array_unique($labels));
@@ -40,6 +40,7 @@ final class MessageValueObjectsTest extends TestCase
         self::assertSame(["Vérification de l'adresse e-mail Portal", 'Adresse e-mail Portal modifiée'], [MessagePurpose::PORTAL_EMAIL_VERIFICATION->label(), MessagePurpose::PORTAL_EMAIL_CHANGED_NOTICE->label()]);
         self::assertSame(['00:10', null], [MessagePurpose::PORTAL_EMAIL_VERIFICATION->linkValidity()?->format('%H:%I'), MessagePurpose::PORTAL_EMAIL_CHANGED_NOTICE->linkValidity()], 'the code is erased once handed over; the notice is kept');
         self::assertSame(['Export de données Portal prêt', null], [MessagePurpose::PORTAL_DATA_EXPORT_READY->label(), MessagePurpose::PORTAL_DATA_EXPORT_READY->linkValidity()], 'a notice without link');
+        self::assertSame(['Demande de RDV Portal non confirmée', true, true], [MessagePurpose::PORTAL_BOOKING_DECLINED->label(), MessagePurpose::PORTAL_BOOKING_DECLINED->isSentByKiveto(), MessagePurpose::PORTAL_BOOKING_DECLINED->isPortalAccountMessage()], 'Kiveto\'s SMS to a new client\'s account phone, erased with the account');
         self::assertSame(['Réponse à une demande Portal', false, false], [MessagePurpose::PORTAL_REQUEST_RESOLVED->label(), MessagePurpose::PORTAL_REQUEST_RESOLVED->isSentByKiveto(), MessagePurpose::PORTAL_REQUEST_RESOLVED->isPortalAccountMessage()], 'the clinic\'s message to its client');
     }
 

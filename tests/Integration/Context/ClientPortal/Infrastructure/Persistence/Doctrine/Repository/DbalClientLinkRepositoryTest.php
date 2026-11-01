@@ -65,6 +65,25 @@ final class DbalClientLinkRepositoryTest extends KernelTestCase
         self::assertNull($links->findByClient(self::CLINIC, self::CLIENT)[1]->linkedAt());
     }
 
+    public function testPendingLinksByAccountAndByClinic(): void
+    {
+        $links = $this->links();
+        $links->save(ClientLink::requestFromSuggestion(ClientLinkId::fromString(self::L2), self::USER, self::CLINIC, self::CLIENT, new \DateTimeImmutable('2026-11-02 11:00', new \DateTimeZone('Europe/Paris'))));
+        $links->save(ClientLink::requestFromSuggestion(ClientLinkId::fromString(self::L3), self::USER2, self::CLINIC, self::CLIENT, new \DateTimeImmutable('2026-11-01 08:00', new \DateTimeZone('UTC'))));
+        $links->save(ClientLink::confirm(ClientLinkId::fromString(self::L1), self::USER, self::CLINIC2, self::CLIENT, new \DateTimeImmutable('2026-10-29 10:00')));
+        $rejected = ClientLink::requestFromSuggestion(ClientLinkId::fromString('01960000-0000-7000-8000-0000000c1a04'), self::USER, self::CLINIC2, '01960000-0000-7000-8000-0000000c1d02', new \DateTimeImmutable('2026-11-01'));
+        $rejected->reject(new \DateTimeImmutable('2026-11-02'));
+        $links->save($rejected);
+
+        $ids = static fn (array $list): array => array_map(static fn (mixed $l): string => $l instanceof ClientLink ? $l->id()->toString() : '', $list);
+        self::assertSame([self::L3, self::L2], $ids($links->findPendingByClinic(self::CLINIC)), 'oldest request first');
+        self::assertSame([], $links->findPendingByClinic(self::CLINIC2));
+        self::assertSame([self::L2, self::L1], $ids($links->findActiveByUser(self::USER)), 'pending and confirmed, by clinic');
+
+        $pending = $links->findPendingByClinic(self::CLINIC)[1];
+        self::assertSame([ClientLinkStatus::PENDING, null, '2026-11-02 10:00', 'UTC'], [$pending->status(), $pending->linkedAt(), $pending->requestedAt()?->format('Y-m-d H:i'), $pending->requestedAt()?->getTimezone()->getName()]);
+    }
+
     public function testOneLinkPerUserAndClinicClient(): void
     {
         $links = $this->links();

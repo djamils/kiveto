@@ -422,6 +422,10 @@ Lus par le Portal à travers son port.
 - `GetClientConsents(clinicId, clientIds[])` → `array<clientId, ClientConsentsView>` (`clientId`, `preferredChannel`, `archived`, `consents` : `kind => ClientConsentView{kind, channels, grantedAt}`) ; un client d'une autre clinique est absent.
 - `ListClientConsentHistory(clinicId, clientIds[], ?cursor, ?limit)` → `CursorPage<ConsentHistoryItemView>` (`id`, `clientId`, `kind`, `channel`, `action`, `at` UTC, `source`, `actorType`, `actorId`, `authorLabel`, `wordingVersion`, `approximate`), du plus récent au plus ancien, keyset `(at, id)` ; un curseur d'une autre forme → `InvalidCursorException`.
 
+#### ListClientsByMobilePhone
+
+`(phone)` → `list<MobileClientMatch{clinicId, clientId, firstName, lastName, animalNames[]}>`, **toutes cliniques confondues** (suggestions de rattachement du Portal, S7b) : téléphone de type `phone`, libellé `mobile`, valeur E.164 exacte ; clients archivés exclus ; cliniques non actives (suspendues, fermées) exclues via le port `ClinicStatusInterface` (adapter `Infrastructure/Adapter/Clinic/QueryBusClinicStatus`, `GetClinic` du contexte Clinic — jamais de jointure sur ses tables) ; noms des animaux actifs dont le client est propriétaire principal via `ClientAnimalNamesInterface` (adapter `QueryBusClientAnimalNames`, `ListAnimalSummariesPerClientIds`). Par clinique puis du plus ancien dossier au plus récent. L'appelant n'expose au propriétaire que la clinique.
+
 #### SearchCompanyRegistry
 
 `(query, limit = 8)` → `CompanySearchResult{available, reason, hits}` : moins de 3 caractères (hors SIREN / SIRET) → aucun appel ; panne → `available: false`, `reason` `throttled` (budget épuisé ou 429 : réessayer) ou `down` (saisie manuelle).
@@ -563,6 +567,8 @@ Recherche et pagine les clients d'une clinique.
 | label         | ENUM (ContactLabel)      | NOT NULL             |
 | value         | VARCHAR(255)             | NOT NULL             |
 | is_primary    | BOOLEAN                  | NOT NULL, DEFAULT 0  |
+
+Index `idx_contact_method_type_value (type, value, client_id)` : recherche d'un numéro toutes cliniques confondues (`ListClientsByMobilePhone`).
 
 **Note:** La cascade delete des contact_methods est gérée explicitement dans le repository (DELETE puis INSERT).
 

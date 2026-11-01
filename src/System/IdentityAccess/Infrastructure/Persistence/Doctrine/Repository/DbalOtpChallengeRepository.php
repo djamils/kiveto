@@ -6,6 +6,7 @@ namespace App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Reposito
 
 use App\Shared\Domain\ValueObject\PhoneNumber;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
+use App\System\IdentityAccess\Domain\Otp\OnboardingPurpose;
 use App\System\IdentityAccess\Domain\Otp\OtpChallenge;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeId;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeRepositoryInterface;
@@ -32,31 +33,34 @@ final readonly class DbalOtpChallengeRepository implements OtpChallengeRepositor
     {
         $this->connection->executeStatement(
             'INSERT INTO ' . self::TABLE
-            . ' (id, phone, purpose, subject_type, subject_ref, target_email, code_hash, attempts, send_count, expires_at, resend_available_at, last_channel, sms_suppressed, consumed_at, onboarding_token_hash, onboarding_expires_at, onboarding_revoked_at, created_at)'
-            . ' VALUES (:id, :phone, :purpose, :subjectType, :subject, :targetEmail, :code, :attempts, :sends, :expires, :resend, :channel, :suppressed, :consumed, :onboarding, :onboardingExpires, :onboardingRevoked, :created)'
+            . ' (id, phone, purpose, subject_type, subject_ref, target_email, code_hash, attempts, send_count, expires_at, resend_available_at, last_channel, sms_suppressed, consumed_at, onboarding_token_hash, onboarding_purpose, onboarding_expires_at, onboarding_revoked_at, onboarding_consumed_at, created_at)'
+            . ' VALUES (:id, :phone, :purpose, :subjectType, :subject, :targetEmail, :code, :attempts, :sends, :expires, :resend, :channel, :suppressed, :consumed, :onboarding, :onboardingPurpose, :onboardingExpires, :onboardingRevoked, :onboardingConsumed, :created)'
             . ' AS new ON DUPLICATE KEY UPDATE code_hash = new.code_hash, attempts = new.attempts, send_count = new.send_count,'
             . ' expires_at = new.expires_at, resend_available_at = new.resend_available_at, last_channel = new.last_channel,'
-            . ' consumed_at = new.consumed_at, onboarding_token_hash = new.onboarding_token_hash,'
-            . ' onboarding_expires_at = new.onboarding_expires_at, onboarding_revoked_at = new.onboarding_revoked_at',
+            . ' consumed_at = new.consumed_at, onboarding_token_hash = new.onboarding_token_hash, onboarding_purpose = new.onboarding_purpose,'
+            . ' onboarding_expires_at = new.onboarding_expires_at, onboarding_revoked_at = new.onboarding_revoked_at,'
+            . ' onboarding_consumed_at = new.onboarding_consumed_at',
             [
-                'id'                => Uuid::fromString($challenge->id()->toString())->toBinary(),
-                'phone'             => $challenge->phone()->toString(),
-                'purpose'           => $challenge->purpose()->value,
-                'subjectType'       => $challenge->subjectType()?->value,
-                'subject'           => $challenge->subjectRef(),
-                'targetEmail'       => $challenge->targetEmail(),
-                'code'              => $challenge->codeHash(),
-                'attempts'          => $challenge->attempts(),
-                'sends'             => $challenge->sendCount(),
-                'expires'           => self::utc($challenge->expiresAt()),
-                'resend'            => self::utc($challenge->resendAvailableAt()),
-                'channel'           => $challenge->lastChannel()->value,
-                'suppressed'        => (int) $challenge->isSmsSuppressed(),
-                'consumed'          => self::nullableUtc($challenge->consumedAt()),
-                'onboarding'        => $challenge->onboardingTokenHash(),
-                'onboardingExpires' => self::nullableUtc($challenge->onboardingExpiresAt()),
-                'onboardingRevoked' => self::nullableUtc($challenge->onboardingRevokedAt()),
-                'created'           => self::utc($challenge->createdAt()),
+                'id'                 => Uuid::fromString($challenge->id()->toString())->toBinary(),
+                'phone'              => $challenge->phone()->toString(),
+                'purpose'            => $challenge->purpose()->value,
+                'subjectType'        => $challenge->subjectType()?->value,
+                'subject'            => $challenge->subjectRef(),
+                'targetEmail'        => $challenge->targetEmail(),
+                'code'               => $challenge->codeHash(),
+                'attempts'           => $challenge->attempts(),
+                'sends'              => $challenge->sendCount(),
+                'expires'            => self::utc($challenge->expiresAt()),
+                'resend'             => self::utc($challenge->resendAvailableAt()),
+                'channel'            => $challenge->lastChannel()->value,
+                'suppressed'         => (int) $challenge->isSmsSuppressed(),
+                'consumed'           => self::nullableUtc($challenge->consumedAt()),
+                'onboarding'         => $challenge->onboardingTokenHash(),
+                'onboardingPurpose'  => $challenge->onboardingPurpose()?->value,
+                'onboardingExpires'  => self::nullableUtc($challenge->onboardingExpiresAt()),
+                'onboardingRevoked'  => self::nullableUtc($challenge->onboardingRevokedAt()),
+                'onboardingConsumed' => self::nullableUtc($challenge->onboardingConsumedAt()),
+                'created'            => self::utc($challenge->createdAt()),
             ],
         );
     }
@@ -71,17 +75,17 @@ final readonly class DbalOtpChallengeRepository implements OtpChallengeRepositor
         return $this->find('id = :key', Uuid::fromString($id->toString())->toBinary(), ' FOR UPDATE');
     }
 
-    public function findByOnboardingHashForUpdate(string $tokenHash): ?OtpChallenge
+    public function findByOnboardingHashForUpdate(string $tokenHash, OnboardingPurpose $purpose): ?OtpChallenge
     {
-        return $this->find('onboarding_token_hash = :key', $tokenHash, ' FOR UPDATE');
+        return $this->find('onboarding_token_hash = :key AND onboarding_purpose = :onboardingPurpose', $tokenHash, ' FOR UPDATE', ['onboardingPurpose' => $purpose->value]);
     }
 
     public function revokeOnboardingGrantsForPhone(PhoneNumber $phone, \DateTimeImmutable $at): int
     {
         return (int) $this->connection->executeStatement(
             'UPDATE ' . self::TABLE . ' SET onboarding_revoked_at = :at'
-            . ' WHERE phone = :phone AND onboarding_token_hash IS NOT NULL AND onboarding_revoked_at IS NULL',
-            ['at' => self::utc($at), 'phone' => $phone->toString()],
+            . ' WHERE phone = :phone AND onboarding_purpose = :invitation AND onboarding_revoked_at IS NULL',
+            ['at' => self::utc($at), 'phone' => $phone->toString(), 'invitation' => OnboardingPurpose::INVITATION->value],
         );
     }
 
@@ -93,10 +97,13 @@ final readonly class DbalOtpChallengeRepository implements OtpChallengeRepositor
         );
     }
 
-    private function find(string $condition, string $key, string $lock): ?OtpChallenge
+    /**
+     * @param array<string, string> $parameters bound besides `key`
+     */
+    private function find(string $condition, string $key, string $lock, array $parameters = []): ?OtpChallenge
     {
         // Malformed ids never reach SQL: the binary form needs a valid UUID.
-        $row = $this->connection->fetchAssociative('SELECT * FROM ' . self::TABLE . ' WHERE ' . $condition . $lock, ['key' => $key]);
+        $row = $this->connection->fetchAssociative('SELECT * FROM ' . self::TABLE . ' WHERE ' . $condition . $lock, ['key' => $key, ...$parameters]);
 
         if (false === $row) {
             return null;
@@ -120,6 +127,8 @@ final readonly class DbalOtpChallengeRepository implements OtpChallengeRepositor
             onboardingRevokedAt: self::nullableDate(RowAccessor::nullableString($row, 'onboarding_revoked_at')),
             createdAt: self::date(RowAccessor::string($row, 'created_at')),
             targetEmail: RowAccessor::nullableString($row, 'target_email'),
+            onboardingPurpose: OnboardingPurpose::tryFrom(RowAccessor::nullableString($row, 'onboarding_purpose') ?? ''),
+            onboardingConsumedAt: self::nullableDate(RowAccessor::nullableString($row, 'onboarding_consumed_at')),
         );
     }
 

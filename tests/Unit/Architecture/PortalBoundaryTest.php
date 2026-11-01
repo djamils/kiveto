@@ -17,7 +17,8 @@ final class PortalBoundaryTest extends TestCase
 {
     /** Contexts written for the Portal: directory → their own namespace. */
     private const array CONTEXTS = [
-        'src/Context/ClientPortal' => 'App\\Context\\ClientPortal\\',
+        'src/Context/ClientPortal'  => 'App\\Context\\ClientPortal\\',
+        'src/Context/ClinicListing' => 'App\\Context\\ClinicListing\\',
     ];
 
     private const string API = 'src/Presentation/Api/Portal';

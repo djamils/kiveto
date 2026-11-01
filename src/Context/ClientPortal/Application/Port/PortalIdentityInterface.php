@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Context\ClientPortal\Application\Port;
 
 /**
- * Owner accounts (IdentityAccess). The proof — an invitation code or an
- * onboarding grant — is passed in clear and verified there, in the caller's
- * transaction.
+ * Owner accounts (IdentityAccess). The proof — an invitation code, an
+ * onboarding grant or a registration grant — is passed in clear and verified
+ * there, in the caller's transaction.
  */
 interface PortalIdentityInterface
 {
@@ -18,6 +18,15 @@ interface PortalIdentityInterface
      */
     public function claimIdentity(IdentityClaimRequest $request): IdentityClaim;
 
-    /** Revokes every onboarding grant of the phone (E.164). */
+    /** Revokes every invitation onboarding grant of the phone (E.164). */
     public function revokeOnboardingGrants(string $phone): void;
+
+    /**
+     * Creates the owner account of the phone a registration grant proved
+     * (`email` dropped when another owner holds it), in the caller's
+     * transaction. Never throws on a bad grant; when an active owner account
+     * already holds the phone, IdentityAccess throws its
+     * PortalAccountExistsException, which rolls the transaction back.
+     */
+    public function registerPortalUser(#[\SensitiveParameter] string $registrationToken, ?string $email): PortalRegistration;
 }

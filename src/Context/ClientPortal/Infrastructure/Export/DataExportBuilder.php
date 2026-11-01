@@ -19,6 +19,8 @@ use App\Context\ClientPortal\Application\Port\PublishedDocumentReadModelInterfac
 use App\Context\ClientPortal\Application\Query\ListOwnerAppointments\PortalAppointment;
 use App\Context\ClientPortal\Application\Service\OwnerPets;
 use App\Context\ClientPortal\Application\Service\PortalAppointments;
+use App\Context\ClientPortal\Domain\Booking\BookingRequest;
+use App\Context\ClientPortal\Domain\Booking\BookingRequestRepositoryInterface;
 use App\Context\ClientPortal\Domain\Link\ClientLink;
 use App\Context\ClientPortal\Domain\Link\ClientLinkRepositoryInterface;
 use App\Context\ClientPortal\Domain\Profile\OwnerProfile;
@@ -38,7 +40,10 @@ use App\Shared\Domain\Time\ClockInterface;
 /**
  * The archive of a data export, canonical content `schemaVersion: 1`:
  *
- * - `account.json`: phone, e-mail, profile, terms acceptance;
+ * - `account.json`: phone, e-mail, profile, terms acceptance, and the
+ *   new-client booking requests made through the clinic directory (any
+ *   clinic, linked or not: `{clinic, pet, motif, startAt, status,
+ *   declineReason, createdAt}`, oldest first);
  * - `clinics/<clinicId>.json`, one per clinic the account was ever linked
  *   to: the clinic, the links' status and dates and, through the confirmed
  *   links only, the consents and their history, the appointments
@@ -74,6 +79,7 @@ final readonly class DataExportBuilder implements DataExportBuilderInterface
         private PetChangeRequestRepositoryInterface $changes,
         private PrescriptionRenewalRequestRepositoryInterface $renewals,
         private PreVisitQuestionnaireRepositoryInterface $questionnaires,
+        private BookingRequestRepositoryInterface $bookingRequests,
         private DocumentPdfRendererInterface $pdf,
         private ClockInterface $clock,
     ) {
@@ -95,8 +101,9 @@ final readonly class DataExportBuilder implements DataExportBuilderInterface
             $clinics[(string) $clinicId] = $this->clinic($userId, (string) $clinicId, $links, $now) + $this->requestsIn((string) $clinicId, $requests);
         }
 
-        $accountFile = $this->account($account, $this->profiles->findByUserId($userId), array_keys($clinics), $now);
-        $files       = ['account.json' => self::json($accountFile)];
+        $accountFile = $this->account($account, $this->profiles->findByUserId($userId), array_keys($clinics), $now)
+            + ['bookingRequests' => $this->bookingRequestsOf($userId)];
+        $files = ['account.json' => self::json($accountFile)];
 
         foreach ($clinics as $clinicId => $clinic) {
             $files['clinics/' . $clinicId . '.json'] = self::json($clinic);
@@ -238,6 +245,28 @@ final readonly class DataExportBuilder implements DataExportBuilderInterface
             'title'    => $document->title,
             'issuedAt' => self::instant($document->issuedAt, $zone),
         ], $documents);
+    }
+
+    /**
+     * The account's new-client booking requests, any clinic, oldest first.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function bookingRequestsOf(string $userId): array
+    {
+        return array_map(function (BookingRequest $request): array {
+            $clinic = $this->clinics->clinicOf($request->clinicId());
+
+            return [
+                'clinic'        => ['name' => $clinic->name, 'city' => $clinic->city],
+                'pet'           => ['name' => $request->newPetName(), 'species' => $request->newPetSpecies()],
+                'motif'         => $request->motifLabel(),
+                'startAt'       => self::instant($request->startAt(), $clinic->timeZone),
+                'status'        => $request->status()->value,
+                'declineReason' => $request->declineReason()?->value,
+                'createdAt'     => self::instant($request->createdAt(), $clinic->timeZone),
+            ];
+        }, $this->bookingRequests->findByUser($userId));
     }
 
     /**

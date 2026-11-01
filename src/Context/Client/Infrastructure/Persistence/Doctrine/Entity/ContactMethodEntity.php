@@ -14,6 +14,7 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Table(name: 'client__contact_methods')]
 #[ORM\Index(name: 'idx_contact_method_client_id', columns: ['client_id'])]
 #[ORM\Index(name: 'idx_contact_method_type', columns: ['type'])]
+#[ORM\Index(name: 'idx_contact_method_type_value', columns: ['type', 'value', 'client_id'])]
 #[ORM\Index(
     name: 'idx_contact_methods_client_type_primary',
     columns: ['client_id', 'type', 'is_primary']

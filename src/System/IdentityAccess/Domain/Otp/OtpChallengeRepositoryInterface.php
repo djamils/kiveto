@@ -16,10 +16,16 @@ interface OtpChallengeRepositoryInterface
     /** Locked until the end of the transaction: two verifications of one challenge queue. */
     public function findByIdForUpdate(OtpChallengeId $id): ?OtpChallenge;
 
-    /** The challenge carrying this onboarding grant, locked. */
-    public function findByOnboardingHashForUpdate(string $tokenHash): ?OtpChallenge;
+    /**
+     * The challenge carrying this onboarding grant, locked; only a grant of
+     * that purpose is found (neither route accepts the other's grant).
+     */
+    public function findByOnboardingHashForUpdate(string $tokenHash, OnboardingPurpose $purpose): ?OtpChallenge;
 
-    /** Revokes every live onboarding grant of the phone; returns how many. */
+    /**
+     * Revokes every live `invitation` grant of the phone; returns how many.
+     * Registration grants are left alone.
+     */
     public function revokeOnboardingGrantsForPhone(PhoneNumber $phone, \DateTimeImmutable $at): int;
 
     /**

@@ -10,8 +10,10 @@ use App\Fixtures\Context\ClientPortal\Story\ClientPortalStatesStory;
 use App\Fixtures\Context\ClientPortal\Story\PortalAccountStatesStory;
 use App\Fixtures\Context\ClientPortal\Story\PortalBookingStory;
 use App\Fixtures\Context\ClientPortal\Story\PortalDocumentsStory;
+use App\Fixtures\Context\ClientPortal\Story\PortalOrganicArrivalStory;
 use App\Fixtures\Context\ClientPortal\Story\PortalPetsStory;
 use App\Fixtures\Context\ClientPortal\Story\PortalRequestsStory;
+use App\Fixtures\Context\ClinicListing\Story\ClinicListingStory;
 use App\Fixtures\Context\Scheduling\Story\PortalPetsAppointmentsStory;
 use App\Fixtures\System\IdentityAccess\Factory\PortalUserFactory;
 use App\Fixtures\System\IdentityAccess\Story\PortalUserStory;
@@ -42,6 +44,11 @@ final class PortalDataset extends Story
         // where they cannot book (booking off, empty week).
         PortalBookingStory::load();
 
+        // The clinic directory: listed clinics (without online booking, open
+        // to new clients, not taking any, without coordinates), one left out
+        // and one suspended, projected as `clinic-listing:rebuild` does.
+        ClinicListingStory::load();
+
         // Their consents (none, partial, all; two files that diverge; an
         // archived client and its unarchived twin) with a history mixing the
         // clinic, the Portal and the « Reprise » of older consents.
@@ -56,6 +63,12 @@ final class PortalDataset extends Story
         // pre-visit questionnaires (editable, locked, opened in the cockpit),
         // and the clinics with an empty queue.
         PortalRequestsStory::load();
+
+        // The organic arrival: accounts registered without invitation, the
+        // clinics suggested from their mobile (open, pending « Rattachement »,
+        // rejected) and their first appointments asked through the directory
+        // (pending, confirmed, declined, expired).
+        PortalOrganicArrivalStory::load();
 
         PortalUserFactory::createMany(5);
     }

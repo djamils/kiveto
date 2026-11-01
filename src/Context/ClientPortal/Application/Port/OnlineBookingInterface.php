@@ -32,4 +32,19 @@ interface OnlineBookingInterface
      * @param ?string $reason unavailable|no_longer_needed|seen_elsewhere|other
      */
     public function cancel(string $clinicId, string $appointmentId, ?string $reason): string;
+
+    /**
+     * A new client's request through the directory (slice 7): no owner nor
+     * animal, always pending, the manual lead time; answers the appointment id.
+     */
+    public function requestNewClientSlot(string $clinicId, string $motifId, string $practitionerId, \DateTimeImmutable $startsAt): string;
+
+    /** The new client's request confirmed for the client file and animal staff chose. */
+    public function confirmNewClient(string $clinicId, string $appointmentId, string $ownerId, string $animalId): void;
+
+    /** The clinic declines a pending request (the slot is freed). */
+    public function decline(string $clinicId, string $appointmentId): void;
+
+    /** A pending request withdrawn whatever the cancellation window; anything else is left as it is. */
+    public function withdrawPending(string $clinicId, string $appointmentId): void;
 }

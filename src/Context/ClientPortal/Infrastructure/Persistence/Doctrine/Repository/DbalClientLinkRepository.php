@@ -19,6 +19,7 @@ final readonly class DbalClientLinkRepository implements ClientLinkRepositoryInt
 {
     private const string TABLE     = 'client_portal__client_links';
     private const string CONFIRMED = ClientLinkStatus::CONFIRMED->value;
+    private const string PENDING   = ClientLinkStatus::PENDING->value;
 
     public function __construct(private Connection $connection)
     {
@@ -27,17 +28,18 @@ final readonly class DbalClientLinkRepository implements ClientLinkRepositoryInt
     public function save(ClientLink $link): void
     {
         $this->connection->executeStatement(
-            'INSERT INTO ' . self::TABLE . ' (id, user_id, clinic_id, client_id, status, linked_at, revoked_at)'
-            . ' VALUES (:id, :user, :clinic, :client, :status, :linked, :revoked)'
-            . ' AS new ON DUPLICATE KEY UPDATE status = new.status, linked_at = new.linked_at, revoked_at = new.revoked_at',
+            'INSERT INTO ' . self::TABLE . ' (id, user_id, clinic_id, client_id, status, linked_at, revoked_at, requested_at)'
+            . ' VALUES (:id, :user, :clinic, :client, :status, :linked, :revoked, :requested)'
+            . ' AS new ON DUPLICATE KEY UPDATE status = new.status, linked_at = new.linked_at, revoked_at = new.revoked_at, requested_at = new.requested_at',
             [
-                'id'      => SqlValues::binary($link->id()->toString()),
-                'user'    => SqlValues::binary($link->userId()),
-                'clinic'  => SqlValues::binary($link->clinicId()),
-                'client'  => SqlValues::binary($link->clientId()),
-                'status'  => $link->status()->value,
-                'linked'  => SqlValues::nullableUtc($link->linkedAt()),
-                'revoked' => SqlValues::nullableUtc($link->revokedAt()),
+                'id'        => SqlValues::binary($link->id()->toString()),
+                'user'      => SqlValues::binary($link->userId()),
+                'clinic'    => SqlValues::binary($link->clinicId()),
+                'client'    => SqlValues::binary($link->clientId()),
+                'status'    => $link->status()->value,
+                'linked'    => SqlValues::nullableUtc($link->linkedAt()),
+                'revoked'   => SqlValues::nullableUtc($link->revokedAt()),
+                'requested' => SqlValues::nullableUtc($link->requestedAt()),
             ],
         );
     }
@@ -65,6 +67,22 @@ final readonly class DbalClientLinkRepository implements ClientLinkRepositoryInt
         return $this->list(
             'user_id = :user AND status = :confirmed ORDER BY linked_at ASC, id ASC',
             ['user' => SqlValues::binary($userId), 'confirmed' => self::CONFIRMED],
+        );
+    }
+
+    public function findActiveByUser(string $userId): array
+    {
+        return $this->list(
+            'user_id = :user AND status IN (:confirmed, :pending) ORDER BY clinic_id ASC, id ASC',
+            ['user' => SqlValues::binary($userId), 'confirmed' => self::CONFIRMED, 'pending' => self::PENDING],
+        );
+    }
+
+    public function findPendingByClinic(string $clinicId): array
+    {
+        return $this->list(
+            'clinic_id = :clinic AND status = :pending ORDER BY requested_at ASC, id ASC',
+            ['clinic' => SqlValues::binary($clinicId), 'pending' => self::PENDING],
         );
     }
 
@@ -107,6 +125,7 @@ final readonly class DbalClientLinkRepository implements ClientLinkRepositoryInt
             status: ClientLinkStatus::from(RowAccessor::string($row, 'status')),
             linkedAt: SqlValues::nullableDate(RowAccessor::nullableString($row, 'linked_at')),
             revokedAt: SqlValues::nullableDate(RowAccessor::nullableString($row, 'revoked_at')),
+            requestedAt: SqlValues::nullableDate(RowAccessor::nullableString($row, 'requested_at')),
         );
     }
 }

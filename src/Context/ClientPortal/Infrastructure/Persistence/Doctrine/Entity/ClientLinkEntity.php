@@ -16,6 +16,7 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Table]
 #[ORM\UniqueConstraint(name: 'uniq_client_link', columns: ['user_id', 'clinic_id', 'client_id'])]
 #[ORM\Index(name: 'idx_client_link_client', columns: ['clinic_id', 'client_id'])]
+#[ORM\Index(name: 'idx_client_link_clinic_status', columns: ['clinic_id', 'status'])]
 class ClientLinkEntity
 {
     public function __construct(
@@ -34,6 +35,9 @@ class ClientLinkEntity
         public ?\DateTimeImmutable $linkedAt,
         #[ORM\Column(name: 'revoked_at', type: 'datetime_immutable', nullable: true)]
         public ?\DateTimeImmutable $revokedAt,
+        /** When the owner accepted the link suggestion (pending links). */
+        #[ORM\Column(name: 'requested_at', type: 'datetime_immutable', nullable: true)]
+        public ?\DateTimeImmutable $requestedAt = null,
     ) {
     }
 }

@@ -152,6 +152,8 @@ final class GetOnlineAvailabilityHandlerTest extends TestCase
             'offline'    => $this->motifs->save(self::motif(self::CONSULT, ConfirmationMode::AUTO, online: false)),
             'other'      => $this->settings->save(self::settings(enabled: true, clinicId: self::OTHER_CLINIC)),
             'ineligible' => $this->sources->eligible = [self::OTHER_VET],
+            'no-new'     => $this->settings->save(self::settings(enabled: true, newClients: false)),
+            'known-only' => $this->motifs->save(self::motif(self::CONSULT, ConfirmationMode::AUTO, newClients: false)),
             default      => null,
         };
 
@@ -190,6 +192,11 @@ final class GetOnlineAvailabilityHandlerTest extends TestCase
         yield 'practitioner not on the motif' => ['', $query(vet: self::OTHER_VET), OnlineBookingNotFoundException::class, 'practitioner'];
         yield 'practitioner malformed' => ['', $query(vet: 'dr-house'), OnlineBookingNotFoundException::class, 'practitioner'];
         yield 'practitioner no longer eligible' => ['ineligible', $query(), OnlineBookingNotFoundException::class, 'practitioner'];
+
+        // The public directory (S7c): a new client needs both the settings and the motif open to new clients
+        $newClient = new GetOnlineAvailability(self::CLINIC, self::CONSULT, self::VET, '2026-04-13', '2026-04-14', true);
+        yield 'new clients not taken' => ['no-new', $newClient, BookingNotOpenException::class, $notOpen];
+        yield 'motif not open to new clients' => ['known-only', $newClient, OnlineBookingNotFoundException::class, 'motif'];
 
         // AC 43: validation_failed
         yield 'from malformed' => ['', $query(from: '13/04/2026'), InvalidAvailabilityRangeException::class, 'from: La date doit être au format AAAA-MM-JJ.'];
@@ -266,7 +273,7 @@ final class GetOnlineAvailabilityHandlerTest extends TestCase
         );
     }
 
-    private static function motif(string $id, ConfirmationMode $confirmation, bool $online = true): BookingMotif
+    private static function motif(string $id, ConfirmationMode $confirmation, bool $online = true, bool $newClients = true): BookingMotif
     {
         return BookingMotif::create(
             BookingMotifId::fromString($id),
@@ -279,12 +286,12 @@ final class GetOnlineAvailabilityHandlerTest extends TestCase
             [PlanningBlockType::CONSULTATION],
             [UserId::fromString(self::VET)],
             null,
-            true,
+            $newClients,
             0,
         );
     }
 
-    private static function settings(bool $enabled, int $horizonDays = 60, string $clinicId = self::CLINIC): OnlineBookingSettings
+    private static function settings(bool $enabled, int $horizonDays = 60, string $clinicId = self::CLINIC, bool $newClients = true): OnlineBookingSettings
     {
         return new OnlineBookingSettings(
             clinicId: ClinicId::fromString($clinicId),
@@ -294,7 +301,7 @@ final class GetOnlineAvailabilityHandlerTest extends TestCase
             minLeadTimeManualHours: 26,
             horizonDays: $horizonDays,
             cancellationWindowHours: 24,
-            newClientBookingEnabled: true,
+            newClientBookingEnabled: $newClients,
         );
     }
 

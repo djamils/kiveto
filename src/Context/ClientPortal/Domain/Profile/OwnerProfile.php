@@ -8,8 +8,8 @@ use App\Shared\Domain\ValueObject\PostalAddress;
 
 /**
  * Who the owner account is, for the Portal: one per PORTAL user, copied from
- * the client file of the first accepted invitation and never overwritten by
- * later ones. Each acceptance records the version of the terms of use. The
+ * the client file of the first accepted invitation (or entered by the owner
+ * at registration, without invitation) and never overwritten by later ones. Each acceptance records the version of the terms of use. The
  * owner edits the name and the address (`PATCH /me`); the clinics' client
  * files are never touched.
  */
@@ -46,6 +46,31 @@ final class OwnerProfile
         $profile->firstName       = $firstName;
         $profile->lastName        = $lastName;
         $profile->address         = $address;
+        $profile->termsVersion    = $termsVersion;
+        $profile->termsAcceptedAt = $now;
+        $profile->createdAt       = $now;
+
+        return $profile;
+    }
+
+    /**
+     * An owner who registered without invitation: the names they entered
+     * (trimmed, 1 to 60 characters each), no address yet.
+     *
+     * @throws \InvalidArgumentException for an empty or too long name
+     */
+    public static function register(
+        string $userId,
+        string $firstName,
+        string $lastName,
+        string $termsVersion,
+        \DateTimeImmutable $now,
+    ): self {
+        $profile                  = new self();
+        $profile->userId          = $userId;
+        $profile->firstName       = self::name($firstName);
+        $profile->lastName        = self::name($lastName);
+        $profile->address         = null;
         $profile->termsVersion    = $termsVersion;
         $profile->termsAcceptedAt = $now;
         $profile->createdAt       = $now;

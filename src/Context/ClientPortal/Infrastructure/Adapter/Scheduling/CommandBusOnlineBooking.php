@@ -7,7 +7,10 @@ namespace App\Context\ClientPortal\Infrastructure\Adapter\Scheduling;
 use App\Context\ClientPortal\Application\Port\OnlineBookingInterface;
 use App\Context\Scheduling\Application\Command\BookOnlineAppointment\BookOnlineAppointment;
 use App\Context\Scheduling\Application\Command\CancelOnlineAppointment\CancelOnlineAppointment;
+use App\Context\Scheduling\Application\Command\ConfirmNewClientAppointment\ConfirmNewClientAppointment;
+use App\Context\Scheduling\Application\Command\DeclineAppointment\DeclineAppointment;
 use App\Context\Scheduling\Application\Command\RescheduleOnlineAppointment\RescheduleOnlineAppointment;
+use App\Context\Scheduling\Application\Command\WithdrawPendingOnlineAppointment\WithdrawPendingOnlineAppointment;
 use App\Shared\Application\Bus\CommandBusInterface;
 
 /** Scheduling's online booking commands; their refusals pass through. */
@@ -37,6 +40,26 @@ final readonly class CommandBusOnlineBooking implements OnlineBookingInterface
     public function cancel(string $clinicId, string $appointmentId, ?string $reason): string
     {
         return self::id($this->commandBus->dispatch(new CancelOnlineAppointment($clinicId, $appointmentId, $reason)));
+    }
+
+    public function requestNewClientSlot(string $clinicId, string $motifId, string $practitionerId, \DateTimeImmutable $startsAt): string
+    {
+        return self::id($this->commandBus->dispatch(new BookOnlineAppointment($clinicId, $motifId, $practitionerId, $startsAt, null, null, newClient: true)));
+    }
+
+    public function confirmNewClient(string $clinicId, string $appointmentId, string $ownerId, string $animalId): void
+    {
+        $this->commandBus->dispatch(new ConfirmNewClientAppointment($appointmentId, $clinicId, $ownerId, $animalId));
+    }
+
+    public function decline(string $clinicId, string $appointmentId): void
+    {
+        $this->commandBus->dispatch(new DeclineAppointment($appointmentId, $clinicId));
+    }
+
+    public function withdrawPending(string $clinicId, string $appointmentId): void
+    {
+        $this->commandBus->dispatch(new WithdrawPendingOnlineAppointment($clinicId, $appointmentId));
     }
 
     private static function id(mixed $id): string

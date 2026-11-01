@@ -97,6 +97,9 @@ final class MessageRenderingTest extends KernelTestCase
                 'EMAIL' => ['addressee' => 'Sophie Martin', 'petName' => 'Milo', 'sentence' => 'Votre demande de renouvellement d\'ordonnance pour Milo a été traitée.', 'staffMessage' => 'Ordonnance prête.'],
                 'SMS'   => ['sentence' => 'Votre demande de modification pour Milo a été traitée.', 'staffMessage' => ''],
             ],
+            'PORTAL_BOOKING_DECLINED' => [
+                'SMS' => ['clinicName' => 'Clinique Montmartre', 'slotLabel' => 'jeudi 22/10 à 9h30'],
+            ],
         ];
     }
 
@@ -152,6 +155,7 @@ final class MessageRenderingTest extends KernelTestCase
         self::assertSame('Clinique Montmartre : la facture FA-2026-0702 du 04/09 (64,50 €) reste à régler. Vous pouvez la régler à la clinique. Infos : 01 42 64 18 00', $sms(MessagePurpose::INVOICE_REMINDER));
         self::assertSame('Kiveto : message de test envoyé le 26/10/2026 à 10:42. Aucune action n\'est nécessaire.', $sms(MessagePurpose::TEST));
         self::assertSame('Kiveto : votre code est 123456. Il expire dans 10 minutes. Ne le communiquez à personne.', $sms(MessagePurpose::PORTAL_OTP));
+        self::assertSame('Clinique Montmartre : votre demande de rendez-vous du jeudi 22/10 à 9h30 n\'a pas été confirmée. Choisissez un autre créneau dans l\'app Kiveto.', $sms(MessagePurpose::PORTAL_BOOKING_DECLINED));
         self::assertSame('Clinique Montmartre vous invite sur Kiveto pour suivre vos animaux : ' . self::PORTAL_LINK . ' (valable jusqu\'au 05/11/2026)', $sms(MessagePurpose::PORTAL_INVITATION));
     }
 

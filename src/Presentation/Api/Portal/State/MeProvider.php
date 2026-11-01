@@ -18,7 +18,8 @@ use App\Shared\Application\Bus\QueryBusInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 
 /**
- * Clinic tags arrive with the listing (slice 7): empty for now.
+ * Clinic tags arrive with the listing (slice 7): empty for now. A pending
+ * clinic (accepted link suggestion) shows no unread document.
  *
  * @implements ProviderInterface<Me>
  */
@@ -46,7 +47,19 @@ final readonly class MeProvider implements ProviderInterface
             array_values(array_map(static function (mixed $clinic) use ($unread): ClinicLinkView {
                 \assert($clinic instanceof OwnerClinic);
 
-                return new ClinicLinkView($clinic->clinicId, $clinic->clinicName, $clinic->city, $clinic->timeZone, 'confirmed', ApiDate::format($clinic->linkedAt), $clinic->petNames, [], \is_int($unread[$clinic->clinicId] ?? null) ? $unread[$clinic->clinicId] : 0);
+                $confirmed = OwnerClinic::CONFIRMED === $clinic->linkStatus;
+
+                return new ClinicLinkView(
+                    $clinic->clinicId,
+                    $clinic->clinicName,
+                    $clinic->city,
+                    $clinic->timeZone,
+                    $clinic->linkStatus,
+                    null === $clinic->linkedAt ? null : ApiDate::format($clinic->linkedAt),
+                    $clinic->petNames,
+                    [],
+                    $confirmed && \is_int($unread[$clinic->clinicId] ?? null) ? $unread[$clinic->clinicId] : 0,
+                );
             }, $clinics)),
         );
     }

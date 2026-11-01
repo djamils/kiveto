@@ -53,7 +53,14 @@ final readonly class AcceptanceResponder
         }
 
         \assert(null !== $outcome->userId);
-        $tokens = $this->commandBus->dispatch(new IssuePortalSession($outcome->userId));
+
+        return $this->session($outcome->userId);
+    }
+
+    /** A new session of the account, with the account itself (acceptances, registration). */
+    public function session(string $userId): AcceptedInvitationView
+    {
+        $tokens = $this->commandBus->dispatch(new IssuePortalSession($userId));
         \assert($tokens instanceof PortalSessionTokens);
 
         return new AcceptedInvitationView(
@@ -61,7 +68,7 @@ final readonly class AcceptanceResponder
             ApiDate::format($tokens->accessTokenExpiresAt),
             $tokens->refreshToken,
             ApiDate::format($tokens->refreshTokenExpiresAt),
-            $this->accounts->of($outcome->userId),
+            $this->accounts->of($userId),
         );
     }
 }

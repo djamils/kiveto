@@ -27,6 +27,19 @@ final class OwnerProfileTest extends TestCase
         self::assertSame(['user-2', null, '2026-10-01', '2026-09-01'], [$restored->userId(), $restored->address(), $restored->termsAcceptedAt()->format('Y-m-d'), $restored->createdAt()->format('Y-m-d')]);
     }
 
+    /** S7a: an owner without invitation enters their names; no address yet. */
+    public function testARegisteredProfileKeepsTheEnteredNamesTrimmed(): void
+    {
+        $profile = OwnerProfile::register('user-1', ' Sophie ', 'Martin  ', 'v1', new \DateTimeImmutable('2026-11-02'));
+
+        self::assertSame(['user-1', 'Sophie', 'Martin', null, 'v1', '2026-11-02', '2026-11-02'], [
+            $profile->userId(), $profile->firstName(), $profile->lastName(), $profile->address(), $profile->termsVersion(), $profile->termsAcceptedAt()->format('Y-m-d'), $profile->createdAt()->format('Y-m-d'),
+        ]);
+
+        $this->expectExceptionObject(new \InvalidArgumentException('A profile name has 1 to 60 characters.'));
+        OwnerProfile::register('user-2', 'Sophie', ' ', 'v1', new \DateTimeImmutable('2026-11-02'));
+    }
+
     public function testTheOwnerRenamesAndMovesWithTrimmedNames(): void
     {
         $profile = OwnerProfile::createFromClient('user-1', 'Sophie', 'Martin', null, 'v1', new \DateTimeImmutable('2026-10-29'));

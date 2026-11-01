@@ -12,6 +12,8 @@ use App\System\IdentityAccess\Application\Command\ClaimPortalIdentity\ClaimPorta
 use App\System\IdentityAccess\Application\Command\ClaimPortalIdentity\ClaimResult;
 use App\System\IdentityAccess\Application\Command\RevokeOnboardingGrantsForPhone\RevokeOnboardingGrantsForPhone;
 use App\System\IdentityAccess\Application\Command\RevokeOnboardingGrantsForPhone\RevokeOnboardingGrantsForPhoneHandler;
+use App\System\IdentityAccess\Application\Service\PortalAccountRegistrar;
+use App\System\IdentityAccess\Domain\Otp\OnboardingPurpose;
 use App\System\IdentityAccess\Domain\Otp\OtpChallenge;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeId;
 use App\System\IdentityAccess\Domain\Otp\OtpPurpose;
@@ -213,7 +215,7 @@ final class ClaimPortalIdentityHandlerTest extends TestCase
     {
         $challenge = OtpChallenge::start(OtpChallengeId::fromString(self::CHALLENGE), PhoneNumber::fromString($phone), OtpPurpose::LOGIN, null, $this->portal->hash('123456'), $this->now);
         $challenge->verify($this->portal->hash('123456'), $this->now, OtpPurpose::LOGIN);
-        $challenge->grantOnboarding(new OpaqueTokenHasher()->hash(self::GRANT), $this->now);
+        $challenge->grantOnboarding(new OpaqueTokenHasher()->hash(self::GRANT), OnboardingPurpose::INVITATION, $this->now);
         $this->challenges->save($challenge);
     }
 
@@ -229,7 +231,7 @@ final class ClaimPortalIdentityHandlerTest extends TestCase
 
     private function claim(ClaimPortalIdentity $command, string $at = '+1 minute'): ClaimOutcome
     {
-        $handler = new ClaimPortalIdentityHandler($this->challenges, $this->users, $this->portal, new OpaqueTokenHasher(), $this->fakes, new FrozenClock($this->now->modify($at)), $this->fakes->publisher());
+        $handler = new ClaimPortalIdentityHandler($this->challenges, $this->users, $this->portal, new OpaqueTokenHasher(), new PortalAccountRegistrar($this->users, $this->fakes, $this->fakes->publisher()), new FrozenClock($this->now->modify($at)));
 
         return $handler($command);
     }

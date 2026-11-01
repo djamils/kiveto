@@ -181,6 +181,8 @@ final class ConfirmDeclineAppointmentTest extends WebTestCase
             ->withId($id)
             ->withClinicId($clinicId)
             ->withPractitionerUserId($this->vetId)
+            // A known client's request: a new client's is resolved in « Demandes Portal » (S7d)
+            ->withOwnerAndAnimal('01960000-0000-7000-8000-0000000b6d01', null)
             ->withReason('Consultation')
             ->startingAt($this->now->modify($start)->setTimezone($utc), 30)
             ->pending($this->now->modify($expires)->setTimezone($utc))

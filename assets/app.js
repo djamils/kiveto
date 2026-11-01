@@ -39,6 +39,7 @@ const PAGE_MODULES = {
   clinic_settings_notifications: 'pages/settings',
   clinic_settings_agenda:        'pages/settings',
   clinic_settings_online_booking: 'pages/settings',
+  clinic_settings_directory:     'pages/settings',
   clinic_settings_billing:       'pages/settings',
   clinic_settings_preferences:   'pages/settings',
   clinic_settings_team:          'pages/team',

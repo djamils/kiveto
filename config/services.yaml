@@ -295,6 +295,48 @@ services:
             - '@portal.rate_limiter.storage'
             - '@portal.rate_limiter.lock_factory'
 
+    # Ten new-client booking requests through the clinic directory per account per 24 hours (S7d).
+    limiter.portal_listing_booking:
+        class: Symfony\Component\RateLimiter\RateLimiterFactory
+        arguments:
+            - { id: 'portal_listing_booking', policy: 'sliding_window', limit: 10, interval: '24 hours' }
+            - '@portal.rate_limiter.storage'
+            - '@portal.rate_limiter.lock_factory'
+
+    # Unknown-number SMS budget (S7a'), checked in this order: the client's
+    # network (/24 IPv4, /64 IPv6), the optional X-Device-Id hint, then the
+    # global cap.
+    limiter.portal_otp_unknown_network:
+        class: Symfony\Component\RateLimiter\RateLimiterFactory
+        arguments:
+            - { id: 'portal_otp_unknown_network', policy: 'fixed_window', limit: 20, interval: '1 hour' }
+            - '@portal.rate_limiter.storage'
+            - '@portal.rate_limiter.lock_factory'
+
+    limiter.portal_otp_unknown_device:
+        class: Symfony\Component\RateLimiter\RateLimiterFactory
+        arguments:
+            - { id: 'portal_otp_unknown_device', policy: 'fixed_window', limit: 5, interval: '1 hour' }
+            - '@portal.rate_limiter.storage'
+            - '@portal.rate_limiter.lock_factory'
+
+    # Ten registrations (POST /auth/register) per client IP per hour.
+    limiter.portal_register:
+        class: Symfony\Component\RateLimiter\RateLimiterFactory
+        arguments:
+            - { id: 'portal_register', policy: 'fixed_window', limit: 10, interval: '1 hour' }
+            - '@portal.rate_limiter.storage'
+            - '@portal.rate_limiter.lock_factory'
+
+    # The public clinic directory (GET /clinic-listings…): 120 requests per
+    # client IP per minute (S7c).
+    limiter.portal_public_listing:
+        class: Symfony\Component\RateLimiter\RateLimiterFactory
+        arguments:
+            - { id: 'portal_public_listing', policy: 'fixed_window', limit: 120, interval: '1 minute' }
+            - '@portal.rate_limiter.storage'
+            - '@portal.rate_limiter.lock_factory'
+
     limiter.portal_otp_unknown_global:
         class: Symfony\Component\RateLimiter\RateLimiterFactory
         arguments:
@@ -412,6 +454,18 @@ services:
     App\Context\ClientPortal\Application\Port\PetRegistrationInterface:
         class: App\Context\ClientPortal\Infrastructure\Adapter\Animal\CommandBusPetRegistration
 
+    App\Context\ClientPortal\Domain\Booking\BookingRequestRepositoryInterface:
+        class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalBookingRequestRepository
+
+    App\Context\ClientPortal\Application\Port\ClinicListingsInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\ClinicListing\QueryBusClinicListings
+
+    App\Context\ClientPortal\Application\Port\ClientRegistrationInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Client\CommandBusClientRegistration
+
+    App\Context\ClientPortal\Application\Port\ListingBookingQuotaInterface:
+        class: App\Context\ClientPortal\Infrastructure\RateLimit\RateLimiterListingBookingQuota
+
     App\Context\ClientPortal\Application\Port\PractitionerNamesInterface:
         class: App\Context\ClientPortal\Infrastructure\Adapter\Clinic\QueryBusPractitionerNames
 
@@ -475,6 +529,15 @@ services:
 
     App\Context\ClientPortal\Application\Port\PortalRequestBellInterface:
         class: App\Context\ClientPortal\Infrastructure\Adapter\Notification\CommandBusPortalRequestBell
+
+    # Link suggestions (S7b, Task 45): opaque ids, the « Rattachement » bell
+    App\Context\ClientPortal\Application\Port\SuggestionIdSignerInterface:
+        class: App\Context\ClientPortal\Infrastructure\Security\SuggestionIdSigner
+        arguments:
+            $secret: '%kernel.secret%'
+
+    App\Context\ClientPortal\Application\Port\LinkRequestBellInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Notification\CommandBusLinkRequestBell
 
     # Consumed by the Portal API before a change or renewal submit (limiter.portal_requests)
     App\Context\ClientPortal\Application\Port\PortalRequestQuotaInterface:
@@ -620,6 +683,13 @@ services:
 
     App\Context\Client\Application\Port\ClientAnimalRegistryInterface:
         class: App\Context\Client\Infrastructure\Adapter\Animal\CommandBusClientAnimalRegistry
+
+    # Cross-clinic mobile lookup (ListClientsByMobilePhone, S7b)
+    App\Context\Client\Application\Port\ClinicStatusInterface:
+        class: App\Context\Client\Infrastructure\Adapter\Clinic\QueryBusClinicStatus
+
+    App\Context\Client\Application\Port\ClientAnimalNamesInterface:
+        class: App\Context\Client\Infrastructure\Adapter\Animal\QueryBusClientAnimalNames
 
     App\Context\Client\Application\Port\AddressDirectoryInterface:
         class: App\Context\Client\Infrastructure\Adapter\AddressDirectory\GeoplateformeAddressDirectory
@@ -1486,8 +1556,32 @@ services:
             $delayMilliseconds: 30000
             $multiplier: 3
 
+    # --- ClinicListing: the clinic directory (S7c) ---
+
+    App\Context\ClinicListing\Domain\Repository\ClinicListingRepositoryInterface:
+        class: App\Context\ClinicListing\Infrastructure\Persistence\Doctrine\Repository\DbalClinicListingRepository
+
+    App\Context\ClinicListing\Domain\Repository\ListingSettingsRepositoryInterface:
+        class: App\Context\ClinicListing\Infrastructure\Persistence\Doctrine\Repository\DbalListingSettingsRepository
+
+    App\Context\ClinicListing\Application\Port\ClinicListingReadModelInterface:
+        class: App\Context\ClinicListing\Infrastructure\Persistence\Doctrine\Repository\DbalClinicListingReadModel
+
+    App\Context\ClinicListing\Application\Port\ClinicProfileInterface:
+        class: App\Context\ClinicListing\Infrastructure\Adapter\Clinic\QueryBusClinicProfile
+
+    App\Context\ClinicListing\Application\Port\OnlineBookingStatusInterface:
+        class: App\Context\ClinicListing\Infrastructure\Adapter\Scheduling\QueryBusOnlineBookingStatus
+
+    # The Géoplateforme geocoder; dev and test bind FakeAddressGeocoder (no network).
+    App\Context\ClinicListing\Application\Port\AddressGeocoderInterface:
+        class: App\Context\ClinicListing\Infrastructure\Geocoding\GeoplateformeAddressGeocoder
+
 when@dev: &services_dev
     services:
+        App\Context\ClinicListing\Application\Port\AddressGeocoderInterface:
+            class: App\Context\ClinicListing\Infrastructure\Geocoding\FakeAddressGeocoder
+
         App\Fixtures\:
             resource: '../fixtures/'
             autowire: true
@@ -1506,6 +1600,9 @@ when@test:
         notification.simulator.delivery_delay: 0
 
     services:
+        App\Context\ClinicListing\Application\Port\AddressGeocoderInterface:
+            class: App\Context\ClinicListing\Infrastructure\Geocoding\FakeAddressGeocoder
+
         App\Context\Animal\Application\Search\AnimalSearchRepositoryInterface:
             class: App\Context\Animal\Infrastructure\Search\DoctrineAnimalSearchRepository
             public: true

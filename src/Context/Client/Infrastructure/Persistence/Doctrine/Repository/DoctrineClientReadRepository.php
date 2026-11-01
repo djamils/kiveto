@@ -14,12 +14,14 @@ use App\Context\Client\Application\Query\SearchClients\ClientListItemView;
 use App\Context\Client\Application\Query\SearchClients\SearchClientsCriteria;
 use App\Context\Client\Domain\TaxProfile\TaxProfileWarning;
 use App\Context\Client\Domain\ValueObject\ClientId;
+use App\Context\Client\Domain\ValueObject\ClientStatus;
 use App\Context\Client\Domain\ValueObject\ClientTaxStatus;
 use App\Context\Client\Domain\ValueObject\ClinicId;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Entity\ClientEntity;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Entity\ContactMethodEntity;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Mapper\ClientMapper;
 use App\Shared\Domain\Time\ClockInterface;
+use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -200,6 +202,33 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
         ]);
 
         return array_values(array_filter($rows, \is_string(...)));
+    }
+
+    public function findByMobilePhone(string $phone): array
+    {
+        // Driven by idx_contact_method_type_value (type, value, client_id).
+        $sql = <<<'SQL'
+            SELECT BIN_TO_UUID(c.clinic_id) AS clinicId, BIN_TO_UUID(c.id) AS clientId, c.first_name AS firstName, c.last_name AS lastName
+            FROM client__clients c
+            WHERE c.status <> :archived
+              AND EXISTS (
+                  SELECT 1 FROM client__contact_methods cm
+                  WHERE cm.type = 'phone' AND cm.value = :phone AND cm.client_id = c.id AND cm.label = 'mobile'
+              )
+            ORDER BY c.clinic_id, c.created_at, c.id
+        SQL;
+
+        $rows = $this->em->getConnection()->fetchAllAssociative($sql, [
+            'phone'    => $phone,
+            'archived' => ClientStatus::ARCHIVED->value,
+        ]);
+
+        return array_map(static fn (array $row): array => [
+            'clinicId'  => RowAccessor::string($row, 'clinicId'),
+            'clientId'  => RowAccessor::string($row, 'clientId'),
+            'firstName' => RowAccessor::string($row, 'firstName'),
+            'lastName'  => RowAccessor::string($row, 'lastName'),
+        ], $rows);
     }
 
     public function findIdsBySiren(ClinicId $clinicId, string $siren): array

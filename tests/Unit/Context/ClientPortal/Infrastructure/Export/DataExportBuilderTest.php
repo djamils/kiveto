@@ -11,6 +11,9 @@ use App\Context\ClientPortal\Application\Port\OwnerAppointment;
 use App\Context\ClientPortal\Application\Port\OwnerAppointmentsInterface;
 use App\Context\ClientPortal\Application\Port\UpcomingAppointment;
 use App\Context\ClientPortal\Application\Service\PortalAppointments;
+use App\Context\ClientPortal\Domain\Booking\BookingRequest;
+use App\Context\ClientPortal\Domain\Booking\BookingRequestId;
+use App\Context\ClientPortal\Domain\Booking\DeclineReason;
 use App\Context\ClientPortal\Domain\Link\ClientLink;
 use App\Context\ClientPortal\Domain\Link\ClientLinkId;
 use App\Context\ClientPortal\Domain\Link\ClientLinkStatus;
@@ -23,6 +26,7 @@ use App\Shared\Application\Pagination\CursorPage;
 use App\Shared\Domain\ValueObject\PostalAddress;
 use App\Tests\Support\Document\CapturingDocumentPdfRenderer;
 use App\Tests\Unit\Context\ClientPortal\Support\DataExportFakes;
+use App\Tests\Unit\Context\ClientPortal\Support\InMemoryBookingRequests;
 use App\Tests\Unit\Context\ClientPortal\Support\InMemoryChangeRequests;
 use App\Tests\Unit\Context\ClientPortal\Support\InMemoryOwnerProfiles;
 use App\Tests\Unit\Context\ClientPortal\Support\InMemoryQuestionnaires;
@@ -62,6 +66,7 @@ final class DataExportBuilderTest extends TestCase
     private InMemoryChangeRequests $changes;
     private InMemoryRenewalRequests $renewals;
     private InMemoryQuestionnaires $questionnaires;
+    private InMemoryBookingRequests $bookingRequests;
 
     /** @var list<string> */
     private array $pages = [];
@@ -75,6 +80,7 @@ final class DataExportBuilderTest extends TestCase
         $this->changes                        = new InMemoryChangeRequests();
         $this->renewals                       = new InMemoryRenewalRequests();
         $this->questionnaires                 = new InMemoryQuestionnaires();
+        $this->bookingRequests                = new InMemoryBookingRequests();
         $this->fakes->accounts[W::USER]       = new OwnerAccount(W::USER, '+33612345678', 'sophie@example.com', true);
         $this->world->documents->links->links = [];
     }
@@ -115,8 +121,9 @@ final class DataExportBuilderTest extends TestCase
                 'lastName'  => 'Martin',
                 'address'   => ['streetLine1' => '12 rue des Lilas', 'streetLine2' => 'Bât. B', 'postalCode' => '69003', 'city' => 'Lyon', 'countryCode' => 'FR'],
             ],
-            'terms'   => ['version' => 'v2', 'acceptedAt' => '2026-10-01T08:00:00+00:00'],
-            'clinics' => [W::CLINIC, self::REVOKED_CLINIC],
+            'terms'           => ['version' => 'v2', 'acceptedAt' => '2026-10-01T08:00:00+00:00'],
+            'clinics'         => [W::CLINIC, self::REVOKED_CLINIC],
+            'bookingRequests' => [],
         ], self::decode($files['account.json']));
 
         self::assertSame([
@@ -188,6 +195,43 @@ final class DataExportBuilderTest extends TestCase
         self::assertSame([], $this->fakes->consentCalls);
     }
 
+    /** S5f, slice 7: the new-client booking requests, any clinic (linked or not), in account.json. */
+    public function testTheBookingRequestsOfTheAccountAreExported(): void
+    {
+        $this->world->documents->fakes->clinics[self::REVOKED_CLINIC] = new ClinicLabel('Clinique du Port', 'Fort-de-France', 'America/Martinique');
+        $utc                                                          = new \DateTimeZone('UTC');
+        $request                                                      = BookingRequest::request(
+            BookingRequestId::fromString('01960000-0000-7000-8000-0000000e0f01'),
+            W::USER,
+            self::REVOKED_CLINIC,
+            '01960000-0000-7000-8000-0000000e0f02',
+            '01960000-0000-7000-8000-0000000e0f03',
+            'Première consultation',
+            new \DateTimeImmutable('2026-11-05 14:00:00', $utc),
+            'Pixel',
+            'cat',
+            'Sophie',
+            'Martin',
+            '+33612345678',
+            new \DateTimeImmutable('2026-10-28 10:00:00', $utc),
+        );
+        $request->decline(DeclineReason::EXPIRED, new \DateTimeImmutable('2026-10-29 08:00:00', $utc));
+        $this->bookingRequests->save($request);
+
+        $files = $this->unzip($this->builder()->build(W::USER));
+
+        self::assertSame([[
+            'clinic'        => ['name' => 'Clinique du Port', 'city' => 'Fort-de-France'],
+            'pet'           => ['name' => 'Pixel', 'species' => 'cat'],
+            'motif'         => 'Première consultation',
+            'startAt'       => '2026-11-05T10:00:00-04:00',
+            'status'        => 'declined',
+            'declineReason' => 'expired',
+            'createdAt'     => '2026-10-28T06:00:00-04:00',
+        ]], self::decode($files['account.json'])['bookingRequests'] ?? null);
+        self::assertCount(1, $this->pdf->rendered);
+    }
+
     public function testAnAccountNoLongerActiveIsNotExported(): void
     {
         $this->expectException(\RuntimeException::class);
@@ -254,6 +298,7 @@ final class DataExportBuilderTest extends TestCase
             $this->changes,
             $this->renewals,
             $this->questionnaires,
+            $this->bookingRequests,
             $this->pdf,
             $this->world->documents->clock,
         );

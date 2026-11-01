@@ -37,6 +37,15 @@ interface ClientReadRepositoryInterface
     public function findIdsByPhone(ClinicId $clinicId, string $phone): array;
 
     /**
+     * Across every clinic: the non-archived clients one of whose phones,
+     * labelled `mobile`, is exactly this number; by clinic, then oldest
+     * record first. Clinic status is not looked at.
+     *
+     * @return list<array{clinicId: string, clientId: string, firstName: string, lastName: string}>
+     */
+    public function findByMobilePhone(string $phone): array;
+
+    /**
      * The clients of the clinic, archived ones included, carrying this
      * (normalised, 9-digit) SIREN, oldest record first.
      *

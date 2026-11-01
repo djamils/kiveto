@@ -37,7 +37,10 @@ use App\Shared\Domain\Time\ClockInterface;
  * Refusals, in this order: `BookingNotOpenException` (settings disabled,
  * clinic not active or unknown), `OnlineBookingNotFoundException` (motif
  * unknown, archived or not online; practitioner not listed on the motif or no
- * longer eligible), `InvalidAvailabilityRangeException` (range only).
+ * longer eligible), `InvalidAvailabilityRangeException` (range only). The
+ * availability of a new client (the public directory) also needs the clinic
+ * to take new clients (`BookingNotOpenException`) and the motif to be open to
+ * them (`OnlineBookingNotFoundException` `motif`).
  */
 final readonly class OnlineSlotChecker
 {
@@ -76,6 +79,10 @@ final readonly class OnlineSlotChecker
     ): array {
         $now                        = $this->clock->now();
         [$settings, $motif, $hours] = $this->target($clinicId, $motifId, $practitionerId, $now);
+
+        if ($newClient) {
+            self::assertOpenToNewClients($clinicId, $settings, $motif);
+        }
 
         self::assertRange($fromDate, $toDate, $now->setTimezone($hours->timeZone)->format('Y-m-d'));
 
@@ -152,6 +159,21 @@ final readonly class OnlineSlotChecker
         }
 
         return [$settings, $motif, $hours];
+    }
+
+    /**
+     * @throws BookingNotOpenException
+     * @throws OnlineBookingNotFoundException
+     */
+    private static function assertOpenToNewClients(ClinicId $clinicId, OnlineBookingSettings $settings, BookingMotif $motif): void
+    {
+        if (!$settings->isNewClientBookingEnabled()) {
+            throw new BookingNotOpenException($clinicId->toString());
+        }
+
+        if (!$motif->newClientsAllowed()) {
+            throw OnlineBookingNotFoundException::motif($motif->id()->toString());
+        }
     }
 
     /**

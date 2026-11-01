@@ -23,6 +23,7 @@ final class ListBookingMotifsHandlerTest extends TestCase
     private const string VACCIN   = '01960000-0000-7000-8000-00000000b001';
     private const string CONSULT  = '01960000-0000-7000-8000-00000000b002';
     private const string ARCHIVED = '01960000-0000-7000-8000-00000000b003';
+    private const string OFFLINE  = '01960000-0000-7000-8000-00000000b004';
     private const string VET      = '01960000-0000-7000-8000-00000000d001';
 
     public function testListsTheActiveMotifsAsViews(): void
@@ -41,6 +42,19 @@ final class ListBookingMotifsHandlerTest extends TestCase
 
         self::assertSame([self::CONSULT, self::VACCIN, self::ARCHIVED], array_map(static fn (BookingMotifView $view): string => $view->id, $views));
         self::assertSame('2026-10-01 08:00:00', $views[2]->archivedAt?->format('Y-m-d H:i:s'));
+    }
+
+    public function testListsOnlyTheMotifsOfferedOnlineToNewClientsOnRequest(): void
+    {
+        $motifs = $this->motifs();
+        // Open to new clients but not offered online
+        $motifs->save($this->motif(self::OFFLINE, 'Bilan', null, 30, ConfirmationMode::AUTO, [PlanningBlockType::CONSULTATION], null, true, 2, online: false));
+
+        self::assertCount(4, new ListBookingMotifsHandler($motifs)(new ListBookingMotifs(self::CLINIC, includeArchived: true)));
+
+        $views = new ListBookingMotifsHandler($motifs)(new ListBookingMotifs(self::CLINIC, newClientsOnly: true));
+
+        self::assertSame([self::CONSULT], array_map(static fn (BookingMotifView $view): string => $view->id, $views));
     }
 
     private function motifs(): InMemoryBookingMotifs
@@ -68,6 +82,7 @@ final class ListBookingMotifsHandlerTest extends TestCase
         ?BookingPreventiveCareKind $kind,
         bool $newClients,
         int $sortOrder,
+        bool $online = true,
     ): BookingMotif {
         return BookingMotif::create(
             BookingMotifId::fromString($id),
@@ -75,7 +90,7 @@ final class ListBookingMotifsHandlerTest extends TestCase
             $label,
             $description,
             $duration,
-            true,
+            $online,
             $confirmation,
             $types,
             [UserId::fromString(self::VET)],

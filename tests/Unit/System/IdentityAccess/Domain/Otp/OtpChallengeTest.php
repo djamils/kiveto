@@ -7,6 +7,7 @@ namespace App\Tests\Unit\System\IdentityAccess\Domain\Otp;
 use App\Shared\Domain\ValueObject\PhoneNumber;
 use App\System\IdentityAccess\Domain\Exception\OtpChallengeNotFoundException;
 use App\System\IdentityAccess\Domain\Exception\OtpRateLimitedException;
+use App\System\IdentityAccess\Domain\Otp\OnboardingPurpose;
 use App\System\IdentityAccess\Domain\Otp\OtpChallenge;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeId;
 use App\System\IdentityAccess\Domain\Otp\OtpChannel;
@@ -172,7 +173,7 @@ final class OtpChallengeTest extends TestCase
         $this->assertGrantRefused($challenge, 'not verified yet');
 
         $challenge->verify($this->digest('111111'), $this->now, OtpPurpose::LOGIN);
-        $challenge->grantOnboarding(hash('sha256', 'grant'), $this->now);
+        $challenge->grantOnboarding(hash('sha256', 'grant'), OnboardingPurpose::INVITATION, $this->now);
 
         self::assertSame([hash('sha256', 'grant'), '07:29:00'], [$challenge->onboardingTokenHash(), $challenge->onboardingExpiresAt()?->format('H:i:s')]);
         self::assertTrue($challenge->isOnboardingUsable($this->at('+14 minutes')));
@@ -198,7 +199,7 @@ final class OtpChallengeTest extends TestCase
     {
         $challenge = $this->login();
         $challenge->verify($this->digest('111111'), $this->now, OtpPurpose::LOGIN);
-        $challenge->grantOnboarding(hash('sha256', 'grant'), $this->now);
+        $challenge->grantOnboarding(hash('sha256', 'grant'), OnboardingPurpose::INVITATION, $this->now);
 
         $challenge->revokeOnboarding($this->at('+1 minute'));
         $challenge->revokeOnboarding($this->at('+2 minutes'));
@@ -234,7 +235,7 @@ final class OtpChallengeTest extends TestCase
     private function assertGrantRefused(OtpChallenge $challenge, string $message): void
     {
         try {
-            $challenge->grantOnboarding(hash('sha256', 'other'), $this->now);
+            $challenge->grantOnboarding(hash('sha256', 'other'), OnboardingPurpose::INVITATION, $this->now);
             self::fail('Grant should be refused: ' . $message);
         } catch (\LogicException $exception) {
             self::assertSame('An onboarding grant is minted once, by the verification of a login code.', $exception->getMessage(), $message);

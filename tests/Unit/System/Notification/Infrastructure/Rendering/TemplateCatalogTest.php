@@ -60,6 +60,14 @@ final class TemplateCatalogTest extends TestCase
         self::assertSame('portal_request_resolved', TemplateCatalog::templateName(MessagePurpose::PORTAL_REQUEST_RESOLVED));
     }
 
+    public function testTheDeclineOfANewClientsRequestIsAnSmsOnly(): void
+    {
+        self::assertSame([false, true], [TemplateCatalog::supports(MessagePurpose::PORTAL_BOOKING_DECLINED, Channel::EMAIL), TemplateCatalog::supports(MessagePurpose::PORTAL_BOOKING_DECLINED, Channel::SMS)]);
+        self::assertSame(['clinicName' => 'scalar', 'slotLabel' => 'scalar'], TemplateCatalog::parameters(MessagePurpose::PORTAL_BOOKING_DECLINED, Channel::SMS));
+        self::assertSame('portal_booking_declined', TemplateCatalog::templateName(MessagePurpose::PORTAL_BOOKING_DECLINED));
+        self::assertSame(Criticality::NON_CRITICAL, MessagePurpose::PORTAL_BOOKING_DECLINED->criticality());
+    }
+
     public function testTheDeclineOfAPendingRequestGoesOnBothChannels(): void
     {
         self::assertTrue(TemplateCatalog::supports(MessagePurpose::APPOINTMENT_DECLINED, Channel::EMAIL));

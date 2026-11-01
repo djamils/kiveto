@@ -48,7 +48,8 @@ final class OtpSignInTest extends PortalApiTestCase
         $unknown = self::json($this->post('/auth/otp/request', ['phone' => '+33611000002']), 202);
         self::assertSame(['challengeId', 'expiresAt', 'resendAvailableAt'], array_keys($unknown), 'nothing tells the phones apart');
         $answer = self::json($this->post('/auth/otp/verify', ['challengeId' => $unknown['challengeId'], 'code' => $this->lastOtpCode()]), 200);
-        self::assertSame(['registration_required', null, null], [$answer['status'], $answer['registrationToken'], $answer['accessToken']]);
+        self::assertSame(['registration_required', null], [$answer['status'], $answer['accessToken']]);
+        self::assertSame(43, \strlen(self::string($answer['registrationToken'])), 'AC 72: a registration token');
         self::assertSame(0, $this->number("SELECT COUNT(*) FROM identity_access__users WHERE phone = '+33611000002'"), 'no account is created');
     }
 
