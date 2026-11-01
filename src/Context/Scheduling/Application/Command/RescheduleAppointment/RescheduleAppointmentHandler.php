@@ -5,8 +5,15 @@ declare(strict_types=1);
 namespace App\Context\Scheduling\Application\Command\RescheduleAppointment;
 
 use App\Context\Scheduling\Application\Port\AppointmentConflictCheckerInterface;
+use App\Context\Scheduling\Application\Port\ClinicTimezoneResolverInterface;
 use App\Context\Scheduling\Application\Port\MembershipEligibilityCheckerInterface;
+use App\Context\Scheduling\Application\Port\PractitionerDayLockInterface;
+use App\Context\Scheduling\Application\Service\PlanningBlockGate;
+use App\Context\Scheduling\Domain\Booking\OnlineBookingSettingsRepositoryInterface;
+use App\Context\Scheduling\Domain\Exception\PractitionerNotBookableException;
+use App\Context\Scheduling\Domain\Exception\SlotTakenException;
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
+use App\Context\Scheduling\Domain\Service\LockKeys;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
@@ -25,6 +32,10 @@ final readonly class RescheduleAppointmentHandler
         private MembershipEligibilityCheckerInterface $membershipEligibilityChecker,
         private ClockInterface $clock,
         private DomainEventPublisher $domainEventPublisher,
+        private OnlineBookingSettingsRepositoryInterface $onlineBookingSettings,
+        private ClinicTimezoneResolverInterface $timezoneResolver,
+        private PractitionerDayLockInterface $dayLock,
+        private PlanningBlockGate $planningBlockGate,
     ) {
     }
 
@@ -52,27 +63,35 @@ final readonly class RescheduleAppointmentHandler
             allowedRoles: ['VETERINARY', 'VETERINARY_ASSISTANT'],
         );
         if (!$isEligible) {
-            throw new \DomainException(\sprintf(
-                'User "%s" is not eligible as practitioner for clinic "%s".',
-                $command->practitionerUserId,
-                $command->clinicId,
-            ));
+            throw PractitionerNotBookableException::at($command->practitionerUserId, $command->clinicId);
         }
 
         $newTimeSlot = new TimeSlot($command->startsAtUtc, $command->durationMinutes);
+        $clinicTz    = $this->timezoneResolver->resolveTimezone($clinicId);
+        $oldSlot     = $appointment->timeSlot();
 
-        // Check for overlaps (exclude self)
-        if ($this->conflictChecker->hasOverlap($clinicId, $practitionerUserId, $newTimeSlot, $appointmentId)) {
-            throw new \DomainException(\sprintf(
-                'Practitioner "%s" has an overlapping appointment at %s.',
-                $command->practitionerUserId,
-                $command->startsAtUtc->format('Y-m-d H:i'),
-            ));
+        // The union of the days left and of the days taken (P1)
+        $this->dayLock->lock($clinicId, LockKeys::merge(
+            LockKeys::forSlot($appointment->practitionerAssignee()->userId(), $oldSlot->startsAtUtc(), $oldSlot->endsAtUtc(), $clinicTz),
+            LockKeys::forSlot($practitionerUserId, $newTimeSlot->startsAtUtc(), $newTimeSlot->endsAtUtc(), $clinicTz),
+        ));
+
+        // Check for overlaps (exclude self), as a current read
+        if ($this->conflictChecker->hasOverlapLocked($clinicId, $practitionerUserId, $newTimeSlot, $appointmentId)) {
+            throw SlotTakenException::overlap($command->practitionerUserId, $command->startsAtUtc);
         }
+
+        // The same SOFT block rule as a new booking (AC 148); the moved booking does not count
+        $this->planningBlockGate->assertAdmits($clinicId, $practitionerUserId, $newTimeSlot, $clinicTz, $appointmentId);
 
         $newAssignee = new PractitionerAssignee($practitionerUserId);
 
-        $appointment->reschedule($newTimeSlot);
+        // A pending request moved elsewhere expires by its new start (AC 142)
+        $pendingExpiresAt = $appointment->status()->isPending()
+            ? $this->onlineBookingSettings->forClinic($clinicId)->pendingExpiry($appointment->createdAt(), $newTimeSlot->startsAtUtc())
+            : null;
+
+        $appointment->reschedule($newTimeSlot, $pendingExpiresAt);
         $appointment->changePractitionerAssignee($newAssignee);
         $appointment->changeOwnerAndAnimal($command->ownerId, $command->animalId);
 

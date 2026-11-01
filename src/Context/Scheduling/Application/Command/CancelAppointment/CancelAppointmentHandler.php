@@ -6,6 +6,8 @@ namespace App\Context\Scheduling\Application\Command\CancelAppointment;
 
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
+use App\Context\Scheduling\Domain\ValueObject\CancellationActor;
+use App\Context\Scheduling\Domain\ValueObject\CancellationReason;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
@@ -41,7 +43,12 @@ final readonly class CancelAppointmentHandler
             throw new \DomainException('Impossible d\'annuler un rendez-vous passé.');
         }
 
-        $appointment->cancel($command->notifyClient);
+        // A clinic cancel of a pending request is a decline (domain rule)
+        $appointment->cancel(
+            CancellationActor::from($command->cancelledBy),
+            null === $command->cancellationReason ? null : CancellationReason::from($command->cancellationReason),
+            $command->notifyClient,
+        );
         $this->appointmentRepository->save($appointment);
 
         $this->domainEventPublisher->publish($appointment);

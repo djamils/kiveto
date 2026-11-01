@@ -67,7 +67,10 @@ export function init() {
     if (v.st === 'absent') return '<span class="etat ko"><i></i>Non venu</span>';
     if (v.st !== 'avenir') return '';
     const j = jours(v.d);
-    return `<span class="etat pin"><i></i>${j <= 0 ? 'Aujourd\'hui' : j === 1 ? 'Demain' : `Dans ${j} j`}</span>`;
+    const quand = j <= 0 ? 'Aujourd\'hui' : j === 1 ? 'Demain' : `Dans ${j} j`;
+    // Booked online, still waiting for the clinic's confirmation
+    if (v.attente) return `<span class="etat bt"><i></i>À confirmer · ${quand}</span>`;
+    return `<span class="etat pin"><i></i>${quand}</span>`;
   };
 
   bindModales(root, signal);

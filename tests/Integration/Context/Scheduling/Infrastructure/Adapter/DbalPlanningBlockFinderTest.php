@@ -7,6 +7,7 @@ namespace App\Tests\Integration\Context\Scheduling\Infrastructure\Adapter;
 use App\Context\Scheduling\Application\Port\PlanningBlockFinderInterface;
 use App\Context\Scheduling\Domain\PlanningBlock;
 use App\Context\Scheduling\Domain\Repository\PlanningBlockRepositoryInterface;
+use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\PlanningBlockId;
@@ -65,6 +66,33 @@ final class DbalPlanningBlockFinderTest extends KernelTestCase
         self::assertSame(240, $block->durationMinutes);
         self::assertSame(1, $block->currentAppointmentCount);
         self::assertSame(4, $block->capacityPerHour);
+    }
+
+    public function testTheBlockLengthIsInLocalMinutesAndTheMovedBookingIsNotCounted(): void
+    {
+        // 29 March 2026: the clocks go forward at 02:00 in Paris — 01:00–04:00 lasts 2 real hours
+        $this->block('01960000-0000-7000-8000-0000000b0003', PlanningBlockType::CONSULTATION, '2026-03-29', '01:00', '04:00', RecurrenceRule::none());
+
+        AppointmentEntityFactory::new()
+            ->withId('01960000-0000-7000-8000-0000000a0003')
+            ->withClinicId(self::CLINIC_ID)
+            ->withPractitionerUserId(self::USER_ID)
+            ->startingAt(new \DateTimeImmutable('2026-03-29 01:00:00'), 30)
+            ->withStatus(AppointmentStatus::PLANNED)
+            ->create()
+        ;
+
+        $clinic = ClinicId::fromString(self::CLINIC_ID);
+        $user   = UserId::fromString(self::USER_ID);
+
+        $block = $this->finder->findActiveBlockFor($clinic, $user, '2026-03-29', '03:00', '03:30');
+        self::assertNotNull($block);
+        self::assertSame(180, $block->durationMinutes);
+        self::assertSame(1, $block->currentAppointmentCount);
+
+        $moving = $this->finder->findActiveBlockFor($clinic, $user, '2026-03-29', '03:00', '03:30', AppointmentId::fromString('01960000-0000-7000-8000-0000000a0003'));
+        self::assertNotNull($moving);
+        self::assertSame(0, $moving->currentAppointmentCount);
     }
 
     public function testIgnoresBlocksThatDoNotCoverTheSlotOrTheDay(): void

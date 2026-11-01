@@ -135,6 +135,11 @@ framework:
             # Bell entries (D13): « Nouveau RDV » to the veterinarian and its withdrawal, « Stock critique » to the assistants
             App\Context\Scheduling\Application\Command\PostNewAppointmentNotice\PostNewAppointmentNotice: async
             App\Context\Scheduling\Application\Command\WithdrawNewAppointmentNotice\WithdrawNewAppointmentNotice: async
+            # Online booking (S4e): « RDV en ligne à confirmer » to the practitioner and its withdrawal,
+            # and the decline of each expired pending request queued by the 15-minute scan
+            App\Context\Scheduling\Application\Command\PostPendingBookingNotice\PostPendingBookingNotice: async
+            App\Context\Scheduling\Application\Command\WithdrawPendingBookingNotice\WithdrawPendingBookingNotice: async
+            App\Context\Scheduling\Application\Command\DeclineExpiredPendingAppointment\DeclineExpiredPendingAppointment: async
             App\Context\Inventory\Application\Command\NotifyCriticalStock\NotifyCriticalStock: async
             # Invoice e-mails and unpaid reminders: « Envoyer » / « Relancer » only log and queue them; a worker renders the PDF (AC 25)
             App\Context\Billing\Application\Command\SendInvoiceEmail\SendInvoiceEmail: async

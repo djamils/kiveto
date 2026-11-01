@@ -14,6 +14,10 @@ enum InAppKind: string
     case CRITICAL_STOCK  = 'CRITICAL_STOCK';
     case EXPIRING_LOTS   = 'EXPIRING_LOTS';
     case SMS_QUOTA       = 'SMS_QUOTA';
+    // An online booking waiting for the practitioner's confirmation
+    case ONLINE_BOOKING_PENDING = 'ONLINE_BOOKING_PENDING';
+    // An online booking moved or cancelled by the client
+    case ONLINE_BOOKING_CHANGED = 'ONLINE_BOOKING_CHANGED';
 
     public const string FILTER_ACTIVITY = 'activite';
 

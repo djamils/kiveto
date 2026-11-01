@@ -215,7 +215,7 @@ final class ShellViewBuilder implements ResetInterface
         return \count(array_filter(
             $appointments,
             static fn (mixed $appointment): bool => $appointment instanceof AppointmentItem
-                && 'CANCELLED' !== $appointment->status,
+                && !$appointment->isWithdrawn,
         ));
     }
 

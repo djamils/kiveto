@@ -6,9 +6,13 @@ namespace App\Tests\Unit\Context\Scheduling\Domain\Event;
 
 use App\Context\Scheduling\Domain\Event\AppointmentCancelled;
 use App\Context\Scheduling\Domain\Event\AppointmentCompleted;
+use App\Context\Scheduling\Domain\Event\AppointmentConfirmed;
+use App\Context\Scheduling\Domain\Event\AppointmentDeclined;
 use App\Context\Scheduling\Domain\Event\AppointmentMarkedNoShow;
 use App\Context\Scheduling\Domain\Event\AppointmentOwnerChanged;
 use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeChanged;
+use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeUnassigned;
+use App\Context\Scheduling\Domain\Event\AppointmentRequested;
 use App\Context\Scheduling\Domain\Event\AppointmentRescheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentScheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentServiceStarted;
@@ -92,12 +96,25 @@ final class SchedulingEventsTest extends TestCase
         self::assertSame(self::APPOINTMENT_ID, $event->aggregateId());
         self::assertSame('scheduling.appointment.cancelled.v1', $event->name());
         self::assertSame([
-            'appointmentId' => self::APPOINTMENT_ID,
-            'clinicId'      => self::CLINIC_ID,
-            'notifyClient'  => true,
+            'appointmentId'      => self::APPOINTMENT_ID,
+            'clinicId'           => self::CLINIC_ID,
+            'notifyClient'       => true,
+            'cancelledBy'        => 'clinic',
+            'cancellationReason' => null,
+            'wasPending'         => false,
+            'source'             => 'clinic',
+            'ownerId'            => null,
+            'animalId'           => null,
+            'startsAtUtc'        => null,
         ], $event->payload());
         self::assertSame([self::APPOINTMENT_ID, self::CLINIC_ID, true], [$event->appointmentId(), $event->clinicId(), $event->notifyClient()]);
         self::assertFalse(new AppointmentCancelled(self::APPOINTMENT_ID, self::CLINIC_ID, notifyClient: false)->notifyClient());
+
+        $byClient = new AppointmentCancelled(self::APPOINTMENT_ID, self::CLINIC_ID, true, 'client', 'seen_elsewhere', true, 'portal', 'owner-1', 'animal-1', '2026-10-22T07:30:00+00:00');
+        self::assertSame(
+            ['client', 'seen_elsewhere', true, 'portal', 'owner-1', 'animal-1', '2026-10-22T07:30:00+00:00'],
+            [$byClient->cancelledBy(), $byClient->cancellationReason(), $byClient->wasPending(), $byClient->source(), $byClient->ownerId(), $byClient->animalId(), $byClient->startsAtUtc()],
+        );
     }
 
     public function testAppointmentCompleted(): void
@@ -140,6 +157,19 @@ final class SchedulingEventsTest extends TestCase
             'clinicId'              => self::CLINIC_ID,
             'oldPractitionerUserId' => self::USER_ID,
             'newPractitionerUserId' => self::OTHER_USER_ID,
+        ], $event->payload());
+    }
+
+    public function testAppointmentPractitionerAssigneeUnassigned(): void
+    {
+        $event = new AppointmentPractitionerAssigneeUnassigned(self::APPOINTMENT_ID, self::CLINIC_ID, self::USER_ID);
+
+        self::assertSame(self::APPOINTMENT_ID, $event->aggregateId());
+        self::assertSame('scheduling.appointment-practitioner-assignee.unassigned.v1', $event->name());
+        self::assertSame([
+            'appointmentId'              => self::APPOINTMENT_ID,
+            'clinicId'                   => self::CLINIC_ID,
+            'previousPractitionerUserId' => self::USER_ID,
         ], $event->payload());
     }
 
@@ -206,5 +236,89 @@ final class SchedulingEventsTest extends TestCase
             'clinicId'            => self::CLINIC_ID,
             'serviceStartedAtUtc' => '2026-04-10T09:05:00+00:00',
         ], $event->payload());
+    }
+
+    public function testAppointmentRequested(): void
+    {
+        $event = new AppointmentRequested(
+            appointmentId: self::APPOINTMENT_ID,
+            clinicId: self::CLINIC_ID,
+            linkedAdmissionId: null,
+            practitionerUserId: self::USER_ID,
+            startsAtUtc: '2026-04-10T09:00:00+00:00',
+            durationMinutes: 20,
+            reason: 'Vaccination',
+            notes: null,
+            ownerId: 'owner-1',
+            animalId: 'animal-1',
+            bookingMotifId: 'motif-1',
+            source: 'portal',
+        );
+
+        self::assertSame(self::APPOINTMENT_ID, $event->aggregateId());
+        self::assertSame('scheduling.appointment.requested.v1', $event->name());
+        self::assertSame([
+            'appointmentId'      => self::APPOINTMENT_ID,
+            'clinicId'           => self::CLINIC_ID,
+            'linkedAdmissionId'  => null,
+            'practitionerUserId' => self::USER_ID,
+            'startsAtUtc'        => '2026-04-10T09:00:00+00:00',
+            'durationMinutes'    => 20,
+            'reason'             => 'Vaccination',
+            'notes'              => null,
+            'ownerId'            => 'owner-1',
+            'animalId'           => 'animal-1',
+            'bookingMotifId'     => 'motif-1',
+            'source'             => 'portal',
+        ], $event->payload());
+        self::assertSame(
+            [self::APPOINTMENT_ID, self::CLINIC_ID, self::USER_ID, '2026-04-10T09:00:00+00:00', 'owner-1', 'animal-1', 'motif-1', 'portal'],
+            [$event->appointmentId(), $event->clinicId(), $event->practitionerUserId(), $event->startsAtUtc(), $event->ownerId(), $event->animalId(), $event->bookingMotifId(), $event->source()],
+        );
+    }
+
+    public function testAppointmentConfirmed(): void
+    {
+        $event = new AppointmentConfirmed(self::APPOINTMENT_ID, self::CLINIC_ID, self::USER_ID, '2026-04-10T09:00:00+00:00', 'owner-1', null, 'portal', true);
+
+        self::assertSame(self::APPOINTMENT_ID, $event->aggregateId());
+        self::assertSame('scheduling.appointment.confirmed.v1', $event->name());
+        self::assertSame([
+            'appointmentId'      => self::APPOINTMENT_ID,
+            'clinicId'           => self::CLINIC_ID,
+            'practitionerUserId' => self::USER_ID,
+            'startsAtUtc'        => '2026-04-10T09:00:00+00:00',
+            'ownerId'            => 'owner-1',
+            'animalId'           => null,
+            'source'             => 'portal',
+            'silent'             => true,
+        ], $event->payload());
+        self::assertSame(
+            [self::APPOINTMENT_ID, self::CLINIC_ID, self::USER_ID, '2026-04-10T09:00:00+00:00', 'owner-1', null, 'portal', true],
+            [$event->appointmentId(), $event->clinicId(), $event->practitionerUserId(), $event->startsAtUtc(), $event->ownerId(), $event->animalId(), $event->source(), $event->silent()],
+        );
+    }
+
+    public function testAppointmentDeclined(): void
+    {
+        $event = new AppointmentDeclined(self::APPOINTMENT_ID, self::CLINIC_ID, self::USER_ID, '2026-04-10T09:00:00+00:00', null, 'animal-1', 'portal', 'expired');
+
+        self::assertSame(self::APPOINTMENT_ID, $event->aggregateId());
+        self::assertSame('scheduling.appointment.declined.v1', $event->name());
+        self::assertSame([
+            'appointmentId'      => self::APPOINTMENT_ID,
+            'clinicId'           => self::CLINIC_ID,
+            'practitionerUserId' => self::USER_ID,
+            'startsAtUtc'        => '2026-04-10T09:00:00+00:00',
+            'ownerId'            => null,
+            'animalId'           => 'animal-1',
+            'source'             => 'portal',
+            'reason'             => 'expired',
+            'notifyClient'       => true,
+        ], $event->payload());
+        self::assertSame(
+            [self::APPOINTMENT_ID, self::CLINIC_ID, self::USER_ID, '2026-04-10T09:00:00+00:00', null, 'animal-1', 'portal', 'expired', true],
+            [$event->appointmentId(), $event->clinicId(), $event->practitionerUserId(), $event->startsAtUtc(), $event->ownerId(), $event->animalId(), $event->source(), $event->reason(), $event->notifyClient()],
+        );
     }
 }

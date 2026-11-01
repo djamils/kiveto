@@ -7,18 +7,22 @@ namespace App\Context\Scheduling\Application\Command\UpdatePlanningBlock;
 use App\Context\Scheduling\Application\Port\ClinicTimezoneResolverInterface;
 use App\Context\Scheduling\Application\Port\PlanningBlockAppointmentCounterInterface;
 use App\Context\Scheduling\Application\Port\PlanningBlockOverlapCheckerInterface;
+use App\Context\Scheduling\Application\Port\PractitionerDayLockInterface;
 use App\Context\Scheduling\Domain\Exception\CannotChangePlanningBlockTypeWithActiveAppointments;
 use App\Context\Scheduling\Domain\Exception\CannotModifyRecurrenceRuleOnExistingBlock;
 use App\Context\Scheduling\Domain\Exception\CannotReduceCapacityBelowExistingAppointmentCount;
 use App\Context\Scheduling\Domain\Exception\CannotShrinkPlanningBlockBelowExistingAppointments;
 use App\Context\Scheduling\Domain\Exception\PlanningBlockNotFoundException;
 use App\Context\Scheduling\Domain\Repository\PlanningBlockRepositoryInterface;
+use App\Context\Scheduling\Domain\Service\BlockCapacity;
+use App\Context\Scheduling\Domain\Service\LockKeys;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\PlanningBlockId;
 use App\Context\Scheduling\Domain\ValueObject\PlanningBlockType;
 use App\Context\Scheduling\Domain\ValueObject\RecurrenceRule;
 use App\Context\Scheduling\Domain\ValueObject\TimeRange;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
+use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
@@ -29,6 +33,8 @@ final readonly class UpdatePlanningBlockHandler
         private PlanningBlockOverlapCheckerInterface $overlapChecker,
         private PlanningBlockAppointmentCounterInterface $appointmentCounter,
         private ClinicTimezoneResolverInterface $timezoneResolver,
+        private PractitionerDayLockInterface $dayLock,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -49,6 +55,15 @@ final readonly class UpdatePlanningBlockHandler
         $newRange    = new TimeRange($command->date, $command->startTime, $command->endTime);
         $newRule     = $this->buildRecurrenceRule($command->recurrenceFreq, $command->recurrenceUntil);
 
+        $tz    = $this->timezoneResolver->resolveTimezone($clinicId);
+        $today = $this->clock->now()->setTimezone($tz)->format('Y-m-d');
+
+        // The days the block leaves and the days it takes: the counts below are current
+        $this->dayLock->lock($clinicId, LockKeys::merge(
+            LockKeys::forBlock($block->staffUserId(), $block->timeRange(), $block->recurrenceRule(), $today),
+            LockKeys::forBlock($staffUserId, $newRange, $newRule, $today),
+        ));
+
         $this->overlapChecker->hasOverlap(
             $clinicId,
             $staffUserId,
@@ -58,11 +73,10 @@ final readonly class UpdatePlanningBlockHandler
             $blockId,
         );
 
-        $tz       = $this->timezoneResolver->resolveTimezone($clinicId);
         $startUtc = $newRange->toUtcStart($tz);
         $endUtc   = $newRange->toUtcEnd($tz);
 
-        $count = $this->appointmentCounter->countActiveInWindow($clinicId, $staffUserId, $startUtc, $endUtc);
+        $count = $this->appointmentCounter->countOccupyingInWindowLocked($clinicId, $staffUserId, $startUtc, $endUtc);
 
         // D.4 — recurrence rule immutable once set
         $ruleChanged = $newRule->freq() !== $block->recurrenceRule()->freq()
@@ -91,8 +105,7 @@ final readonly class UpdatePlanningBlockHandler
         }
 
         // D.3 — capacity reduction below existing appointment count
-        $slotDurationHours = $newRange->durationMinutes() / 60;
-        $capacityForSlot   = (int) floor($command->capacityPerHour * $slotDurationHours);
+        $capacityForSlot = BlockCapacity::of($command->capacityPerHour, $newRange->durationMinutes());
         if ($capacityForSlot > 0 && $count > $capacityForSlot) {
             throw new CannotReduceCapacityBelowExistingAppointmentCount(
                 'Cannot reduce capacity below the number of existing appointments in this window.'

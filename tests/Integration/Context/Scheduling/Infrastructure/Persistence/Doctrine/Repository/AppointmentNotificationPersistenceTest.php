@@ -46,6 +46,23 @@ final class AppointmentNotificationPersistenceTest extends KernelTestCase
         self::assertSame('2026-10-21 07:30', $again->reminderDueAt()?->format('Y-m-d H:i'));
         self::assertNull($again->reminderRequestedAt());
         self::assertNull($again->cancellationNotifiedAt());
+        self::assertNull($again->declineNotifiedAt());
+    }
+
+    public function testTheDeclineOfARequestIsRecordedOnce(): void
+    {
+        $this->appointments()->save(Appointments::pending());
+        $states = $this->states();
+
+        $state = $states->lock(AppointmentId::fromString(Appointments::ID));
+        self::assertNotNull($state);
+        $state->recordNotified(AppointmentMessageKind::DECLINED, Appointments::slot('2026-10-22 07:30'), Appointments::ROUSSEAU, Appointments::utc('2026-10-14 10:00'), Appointments::OWNER);
+        $states->save($state);
+
+        $again = $states->lock(AppointmentId::fromString(Appointments::ID));
+        self::assertNotNull($again);
+        self::assertSame('2026-10-14 10:00', $again->declineNotifiedAt()?->format('Y-m-d H:i'));
+        self::assertNull($again->nextMessage(AppointmentStatus::DECLINED, Appointments::slot('2026-10-22 07:30'), Appointments::ROUSSEAU, Appointments::utc('2026-10-14 10:05')));
     }
 
     public function testAnUnknownAppointmentHasNoState(): void
@@ -115,6 +132,7 @@ final class AppointmentNotificationPersistenceTest extends KernelTestCase
 
         self::assertSame($id, new AppointmentNotificationEntity($id, $id)->columns()['appointment_id']);
         self::assertNull(new AppointmentNotificationEntity($id, $id)->columns()['notified_owner_id']);
+        self::assertNull(new AppointmentNotificationEntity($id, $id)->columns()['decline_notified_at']);
         self::assertSame(['clinic_id' => $id, 'reminder_delay' => 'H24'], new ClinicSchedulingSettingsEntity($id)->columns());
     }
 

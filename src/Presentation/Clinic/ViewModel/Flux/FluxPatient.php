@@ -54,6 +54,8 @@ final readonly class FluxPatient
         public bool $isSurgical = false,
         public ?string $balanceLabel = null,
         public ?string $settleInvoiceId = null,
+        // A booking made online, still waiting for the clinic (« à confirmer »)
+        public bool $isPending = false,
     ) {
     }
 }

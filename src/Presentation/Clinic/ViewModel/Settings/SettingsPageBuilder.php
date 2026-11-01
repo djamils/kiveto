@@ -10,8 +10,17 @@ use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\ClinicSettings
 use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\GetClinicSettings;
 use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\AccessibleClinic;
 use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\ListClinicsForUser;
+use App\Context\Clinic\Application\Query\Staff\GetStaffPrintedName\GetStaffPrintedName;
+use App\Context\Clinic\Application\Query\Staff\ListAllMemberships\ListAllMemberships;
+use App\Context\Clinic\Application\Query\Staff\ListAllMemberships\MembershipCollection;
+use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
+use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipStatus;
 use App\Context\Clinic\Domain\ValueObject\OrdinalCouncil;
+use App\Context\Scheduling\Application\Query\GetOnlineBookingSettings\GetOnlineBookingSettings;
+use App\Context\Scheduling\Application\Query\GetOnlineBookingSettings\OnlineBookingSettingsView;
 use App\Context\Scheduling\Application\Query\GetReminderDelay\GetReminderDelay;
+use App\Context\Scheduling\Application\Query\ListBookingMotifs\BookingMotifView;
+use App\Context\Scheduling\Application\Query\ListBookingMotifs\ListBookingMotifs;
 use App\Presentation\Clinic\Security\ClinicPermissionGuard;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Domain\Time\ClockInterface;
@@ -24,9 +33,9 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
 /**
- * Everything the settings page draws, in one payload: the six sections the
- * clinic can set today (identity, hours, notifications, agenda, billing, the
- * member's own preferences) with their current values, which of them the member may open,
+ * Everything the settings page draws, in one payload: the seven sections the
+ * clinic can set today (identity, hours, notifications, agenda, online
+ * booking, billing, the member's own preferences) with their current values, which of them the member may open,
  * and where each one is saved. The page module renders the sections from it
  * and posts a whole section back on every change.
  */
@@ -40,8 +49,29 @@ final readonly class SettingsPageBuilder
         'horaires'      => 'clinic_settings_hours',
         'notifications' => 'clinic_settings_notifications',
         'agenda'        => 'clinic_settings_agenda',
-        'facturation'   => 'clinic_settings_billing',
-        'moi'           => 'clinic_settings_preferences',
+        // Paramètres › Réservation en ligne (Portal bookings, S4h)
+        'reservation-en-ligne' => 'clinic_settings_online_booking',
+        'facturation'          => 'clinic_settings_billing',
+        'moi'                  => 'clinic_settings_preferences',
+    ];
+
+    /** Who can take an online booking: the same roles as an appointment's practitioner. */
+    private const array PRACTITIONER_ROLES = [ClinicMemberRole::VETERINARY, ClinicMemberRole::VETERINARY_ASSISTANT];
+
+    /** Planning block types that take appointments, as the Planning names them. */
+    private const array BLOCK_TYPES = [
+        'consultation' => 'Consultation',
+        'health_check' => 'Bilan de santé',
+        'surgery'      => 'Chirurgie',
+        'emergency'    => 'Urgences',
+        'on_call'      => 'Garde',
+    ];
+
+    private const array PREVENTIVE_CARE_KINDS = [
+        'vaccination'       => 'Vaccination',
+        'internal_parasite' => 'Vermifuge',
+        'external_parasite' => 'Antiparasitaire externe',
+        'other'             => 'Autre soin préventif',
     ];
 
     private const array LOCALES = [
@@ -95,23 +125,26 @@ final readonly class SettingsPageBuilder
             'horaires'      => $this->guard->has(ClinicPermissionGuard::MANAGE_STAFF),
             'notifications' => $this->guard->has(ClinicPermissionGuard::MANAGE_STAFF),
             'agenda'        => $this->guard->has(ClinicPermissionGuard::MANAGE_STAFF),
-            'facturation'   => $this->guard->has(ClinicPermissionGuard::MANAGE_BILLING),
-            'moi'           => true,
+            // Same right as the agenda: the clinic's administrators.
+            'reservation-en-ligne' => $this->guard->has(ClinicPermissionGuard::MANAGE_STAFF),
+            'facturation'          => $this->guard->has(ClinicPermissionGuard::MANAGE_BILLING),
+            'moi'                  => true,
         ];
 
         return [
-            'section'       => $section,
-            'clinicName'    => $settings->name,
-            'token'         => $this->csrf->getToken(self::CSRF_ID)->getValue(),
-            'can'           => $can,
-            'urls'          => $this->urls($settings),
-            'identite'      => $can['identite'] ? $this->identity($settings) : null,
-            'horaires'      => $can['horaires'] ? $this->hours($settings) : null,
-            'notifications' => $can['notifications'] ? $this->notifications($settings) : null,
-            'agenda'        => $can['agenda'] ? $this->agenda($settings) : null,
-            'facturation'   => $can['facturation'] ? $this->billing($settings) : null,
-            'moi'           => $this->preferences(),
-            'options'       => [
+            'section'              => $section,
+            'clinicName'           => $settings->name,
+            'token'                => $this->csrf->getToken(self::CSRF_ID)->getValue(),
+            'can'                  => $can,
+            'urls'                 => $this->urls($settings),
+            'identite'             => $can['identite'] ? $this->identity($settings) : null,
+            'horaires'             => $can['horaires'] ? $this->hours($settings) : null,
+            'notifications'        => $can['notifications'] ? $this->notifications($settings) : null,
+            'agenda'               => $can['agenda'] ? $this->agenda($settings) : null,
+            'reservation-en-ligne' => $can['reservation-en-ligne'] ? $this->onlineBooking($settings) : null,
+            'facturation'          => $can['facturation'] ? $this->billing($settings) : null,
+            'moi'                  => $this->preferences(),
+            'options'              => [
                 'councils' => array_map(static fn (OrdinalCouncil $council): array => [$council->value, $council->label()], OrdinalCouncil::cases()),
                 'locales'  => self::pairs(self::LOCALES, $settings->locale),
                 'zones'    => self::pairs(self::ZONES, $settings->timeZone),
@@ -248,6 +281,73 @@ final readonly class SettingsPageBuilder
     }
 
     /**
+     * Online booking from the Portal: the general settings, the clinic's
+     * motifs (archived ones left out), who and which planning blocks a motif
+     * may be booked with, and whether the opening hours the slots are cut
+     * from are missing.
+     *
+     * @return array{
+     *     settings: array<string, bool|int>,
+     *     motifs: list<array<string, mixed>>,
+     *     practitioners: list<array{0: string, 1: string}>,
+     *     blockTypes: list<array{0: string, 1: string}>,
+     *     careKinds: list<array{0: string, 1: string}>,
+     *     hoursMissing: bool,
+     * }
+     */
+    public function onlineBooking(ClinicSettingsView $settings): array
+    {
+        $booking = $this->queryBus->ask(new GetOnlineBookingSettings($settings->id));
+        \assert($booking instanceof OnlineBookingSettingsView);
+
+        $motifs = $this->queryBus->ask(new ListBookingMotifs($settings->id));
+        \assert(\is_array($motifs));
+
+        $hoursMissing = true;
+
+        foreach ($settings->week as $slots) {
+            if ([] !== $slots) {
+                $hoursMissing = false;
+
+                break;
+            }
+        }
+
+        return [
+            'settings' => [
+                'enabled'                 => $booking->enabled,
+                'gridStepMinutes'         => $booking->gridStepMinutes,
+                'minLeadTimeMinutes'      => $booking->minLeadTimeMinutes,
+                'minLeadTimeManualHours'  => $booking->minLeadTimeManualHours,
+                'horizonDays'             => $booking->horizonDays,
+                'cancellationWindowHours' => $booking->cancellationWindowHours,
+                'newClientBookingEnabled' => $booking->newClientBookingEnabled,
+            ],
+            'motifs' => array_values(array_map(static function (mixed $motif): array {
+                \assert($motif instanceof BookingMotifView);
+
+                return [
+                    'id'                      => $motif->id,
+                    'label'                   => $motif->label,
+                    'description'             => $motif->description,
+                    'durationMin'             => $motif->durationMin,
+                    'onlineEnabled'           => $motif->onlineEnabled,
+                    'confirmationKnownClient' => $motif->confirmationKnownClient,
+                    'allowedBlockTypes'       => $motif->allowedBlockTypes,
+                    'practitionerIds'         => $motif->practitionerIds,
+                    'preventiveCareKind'      => $motif->preventiveCareKind,
+                    'newClientsAllowed'       => $motif->newClientsAllowed,
+                    'sortOrder'               => $motif->sortOrder,
+                ];
+            }, $motifs)),
+            'practitioners' => $this->bookablePractitioners($settings->id),
+            'blockTypes'    => self::pairs(self::BLOCK_TYPES, null),
+            'careKinds'     => self::pairs(self::PREVENTIVE_CARE_KINDS, null),
+            'hoursMissing'  => $hoursMissing,
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function billing(ClinicSettingsView $settings): array
@@ -318,6 +418,39 @@ final readonly class SettingsPageBuilder
     }
 
     /**
+     * The members a motif can be booked with: active memberships in force
+     * today as veterinarian or assistant (Clinic's membership list, as the
+     * appointment's eligibility check reads it), by printed name.
+     *
+     * @return list<array{0: string, 1: string}>
+     */
+    private function bookablePractitioners(string $clinicId): array
+    {
+        $collection = $this->queryBus->ask(new ListAllMemberships(clinicId: $clinicId, status: ClinicMembershipStatus::ACTIVE));
+        \assert($collection instanceof MembershipCollection);
+
+        $now           = $this->clock->now();
+        $practitioners = [];
+
+        foreach ($collection->memberships as $membership) {
+            $inForce = $membership->validFrom <= $now && (null === $membership->validUntil || $membership->validUntil >= $now);
+
+            if (!$inForce || !\in_array($membership->role, self::PRACTITIONER_ROLES, true)) {
+                continue;
+            }
+
+            $name = $this->queryBus->ask(new GetStaffPrintedName($clinicId, $membership->userId));
+
+            $practitioners[$membership->userId] = [$membership->userId, \is_string($name) && '' !== $name ? $name : $membership->userEmail];
+        }
+
+        $practitioners = array_values($practitioners);
+        usort($practitioners, static fn (array $a, array $b): int => strnatcasecmp($a[1], $b[1]));
+
+        return $practitioners;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function urls(ClinicSettingsView $settings): array
@@ -327,16 +460,19 @@ final readonly class SettingsPageBuilder
         return [
             'sections' => array_map($go, self::ROUTES),
             'save'     => [
-                'identite'      => $go('clinic_settings_identity_save'),
-                'horaires'      => $go('clinic_settings_hours_save'),
-                'notifications' => $go('clinic_settings_notifications_save'),
-                'agenda'        => $go('clinic_settings_agenda_save'),
-                'facturation'   => $go('clinic_settings_billing_save'),
-                'moi'           => $go('clinic_settings_preferences_save'),
+                'identite'             => $go('clinic_settings_identity_save'),
+                'horaires'             => $go('clinic_settings_hours_save'),
+                'notifications'        => $go('clinic_settings_notifications_save'),
+                'agenda'               => $go('clinic_settings_agenda_save'),
+                'reservation-en-ligne' => $go('clinic_settings_online_booking_save'),
+                'facturation'          => $go('clinic_settings_billing_save'),
+                'moi'                  => $go('clinic_settings_preferences_save'),
             ],
-            'logoUpload' => $go('clinic_settings_logo_upload'),
-            'logoRemove' => $go('clinic_settings_logo_remove'),
-            'logo'       => null !== $settings->logoKey
+            'motifSave'    => $go('clinic_settings_booking_motif_save'),
+            'motifArchive' => $this->urls->generate('clinic_settings_booking_motif_archive', ['motifId' => '__ID__']),
+            'logoUpload'   => $go('clinic_settings_logo_upload'),
+            'logoRemove'   => $go('clinic_settings_logo_remove'),
+            'logo'         => null !== $settings->logoKey
                 ? $this->urls->generate('clinic_settings_logo', ['v' => mb_substr(md5($settings->logoKey), 0, 8)])
                 : null,
             'team'      => $go('clinic_settings_team'),
@@ -363,7 +499,7 @@ final readonly class SettingsPageBuilder
      *
      * @return list<array{0: string, 1: string}>
      */
-    private static function pairs(array $known, string $current): array
+    private static function pairs(array $known, ?string $current): array
     {
         $pairs = [];
 
@@ -371,7 +507,7 @@ final readonly class SettingsPageBuilder
             $pairs[] = [$value, $label];
         }
 
-        if (!\array_key_exists($current, $known)) {
+        if (null !== $current && !\array_key_exists($current, $known)) {
             $pairs[] = [$current, $current];
         }
 

@@ -33,6 +33,11 @@
 .agd .pop-st{margin:0 14px 10px;padding:7px 10px;border-radius:7px;font-size:.76rem;font-weight:600}
 .agd .pop-st.annule{background:var(--brume);color:var(--encre-60)}
 .agd .pop-st.absent{background:#fef2f2;color:#b91c1c}
+/* Online request waiting for the clinic: dashed card, « À confirmer » badge */
+.agd .ev.attente{outline:1.5px dashed var(--c);outline-offset:-1.5px;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 4px,transparent 4px 9px)}
+.agd .ev.attente .stc{background:#fffbeb;color:#92400e;border:1px solid #fcd34d}
+.agd .pop-st.attente{background:#fffbeb;color:#92400e}
+.agd .pop-foot .btn.ok{background:#16a34a;border-color:#16a34a;color:#fff}
 .agd .st-leg{display:flex;flex-direction:column;gap:2px}
 .agd .st-leg span{display:flex;align-items:center;gap:9px;padding:5px 10px;font-size:.8rem;color:var(--encre)}
 .agd .st-leg i{width:22px;height:12px;border-radius:3px;flex:none}

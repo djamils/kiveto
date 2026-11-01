@@ -727,6 +727,10 @@ services:
     App\Context\Scheduling\Application\Port\PlanningBlockAppointmentCounterInterface:
         class: App\Context\Scheduling\Infrastructure\Adapter\DbalPlanningBlockAppointmentCounter
 
+    # Per-practitioner-day mutex of every booking and block write (portal spec S4d).
+    App\Context\Scheduling\Application\Port\PractitionerDayLockInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\DbalPractitionerDayLock
+
     # Client messages of appointments (notifications spec, D2): what each
     # client was told, the reminders, and the clinic's reminder delay.
     App\Context\Scheduling\Domain\Notification\AppointmentNotificationStateRepositoryInterface:
@@ -737,6 +741,16 @@ services:
 
     App\Context\Scheduling\Application\Port\ClinicDirectoryInterface:
         class: App\Context\Scheduling\Infrastructure\Adapter\Clinic\QueryBusClinicDirectory
+
+    # Online booking (portal spec, Task 21): motifs and the clinic's settings.
+    App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Mapper\BookingMotifMapper: ~
+    App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Mapper\OnlineBookingSettingsMapper: ~
+
+    App\Context\Scheduling\Domain\Booking\BookingMotifRepositoryInterface:
+        class: App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DoctrineBookingMotifRepository
+
+    App\Context\Scheduling\Domain\Booking\OnlineBookingSettingsRepositoryInterface:
+        class: App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DoctrineOnlineBookingSettingsRepository
 
     App\Context\Scheduling\Application\Port\ClientContactInterface:
         class: App\Context\Scheduling\Infrastructure\Adapter\Client\QueryBusClientContact

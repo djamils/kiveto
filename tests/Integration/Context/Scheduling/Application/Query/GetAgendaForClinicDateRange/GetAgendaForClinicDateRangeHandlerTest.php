@@ -7,6 +7,15 @@ namespace App\Tests\Integration\Context\Scheduling\Application\Query\GetAgendaFo
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\AppointmentItem;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\GetAgendaForClinicDateRange;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\GetAgendaForClinicDateRangeHandler;
+use App\Context\Scheduling\Domain\PlanningBlock;
+use App\Context\Scheduling\Domain\Repository\PlanningBlockRepositoryInterface;
+use App\Context\Scheduling\Domain\ValueObject\ClinicId;
+use App\Context\Scheduling\Domain\ValueObject\PlanningBlockId;
+use App\Context\Scheduling\Domain\ValueObject\PlanningBlockType;
+use App\Context\Scheduling\Domain\ValueObject\RecurrenceRule;
+use App\Context\Scheduling\Domain\ValueObject\TimeRange;
+use App\Context\Scheduling\Domain\ValueObject\UserId;
+use App\Fixtures\Context\Clinic\Factory\ClinicEntityFactory;
 use App\Fixtures\Context\Scheduling\Factory\AppointmentEntityFactory;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
@@ -179,5 +188,74 @@ final class GetAgendaForClinicDateRangeHandlerTest extends KernelTestCase
 
         self::assertCount(1, $items);
         self::assertSame('2026-04-13 08:00:00', $items[0]->startsAtUtc);
+    }
+
+    public function testAnAppointmentInsideAnOpenBlockOfItsPractitionerIsNotOrphaned(): void
+    {
+        $clinicId = '12345678-9abc-def0-1234-56789abcd0a1';
+        $vetId    = '01234567-89ab-cdef-0123-456789abc0a1';
+        $otherVet = '01234567-89ab-cdef-0123-456789abc0a2';
+
+        ClinicEntityFactory::new()->withId($clinicId)->create(['timeZone' => 'Europe/Paris']);
+
+        // Weekly consultation block on Mondays 08:00–12:00 Paris (06:00–10:00 UTC in April)
+        $this->block('01960000-0000-7000-8000-0000000b0a01', $clinicId, $vetId, PlanningBlockType::CONSULTATION, '2026-04-06', '08:00', '12:00', RecurrenceRule::weekly());
+        // Leave of the same vet in the afternoon: it never accepts bookings
+        $this->block('01960000-0000-7000-8000-0000000b0a02', $clinicId, $vetId, PlanningBlockType::LEAVE, '2026-04-13', '14:00', '18:00', RecurrenceRule::none());
+
+        // Inside the consultation block → planned
+        AppointmentEntityFactory::new()->withClinicId($clinicId)->withPractitionerUserId($vetId)
+            ->startingAt(new \DateTimeImmutable('2026-04-13 07:00:00'), 30)->create()
+        ;
+        // Inside the leave → orphaned
+        AppointmentEntityFactory::new()->withClinicId($clinicId)->withPractitionerUserId($vetId)
+            ->startingAt(new \DateTimeImmutable('2026-04-13 13:00:00'), 30)->create()
+        ;
+        // Another vet with no block → orphaned
+        AppointmentEntityFactory::new()->withClinicId($clinicId)->withPractitionerUserId($otherVet)
+            ->startingAt(new \DateTimeImmutable('2026-04-13 07:30:00'), 30)->create()
+        ;
+        // Overflows the end of the block → orphaned
+        AppointmentEntityFactory::new()->withClinicId($clinicId)->withPractitionerUserId($vetId)
+            ->startingAt(new \DateTimeImmutable('2026-04-13 09:45:00'), 30)->create()
+        ;
+
+        $handler = self::getContainer()->get(GetAgendaForClinicDateRangeHandler::class);
+        \assert($handler instanceof GetAgendaForClinicDateRangeHandler);
+
+        $items = $handler(GetAgendaForClinicDateRange::forDay(
+            clinicId: $clinicId,
+            date: new \DateTimeImmutable('2026-04-13'),
+            clinicTz: new \DateTimeZone('Europe/Paris'),
+        ));
+
+        $orphaned = [];
+        foreach ($items as $item) {
+            $orphaned[$item->startsAtUtc] = $item->isOrphaned;
+        }
+
+        self::assertSame([
+            '2026-04-13 07:00:00' => false,
+            '2026-04-13 07:30:00' => true,
+            '2026-04-13 09:45:00' => true,
+            '2026-04-13 13:00:00' => true,
+        ], $orphaned);
+    }
+
+    private function block(string $id, string $clinicId, string $vetId, PlanningBlockType $type, string $date, string $start, string $end, RecurrenceRule $rule): void
+    {
+        $blocks = self::getContainer()->get(PlanningBlockRepositoryInterface::class);
+        \assert($blocks instanceof PlanningBlockRepositoryInterface);
+
+        $blocks->save(PlanningBlock::create(
+            id: PlanningBlockId::fromString($id),
+            clinicId: ClinicId::fromString($clinicId),
+            staffUserId: UserId::fromString($vetId),
+            type: $type,
+            timeRange: new TimeRange($date, $start, $end),
+            capacityPerHour: PlanningBlockType::LEAVE === $type ? 0 : 4,
+            rule: $rule,
+            note: null,
+        ));
     }
 }

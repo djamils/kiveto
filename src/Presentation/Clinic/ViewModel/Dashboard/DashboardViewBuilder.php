@@ -34,6 +34,8 @@ use App\Context\Patient\Application\Query\GetPatientAnimalLink\GetPatientAnimalL
 use App\Context\Patient\Application\Query\GetPatientAnimalLink\PatientAnimalLinkDto;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\AppointmentItem;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\GetAgendaForClinicDateRange;
+use App\Context\Scheduling\Application\Query\GetOnlineBookingSettings\GetOnlineBookingSettings;
+use App\Context\Scheduling\Application\Query\GetOnlineBookingSettings\OnlineBookingSettingsView;
 use App\Context\Scheduling\Application\Query\ListPlanningBlocksForClinicDateRange\ListPlanningBlocksForClinicDateRange;
 use App\Context\Scheduling\Application\Query\ListPlanningBlocksForClinicDateRange\PlanningBlockView;
 use App\Presentation\Clinic\ViewModel\Agenda\AgendaViewBuilder;
@@ -161,7 +163,7 @@ final readonly class DashboardViewBuilder
         /** @var list<StockWatchRow> $alerts */
         $upcoming = array_values(array_filter(
             $appointments,
-            fn (AppointmentItem $item): bool => 'PLANNED' === $item->status
+            fn (AppointmentItem $item): bool => $item->occupiesSlot
                 && null === $item->linkedAdmissionId
                 && $this->localStart($item, $timeZone) >= $now,
         ));
@@ -233,7 +235,7 @@ final readonly class DashboardViewBuilder
         foreach ($items as $item) {
             \assert($item instanceof AppointmentItem);
 
-            if ('CANCELLED' !== $item->status) {
+            if (!$item->isWithdrawn) {
                 $appointments[] = $item;
             }
         }
@@ -407,7 +409,8 @@ final readonly class DashboardViewBuilder
      */
     private function lateness(AppointmentItem $item, array $admissionsById, \DateTimeImmutable $now, \DateTimeZone $timeZone): int
     {
-        if ('PLANNED' !== $item->status) {
+        // Only a confirmed booking can be late: a pending request is not
+        if ($item->isPending || !$item->occupiesSlot) {
             return 0;
         }
 
@@ -687,6 +690,7 @@ final readonly class DashboardViewBuilder
         $state = match (true) {
             'COMPLETED' === $item->status     => 'done',
             'NO_SHOW' === $item->status       => 'noshow',
+            $item->isPending                  => 'pending',
             null !== $item->linkedAdmissionId => 'onsite',
             default                           => 'planned',
         };
@@ -730,7 +734,7 @@ final readonly class DashboardViewBuilder
             animalId: $item->animalId,
             animalName: $item->animalLabel,
             kind: $kind,
-            tag: ['chir' => 'Chirurgie', 'urg' => 'Urgence'][$kind] ?? null,
+            tag: 'pending' === $state ? 'À confirmer' : (['chir' => 'Chirurgie', 'urg' => 'Urgence'][$kind] ?? null),
             time: $time,
             lateMinutes: $late,
             admissionId: $item->linkedAdmissionId,
@@ -996,6 +1000,8 @@ final readonly class DashboardViewBuilder
             );
         }
 
+        $tasks = [...$tasks, ...$this->pendingRequestTasks($clinicId, $now)];
+
         usort(
             $alerts,
             static fn (StockWatchRow $a, StockWatchRow $b): int => self::severityRank($a->severity)
@@ -1061,6 +1067,78 @@ final readonly class DashboardViewBuilder
                 assigneeUserId: null,
                 actionLabel: 'Relancer',
                 actionUrl: $this->urls->generate('clinic_invoices', ['pay' => 'du', 'per' => 'tout']),
+            );
+        }
+
+        return $tasks;
+    }
+
+    /**
+     * « RDV en ligne à confirmer »: the online requests waiting for the
+     * clinic, soonest to expire first, with Confirmer / Refuser. A request is
+     * at most `horizonDays` ahead and expires before it starts, so that range
+     * holds them all.
+     *
+     * @return list<DashboardTask>
+     */
+    private function pendingRequestTasks(string $clinicId, \DateTimeImmutable $now): array
+    {
+        $booking = $this->queryBus->ask(new GetOnlineBookingSettings($clinicId));
+        \assert($booking instanceof OnlineBookingSettingsView);
+
+        $utc   = new \DateTimeZone('UTC');
+        $items = $this->queryBus->ask(new GetAgendaForClinicDateRange(
+            $clinicId,
+            $now->setTimezone($utc)->modify('-1 day'),
+            $now->setTimezone($utc)->modify(\sprintf('+%d days', $booking->horizonDays + 1)),
+        ));
+        \assert(\is_array($items));
+
+        $pending = array_values(array_filter(
+            $items,
+            static fn (mixed $item): bool => $item instanceof AppointmentItem && $item->isPending,
+        ));
+        /* @var list<AppointmentItem> $pending */
+        usort($pending, static fn (AppointmentItem $a, AppointmentItem $b): int => [$a->pendingExpiresAtUtc ?? $a->startsAtUtc, $a->startsAtUtc] <=> [$b->pendingExpiresAtUtc ?? $b->startsAtUtc, $b->startsAtUtc]);
+
+        $tasks = [];
+
+        foreach (\array_slice($pending, 0, self::TASKS_PER_SOURCE) as $item) {
+            $start   = new \DateTimeImmutable($item->startsAtUtc, $utc)->setTimezone($now->getTimezone());
+            $who     = $item->animalLabel ?? $item->ownerLabel ?? 'nouveau client';
+            $expiry  = null !== $item->pendingExpiresAtUtc ? new \DateTimeImmutable($item->pendingExpiresAtUtc, $utc)->setTimezone($now->getTimezone()) : null;
+            $expires = null === $expiry ? '' : ' · sans réponse, refusée '
+                . ($expiry->format('Y-m-d') === $now->format('Y-m-d') ? 'à ' : 'le ' . SheetText::date($expiry, 'd MMM') . ' à ')
+                . $expiry->format('H:i');
+
+            $tasks[] = new DashboardTask(
+                group: 'jour',
+                icon: 'rdv',
+                title: 'RDV en ligne à confirmer — ' . $who,
+                subtitle: SheetText::date($start, 'EEE d MMM') . ' à ' . $start->format('H:i')
+                    . (null !== $item->ownerLabel && $who !== $item->ownerLabel ? ' · ' . $item->ownerLabel : '')
+                    . $expires,
+                audience: 'clinique',
+                assigneeUserId: null,
+                actionLabel: 'Voir',
+                actionUrl: $this->urls->generate('clinic_scheduling_agenda', ['date' => $start->format('Y-m-d'), 'view' => 'day']),
+                forms: [
+                    ['label' => 'Confirmer', 'url' => $this->urls->generate('clinic_scheduling_appointment_confirm', ['appointmentId' => $item->id]), 'danger' => false],
+                    ['label' => 'Refuser', 'url' => $this->urls->generate('clinic_scheduling_appointment_decline', ['appointmentId' => $item->id]), 'danger' => true],
+                ],
+            );
+        }
+
+        if (\count($pending) > self::TASKS_PER_SOURCE) {
+            $tasks[] = new DashboardTask(
+                group: 'jour',
+                icon: 'rdv',
+                title: SheetText::plural(\count($pending) - self::TASKS_PER_SOURCE, 'autre RDV en ligne à confirmer', 'autres RDV en ligne à confirmer'),
+                subtitle: 'Demandes du Portal en attente de réponse',
+                audience: 'clinique',
+                assigneeUserId: null,
+                actionLabel: 'Voir',
+                actionUrl: $this->urls->generate('clinic_scheduling_agenda'),
             );
         }
 

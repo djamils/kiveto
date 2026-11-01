@@ -28,7 +28,8 @@ use App\Shared\Domain\Time\ClockInterface;
  *     id: string, date: string, s: int, dur: int, vet: string,
  *     a: ?string, e: string, cli: ?string, tel: ?string,
  *     animalId: ?string, ownerId: ?string,
- *     m: string, reason: ?string, note: ?string, st: ?string
+ *     m: string, reason: ?string, note: ?string, st: ?string,
+ *     pend: bool, exp: ?string
  * }
  * @phpstan-type AgendaBlock array{id: string, date: string, vet: string, s: int, e: int, t: string, note: ?string}
  * @phpstan-type AgendaRange array{from: string, to: string, appointments: list<AgendaAppointment>, blocks: list<AgendaBlock>}
@@ -56,7 +57,8 @@ final readonly class AgendaViewBuilder
         'break'        => 'pause',
     ];
 
-    private const array STATUS = ['CANCELLED' => 'annule', 'NO_SHOW' => 'absent', 'COMPLETED' => 'fait'];
+    /** Terminal statuses as the mock-up names them; pending and withdrawn ones come from the item's flags. */
+    private const array STATUS = ['NO_SHOW' => 'absent', 'COMPLETED' => 'fait'];
 
     public function __construct(
         private QueryBusInterface $queryBus,
@@ -226,7 +228,18 @@ final readonly class AgendaViewBuilder
             'm'        => self::motif($item->reason),
             'reason'   => $item->reason,
             'note'     => $item->notes,
-            'st'       => self::STATUS[$item->status] ?? null,
+            // `attente` (pending) stays busy on the grid; a declined request reads as cancelled
+            'st' => match (true) {
+                $item->isPending   => 'attente',
+                $item->isWithdrawn => 'annule',
+                default            => self::STATUS[$item->status] ?? null,
+            },
+            // A request waiting for the clinic: « À confirmer » card, Confirmer / Refuser
+            'pend' => $item->isPending,
+            // When it is auto-declined, clinic-local « Y-m-d H:i »
+            'exp' => $item->isPending && null !== $item->pendingExpiresAtUtc
+                ? new \DateTimeImmutable($item->pendingExpiresAtUtc, new \DateTimeZone('UTC'))->setTimezone($tz)->format('Y-m-d H:i')
+                : null,
         ];
     }
 

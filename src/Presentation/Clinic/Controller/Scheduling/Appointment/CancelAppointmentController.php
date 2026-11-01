@@ -6,6 +6,7 @@ namespace App\Presentation\Clinic\Controller\Scheduling\Appointment;
 
 use App\Context\Scheduling\Application\Command\CancelAppointment\CancelAppointment;
 use App\Context\Scheduling\Application\Query\GetAppointmentClinicId\GetAppointmentClinicId;
+use App\Context\Scheduling\Domain\ValueObject\CancellationActor;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
@@ -55,6 +56,8 @@ final class CancelAppointmentController extends AbstractController
             $this->commandBus->dispatch(new CancelAppointment(
                 appointmentId: $appointmentId,
                 clinicId: $currentClinicId->toString(),
+                // A pending request cancelled here is declined (APPOINTMENT_DECLINED)
+                cancelledBy: CancellationActor::CLINIC->value,
             ));
 
             return new JsonResponse([
@@ -63,7 +66,7 @@ final class CancelAppointmentController extends AbstractController
                 'alreadyCancelled' => false,
             ]);
         } catch (\DomainException $e) {
-            // cancel() is idempotent for CANCELLED status (early return in domain)
+            // cancel() is idempotent for CANCELLED (and DECLINED) status (early return in domain)
             // but throws for other terminal statuses
             return new JsonResponse(
                 [

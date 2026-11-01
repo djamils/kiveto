@@ -13,6 +13,7 @@ use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
+use App\Context\Scheduling\Domain\ValueObject\DeclineReason;
 use App\Context\Scheduling\Infrastructure\Calendar\IcsWriter;
 use App\Tests\Unit\Context\Scheduling\Support\Appointments;
 use App\Tests\Unit\Context\Scheduling\Support\CapturingNotifications;
@@ -359,6 +360,75 @@ final class SyncAppointmentNotificationHandlerTest extends TestCase
 
         self::assertSame('lundi 26 octobre à 9h30', $this->onlyMessage()->parameters['subjectDateLabel']);
         self::assertSame('2026-10-24 12:30', $this->states->of(Appointments::ID)->reminderDueAt()?->format('Y-m-d H:i'));
+    }
+
+    public function testAPendingRequestIsToldNothingThenItsConfirmation(): void
+    {
+        // AC 35: nothing while pending; the clinic's confirmation sends the usual one, once
+        $pending = Appointments::pending();
+        $this->sync($pending);
+        self::assertSame([], $this->notifications->messages);
+        self::assertNull($this->states->of(Appointments::ID)->reminderDueAt());
+
+        $pending->confirm();
+        $this->sync($pending);
+        $this->sync($pending);
+
+        $message = $this->onlyMessage();
+        self::assertSame([AppointmentMessage::CONFIRMATION, 'appointment:' . Appointments::ID . ':confirmation:1'], [$message->purpose, $message->idempotencyKey]);
+        self::assertSame('2026-10-21 07:30', $this->states->of(Appointments::ID)->reminderDueAt()?->format('Y-m-d H:i'));
+    }
+
+    public function testADeclinedRequestIsToldOnceEvenAcrossTwoSyncs(): void
+    {
+        // AC 36: « … n'a pas pu être confirmée … », once, without a calendar file
+        $request = Appointments::pending();
+        $request->decline(DeclineReason::DECLINED);
+
+        $this->sync($request);
+        $this->sync($request);
+
+        $message = $this->onlyMessage();
+        self::assertSame([AppointmentMessage::DECLINED, ClientContact::EMAIL, 'appointment:' . Appointments::ID . ':declined:1'], [$message->purpose, $message->channel, $message->idempotencyKey]);
+        self::assertSame([
+            'addressee'        => 'Madame Dubois',
+            'animalName'       => 'Milo',
+            'subjectDateLabel' => 'jeudi 22 octobre à 9h30',
+            'dateLabel'        => 'Jeudi 22 octobre 2026',
+            'timeLabel'        => '9h30',
+            'reason'           => 'Vaccination',
+            'practitionerName' => 'Dr Rousseau',
+        ], $message->parameters);
+        self::assertNull($message->attachment);
+        self::assertNotNull($this->states->of(Appointments::ID)->declineNotifiedAt());
+    }
+
+    public function testADeclineBySmsCarriesOnlyTheSlot(): void
+    {
+        $this->contacts->contacts[Appointments::OWNER] = FakeClientContacts::sophie(mobile: '+33612345678', transactionalChannel: ClientContact::SMS);
+        $request                                       = Appointments::pending();
+        $request->decline(DeclineReason::EXPIRED);
+
+        $this->sync($request);
+
+        $message = $this->onlyMessage();
+        self::assertSame([AppointmentMessage::DECLINED, ClientContact::SMS, ['slotLabel' => 'jeudi 22/10 à 9h30'], null], [$message->purpose, $message->channel, $message->parameters, $message->attachment]);
+    }
+
+    public function testASilentConfirmationSendsNothingButAMoveIsStillTold(): void
+    {
+        // AC 140: the client is on site; the slot counts as told
+        $request = Appointments::pending();
+        $request->startService(Appointments::utc('2026-10-13 08:43'));
+        self::assertSame(AppointmentStatus::PLANNED, $request->status());
+
+        $this->sync($request);
+        self::assertSame([], $this->notifications->messages);
+        self::assertNotNull($this->states->of(Appointments::ID)->confirmedAt());
+
+        $request->reschedule(Appointments::slot('2026-10-23 09:00'));
+        $this->sync($request);
+        self::assertSame(AppointmentMessage::CHANGE, $this->onlyMessage()->purpose);
     }
 
     private function sync(Appointment $appointment): void

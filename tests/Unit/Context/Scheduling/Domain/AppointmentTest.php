@@ -15,6 +15,7 @@ use App\Context\Scheduling\Domain\Event\AppointmentScheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentServiceStarted;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
+use App\Context\Scheduling\Domain\ValueObject\CancellationActor;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
@@ -117,7 +118,7 @@ final class AppointmentTest extends TestCase
         $this->expectExceptionMessage('Cannot reschedule a terminated appointment.');
 
         $appointment = $this->createSampleAppointment();
-        $appointment->cancel();
+        $appointment->cancel(CancellationActor::CLINIC);
 
         $newTimeSlot = new TimeSlot(new \DateTimeImmutable('2026-02-01 14:00:00'), 30);
         $appointment->reschedule($newTimeSlot);
@@ -142,7 +143,7 @@ final class AppointmentTest extends TestCase
         $this->expectExceptionMessage('Cannot change the details of a terminated appointment.');
 
         $appointment = $this->createSampleAppointment();
-        $appointment->cancel();
+        $appointment->cancel(CancellationActor::CLINIC);
         $appointment->changeDetails('Vaccin', null);
     }
 
@@ -176,7 +177,7 @@ final class AppointmentTest extends TestCase
         $pulledEvents = $appointment->pullDomainEvents();
         unset($pulledEvents);
 
-        $appointment->cancel();
+        $appointment->cancel(CancellationActor::CLINIC);
 
         self::assertSame(AppointmentStatus::CANCELLED, $appointment->status());
 
@@ -191,7 +192,7 @@ final class AppointmentTest extends TestCase
         $appointment = $this->createSampleAppointment();
         self::assertCount(1, $appointment->pullDomainEvents());
 
-        $appointment->cancel(notifyClient: false);
+        $appointment->cancel(CancellationActor::CLINIC, notifyClient: false);
 
         $events = $appointment->recordedDomainEvents();
         self::assertInstanceOf(AppointmentCancelled::class, $events[0]);
@@ -261,7 +262,7 @@ final class AppointmentTest extends TestCase
     public function testCannotChangePractitionerOnTerminatedAppointment(): void
     {
         $appointment = $this->createSampleAppointment();
-        $appointment->cancel();
+        $appointment->cancel(CancellationActor::CLINIC);
 
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('Cannot change practitioner for a terminated appointment.');
@@ -274,7 +275,7 @@ final class AppointmentTest extends TestCase
     public function testCannotStartServiceOnTerminatedAppointment(): void
     {
         $appointment = $this->createSampleAppointment();
-        $appointment->cancel();
+        $appointment->cancel(CancellationActor::CLINIC);
 
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('Cannot start service for a terminated appointment.');
@@ -299,11 +300,11 @@ final class AppointmentTest extends TestCase
     public function testCancelTwiceIsIdempotent(): void
     {
         $appointment = $this->createSampleAppointment();
-        $appointment->cancel();
+        $appointment->cancel(CancellationActor::CLINIC);
         $pulled = $appointment->pullDomainEvents();
         unset($pulled);
 
-        $appointment->cancel();
+        $appointment->cancel(CancellationActor::CLINIC);
         self::assertCount(0, $appointment->recordedDomainEvents());
     }
 
@@ -315,7 +316,7 @@ final class AppointmentTest extends TestCase
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('Cannot cancel an appointment that is already terminated.');
 
-        $appointment->cancel();
+        $appointment->cancel(CancellationActor::CLINIC);
     }
 
     public function testMarkNoShowTwiceIsIdempotent(): void
@@ -354,7 +355,7 @@ final class AppointmentTest extends TestCase
     public function testCannotCompleteCancelledAppointment(): void
     {
         $appointment = $this->createSampleAppointment();
-        $appointment->cancel();
+        $appointment->cancel(CancellationActor::CLINIC);
 
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('Cannot complete an appointment that is already terminated.');

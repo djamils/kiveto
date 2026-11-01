@@ -45,6 +45,12 @@ final class TemplateCatalog
             'EMAIL' => ['addressee' => self::SCALAR, 'animalName' => self::SCALAR, 'subjectDateLabel' => self::SCALAR, 'dateLabel' => self::SCALAR, 'timeLabel' => self::SCALAR, 'reason' => self::SCALAR, 'practitionerName' => self::SCALAR],
             'SMS'   => ['animalName' => self::SCALAR, 'slotLabel' => self::SCALAR],
         ],
+        'APPOINTMENT_DECLINED' => [
+            // A pending online request the clinic did not confirm; same labels as a cancellation
+            'EMAIL' => ['addressee' => self::SCALAR, 'animalName' => self::SCALAR, 'subjectDateLabel' => self::SCALAR, 'dateLabel' => self::SCALAR, 'timeLabel' => self::SCALAR, 'reason' => self::SCALAR, 'practitionerName' => self::SCALAR],
+            // slotLabel « jeudi 22/10 à 9h30 »
+            'SMS' => ['slotLabel' => self::SCALAR],
+        ],
         'APPOINTMENT_REMINDER' => [
             // whenLabel « demain à 9h30 », « jeudi 22/10 à 9h30 » or « aujourd'hui à 9h30 »
             'SMS'   => ['animalName' => self::SCALAR, 'whenLabel' => self::SCALAR, 'practitionerName' => self::SCALAR],

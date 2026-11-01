@@ -37,7 +37,7 @@ final readonly class GetNextAppointmentForAnimalsHandler
             FROM scheduling__appointments a
             WHERE a.clinic_id = UUID_TO_BIN(:clinicId)
               AND a.animal_id IN (:animalIds)
-              AND a.status = :status
+              AND a.status IN (:occupying)
               AND a.starts_at_utc >= :now
             ORDER BY a.starts_at_utc ASC, a.id ASC
             LIMIT 1
@@ -48,10 +48,10 @@ final readonly class GetNextAppointmentForAnimalsHandler
             [
                 'clinicId'  => $query->clinicId,
                 'animalIds' => array_map(static fn (string $id): string => Uuid::fromString($id)->toBinary(), $query->animalIds),
-                'status'    => AppointmentStatus::PLANNED->value,
+                'occupying' => AppointmentStatus::OCCUPYING_SQL_VALUES,
                 'now'       => $query->nowUtc->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
             ],
-            ['animalIds' => ArrayParameterType::BINARY],
+            ['animalIds' => ArrayParameterType::BINARY, 'occupying' => ArrayParameterType::STRING],
         );
 
         if (false === $row) {

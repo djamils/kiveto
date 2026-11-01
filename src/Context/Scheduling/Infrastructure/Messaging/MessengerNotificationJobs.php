@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Context\Scheduling\Infrastructure\Messaging;
 
+use App\Context\Scheduling\Application\Command\DeclineExpiredPendingAppointment\DeclineExpiredPendingAppointment;
 use App\Context\Scheduling\Application\Command\PostNewAppointmentNotice\PostNewAppointmentNotice;
+use App\Context\Scheduling\Application\Command\PostPendingBookingNotice\PostPendingBookingNotice;
 use App\Context\Scheduling\Application\Command\RequestAppointmentReminder\RequestAppointmentReminder;
 use App\Context\Scheduling\Application\Command\SyncAppointmentNotification\SyncAppointmentNotification;
 use App\Context\Scheduling\Application\Command\WithdrawNewAppointmentNotice\WithdrawNewAppointmentNotice;
+use App\Context\Scheduling\Application\Command\WithdrawPendingBookingNotice\WithdrawPendingBookingNotice;
 use App\Context\Scheduling\Application\Port\NotificationJobsInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -47,5 +50,20 @@ final readonly class MessengerNotificationJobs implements NotificationJobsInterf
     public function withdrawNewAppointmentNotice(string $appointmentId): void
     {
         $this->commandBus->dispatch(new WithdrawNewAppointmentNotice($appointmentId));
+    }
+
+    public function postPendingBookingNotice(string $appointmentId): void
+    {
+        $this->commandBus->dispatch(new PostPendingBookingNotice($appointmentId));
+    }
+
+    public function withdrawPendingBookingNotice(string $appointmentId): void
+    {
+        $this->commandBus->dispatch(new WithdrawPendingBookingNotice($appointmentId));
+    }
+
+    public function declineExpiredPending(string $appointmentId): void
+    {
+        $this->commandBus->dispatch(new DeclineExpiredPendingAppointment($appointmentId));
     }
 }

@@ -6,8 +6,8 @@ namespace App\Context\Scheduling\Application\Port;
 
 /**
  * One message about an appointment: its purpose (Notification's
- * APPOINTMENT_CONFIRMATION, APPOINTMENT_CHANGE, APPOINTMENT_CANCELLATION or
- * APPOINTMENT_REMINDER), one channel and the parameters its template prints.
+ * APPOINTMENT_CONFIRMATION, APPOINTMENT_CHANGE, APPOINTMENT_CANCELLATION,
+ * APPOINTMENT_DECLINED or APPOINTMENT_REMINDER), one channel and the parameters its template prints.
  */
 final readonly class AppointmentMessage
 {
@@ -15,6 +15,7 @@ final readonly class AppointmentMessage
     public const string CHANGE       = 'APPOINTMENT_CHANGE';
     public const string CANCELLATION = 'APPOINTMENT_CANCELLATION';
     public const string REMINDER     = 'APPOINTMENT_REMINDER';
+    public const string DECLINED     = 'APPOINTMENT_DECLINED';
 
     /**
      * @param string                     $channel            ClientContact::EMAIL or ClientContact::SMS

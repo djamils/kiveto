@@ -6,6 +6,8 @@ namespace App\Tests\Unit\Context\Scheduling\Application\EventSubscriber;
 
 use App\Context\Scheduling\Application\EventSubscriber\ScheduleAppointmentNotificationSync;
 use App\Context\Scheduling\Domain\Event\AppointmentCancelled;
+use App\Context\Scheduling\Domain\Event\AppointmentConfirmed;
+use App\Context\Scheduling\Domain\Event\AppointmentDeclined;
 use App\Context\Scheduling\Domain\Event\AppointmentOwnerChanged;
 use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeChanged;
 use App\Context\Scheduling\Domain\Event\AppointmentRescheduled;
@@ -40,6 +42,30 @@ final class ScheduleAppointmentNotificationSyncTest extends TestCase
         $states = new InMemoryNotificationStates(new InMemoryAppointments());
 
         new ScheduleAppointmentNotificationSync($jobs, $states)->onCancelled(new AppointmentCancelled(Appointments::ID, Appointments::CLINIC, notifyClient: false));
+
+        self::assertTrue($states->of(Appointments::ID)->isSilenced());
+        self::assertSame([Appointments::ID], $jobs->syncs);
+    }
+
+    public function testAConfirmationOrADeclineQueuesTheSync(): void
+    {
+        $jobs       = new CapturingJobs();
+        $states     = new InMemoryNotificationStates(new InMemoryAppointments());
+        $subscriber = new ScheduleAppointmentNotificationSync($jobs, $states);
+
+        $subscriber->onConfirmed(new AppointmentConfirmed('a-1', Appointments::CLINIC, Appointments::ROUSSEAU, '2026-10-22T07:30:00+00:00', Appointments::OWNER, Appointments::ANIMAL, 'portal', true));
+        $subscriber->onDeclined(new AppointmentDeclined('a-2', Appointments::CLINIC, Appointments::ROUSSEAU, '2026-10-22T07:30:00+00:00', Appointments::OWNER, Appointments::ANIMAL, 'portal', 'declined'));
+
+        self::assertSame(['a-1', 'a-2'], $jobs->syncs);
+        self::assertSame([], $states->states);
+    }
+
+    public function testADeclineNotToBeToldSilencesTheAppointmentFirst(): void
+    {
+        $jobs   = new CapturingJobs();
+        $states = new InMemoryNotificationStates(new InMemoryAppointments());
+
+        new ScheduleAppointmentNotificationSync($jobs, $states)->onDeclined(new AppointmentDeclined(Appointments::ID, Appointments::CLINIC, Appointments::ROUSSEAU, '2026-10-22T07:30:00+00:00', Appointments::OWNER, Appointments::ANIMAL, 'portal', 'clinic_cancelled', false));
 
         self::assertTrue($states->of(Appointments::ID)->isSilenced());
         self::assertSame([Appointments::ID], $jobs->syncs);

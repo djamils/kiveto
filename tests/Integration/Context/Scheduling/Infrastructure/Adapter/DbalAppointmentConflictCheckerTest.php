@@ -52,6 +52,55 @@ final class DbalAppointmentConflictCheckerTest extends KernelTestCase
         ));
     }
 
+    public function testTheLockedCheckFindsTheSameOverlapsAndSkipsTheMovedBooking(): void
+    {
+        AppointmentEntityFactory::new()
+            ->withId('01960000-0000-7000-8000-0000000c0e02')
+            ->withClinicId(self::CLINIC_ID)
+            ->withPractitionerUserId(self::USER_ID)
+            ->startingAt(new \DateTimeImmutable('2026-04-10 09:00:00'), 30)
+            ->withStatus(AppointmentStatus::PLANNED)
+            ->create()
+        ;
+
+        $clinic    = ClinicId::fromString(self::CLINIC_ID);
+        $user      = UserId::fromString(self::USER_ID);
+        $candidate = new TimeSlot(new \DateTimeImmutable('2026-04-10 09:15:00'), 30);
+
+        self::assertTrue($this->checker->hasOverlapLocked($clinic, $user, $candidate));
+        self::assertFalse($this->checker->hasOverlapLocked($clinic, $user, $candidate, AppointmentId::fromString('01960000-0000-7000-8000-0000000c0e02')));
+        self::assertFalse($this->checker->hasOverlapLocked($clinic, $user, new TimeSlot(new \DateTimeImmutable('2026-04-10 09:30:00'), 30)));
+    }
+
+    public function testAPendingRequestHoldsItsSlotAndADeclinedOneDoesNot(): void
+    {
+        AppointmentEntityFactory::new()
+            ->withClinicId(self::CLINIC_ID)
+            ->withPractitionerUserId(self::USER_ID)
+            ->startingAt(new \DateTimeImmutable('2026-04-10 09:00:00'), 30)
+            ->pending(new \DateTimeImmutable('2026-04-10 07:00:00'))
+            ->create()
+        ;
+        AppointmentEntityFactory::new()
+            ->withClinicId(self::CLINIC_ID)
+            ->withPractitionerUserId(self::USER_ID)
+            ->startingAt(new \DateTimeImmutable('2026-04-10 11:00:00'), 30)
+            ->declined()
+            ->create()
+        ;
+
+        self::assertTrue($this->checker->hasOverlap(
+            ClinicId::fromString(self::CLINIC_ID),
+            UserId::fromString(self::USER_ID),
+            new TimeSlot(new \DateTimeImmutable('2026-04-10 09:15:00'), 30),
+        ));
+        self::assertFalse($this->checker->hasOverlap(
+            ClinicId::fromString(self::CLINIC_ID),
+            UserId::fromString(self::USER_ID),
+            new TimeSlot(new \DateTimeImmutable('2026-04-10 11:00:00'), 30),
+        ));
+    }
+
     public function testReturnsFalseWhenSlotsAreAdjacent(): void
     {
         AppointmentEntityFactory::new()

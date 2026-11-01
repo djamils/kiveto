@@ -11,14 +11,16 @@ namespace App\Presentation\Clinic\ViewModel\Dashboard;
  *
  * `audience` is who the task is for (`clinique`: everyone, `asv`: assistants
  * and front desk, `veto`: veterinarians); `assigneeUserId` narrows it to one
- * member.
+ * member. `forms` replaces the action link with buttons that post (« Confirmer »
+ * / « Refuser » an online request), each with the `appointment` token.
  */
 final readonly class DashboardTask
 {
     /**
-     * @param 'urgent'|'jour'|'fond'              $group
-     * @param 'labo'|'cr'|'vaccin'|'fact'|'stock' $icon
-     * @param 'clinique'|'asv'|'veto'             $audience
+     * @param 'urgent'|'jour'|'fond'                                $group
+     * @param 'labo'|'cr'|'vaccin'|'fact'|'stock'|'rdv'             $icon
+     * @param 'clinique'|'asv'|'veto'                               $audience
+     * @param list<array{label: string, url: string, danger: bool}> $forms
      */
     public function __construct(
         public string $group,
@@ -29,6 +31,7 @@ final readonly class DashboardTask
         public ?string $assigneeUserId,
         public string $actionLabel,
         public string $actionUrl,
+        public array $forms = [],
     ) {
     }
 }

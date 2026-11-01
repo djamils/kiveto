@@ -10,6 +10,7 @@ use App\Context\Animal\Domain\ValueObject\DeathCause;
 use App\Context\Scheduling\Application\Command\CancelAppointment\CancelAppointment;
 use App\Context\Scheduling\Application\Query\ListAppointmentsForAnimal\AnimalAppointmentItem;
 use App\Context\Scheduling\Application\Query\ListAppointmentsForAnimal\ListAppointmentsForAnimal;
+use App\Context\Scheduling\Domain\ValueObject\CancellationActor;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Domain\Time\ClockInterface;
@@ -91,10 +92,11 @@ final class DeclareAnimalDeathController extends AbstractAnimalSheetAction
         foreach ($appointments as $appointment) {
             \assert($appointment instanceof AnimalAppointmentItem);
 
-            $upcoming = 'PLANNED' === $appointment->status
+            // Pending requests too: the clinic cancel declines them, silently
+            $upcoming = $appointment->occupiesSlot
                 && new \DateTimeImmutable($appointment->startsAtUtc, new \DateTimeZone('UTC')) >= $now;
 
-            if ($upcoming && $this->attempt(fn () => $this->commandBus->dispatch(new CancelAppointment($appointment->id, $clinicId, notifyClient: false)))) {
+            if ($upcoming && $this->attempt(fn () => $this->commandBus->dispatch(new CancelAppointment($appointment->id, $clinicId, notifyClient: false, cancelledBy: CancellationActor::CLINIC->value)))) {
                 ++$cancelled;
             }
         }

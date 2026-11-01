@@ -11,6 +11,9 @@ use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
 use App\Context\Scheduling\Application\Command\ScheduleAppointment\ScheduleAppointment;
 use App\Context\Scheduling\Application\Query\GetAppointmentDetails\AppointmentDetails;
 use App\Context\Scheduling\Application\Query\GetAppointmentDetails\GetAppointmentDetails;
+use App\Context\Scheduling\Domain\Exception\BlockRefusesAppointmentsException;
+use App\Context\Scheduling\Domain\Exception\PractitionerNotBookableException;
+use App\Context\Scheduling\Domain\Exception\SlotTakenException;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
@@ -137,21 +140,31 @@ final class CreateAppointmentController extends AbstractController
                     'animalLabel'        => $details->animalLabel,
                 ],
             ]);
+        } catch (SlotTakenException $e) {
+            return $this->refused($e->getMessage(), $e->isCapacity() ? 'VALIDATION_FAILED' : 'APPOINTMENT_CONFLICT');
+        } catch (BlockRefusesAppointmentsException $e) {
+            return $this->refused($e->getMessage(), 'VALIDATION_FAILED');
+        } catch (PractitionerNotBookableException $e) {
+            return $this->refused($e->getMessage(), 'VALIDATION_FAILED');
         } catch (\DomainException $e) {
-            $errorCode = str_contains($e->getMessage(), 'overlapping')
-                ? 'APPOINTMENT_CONFLICT'
-                : 'VALIDATION_FAILED';
-
-            return new JsonResponse(
-                ['success' => false, 'errors' => ['global' => [$e->getMessage()]], 'errorCode' => $errorCode],
-                Response::HTTP_UNPROCESSABLE_ENTITY,
-            );
+            return $this->refused($e->getMessage(), 'VALIDATION_FAILED');
         } catch (\InvalidArgumentException $e) {
             return new JsonResponse(
                 ['success' => false, 'errors' => ['global' => [$e->getMessage()]], 'errorCode' => 'VALIDATION_FAILED'],
                 Response::HTTP_UNPROCESSABLE_ENTITY,
             );
         }
+    }
+
+    /**
+     * The agenda turns the English message into its French toast (agenda.js `message()`).
+     */
+    private function refused(string $message, string $errorCode): JsonResponse
+    {
+        return new JsonResponse(
+            ['success' => false, 'errors' => ['global' => [$message]], 'errorCode' => $errorCode],
+            Response::HTTP_UNPROCESSABLE_ENTITY,
+        );
     }
 
     private function primaryOwnerOf(string $clinicId, string $animalId): ?string

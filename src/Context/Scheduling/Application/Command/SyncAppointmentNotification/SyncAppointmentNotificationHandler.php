@@ -36,6 +36,10 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * cancellation, then the new owner gets a confirmation (if reachable) —
  * one message per client. A cancellation always goes to the client who was
  * told, not to an owner set meanwhile.
+ *
+ * Online requests: a pending one is told nothing; a declined one is told
+ * once (APPOINTMENT_DECLINED); one confirmed silently (the client was on
+ * site) is marked as told without any message.
  */
 #[AsMessageHandler]
 final readonly class SyncAppointmentNotificationHandler
@@ -72,6 +76,15 @@ final readonly class SyncAppointmentNotificationHandler
             $state->planReminder($delay, $appointment->timeSlot()->startsAtUtc(), $clinic->timeZone, $now);
         } else {
             $state->dropReminder();
+        }
+
+        if (AppointmentStatus::PLANNED === $appointment->status() && $appointment->confirmedSilently()) {
+            $state->markConfirmedSilently(
+                $appointment->timeSlot(),
+                $appointment->practitionerAssignee()->userId()->toString(),
+                $appointment->ownerId(),
+                $now,
+            );
         }
 
         $formerOwnerId = $state->replacedOwner($appointment->status(), $appointment->ownerId(), $now);

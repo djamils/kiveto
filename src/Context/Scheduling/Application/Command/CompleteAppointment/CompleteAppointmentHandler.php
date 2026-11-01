@@ -6,13 +6,21 @@ namespace App\Context\Scheduling\Application\Command\CompleteAppointment;
 
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
+use App\Shared\Application\Event\DomainEventPublisher;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
+/**
+ * A pending request completed here is confirmed silently first (the client
+ * is on site): its events are published, so the notification sync marks the
+ * slot confirmed without a message, the « à confirmer » bell entry goes and
+ * a portal booking is announced confirmed (AC 140).
+ */
 #[AsMessageHandler]
 final readonly class CompleteAppointmentHandler
 {
     public function __construct(
         private AppointmentRepositoryInterface $appointmentRepository,
+        private DomainEventPublisher $domainEventPublisher,
     ) {
     }
 
@@ -30,5 +38,7 @@ final readonly class CompleteAppointmentHandler
 
         $appointment->complete();
         $this->appointmentRepository->save($appointment);
+
+        $this->domainEventPublisher->publish($appointment);
     }
 }

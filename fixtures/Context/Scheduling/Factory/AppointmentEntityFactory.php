@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Fixtures\Context\Scheduling\Factory;
 
+use App\Context\Scheduling\Domain\ValueObject\AppointmentSource;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
+use App\Context\Scheduling\Domain\ValueObject\CancellationActor;
 use App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Entity\AppointmentEntity;
 use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Persistence\PersistentProxyObjectFactory;
@@ -65,6 +67,53 @@ final class AppointmentEntityFactory extends PersistentProxyObjectFactory
     {
         return $this->afterInstantiate(static function (AppointmentEntity $entity) use ($status): void {
             $entity->setStatus($status);
+        });
+    }
+
+    public function withOwnerAndAnimal(?string $ownerId, ?string $animalId): self
+    {
+        return $this->afterInstantiate(static function (AppointmentEntity $entity) use ($ownerId, $animalId): void {
+            $entity->setOwnerId(null !== $ownerId ? Uuid::fromString($ownerId) : null);
+            $entity->setAnimalId(null !== $animalId ? Uuid::fromString($animalId) : null);
+        });
+    }
+
+    public function withReason(?string $reason): self
+    {
+        return $this->afterInstantiate(static function (AppointmentEntity $entity) use ($reason): void {
+            $entity->setReason($reason);
+        });
+    }
+
+    /**
+     * An online request waiting for the clinic's confirmation (« à confirmer »).
+     */
+    public function pending(\DateTimeImmutable $expiresAt, ?string $bookingMotifId = null): self
+    {
+        return $this->afterInstantiate(static function (AppointmentEntity $entity) use ($expiresAt, $bookingMotifId): void {
+            $entity->setStatus(AppointmentStatus::PENDING_CLINIC_CONFIRMATION);
+            $entity->setSource(AppointmentSource::PORTAL);
+            $entity->setPendingExpiresAt($expiresAt);
+            $entity->setBookingMotifId(null !== $bookingMotifId ? Uuid::fromString($bookingMotifId) : null);
+        });
+    }
+
+    /**
+     * An online request the clinic did not confirm.
+     */
+    public function declined(): self
+    {
+        return $this->afterInstantiate(static function (AppointmentEntity $entity): void {
+            $entity->setStatus(AppointmentStatus::DECLINED);
+            $entity->setSource(AppointmentSource::PORTAL);
+        });
+    }
+
+    public function cancelledBy(CancellationActor $actor): self
+    {
+        return $this->afterInstantiate(static function (AppointmentEntity $entity) use ($actor): void {
+            $entity->setStatus(AppointmentStatus::CANCELLED);
+            $entity->setCancelledBy($actor);
         });
     }
 

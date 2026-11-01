@@ -38,6 +38,8 @@
     reschedule: path('clinic_scheduling_appointment_reschedule', { appointmentId: '__ID__' }),
     cancel:     path('clinic_scheduling_appointment_cancel', { appointmentId: '__ID__' }),
     noShow:     path('clinic_scheduling_appointment_no_show', { appointmentId: '__ID__' }),
+    confirm:    path('clinic_scheduling_appointment_confirm', { appointmentId: '__ID__' }),
+    decline:    path('clinic_scheduling_appointment_decline', { appointmentId: '__ID__' }),
     search:     path('clinic_search', { format: 'agenda', mode: 'pick', type: 'animal' }),
     animal:     path('clinic_animals_view', { id: '__ID__' }),
     client:     path('clinic_clients_view', { id: '__ID__' }),
@@ -60,6 +62,7 @@
       <div class="st-leg">
         <span><i style="background:#4f86c638"></i>À venir</span>
         <span><i style="background:#4f86c638 repeating-linear-gradient(135deg,rgba(255,255,255,.62) 0 3px,transparent 3px 6px)"></i>Passé</span>
+        <span><i style="background:#4f86c638;outline:1.5px dashed #4f86c6;outline-offset:-1.5px"></i>À confirmer</span>
         <span><i style="background:#fee2e2 repeating-linear-gradient(135deg,rgba(220,38,38,.14) 0 3px,transparent 3px 6px)"></i>Non venu</span>
         <span><i style="background:#fff;outline:1px dashed #cbd5e1;outline-offset:-1px"></i><s style="color:var(--encre-35)">Annulé</s></span>
       </div>

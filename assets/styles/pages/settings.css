@@ -153,3 +153,13 @@
 .prm .smsu-n{font-size:.74rem;color:var(--encre-60)}
 .prm .smsu-o{font-size:.82rem;font-weight:600}
 .prm .smsu .bandeau{margin-top:4px}
+
+/* Réservation en ligne: the motifs and the form of the one being edited */
+.prm .mot-g{grid-template-columns:minmax(0,1fr) auto auto 32px}
+.prm .mot-g b{display:block;font-size:.85rem;font-weight:600}
+.prm .mot-g small{display:block;font-size:.74rem;color:var(--encre-60);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prm .mot-st{font-size:.7rem;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--brume);color:var(--encre-60)}
+.prm .mot-st.on{background:#dcfce7;color:#15803d}
+.prm .mform{margin:6px 0 10px;padding:4px 14px 12px;border:1px solid var(--pin);border-radius:var(--r-md);box-shadow:0 0 0 3px rgba(67,56,202,.08)}
+.prm .mform .chips{flex-wrap:wrap}
+.prm .mform-f{display:flex;justify-content:flex-end;gap:8px;padding-top:10px}

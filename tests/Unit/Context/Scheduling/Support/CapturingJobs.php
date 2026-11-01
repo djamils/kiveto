@@ -20,6 +20,15 @@ final class CapturingJobs implements NotificationJobsInterface
     /** @var list<string> */
     public array $withdrawals = [];
 
+    /** @var list<string> */
+    public array $pendingBookingNotices = [];
+
+    /** @var list<string> */
+    public array $pendingBookingWithdrawals = [];
+
+    /** @var list<string> */
+    public array $expiredDeclines = [];
+
     public function syncLater(string $appointmentId): void
     {
         $this->syncs[] = $appointmentId;
@@ -38,5 +47,20 @@ final class CapturingJobs implements NotificationJobsInterface
     public function withdrawNewAppointmentNotice(string $appointmentId): void
     {
         $this->withdrawals[] = $appointmentId;
+    }
+
+    public function postPendingBookingNotice(string $appointmentId): void
+    {
+        $this->pendingBookingNotices[] = $appointmentId;
+    }
+
+    public function withdrawPendingBookingNotice(string $appointmentId): void
+    {
+        $this->pendingBookingWithdrawals[] = $appointmentId;
+    }
+
+    public function declineExpiredPending(string $appointmentId): void
+    {
+        $this->expiredDeclines[] = $appointmentId;
     }
 }

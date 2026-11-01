@@ -21,6 +21,9 @@ final readonly class ClinicPermissionGuard
     public const string MANAGE_BILLING = 'manage_billing';
     public const string MANAGE_CLIENTS = 'manage_clients';
 
+    // Confirm or decline an online booking request (ClinicPermission::MANAGE_APPOINTMENTS).
+    public const string MANAGE_APPOINTMENTS = 'manage_appointments';
+
     public function __construct(
         private QueryBusInterface $queryBus,
         private CurrentClinicContextInterface $currentClinicContext,

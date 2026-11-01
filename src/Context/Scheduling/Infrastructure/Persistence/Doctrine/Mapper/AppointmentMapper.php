@@ -34,6 +34,12 @@ final class AppointmentMapper
             linkedAdmissionId: $entity->getLinkedAdmissionId()?->toRfc4122(),
             ownerId: $entity->getOwnerId()?->toRfc4122(),
             animalId: $entity->getAnimalId()?->toRfc4122(),
+            source: $entity->getSource(),
+            bookingMotifId: $entity->getBookingMotifId()?->toRfc4122(),
+            cancelledBy: $entity->getCancelledBy(),
+            cancellationReason: $entity->getCancellationReason(),
+            pendingExpiresAt: $entity->getPendingExpiresAt(),
+            confirmedSilently: $entity->isConfirmedSilently(),
         );
     }
 
@@ -64,7 +70,8 @@ final class AppointmentMapper
         $entity->setReason($appointment->reason());
         $entity->setNotes($appointment->notes());
         $entity->setServiceStartedAt($appointment->serviceStartedAt());
-        $entity->setCreatedAt($appointment->createdAt());
+        $this->writeBookingState($appointment, $entity);
+        $entity->setCreatedAt($appointment->createdAt()->setTimezone(new \DateTimeZone('UTC')));
         $entity->setUpdatedAt(new \DateTimeImmutable());
 
         return $entity;
@@ -79,6 +86,7 @@ final class AppointmentMapper
         $entity->setReason($appointment->reason());
         $entity->setNotes($appointment->notes());
         $entity->setServiceStartedAt($appointment->serviceStartedAt());
+        $this->writeBookingState($appointment, $entity);
         $entity->setLinkedAdmissionId(
             null !== $appointment->linkedAdmissionId()
                 ? Uuid::fromString($appointment->linkedAdmissionId())
@@ -95,5 +103,20 @@ final class AppointmentMapper
                 : null
         );
         $entity->setUpdatedAt(new \DateTimeImmutable());
+    }
+
+    private function writeBookingState(Appointment $appointment, AppointmentEntity $entity): void
+    {
+        $entity->setSource($appointment->source());
+        $entity->setBookingMotifId(
+            null !== $appointment->bookingMotifId()
+                ? Uuid::fromString($appointment->bookingMotifId())
+                : null
+        );
+        $entity->setCancelledBy($appointment->cancelledBy());
+        $entity->setCancellationReason($appointment->cancellationReason());
+        // Stored as UTC whatever the zone of the instant handed over (e.g. a clinic-local one).
+        $entity->setPendingExpiresAt($appointment->pendingExpiresAt()?->setTimezone(new \DateTimeZone('UTC')));
+        $entity->setConfirmedSilently($appointment->confirmedSilently());
     }
 }
