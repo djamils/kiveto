@@ -7,6 +7,7 @@ namespace App\Tests\Integration\Presentation\Api\Portal;
 use App\Context\Animal\Domain\ValueObject\LifeStatus;
 use App\Context\Animal\Domain\ValueObject\PreventiveCareKind;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
+use App\Context\Clinic\Domain\Staff\ValueObject\ProfessionalTitle;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
 use App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Entity\AppointmentEntity;
 use App\Fixtures\Context\Clinic\Factory\ClinicMembershipEntityFactory;
@@ -16,7 +17,8 @@ use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Slice 3: the home of an owner in a clinic (AC 19, 24, 27, 111, 113).
+ * Slice 3: the home of an owner in a clinic (AC 19, 24, 27, 111, 113); its
+ * next appointment has the full appointment shape from slice 4 on.
  * Today is 2 November 2026, 10:00 UTC (frozen clock).
  */
 final class HomeApiTest extends PetsApiTestCase
@@ -53,7 +55,7 @@ final class HomeApiTest extends PetsApiTestCase
         $this->careAct($ghost, PreventiveCareKind::VACCINATION, 'Rage', '2025-01-01', '2026-01-01');
         $this->careAct($lost, PreventiveCareKind::VACCINATION, 'Rage', '2025-01-01', '2026-01-01');
 
-        $vet = $this->veterinarian('Dr Claire Lambert');
+        $vet = $this->veterinarian('Claire', 'Lambert');
         $this->appointment($ghost, '2026-11-03 08:00:00', 'Rappel vaccin');
         $this->appointment($shared, '2026-11-03 09:00:00', 'Rappel vaccin');
         $this->appointment(null, '2026-11-03 10:00:00', 'Rappel vaccin');
@@ -70,12 +72,18 @@ final class HomeApiTest extends PetsApiTestCase
         $home = self::json($this->authGet('/clinics/' . self::CLINIC . '/home'), 200);
 
         self::assertSame([
-            'id'           => $next,
-            'startAt'      => '2026-11-04T14:30:00+01:00',
-            'pet'          => ['id' => $nala, 'name' => 'Nala'],
-            'practitioner' => 'Dr Claire Lambert',
-            'motifLabel'   => 'Vaccination',
-        ], $home['nextAppointment']);
+            'id'                  => $next,
+            'startAt'             => '2026-11-04T14:30:00+01:00',
+            'endAt'               => '2026-11-04T15:00:00+01:00',
+            'pet'                 => ['id' => $nala, 'name' => 'Nala'],
+            'motif'               => ['id' => null, 'label' => 'Rendez-vous'],
+            'practitioner'        => ['id' => $vet, 'displayName' => 'Dr Claire Lambert'],
+            'status'              => 'confirmed',
+            'source'              => 'clinic',
+            'cancellableUntil'    => '2026-11-03T14:30:00+01:00',
+            'questionnaireStatus' => 'not_started',
+            'relatedCareItem'     => null,
+        ], $home['nextAppointment'], 'the full appointment shape from slice 4, the printed practitioner name');
         self::assertSame([$nala, $rex], array_column(self::rows($home['pets']), 'id'));
         self::assertSame(['id', 'name', 'species', 'breed', 'sex', 'sterilization', 'birthDate', 'initial', 'lifeStatus'], array_keys(self::rows($home['pets'])[0]));
         self::assertSame([
@@ -101,9 +109,11 @@ final class HomeApiTest extends PetsApiTestCase
 
         $this->appointment($rex, '2026-11-06 10:00:00', 'Stérilisation');
         $home = self::json($this->authGet('/clinics/' . self::CLINIC . '/home'), 200);
-        self::assertIsArray($home['nextAppointment']);
-        self::assertNull($home['nextAppointment']['practitioner']);
-        self::assertSame('Chirurgie', $home['nextAppointment']['motifLabel']);
+        $next = $home['nextAppointment'];
+        self::assertIsArray($next);
+        self::assertIsArray($next['practitioner']);
+        self::assertNull($next['practitioner']['displayName'], 'an unknown practitioner');
+        self::assertSame(['id' => null, 'label' => 'Rendez-vous'], $next['motif'], 'never the free-text reason');
     }
 
     public function testMeGivesEachClinicItsTimezone(): void
@@ -125,6 +135,7 @@ final class HomeApiTest extends PetsApiTestCase
             ->startingAt(new \DateTimeImmutable($startsAtUtc, new \DateTimeZone('UTC')))
             ->withStatus($status)
             ->afterInstantiate(static function (AppointmentEntity $appointment) use ($petId, $reason): void {
+                $appointment->setCreatedAt(new \DateTimeImmutable('2026-10-01 08:00:00', new \DateTimeZone('UTC')));
                 $appointment->setAnimalId(null === $petId ? null : Uuid::fromString($petId));
                 $appointment->setOwnerId(Uuid::fromString(self::CLIENT));
                 $appointment->setReason($reason);
@@ -136,8 +147,11 @@ final class HomeApiTest extends PetsApiTestCase
         return $id;
     }
 
-    /** A veterinarian of the clinic with an agenda display name; returns their user id. */
-    private function veterinarian(string $displayName): string
+    /**
+     * A veterinarian of the clinic whose agenda display name is not their
+     * printed name (« Dr Prénom Nom »); returns their user id.
+     */
+    private function veterinarian(string $firstName, string $lastName): string
     {
         $user       = ClinicUserFactory::createOne();
         $userId     = $user->getId()->toRfc4122();
@@ -145,7 +159,12 @@ final class HomeApiTest extends PetsApiTestCase
         ClinicMembershipEntityFactory::new()->withId($membership)->withClinicId(self::CLINIC)->withUserId($userId)->withRole(ClinicMemberRole::VETERINARY)->asEmployee()
             ->create(['validFrom' => new \DateTimeImmutable('2026-01-01')])
         ;
-        StaffProfileEntityFactory::new()->forMembership(Uuid::fromString($membership))->create(['displayName' => $displayName]);
+        StaffProfileEntityFactory::new()->forMembership(Uuid::fromString($membership))->create([
+            'firstName'         => $firstName,
+            'lastName'          => $lastName,
+            'displayName'       => mb_substr($firstName, 0, 1) . mb_substr($lastName, 0, 1),
+            'professionalTitle' => ProfessionalTitle::DR,
+        ]);
 
         return $userId;
     }

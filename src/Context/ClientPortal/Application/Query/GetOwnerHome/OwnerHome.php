@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\ClientPortal\Application\Query\GetOwnerHome;
 
+use App\Context\ClientPortal\Application\Query\ListOwnerAppointments\PortalAppointment;
 use App\Context\ClientPortal\Application\Query\ListOwnerPets\OwnerPet;
 use App\Context\ClientPortal\Application\Query\ListPublishedDocuments\PortalDocument;
 
@@ -16,7 +17,7 @@ final readonly class OwnerHome
      * @param list<PortalDocument> $latestDocuments at most 2, newest first
      */
     public function __construct(
-        public ?NextAppointment $nextAppointment,
+        public ?PortalAppointment $nextAppointment,
         public array $pets,
         public array $careItems,
         public array $latestDocuments,

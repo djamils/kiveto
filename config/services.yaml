@@ -386,6 +386,16 @@ services:
     App\Context\ClientPortal\Application\Port\OwnerAppointmentsInterface:
         class: App\Context\ClientPortal\Infrastructure\Adapter\Scheduling\QueryBusOwnerAppointments
 
+    App\Context\ClientPortal\Application\Port\BookingMotifsInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Scheduling\QueryBusBookingMotifs
+
+    # Portal booking commands (Task 26): Scheduling's online booking, Animal's registration
+    App\Context\ClientPortal\Application\Port\OnlineBookingInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Scheduling\CommandBusOnlineBooking
+
+    App\Context\ClientPortal\Application\Port\PetRegistrationInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Animal\CommandBusPetRegistration
+
     App\Context\ClientPortal\Application\Port\PractitionerNamesInterface:
         class: App\Context\ClientPortal\Infrastructure\Adapter\Clinic\QueryBusPractitionerNames
 
@@ -752,6 +762,17 @@ services:
     App\Context\Scheduling\Domain\Booking\OnlineBookingSettingsRepositoryInterface:
         class: App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DoctrineOnlineBookingSettingsRepository
 
+    # Online availability (portal spec, Task 25): opening hours, block
+    # occurrences and occupying appointments of a practitioner.
+    App\Context\Scheduling\Application\Port\ClinicOpeningHoursInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\Clinic\QueryBusClinicOpeningHours
+
+    App\Context\Scheduling\Application\Port\PlanningBlockOccurrencesReaderInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\DbalPlanningBlockOccurrencesReader
+
+    App\Context\Scheduling\Application\Port\OccupyingAppointmentsReaderInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\DbalOccupyingAppointmentsReader
+
     App\Context\Scheduling\Application\Port\ClientContactInterface:
         class: App\Context\Scheduling\Infrastructure\Adapter\Client\QueryBusClientContact
 
@@ -773,6 +794,10 @@ services:
     # « Nouveau RDV » in the veterinarian's bell (D13)
     App\Context\Scheduling\Application\Port\PractitionerBellInterface:
         class: App\Context\Scheduling\Infrastructure\Adapter\Notification\CommandBusPractitionerBell
+
+    # The animal registered for a declined or expired Portal booking (S4g)
+    App\Context\Scheduling\Application\Port\BookedPetArchiverInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\Animal\CommandBusBookedPetArchiver
 
     # ============================================================================
     # BOUNDED CONTEXT: PATIENT

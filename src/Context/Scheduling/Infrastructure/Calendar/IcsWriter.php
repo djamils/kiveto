@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Context\Scheduling\Infrastructure\Calendar;
 
+use App\Context\Scheduling\Application\Port\CalendarEvent;
+use App\Context\Scheduling\Application\Port\CalendarEventWriterInterface;
 use App\Context\Scheduling\Application\Port\CalendarInvitation;
 use App\Context\Scheduling\Application\Port\CalendarInvitationWriterInterface;
 
@@ -12,11 +14,13 @@ use App\Context\Scheduling\Application\Port\CalendarInvitationWriterInterface;
  * `METHOD:REQUEST` for an invitation or its update — same UID, growing
  * SEQUENCE, so calendars replace the event — and `METHOD:CANCEL` for a
  * cancellation, always with the ORGANIZER iTIP requires (RFC 5546; the
- * attachment's content type repeats the method). Times in UTC (no VTIMEZONE
+ * attachment's content type repeats the method). The Portal download is
+ * published instead (`METHOD:PUBLISH`): same UID and SEQUENCE, no ORGANIZER
+ * nor ATTENDEE, `STATUS:TENTATIVE` while pending. Times in UTC (no VTIMEZONE
  * needed); CRLF line breaks; lines folded at 75 octets without splitting a
  * UTF-8 character; TEXT values escaped.
  */
-final class IcsWriter implements CalendarInvitationWriterInterface
+final class IcsWriter implements CalendarInvitationWriterInterface, CalendarEventWriterInterface
 {
     private const string CRLF       = "\r\n";
     private const int    LINE_LIMIT = 75;
@@ -52,6 +56,49 @@ final class IcsWriter implements CalendarInvitationWriterInterface
         $lines[] = 'END:VEVENT';
         $lines[] = 'END:VCALENDAR';
 
+        return self::calendar($lines);
+    }
+
+    public function publish(CalendarEvent $event): string
+    {
+        $end = $event->startsAtUtc->modify(\sprintf('+%d minutes', $event->durationMinutes));
+
+        $lines = [
+            'BEGIN:VCALENDAR',
+            'PRODID:-//Kiveto//Agenda//FR',
+            'VERSION:2.0',
+            'CALSCALE:GREGORIAN',
+            'METHOD:PUBLISH',
+            'BEGIN:VEVENT',
+            'UID:' . $event->uid,
+            'SEQUENCE:' . $event->sequence,
+            'DTSTAMP:' . self::time($event->stampedAt),
+            'DTSTART:' . self::time($event->startsAtUtc),
+            'DTEND:' . self::time($end),
+            'SUMMARY:' . self::text($event->summary),
+        ];
+
+        if (null !== $event->description) {
+            $lines[] = 'DESCRIPTION:' . self::text($event->description);
+        }
+
+        if (null !== $event->location) {
+            $lines[] = 'LOCATION:' . self::text($event->location);
+        }
+
+        $lines[] = 'STATUS:' . ($event->tentative ? 'TENTATIVE' : 'CONFIRMED');
+        $lines[] = 'TRANSP:OPAQUE';
+        $lines[] = 'END:VEVENT';
+        $lines[] = 'END:VCALENDAR';
+
+        return self::calendar($lines);
+    }
+
+    /**
+     * @param list<string> $lines
+     */
+    private static function calendar(array $lines): string
+    {
         return implode(self::CRLF, array_map(self::fold(...), $lines)) . self::CRLF;
     }
 

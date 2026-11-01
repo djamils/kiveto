@@ -29,6 +29,16 @@ final readonly class OwnerPets
      */
     public function visible(string $userId, string $clinicId): array
     {
+        return $this->directory->visiblePets($clinicId, $this->clientIds($userId, $clinicId));
+    }
+
+    /**
+     * The client files the account reaches through a confirmed link of the clinic.
+     *
+     * @return list<string>
+     */
+    public function clientIds(string $userId, string $clinicId): array
+    {
         $clientIds = [];
 
         foreach ($this->links->findConfirmedByUser($userId) as $link) {
@@ -37,7 +47,7 @@ final readonly class OwnerPets
             }
         }
 
-        return $this->directory->visiblePets($clinicId, array_values(array_unique($clientIds)));
+        return array_values(array_unique($clientIds));
     }
 
     /**

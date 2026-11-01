@@ -25,7 +25,7 @@ paths:
         '404':
           description: '`not_found` (pas de lien confirmé avec la clinique).'
       summary: "L'accueil du propriétaire dans cette clinique."
-      description: 'Animaux vivants seulement. Prochain rendez-vous, 3 soins aux échéances les plus proches, 2 derniers documents. Une section vide est un tableau vide (`nextAppointment: null`).'
+      description: "Animaux vivants seulement. Prochain rendez-vous (forme complète d'un rendez-vous), 3 soins aux échéances les plus proches, 2 derniers documents. Une section vide est un tableau vide (`nextAppointment: null`)."
       parameters:
         -
           name: clinicId
@@ -985,6 +985,590 @@ paths:
             schema:
               $ref: '#/components/schemas/InvitationGrantAcceptance'
         required: true
+  '/api/portal/v1/clinics/{clinicId}/appointments':
+    get:
+      operationId: api_clinics_clinicIdappointments_get
+      tags:
+        - Rendez-vous
+      responses:
+        '200':
+          description: 'Une page de rendez-vous.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentList'
+        '400':
+          description: '`cursor_invalid`.'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: '`not_found` (pas de lien confirmé avec la clinique).'
+        '422':
+          description: '`validation_failed`.'
+      summary: 'Les rendez-vous du propriétaire dans cette clinique.'
+      description: 'Rendez-vous des fiches reliées et de leurs animaux principaux. `upcoming` (par défaut) = rendez-vous qui occupent un créneau et commencent maintenant ou plus tard, du plus proche au plus lointain ; `past` = tous les autres, du plus récent au plus ancien.'
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'AppointmentList identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: scope
+          in: query
+          description: 'AppointmentList scope'
+          required: false
+          deprecated: false
+          schema:
+            type: string
+            enum:
+              - upcoming
+              - past
+            default: upcoming
+          style: form
+          explode: true
+        -
+          name: cursor
+          in: query
+          description: 'AppointmentList cursor'
+          required: false
+          deprecated: false
+          schema:
+            type: string
+          style: form
+          explode: true
+        -
+          name: limit
+          in: query
+          description: 'Taille de page : 20 par défaut, ramenée à 50 au plus.'
+          required: false
+          deprecated: false
+          schema:
+            type: integer
+          style: form
+          explode: true
+    post:
+      operationId: api_clinics_clinicIdappointments_post
+      tags:
+        - Rendez-vous
+      responses:
+        '201':
+          description: 'Le rendez-vous pris.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentBooking.AppointmentView'
+          links: {  }
+        '400':
+          description: '`idempotency_key_missing`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: "`not_found` (pas de lien confirmé ; animal d'un autre client, vendu ou donné ; motif inconnu)."
+        '409':
+          description: '`slot_taken` : recharger les créneaux.'
+        '422':
+          description: '`pet_not_bookable`, `booking_not_open`, `idempotency_key_reused` ou `validation_failed`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+      summary: 'Réserve un créneau en ligne pour un animal du propriétaire.'
+      description: '`status` = `confirmed` ou `pending_clinic_confirmation` selon le motif, `source: portal`. Rejouer la requête avec la même clé Idempotency-Key rend la même réponse sans second rendez-vous.'
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          description: 'Clé aléatoire (UUID) propre à cette réservation, réutilisée pour ses nouvelles tentatives.'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+            maxLength: 128
+          style: simple
+          explode: false
+        -
+          name: clinicId
+          in: path
+          description: 'AppointmentBooking identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+      requestBody:
+        description: 'The new AppointmentBooking resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentBooking'
+        required: true
+  '/api/portal/v1/clinics/{clinicId}/appointments/with-new-pet':
+    post:
+      operationId: api_clinics_clinicIdappointmentswith-new-pet_post
+      tags:
+        - Rendez-vous
+      responses:
+        '201':
+          description: 'Le rendez-vous pris.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentBookingWithNewPet.AppointmentView'
+          links: {  }
+        '400':
+          description: '`idempotency_key_missing`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: '`not_found` (pas de lien confirmé ; motif inconnu).'
+        '409':
+          description: '`slot_taken` : recharger les créneaux.'
+        '422':
+          description: '`booking_not_open`, `idempotency_key_reused` ou `validation_failed`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+      summary: 'Réserve un créneau en ligne pour un animal que la clinique ne connaît pas encore.'
+      description: "Crée l'animal du propriétaire (sexe et stérilisation inconnus) dans la même transaction que le rendez-vous : en cas de `slot_taken`, aucun animal ne reste. Un animal actif de même nom et espèce créé dans les 24 h est réutilisé. Archivé automatiquement si la demande est refusée ou expire avant tout acte clinique."
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          description: 'Clé aléatoire (UUID) propre à cette réservation, réutilisée pour ses nouvelles tentatives.'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+            maxLength: 128
+          style: simple
+          explode: false
+        -
+          name: clinicId
+          in: path
+          description: 'AppointmentBookingWithNewPet identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+      requestBody:
+        description: 'The new AppointmentBookingWithNewPet resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentBookingWithNewPet'
+        required: true
+  '/api/portal/v1/clinics/{clinicId}/appointments/{appointmentId}':
+    get:
+      operationId: api_clinics_clinicIdappointments_appointmentId_get
+      tags:
+        - Rendez-vous
+      responses:
+        '200':
+          description: 'Le rendez-vous.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment.AppointmentView'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: "`not_found` (pas de lien confirmé, ou rendez-vous inconnu ou d'un autre client)."
+      summary: 'Un rendez-vous du propriétaire.'
+      description: "`relatedCareItem` = le soin de l'animal du type de soin du motif, sinon `null` (avertissement de l'écran 16)."
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'Appointment identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: appointmentId
+          in: path
+          description: 'Appointment identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+  '/api/portal/v1/clinics/{clinicId}/appointments/{appointmentId}/calendar.ics':
+    get:
+      operationId: api_portal_appointment_calendar
+      tags:
+        - Rendez-vous
+      responses:
+        '200':
+          description: 'Le fichier iCalendar (`attachment`, `Cache-Control: private, no-store`).'
+          content:
+            text/calendar:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: '`not_found`.'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+      summary: 'Ajouter un rendez-vous à son agenda.'
+      description: "`METHOD:PUBLISH`, sans participant ni organisateur, même `UID` que l'invitation envoyée par e-mail, `SEQUENCE` de la dernière envoyée, `STATUS:TENTATIVE` tant que le rendez-vous est à confirmer. 404 pour un rendez-vous d'un autre client, annulé, refusé, terminé ou non honoré."
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: ''
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: appointmentId
+          in: path
+          description: ''
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+  '/api/portal/v1/clinics/{clinicId}/appointments/{appointmentId}/cancel':
+    post:
+      operationId: api_clinics_clinicIdappointments_appointmentIdcancel_post
+      tags:
+        - Rendez-vous
+      responses:
+        '200':
+          description: 'Le rendez-vous annulé (`status: cancelled_by_client`).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentCancellation.AppointmentView'
+          links: {  }
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: "`not_found` (pas de lien confirmé ; rendez-vous inconnu ou d'un autre client)."
+        '422':
+          description: '`cancellation_window_closed`, `appointment_not_modifiable` (refusé, terminé, non honoré, annulé par la clinique) ou `validation_failed`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+      summary: "Annule un rendez-vous dans le délai d'annulation."
+      description: 'Naturellement idempotente : un rendez-vous déjà annulé par le client rend 200 avec le même corps.'
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'AppointmentCancellation identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: appointmentId
+          in: path
+          description: 'AppointmentCancellation identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+      requestBody:
+        description: 'The new AppointmentCancellation resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentCancellation'
+        required: true
+  '/api/portal/v1/clinics/{clinicId}/appointments/{appointmentId}/reschedule':
+    post:
+      operationId: api_clinics_clinicIdappointments_appointmentIdreschedule_post
+      tags:
+        - Rendez-vous
+      responses:
+        '200':
+          description: 'Le rendez-vous déplacé.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentReschedule.AppointmentView'
+          links: {  }
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: "`not_found` (pas de lien confirmé ; rendez-vous inconnu ou d'un autre client ; praticien non réservable pour le motif)."
+        '409':
+          description: '`slot_taken` : recharger les créneaux.'
+        '422':
+          description: '`booking_not_open`, `cancellation_window_closed`, `appointment_not_modifiable` ou `validation_failed`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+      summary: 'Déplace un rendez-vous pris en ligne.'
+      description: "Seulement un rendez-vous pris en ligne avec un motif, dans le délai d'annulation. Le statut est conservé (une demande à confirmer reste à confirmer et repart pour un nouveau délai). Même créneau et même praticien : 200 sans effet."
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'AppointmentReschedule identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: appointmentId
+          in: path
+          description: 'AppointmentReschedule identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+      requestBody:
+        description: 'The new AppointmentReschedule resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentReschedule'
+        required: true
+  '/api/portal/v1/clinics/{clinicId}/booking/availability':
+    get:
+      operationId: api_clinics_clinicIdbookingavailability_get
+      tags:
+        - Rendez-vous
+      responses:
+        '200':
+          description: 'Les jours et leurs créneaux.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingAvailability'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: '`not_found` (pas de lien confirmé ; motif inconnu, ou praticien non réservable pour ce motif).'
+        '422':
+          description: '`booking_not_open` (réservation désactivée, clinique non active) ou `validation_failed` (intervalle).'
+      summary: "Les créneaux réservables en ligne d'un praticien pour un motif."
+      description: "Un jour par date demandée (dates locales de la clinique, incluses, 14 jours au plus, `from` ≥ aujourd'hui local). `open` = jour d'ouverture, hors fermeture exceptionnelle, dans l'horizon. Créneaux émis avec le décalage de la clinique."
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'BookingAvailability identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: motifId
+          in: query
+          description: 'BookingAvailability motifId'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+            format: uuid
+          style: form
+          explode: true
+        -
+          name: practitionerId
+          in: query
+          description: 'BookingAvailability practitionerId'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+            format: uuid
+          style: form
+          explode: true
+        -
+          name: from
+          in: query
+          description: 'BookingAvailability from'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+            format: date
+          style: form
+          explode: true
+        -
+          name: to
+          in: query
+          description: 'BookingAvailability to'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+            format: date
+          style: form
+          explode: true
+  '/api/portal/v1/clinics/{clinicId}/booking/motifs':
+    get:
+      operationId: api_clinics_clinicIdbookingmotifs_get_collection
+      tags:
+        - Rendez-vous
+      responses:
+        '200':
+          description: 'Les motifs.'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookingMotifs.BookingMotifView'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: '`not_found` (pas de lien confirmé avec la clinique, ou animal non visible).'
+        '422':
+          description: '`booking_not_open` ou `validation_failed`.'
+      summary: 'Les motifs de rendez-vous réservables en ligne.'
+      description: "Dans l'ordre de la clinique. Avec `petId`, un motif est `suggested` quand l'animal a un soin en retard ou à prévoir du type de soin du motif (`suggestionReason` : « Rappel de vaccin en retard », « Rappel de vaccin à prévoir »…)."
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'BookingMotifs identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: petId
+          in: query
+          description: 'BookingMotifs petId'
+          required: false
+          deprecated: false
+          schema:
+            type: string
+            format: uuid
+          style: form
+          explode: true
+  '/api/portal/v1/clinics/{clinicId}/booking/practitioners':
+    get:
+      operationId: api_clinics_clinicIdbookingpractitioners_get_collection
+      tags:
+        - Rendez-vous
+      responses:
+        '200':
+          description: 'Les praticiens.'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookingPractitioners.PractitionerView'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: '`not_found` (pas de lien confirmé ; motif inconnu, archivé ou non ouvert en ligne).'
+        '422':
+          description: '`booking_not_open` ou `validation_failed`.'
+      summary: 'Les praticiens réservables en ligne pour un motif.'
+      description: "Par nom. Un praticien qui a quitté la clinique depuis l'enregistrement du motif n'apparaît plus."
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'BookingPractitioners identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: motifId
+          in: query
+          description: 'BookingPractitioners motifId'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+            format: uuid
+          style: form
+          explode: true
 components:
   schemas:
     AccountView:
@@ -1030,6 +1614,436 @@ components:
           type: string
         country:
           type: string
+    Appointment.AppointmentView:
+      type: object
+      description: 'An appointment of the owner (AppointmentView).'
+      properties:
+        id:
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        pet:
+          anyOf:
+            -
+              $ref: '#/components/schemas/PetReferenceView'
+            -
+              type: 'null'
+        motif:
+          $ref: '#/components/schemas/MotifReferenceView'
+        practitioner:
+          $ref: '#/components/schemas/PractitionerView'
+        status:
+          type: string
+          enum:
+            - confirmed
+            - pending_clinic_confirmation
+            - cancelled_by_client
+            - cancelled_by_clinic
+            - declined
+            - completed
+            - no_show
+        source:
+          type: string
+          enum:
+            - clinic
+            - portal
+        cancellableUntil:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        questionnaireStatus:
+          type: string
+          enum:
+            - not_started
+            - submitted
+        relatedCareItem:
+          anyOf:
+            -
+              $ref: '#/components/schemas/RelatedCareItemView'
+            -
+              type: 'null'
+    AppointmentBooking:
+      type: object
+      properties:
+        petId:
+          type: string
+          format: uuid
+        motifId:
+          type: string
+          format: uuid
+        practitionerId:
+          type: string
+          format: uuid
+        startAt:
+          type: string
+          format: date-time
+    AppointmentBooking.AppointmentView:
+      type: object
+      properties:
+        id:
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        pet:
+          anyOf:
+            -
+              $ref: '#/components/schemas/PetReferenceView'
+            -
+              type: 'null'
+        motif:
+          $ref: '#/components/schemas/MotifReferenceView'
+        practitioner:
+          $ref: '#/components/schemas/PractitionerView'
+        status:
+          type: string
+          enum:
+            - confirmed
+            - pending_clinic_confirmation
+            - cancelled_by_client
+            - cancelled_by_clinic
+            - declined
+            - completed
+            - no_show
+        source:
+          type: string
+          enum:
+            - clinic
+            - portal
+        cancellableUntil:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        questionnaireStatus:
+          type: string
+          enum:
+            - not_started
+            - submitted
+        relatedCareItem:
+          anyOf:
+            -
+              $ref: '#/components/schemas/RelatedCareItemView'
+            -
+              type: 'null'
+    AppointmentBookingWithNewPet:
+      type: object
+      required:
+        - newPet
+      properties:
+        newPet:
+          $ref: '#/components/schemas/NewPet'
+        motifId:
+          type: string
+          format: uuid
+        practitionerId:
+          type: string
+          format: uuid
+        startAt:
+          type: string
+          format: date-time
+    AppointmentBookingWithNewPet.AppointmentView:
+      type: object
+      properties:
+        id:
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        pet:
+          anyOf:
+            -
+              $ref: '#/components/schemas/PetReferenceView'
+            -
+              type: 'null'
+        motif:
+          $ref: '#/components/schemas/MotifReferenceView'
+        practitioner:
+          $ref: '#/components/schemas/PractitionerView'
+        status:
+          type: string
+          enum:
+            - confirmed
+            - pending_clinic_confirmation
+            - cancelled_by_client
+            - cancelled_by_clinic
+            - declined
+            - completed
+            - no_show
+        source:
+          type: string
+          enum:
+            - clinic
+            - portal
+        cancellableUntil:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        questionnaireStatus:
+          type: string
+          enum:
+            - not_started
+            - submitted
+        relatedCareItem:
+          anyOf:
+            -
+              $ref: '#/components/schemas/RelatedCareItemView'
+            -
+              type: 'null'
+    AppointmentCancellation:
+      type: object
+      properties:
+        reason:
+          type: string
+          enum:
+            - unavailable
+            - no_longer_needed
+            - seen_elsewhere
+            - other
+    AppointmentCancellation.AppointmentView:
+      type: object
+      properties:
+        id:
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        pet:
+          anyOf:
+            -
+              $ref: '#/components/schemas/PetReferenceView'
+            -
+              type: 'null'
+        motif:
+          $ref: '#/components/schemas/MotifReferenceView'
+        practitioner:
+          $ref: '#/components/schemas/PractitionerView'
+        status:
+          type: string
+          enum:
+            - confirmed
+            - pending_clinic_confirmation
+            - cancelled_by_client
+            - cancelled_by_clinic
+            - declined
+            - completed
+            - no_show
+        source:
+          type: string
+          enum:
+            - clinic
+            - portal
+        cancellableUntil:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        questionnaireStatus:
+          type: string
+          enum:
+            - not_started
+            - submitted
+        relatedCareItem:
+          anyOf:
+            -
+              $ref: '#/components/schemas/RelatedCareItemView'
+            -
+              type: 'null'
+    AppointmentList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppointmentView'
+        nextCursor:
+          type:
+            - string
+            - 'null'
+    AppointmentReschedule:
+      type: object
+      properties:
+        startAt:
+          type: string
+          format: date-time
+        practitionerId:
+          type: string
+          format: uuid
+    AppointmentReschedule.AppointmentView:
+      type: object
+      properties:
+        id:
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        pet:
+          anyOf:
+            -
+              $ref: '#/components/schemas/PetReferenceView'
+            -
+              type: 'null'
+        motif:
+          $ref: '#/components/schemas/MotifReferenceView'
+        practitioner:
+          $ref: '#/components/schemas/PractitionerView'
+        status:
+          type: string
+          enum:
+            - confirmed
+            - pending_clinic_confirmation
+            - cancelled_by_client
+            - cancelled_by_clinic
+            - declined
+            - completed
+            - no_show
+        source:
+          type: string
+          enum:
+            - clinic
+            - portal
+        cancellableUntil:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        questionnaireStatus:
+          type: string
+          enum:
+            - not_started
+            - submitted
+        relatedCareItem:
+          anyOf:
+            -
+              $ref: '#/components/schemas/RelatedCareItemView'
+            -
+              type: 'null'
+    AppointmentView:
+      type: object
+      properties:
+        id:
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        pet:
+          anyOf:
+            -
+              $ref: '#/components/schemas/PetReferenceView'
+            -
+              type: 'null'
+        motif:
+          $ref: '#/components/schemas/MotifReferenceView'
+        practitioner:
+          $ref: '#/components/schemas/PractitionerView'
+        status:
+          type: string
+          enum:
+            - confirmed
+            - pending_clinic_confirmation
+            - cancelled_by_client
+            - cancelled_by_clinic
+            - declined
+            - completed
+            - no_show
+        source:
+          type: string
+          enum:
+            - clinic
+            - portal
+        cancellableUntil:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        questionnaireStatus:
+          type: string
+          enum:
+            - not_started
+            - submitted
+        relatedCareItem:
+          anyOf:
+            -
+              $ref: '#/components/schemas/RelatedCareItemView'
+            -
+              type: 'null'
+    AvailabilityDayView:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        open:
+          type: boolean
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailabilitySlotView'
+    AvailabilitySlotView:
+      type: object
+      properties:
+        startAt:
+          type: string
+          format: date-time
+    BookingAvailability:
+      type: object
+      properties:
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailabilityDayView'
+    BookingMotifs.BookingMotifView:
+      type: object
+      description: 'A motif the owner may book online; the route answers a plain JSON array of them.'
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        description:
+          type:
+            - string
+            - 'null'
+        durationMin:
+          type: integer
+        suggested:
+          type: boolean
+        suggestionReason:
+          description: '« Rappel de vaccin en retard », « Rappel de vaccin à prévoir »…, null when not suggested.'
+          type:
+            - string
+            - 'null'
+    BookingPractitioners.PractitionerView:
+      type: object
+      description: 'A practitioner bookable online for the motif; the route answers a plain JSON array of them.'
+      properties:
+        id:
+          type: string
+        displayName:
+          type:
+            - string
+            - 'null'
     CareItem:
       type: object
       description: |-
@@ -1222,7 +2236,7 @@ components:
         nextAppointment:
           anyOf:
             -
-              $ref: '#/components/schemas/NextAppointmentView'
+              $ref: '#/components/schemas/AppointmentView'
             -
               type: 'null'
         pets:
@@ -1404,22 +2418,30 @@ components:
           type: integer
         currency:
           type: string
-    NextAppointmentView:
+    MotifReferenceView:
       type: object
       properties:
         id:
-          type: string
-        startAt:
-          type: string
-          format: date-time
-        pet:
-          $ref: '#/components/schemas/PetReferenceView'
-        practitioner:
           type:
             - string
             - 'null'
-        motifLabel:
+        label:
           type: string
+    NewPet:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          maxLength: 80
+          type: string
+        species:
+          type: string
+          enum:
+            - dog
+            - cat
+            - nac
+            - other
     OtpRequest:
       type: object
       required:
@@ -1681,6 +2703,15 @@ components:
         at:
           type: string
           format: date
+    PractitionerView:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type:
+            - string
+            - 'null'
     Prescription:
       type: object
       properties:
@@ -1722,6 +2753,23 @@ components:
           type:
             - object
             - 'null'
+    RelatedCareItemView:
+      type: object
+      properties:
+        kind:
+          type: string
+        label:
+          type: string
+        dueOn:
+          type: string
+          format: date
+        status:
+          type: string
+          enum:
+            - booked
+            - overdue
+            - due_soon
+            - up_to_date
     SessionLogout:
       type: object
       required:
@@ -1795,6 +2843,9 @@ security:
   -
     Bearer: []
 tags:
+  -
+    name: Rendez-vous
+    description: 'A practitioner bookable online for the motif; the route answers a plain JSON array of them.'
   -
     name: Animaux
     description: "Resource 'Animaux' operations."

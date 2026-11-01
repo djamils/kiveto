@@ -24,6 +24,11 @@ final class DoctrineAppointmentRepositoryTest extends KernelTestCase
 {
     use Factories;
 
+    private const string CLINIC = '01960000-0000-7000-8000-0000000c8001';
+    private const string OWNER  = '01960000-0000-7000-8000-0000000e8001';
+    private const string PET    = '01960000-0000-7000-8000-0000000f8001';
+    private const string MOTIF  = '01960000-0000-7000-8000-0000000b8001';
+
     private AppointmentRepositoryInterface $repository;
 
     protected function setUp(): void
@@ -190,6 +195,83 @@ final class DoctrineAppointmentRepositoryTest extends KernelTestCase
         $loaded = $this->repository->findById($appointment->id());
         self::assertNotNull($loaded);
         self::assertSame($admissionId, $loaded->linkedAdmissionId());
+    }
+
+    public function testAPortalBookingKeepsItsMotifAndTheAnimalCreatedForIt(): void
+    {
+        $appointment = $this->portalBooking('01960000-0000-7000-8000-0000000a8001', self::utc('2026-04-13 05:00'));
+        $this->repository->save($appointment);
+
+        $loaded = $this->repository->findById($appointment->id());
+        self::assertSame(AppointmentSource::PORTAL, $loaded?->source());
+        self::assertSame(self::MOTIF, $loaded->bookingMotifId());
+        self::assertSame(self::PET, $loaded->createdPetId());
+    }
+
+    public function testTheRecentOnlineBookingOfTheSameRequestIsFound(): void
+    {
+        // A row lock needs a transaction (the command bus opens one)
+        $connection = self::getContainer()->get('doctrine.dbal.default_connection');
+        \assert($connection instanceof Connection);
+        $connection->beginTransaction();
+
+        $this->repository->save($this->portalBooking('01960000-0000-7000-8000-0000000a8001', self::utc('2026-04-13 05:00')));
+        $cancelled = $this->portalBooking('01960000-0000-7000-8000-0000000a8002', self::utc('2026-04-13 05:30'));
+        $cancelled->cancel(CancellationActor::CLIENT);
+        $this->repository->save($cancelled);
+
+        $clinic = ClinicId::fromString(self::CLINIC);
+        $start  = new \DateTimeImmutable('2026-04-14T10:00:00+02:00');
+
+        self::assertSame('01960000-0000-7000-8000-0000000a8001', $this->repository->findRecentOnlineBookingId($clinic, self::OWNER, self::PET, self::MOTIF, $start, self::utc('2026-04-12 06:00'))?->toString());
+        self::assertNull($this->repository->findRecentOnlineBookingId($clinic, self::OWNER, self::PET, self::MOTIF, $start, self::utc('2026-04-13 05:00:01')), 'too old');
+        self::assertNull($this->repository->findRecentOnlineBookingId($clinic, self::OWNER, self::PET, self::MOTIF, $start->modify('+15 minutes'), self::utc('2026-04-12 06:00')), 'another start');
+        self::assertNull($this->repository->findRecentOnlineBookingId($clinic, self::PET, self::PET, self::MOTIF, $start, self::utc('2026-04-12 06:00')), 'another owner');
+
+        $connection->rollBack();
+    }
+
+    public function testAnotherAppointmentOfTheAnimalIsOneNotWithdrawn(): void
+    {
+        $booking = $this->portalBooking('01960000-0000-7000-8000-0000000a8001', self::utc('2026-04-13 05:00'));
+        $this->repository->save($booking);
+        $clinic = ClinicId::fromString(self::CLINIC);
+
+        self::assertFalse($this->repository->hasOtherAppointmentForAnimal($clinic, self::PET, $booking->id()));
+
+        $cancelled = $this->portalBooking('01960000-0000-7000-8000-0000000a8002', self::utc('2026-04-13 05:30'));
+        $cancelled->cancel(CancellationActor::CLIENT);
+        $this->repository->save($cancelled);
+
+        self::assertFalse($this->repository->hasOtherAppointmentForAnimal($clinic, self::PET, $booking->id()));
+
+        $this->repository->save($this->portalBooking('01960000-0000-7000-8000-0000000a8003', self::utc('2026-04-13 05:40')));
+
+        self::assertTrue($this->repository->hasOtherAppointmentForAnimal($clinic, self::PET, $booking->id()));
+        self::assertFalse($this->repository->hasOtherAppointmentForAnimal(ClinicId::fromString('01960000-0000-7000-8000-0000000c8fff'), self::PET, $booking->id()));
+    }
+
+    private function portalBooking(string $id, \DateTimeImmutable $createdAt): Appointment
+    {
+        return Appointment::schedule(
+            id: AppointmentId::fromString($id),
+            clinicId: ClinicId::fromString(self::CLINIC),
+            practitionerAssignee: new PractitionerAssignee(UserId::fromString('01960000-0000-7000-8000-0000000d8001')),
+            timeSlot: new TimeSlot(self::utc('2026-04-14 08:00'), 30),
+            reason: 'Consultation',
+            notes: null,
+            createdAt: $createdAt,
+            ownerId: self::OWNER,
+            animalId: self::PET,
+            source: AppointmentSource::PORTAL,
+            bookingMotifId: self::MOTIF,
+            createdPetId: self::PET,
+        );
+    }
+
+    private static function utc(string $at): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable($at, new \DateTimeZone('UTC'));
     }
 
     private function pending(string $id, string $expiresAtUtc): Appointment

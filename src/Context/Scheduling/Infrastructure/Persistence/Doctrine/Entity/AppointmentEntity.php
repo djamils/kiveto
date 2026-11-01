@@ -66,6 +66,9 @@ class AppointmentEntity
     #[ORM\Column(name: 'confirmed_silently', type: 'boolean', options: ['default' => false])]
     private bool $confirmedSilently = false;
 
+    #[ORM\Column(name: 'created_pet_id', type: UuidType::NAME, nullable: true)]
+    private ?Uuid $createdPetId = null;
+
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $reason;
 
@@ -233,6 +236,16 @@ class AppointmentEntity
     public function setConfirmedSilently(bool $confirmedSilently): void
     {
         $this->confirmedSilently = $confirmedSilently;
+    }
+
+    public function getCreatedPetId(): ?Uuid
+    {
+        return $this->createdPetId;
+    }
+
+    public function setCreatedPetId(?Uuid $createdPetId): void
+    {
+        $this->createdPetId = $createdPetId;
     }
 
     public function getReason(): ?string

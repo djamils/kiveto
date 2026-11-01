@@ -11,7 +11,7 @@ use PHPUnit\Framework\TestCase;
  * The Portal reads the other contexts only through their query and command
  * buses: its code never imports another context's Domain or Infrastructure,
  * except the integration events it consumes. The Portal API (Presentation)
- * may still name the domain exceptions it maps to problems.
+ * may still name the domain exceptions it maps to problems (any `Domain\\…\\*Exception`).
  */
 final class PortalBoundaryTest extends TestCase
 {
@@ -57,7 +57,7 @@ final class PortalBoundaryTest extends TestCase
         foreach (self::imports(self::API) as $file => $import) {
             $internal = 1 === preg_match('/^App\\\\(Context|System)\\\\[A-Za-z]+\\\\(Domain|Infrastructure)\\\\/', $import);
 
-            if ($internal && 1 !== preg_match('/^App\\\\(Context|System)\\\\[A-Za-z]+\\\\Domain\\\\Exception\\\\/', $import)) {
+            if ($internal && 1 !== preg_match('/^App\\\\(Context|System)\\\\[A-Za-z]+\\\\Domain\\\\[A-Za-z\\\\]*Exception$/', $import)) {
                 $offences[] = $file . ': ' . $import;
             }
         }

@@ -28,13 +28,14 @@ Portal **profile** (name, postal address, accepted terms of use).
   URL fragment (`…/invitation#t=<token>`), never in a path.
 - **Cross-context access through ports only**: Client (`GetClientNotificationContact`,
   `GetClientById`, `IsPortalMobileNumber`), Clinic (`GetClinic` through
-  `ClinicProfileInterface`, `ListClinicVeterinarians`), Animal
+  `ClinicProfileInterface`, `GetStaffPrintedName`), Animal
   (`ListAnimalSummariesPerClientIds`, `ListPortalPets`, `GetAnimalById`,
   `ListLatestPreventiveCare`, `ListAnimalWeightRecords`,
   `ListAnimalPreventiveCare`), Consultation (`GetConsultationPortalSummaries`,
   `GetLatestClosedConsultationWeight`), Scheduling
-  (`GetNextAppointmentForAnimals`), IdentityAccess (`ClaimPortalIdentity`,
-  `RevokeOnboardingGrantsForPhone`), Notification (`RequestNotification`).
+  (`GetNextAppointmentForAnimals`, `ListAppointmentsForOwners`,
+  `GetOwnerAppointment`, `ListCareBookingsForAnimals`, `ListBookingMotifs`),
+  IdentityAccess (`ClaimPortalIdentity`, `RevokeOnboardingGrantsForPhone`), Notification (`RequestNotification`).
 
 ## Ubiquitous Language
 
@@ -150,16 +151,22 @@ Scheduling queries, and the registry above for the visits.
 - **Referent vet.** The practitioner snapshotted on the latest report shared
   with the account; null without one.
 - **Care items.** The latest act of each protocol with a next due date
-  (`ListLatestPreventiveCare`), `CareItemStatusPolicy`: overdue before the
-  clinic-local today, due soon within 30 days, else up to date; nearest due
-  date first.
+  (`ListLatestPreventiveCare`), `CareItemStatusPolicy`: booked when an
+  appointment holding its slot, for a motif of the item's kind
+  (`ListCareBookingsForAnimals`), falls on a clinic-local day of
+  `[today, max(dueOn, today) + 30 d]`; else overdue before the clinic-local
+  today, due soon within 30 days, else up to date (booked > overdue > due
+  soon > up to date); nearest due date first.
 - **Timeline.** The pet's listable report rows addressed to the account,
   cursor `(issued_at, id)`; per page one `GetConsultationPortalSummaries`
   (start, title) and one registry read of the visits' documents.
-- **Home.** Alive pets, their 3 nearest care items, the next PLANNED
-  appointment of an alive pet (fixed French label of its category,
-  practitioner from one `ListClinicVeterinarians`), the first 2 documents of
+- **Home.** Alive pets, their 3 nearest care items, the next appointment
+  holding its slot of an alive pet (the full `PortalAppointment`, as
+  `GetOwnerAppointmentDetail` gives it), the first 2 documents of
   `ListPublishedDocuments`.
+- **Practitioner names.** Every appointment names its practitioner with
+  Clinic's printed name (`GetStaffPrintedName`, « Dr Prénom Nom »), the name
+  online booking lists the practitioners with.
 - **Vaccination booklet** (`VaccinationBookletFiles::ensure(clinicId,
   animalId)`, called without a bus once `GetOwnerPet` succeeded). The PDF is
   rendered from `templates/portal/document/vaccination_booklet.html.twig` and
@@ -178,6 +185,40 @@ Instants are returned in the clinic's time zone; date-only values are dates.
 | `ListOwnerCareItems(userId, clinicId, petId)` | `list<OwnerCareItem>`; `PetNotFoundException`. |
 | `ListPetTimeline(userId, clinicId, petId, cursor?, limit?)` | `CursorPage<TimelineEntry>`; `PetNotFoundException`, `InvalidCursorException`. |
 | `GetOwnerHome(userId, clinicId)` | `OwnerHome{nextAppointment?, pets, careItems, latestDocuments}`. |
+
+## Appointments and booking (slice 4)
+
+Read through Scheduling's `ListAppointmentsForOwners`, `GetOwnerAppointment`
+and `ListBookingMotifs` (port `OwnerAppointmentsInterface`,
+`BookingMotifsInterface`): never the appointment's free-text reason or notes.
+The Portal status (`confirmed`, `pending_clinic_confirmation`,
+`cancelled_by_client`, `cancelled_by_clinic`, `declined`, `completed`,
+`no_show`) and `cancellableUntil` come mapped from Scheduling. An appointment
+without online motif shows `motif {id: null, label: « Rendez-vous »}`;
+`relatedCareItem` is the pet's nearest care item of the motif's kind;
+`questionnaireStatus` is `not_started` until slice 6.
+
+| Query | What it answers |
+|---|---|
+| `ListOwnerAppointments(userId, clinicId, scope, cursor?, limit?)` | `CursorPage<PortalAppointment>` of the confirmed-linked clients and of the pets the account sees; `upcoming` soonest first, `past` latest first; `InvalidCursorException`. |
+| `GetOwnerAppointmentDetail(userId, clinicId, appointmentId)` | `?PortalAppointment`, null when not the account's. |
+| `ListBookableMotifs(userId, clinicId, petId?)` | `list<BookableMotif>` open online, `suggested` with a French `suggestionReason` (« Rappel de vaccin en retard » / « … à prévoir », by kind) when the pet has an overdue or due-soon item of the motif's kind; `PetNotFoundException`. |
+
+Bookings go through Scheduling's online commands (port `OnlineBookingInterface`,
+adapter `CommandBusOnlineBooking`), whose refusals pass through unchanged
+(`BookingNotOpenException`, `OnlineBookingNotFoundException`,
+`SlotTakenException`, `CancellationWindowClosedException`,
+`AppointmentNotModifiableException`). Every command answers the appointment id.
+`PortalBookingGuard` decides what the account may touch (S4b-F4): a pet it sees
+and that is alive, booked for the pet's primary owner; an appointment of its
+client files or of the pets it sees.
+
+| Command | What it does |
+|---|---|
+| `BookPortalAppointment(userId, clinicId, petId, motifId, practitionerId, startsAt)` | Books the pet; `PetNotFoundException` (not seen: unknown, sold, given, another client's), `PetNotBookableException` (deceased, missing). |
+| `BookPortalAppointmentWithNewPet(userId, clinicId, petName, petSpecies, motifId, practitionerId, startsAt)` | D1, S4g: registers the animal (port `PetRegistrationInterface`, Animal `CreateAnimal`: sex and reproductive status `unknown`, registry `none`, alive, not transferred) for the client of the oldest confirmed link, then books it with `createdPetId`, in the command's transaction (a refused booking leaves no animal). An active animal of that client with the same name (any case) and species created in the last 24 h is reused. `InvalidNewPetException` (`name`: blank or over 80 characters; `species` ∉ `dog|cat|nac|other`), `ClinicNotLinkedException`. |
+| `ReschedulePortalAppointment(userId, clinicId, appointmentId, practitionerId, startsAt)` | `AppointmentNotFoundException` when not the account's. |
+| `CancelPortalAppointment(userId, clinicId, appointmentId, reason?)` | `AppointmentNotFoundException` when not the account's. |
 
 ## Events
 

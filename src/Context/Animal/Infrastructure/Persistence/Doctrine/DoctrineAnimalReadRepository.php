@@ -240,6 +240,42 @@ final readonly class DoctrineAnimalReadRepository implements AnimalReadRepositor
         );
     }
 
+    public function findRecentPetOfOwner(
+        ClinicId $clinicId,
+        string $primaryOwnerClientId,
+        string $name,
+        string $species,
+        \DateTimeImmutable $createdSince,
+    ): ?string {
+        $id = $this->entityManager->getConnection()->fetchOne(
+            'SELECT a.id
+             FROM animal__ownerships o
+             JOIN animal__animals a ON a.id = o.animal_id
+             WHERE a.clinic_id = :clinicId
+               AND o.client_id = :clientId
+               AND o.role = :role
+               AND o.status = :ownershipStatus
+               AND a.status = :animalStatus
+               AND a.species = :species
+               AND LOWER(TRIM(a.name)) = :name
+               AND a.created_at >= :since
+             ORDER BY a.created_at DESC, a.id DESC
+             LIMIT 1',
+            [
+                'clinicId'        => Uuid::fromString($clinicId->toString())->toBinary(),
+                'clientId'        => Uuid::fromString($primaryOwnerClientId)->toBinary(),
+                'role'            => OwnershipRole::PRIMARY->value,
+                'ownershipStatus' => OwnershipStatus::ACTIVE->value,
+                'animalStatus'    => AnimalStatus::ACTIVE->value,
+                'species'         => $species,
+                'name'            => mb_strtolower(trim($name)),
+                'since'           => $createdSince->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
+            ],
+        );
+
+        return \is_string($id) ? Uuid::fromBinary($id)->toRfc4122() : null;
+    }
+
     public function listPortalPets(ClinicId $clinicId, array $clientIds): array
     {
         if ([] === $clientIds) {

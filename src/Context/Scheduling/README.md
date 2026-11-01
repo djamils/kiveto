@@ -56,7 +56,7 @@ Every write that books or moves an appointment, or changes a planning block, fir
   - `forSlot(UserId, startUtc, endUtc, \DateTimeZone $clinicTz)`: every clinic-local date `[start, end)` touches — 23:30–00:30 locks both days, 23:00–00:00 only the first;
   - `forBlock(UserId, TimeRange, RecurrenceRule, todayLocal)`: a one-off block's date; a recurring block's occurrences from today up to `until`, or 60 days ahead when open-ended;
   - `merge(...$sets)`: the union, e.g. a reschedule locks the days it leaves and the days it takes (P1).
-- **Who locks:** `ScheduleAppointment`, `RescheduleAppointment`, `CreatePlanningBlock`, `UpdatePlanningBlock` (old ∪ new staff and dates), `DeletePlanningBlock`, `ConfirmAppointment`, `DeclineAppointment` and `DeclineExpiredPendingAppointment` (through `PendingAppointmentLoader`: plain read for the slot's days, lock, then `findByIdForUpdate`); the online booking commands are to take it the same way. The clinic time zone comes from `ClinicTimezoneResolverInterface`.
+- **Who locks:** `ScheduleAppointment`, `RescheduleAppointment`, `CreatePlanningBlock`, `UpdatePlanningBlock` (old ∪ new staff and dates), `DeletePlanningBlock`, `ConfirmAppointment`, `DeclineAppointment`, `DeclineExpiredPendingAppointment` and `CancelOnlineAppointment` (through `PendingAppointmentLoader`: plain read for the slot's days, lock, then `findByIdForUpdate`), `BookOnlineAppointment` and `RescheduleOnlineAppointment`. The clinic time zone comes from `ClinicTimezoneResolverInterface`.
 - **Current reads under the lock** (`… FOR SHARE`): `AppointmentConflictCheckerInterface::hasOverlapLocked`, `PlanningBlockAppointmentCounterInterface::countOccupyingInWindowLocked(…, ?excludeAppointmentId)`, and `PlanningBlockFinderInterface::findActiveBlockFor(…, ?excludeAppointmentId)` (blocks and their count). Under REPEATABLE READ, a plain read after the lock would still use the snapshot of the transaction's first read and miss a booking committed meanwhile.
 - **Capacity:** `BlockCapacity::of(capacityPerHour, windowMinutes)` = `floor(capacityPerHour × window / 60)`, 0 = unlimited; the window is the block's length in local minutes, or the slot's when longer.
 - **Refusals:** `SlotTakenException` (overlap, capacity, contended lock), `BlockRefusesAppointmentsException`, `PractitionerNotBookableException` (all `\DomainException`). The VetApp agenda controllers map them to `APPOINTMENT_CONFLICT` / `VALIDATION_FAILED`, with the same French toasts as before.
@@ -88,6 +88,31 @@ What a client can book on the Portal, set in VetApp « Paramètres › Réservat
   - `isOpenForBooking(clinicActive)` = enabled and the clinic active.
 - **Commands / queries:** `SaveBookingMotif` (create when `motifId` is null, else update a motif of the clinic; returns the id), `ArchiveBookingMotif`, `UpdateOnlineBookingSettings`; `ListBookingMotifs(clinicId, includeArchived = false)` → `list<BookingMotifView>` by sort order then label; `GetOnlineBookingSettings(clinicId)` → `OnlineBookingSettingsView` (defaults when no row). A motif of another clinic is `BookingMotifNotFoundException`.
 
+## Online Availability (S4c, HARD rule)
+
+What the Portal offers: unlike VetApp (SOFT), a client books only inside a planning block.
+
+- **Query `GetOnlineAvailability(clinicId, motifId, practitionerId, fromLocalDate, toLocalDate, newClient = false)`** → `OnlineAvailability{days: list<OnlineAvailabilityDay{date, open, slots: list<\DateTimeImmutable>}>}`: one day per clinic-local date of `[from, to]` (`YYYY-MM-DD`, inclusive), slot starts in the clinic's time zone with its offset, ascending. `open` = an opening day, not an exceptional closure, within `today + horizonDays`; a closed day has no slot; an empty opening week opens no day.
+- **Single-candidate check (Task 26):** `Application/Service/OnlineSlotChecker::isBookable(ClinicId, BookingMotifId, UserId $practitionerId, \DateTimeImmutable $start, bool $newClient, ?AppointmentId $excludeAppointmentId = null): bool` — same inputs and rules, on the start's local day, read `FOR SHARE` (call it under the practitioner-day lock; pass the moved appointment on a reschedule). `OnlineSlotChecker::availability(…)` serves the query.
+- **Refusals** (in that order; `\DomainException`s in `Domain/Booking/`):
+  - `BookingNotOpenException` (`clinicId`): settings disabled, clinic not active or unknown → `booking_not_open`;
+  - `OnlineBookingNotFoundException` (`subject` `motif` | `practitioner`): motif unknown, of another clinic, archived or not online; practitioner not on the motif, no longer eligible (`MembershipEligibilityCheckerInterface`), or a malformed id → `not_found`;
+  - `InvalidAvailabilityRangeException` (`field` `from` | `to`, French message): malformed date, `from > to`, more than 14 days (`OnlineSlotChecker::MAX_RANGE_DAYS`), `from` before the clinic's local today → `validation_failed`.
+- **Calculator** (`Domain/Booking/AvailabilityCalculator`, pure): inputs are `BookableInterval` (accepting occurrences of the motif's block types, local minutes, capacity per hour), `OpeningWindow` (opening slots minus closures; adjacent or overlapping ones merged, so 08:00–12:30 + 12:30–18:00 offers 12:15–12:45) and `BusyInterval` (occupying appointments, which also count towards capacity, and every occurrence of a LEAVE, TRAINING, ADMIN or BREAK block of the practitioner, whatever its anchor date). A start `t` is kept when it is on the grid counted from its block's start, `[t, t + duration)` fits in one bookable interval and one opening window, overlaps nothing busy, the block occurrence is not full (`BlockCapacity::of(capacityPerHour, max(local block minutes, duration))`), and `t ≥ now + lead time`.
+- **Lead time:** `minLeadTimeMinutes`, or `pendingMinLeadTimeMinutes()` when the booking would be pending (motif `confirmationKnownClient = manual`, or `newClient`).
+- **DST (`LocalTime`):** candidates come from local minutes through `createFromFormat('!Y-m-d H:i', …, $tz)`; a start in the spring gap does not exist and is dropped; PHP reads a repeated autumn time as its second (standard-time) instant, so no instant is offered twice (the first pass of the repeated hour offers no start); durations are elapsed minutes.
+- **Ports:** `ClinicOpeningHoursInterface` (`Adapter/Clinic/QueryBusClinicOpeningHours`, Clinic `GetClinicSettings`: status, time zone, week, closures), `PlanningBlockOccurrencesReaderInterface` (`Adapter/DbalPlanningBlockOccurrencesReader`, every block type expanded with `RecurrenceExpander`), `OccupyingAppointmentsReaderInterface` (`Adapter/DbalOccupyingAppointmentsReader`, `OCCUPYING_SQL_VALUES`, optional excluded appointment); both readers take `currentRead` (`FOR SHARE`).
+
+## Online Booking Commands (Task 26, S4f, S4g)
+
+What the Portal writes (through ClientPortal); each answers the appointment id. The motif is checked with `OnlineSlotChecker::bookableMotif()`, the practitioner-day lock taken, then the start is recomputed with `OnlineSlotChecker::isBookable()` (current reads).
+
+- **`BookOnlineAppointment(clinicId, bookingMotifId, practitionerUserId, startsAt, ownerId, animalId, ?createdPetId)`**: `source = portal`, `reason` = the motif's label; PLANNED for an `auto` motif (`Appointment::schedule(…, source, bookingMotifId, createdPetId)`), else PENDING with `pendingExpiry()` (`Appointment::request`). **Natural idempotency (S4b-F6):** an appointment of the same owner, animal, motif and start that still holds its slot and was created in the last 24 h (`AppointmentRepositoryInterface::findRecentOnlineBookingId`, `FOR SHARE`) is answered instead of `slot_taken`. Refusals: `BookingNotOpenException` (settings disabled, clinic not active, motif not online, practitioner not bookable for it), `OnlineBookingNotFoundException` (`motif`: unknown, archived, malformed), `SlotTakenException` (`unavailable`: off the grid, not offered, taken).
+- **`RescheduleOnlineAppointment(clinicId, appointmentId, practitionerUserId, startsAt)`**: only a `portal` appointment with a motif (else `BookingNotOpenException`), within the cancellation window, to a slot offered for that motif with a practitioner of it (`OnlineBookingNotFoundException` `practitioner` otherwise, AC 49); both lock sets, the moved appointment excluded; status kept, a pending one with the manual lead time and a new expiry. The same slot and practitioner change nothing. Bell `announceOnlineChange` « RDV modifié en ligne » to the old and new practitioner.
+- **`CancelOnlineAppointment(clinicId, appointmentId, ?cancellationReason)`**: within the window, `cancel(client, reason)`; naturally idempotent (already cancelled by the client → answered as is); bell « RDV annulé en ligne ».
+- **Window (`OnlineCancellationWindow`)**: allowed while `now ≤ cancellableUntil` and `now < startsAt`, else `CancellationWindowClosedException` (`appointmentId`, `cancellableUntil`). A terminal status (declined, completed, no-show, cancelled by the clinic) → `AppointmentNotModifiableException`; unknown or of another clinic → `OnlineBookingNotFoundException` (`appointment`).
+- **Animal registered for a booking (S4g):** `created_pet_id` keeps it. `ArchivePetCreatedForDeclinedBooking` (on `AppointmentDeclined`: declined, expired, clinic-cancelled) archives it through `BookedPetArchiverInterface` (`Adapter/Animal/CommandBusBookedPetArchiver`: Animal `GetAnimalById`, Patient `HasPatientForAnimal`, Animal `ArchiveAnimal`) unless it has another appointment not withdrawn (`hasOtherAppointmentForAnimal`), a clinical record (an active patient), or is no longer active.
+
 ## Confirming and Declining a Pending Request (S4e, P2, D18)
 
 - **`ConfirmAppointment(appointmentId, clinicId)`** → PLANNED, then the usual CONFIRMATION. **`DeclineAppointment(appointmentId, clinicId)`** → DECLINED (`declined`), the slot is free, the client gets `APPOINTMENT_DECLINED`. Both lock the slot's practitioner-days, then read the row `FOR UPDATE`; refusals (`\DomainException`, French message shown as is): `AppointmentAlreadyHandledException` « Ce RDV a déjà été traité. » (no longer pending: confirmed, declined, expired, withdrawn — the loser of a race), `PendingAppointmentExpiredException` « Demande expirée. » (confirm at or after `pendingExpiresAt`). An appointment of another clinic or unknown: `\InvalidArgumentException`.
@@ -117,6 +142,16 @@ Scheduling decides which appointment messages a client gets; Notification only s
 | `AttachmentStoreInterface` | `Adapter/Notification/FileStorageAttachmentStore` | Shared file storage (`storeAt`) |
 | `CalendarInvitationWriterInterface` | `Calendar/IcsWriter` | — |
 | `NotificationJobsInterface` | `Messaging/MessengerNotificationJobs` | Messenger `async` |
+
+## Demo Fixtures (online booking)
+
+`OnlineBookingStory` and `PortalBookingStory` (ClientPortal) seed: Paris open
+to online booking for the Portal demo accounts (3 motifs: auto, vaccination,
+manual), Lyon open with a 72 h cancellation window, Cassis disabled
+(`booking_not_open`), Vercors with an empty opening week; in Paris an
+exceptional closure, a fully booked day and a one-off leave inside a weekly
+block (computed at load time in the next two weeks); pending, declined,
+expired, client- and clinic-cancelled, completed and no-show appointments.
 
 ## Cross-BC Notes
 

@@ -5,17 +5,32 @@ declare(strict_types=1);
 namespace App\Context\ClientPortal\Application\Service;
 
 /**
- * Overdue before the clinic-local today, due soon within 30 days, up to
- * date beyond. Dates are compared as calendar days, whatever their zone.
+ * Booked when an appointment for the item's kind falls on a day of
+ * `[today, max(dueOn, today) + 30 d]`; otherwise overdue before the
+ * clinic-local today, due soon within 30 days, up to date beyond
+ * (booked > overdue > due soon > up to date). Dates are compared as
+ * calendar days, whatever their zone.
  */
 final readonly class CareItemStatusPolicy
 {
     public const int DUE_SOON_DAYS = 30;
 
-    public function statusOf(\DateTimeImmutable $dueOn, \DateTimeImmutable $todayLocal): CareItemStatus
+    public const int BOOKED_AFTER_DUE_DAYS = 30;
+
+    /**
+     * @param list<\DateTimeImmutable> $bookedOn clinic-local days of the appointments booked for the item's kind
+     */
+    public function statusOf(\DateTimeImmutable $dueOn, \DateTimeImmutable $todayLocal, array $bookedOn = []): CareItemStatus
     {
         $due   = $dueOn->format('Y-m-d');
         $today = $todayLocal->format('Y-m-d');
+        $until = new \DateTimeImmutable(max($due, $today))->modify('+' . self::BOOKED_AFTER_DUE_DAYS . ' days')->format('Y-m-d');
+
+        foreach ($bookedOn as $day) {
+            if ($day->format('Y-m-d') >= $today && $day->format('Y-m-d') <= $until) {
+                return CareItemStatus::BOOKED;
+            }
+        }
 
         if ($due < $today) {
             return CareItemStatus::OVERDUE;

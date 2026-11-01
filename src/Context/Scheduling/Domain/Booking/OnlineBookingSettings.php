@@ -19,6 +19,9 @@ final class OnlineBookingSettings
     /** A pending booking is auto-declined at the latest this long after its creation (P2). */
     public const string PENDING_MAX_AGE = 'PT48H';
 
+    /** A booking made inside the cancellation window can still be undone this long (D12). */
+    public const string UNDO_GRACE = 'PT15M';
+
     /** @var list<int> */
     public const array GRID_STEPS_MINUTES = [5, 10, 15, 20, 30];
 
@@ -101,6 +104,18 @@ final class OnlineBookingSettings
         $margin = $startsAt->sub(new \DateInterval(self::AUTO_DECLINE_MARGIN));
 
         return min($maxAge, $margin);
+    }
+
+    /**
+     * Until when the client may cancel or reschedule online (S4f):
+     * max(startsAt − cancellation window, createdAt + UNDO_GRACE).
+     */
+    public function cancellableUntil(\DateTimeImmutable $startsAt, \DateTimeImmutable $createdAt): \DateTimeImmutable
+    {
+        $window = $startsAt->sub(new \DateInterval(\sprintf('PT%dH', $this->cancellationWindowHours)));
+        $grace  = $createdAt->add(new \DateInterval(self::UNDO_GRACE));
+
+        return max($window, $grace);
     }
 
     /**

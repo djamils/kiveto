@@ -8,11 +8,12 @@ namespace App\Context\ClientPortal\Application\Port;
 interface PractitionerNamesInterface
 {
     /**
-     * In one lookup; a user without a known display name is left out.
+     * The printed name (« Dr Prénom Nom »), the one online booking lists
+     * the practitioners with; a user without a known name is left out.
      *
      * @param list<string> $userIds
      *
-     * @return array<string, string> display name by user id
+     * @return array<string, string> printed name by user id
      */
     public function namesOf(string $clinicId, array $userIds): array;
 }

@@ -6,13 +6,15 @@ namespace App\Context\Scheduling\Domain\Exception;
 
 /**
  * The slot cannot be taken: the practitioner has an overlapping booking, the
- * block is full, or the practitioner-day lock kept deadlocking.
+ * block is full, the practitioner-day lock kept deadlocking, or (online) the
+ * start is not one of the slots offered.
  */
 final class SlotTakenException extends \DomainException
 {
-    public const string OVERLAP   = 'overlap';
-    public const string CAPACITY  = 'capacity';
-    public const string CONTENDED = 'contended';
+    public const string OVERLAP     = 'overlap';
+    public const string CAPACITY    = 'capacity';
+    public const string CONTENDED   = 'contended';
+    public const string UNAVAILABLE = 'unavailable';
 
     private function __construct(string $message, public readonly string $reason, ?\Throwable $previous = null)
     {
@@ -36,6 +38,12 @@ final class SlotTakenException extends \DomainException
     public static function contended(\Throwable $previous): self
     {
         return new self('The practitioner\'s agenda is being changed concurrently.', self::CONTENDED, $previous);
+    }
+
+    /** Online: off the grid, outside the offered slots, or already taken. */
+    public static function unavailable(\DateTimeImmutable $startsAt): self
+    {
+        return new self(\sprintf('No online slot starts at %s.', $startsAt->format(\DateTimeInterface::ATOM)), self::UNAVAILABLE);
     }
 
     public function isCapacity(): bool

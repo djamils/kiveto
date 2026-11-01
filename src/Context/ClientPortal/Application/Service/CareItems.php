@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Context\ClientPortal\Application\Service;
 
 use App\Context\ClientPortal\Application\Port\ClinicProfileInterface;
+use App\Context\ClientPortal\Application\Port\OwnerAppointmentsInterface;
 use App\Context\ClientPortal\Application\Port\PortalPet;
 use App\Context\ClientPortal\Application\Port\PreventiveAct;
 use App\Context\ClientPortal\Application\Port\PreventiveCareInterface;
@@ -15,7 +16,8 @@ use App\Shared\Domain\Time\ClockInterface;
 /**
  * The care items of alive pets: the latest act of each protocol that has a
  * next due date (a protocol renewed without one disappears), its status
- * against the clinic-local today, the nearest due date first.
+ * against the clinic-local today and the pet's appointments booked for a
+ * motif of the same kind, the nearest due date first.
  */
 final readonly class CareItems
 {
@@ -24,6 +26,7 @@ final readonly class CareItems
         private CareItemStatusPolicy $policy,
         private ClinicProfileInterface $clinics,
         private ClockInterface $clock,
+        private OwnerAppointmentsInterface $appointments,
     ) {
     }
 
@@ -46,8 +49,14 @@ final readonly class CareItems
             return [];
         }
 
-        $today = CareItemStatusPolicy::dayIn($this->clock->now(), new \DateTimeZone($this->clinics->clinicOf($clinicId)->timeZone));
-        $items = [];
+        $timeZone = new \DateTimeZone($this->clinics->clinicOf($clinicId)->timeZone);
+        $today    = CareItemStatusPolicy::dayIn($this->clock->now(), $timeZone);
+        $items    = [];
+        $booked   = [];
+
+        foreach ($this->appointments->careBookings($clinicId, array_keys($names), $today) as $booking) {
+            $booked[$booking->animalId][$booking->preventiveCareKind][] = CareItemStatusPolicy::dayIn($booking->startsAtUtc, $timeZone);
+        }
 
         foreach ($this->preventiveCare->latestActs($clinicId, array_keys($names)) as $act) {
             $name = $names[$act->animalId] ?? null;
@@ -56,7 +65,7 @@ final readonly class CareItems
                 continue;
             }
 
-            $items[] = new HomeCareItem($act->animalId, $name, self::item($act, $act->nextDueOn, $this->policy->statusOf($act->nextDueOn, $today)));
+            $items[] = new HomeCareItem($act->animalId, $name, self::item($act, $act->nextDueOn, $this->policy->statusOf($act->nextDueOn, $today, $booked[$act->animalId][$act->kind] ?? [])));
         }
 
         usort($items, static fn (HomeCareItem $a, HomeCareItem $b): int => [$a->care->dueOn->format('Y-m-d'), $a->petName, $a->care->label]

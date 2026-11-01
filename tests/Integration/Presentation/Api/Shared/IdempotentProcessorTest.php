@@ -33,7 +33,7 @@ final class IdempotentProcessorTest extends WebTestCase
         $problem = $this->problem($this->post('/idempotent-echo', '{"message":"bonjour"}'), 400);
 
         self::assertSame('idempotency_key_missing', $problem['type']);
-        self::assertSame('Idempotency key missing', $problem['title']);
+        self::assertSame('En-tête Idempotency-Key manquant ou invalide.', $problem['title']);
         self::assertSame(400, $problem['status']);
         self::assertSame($before, IdempotentEchoProcessor::executions());
     }

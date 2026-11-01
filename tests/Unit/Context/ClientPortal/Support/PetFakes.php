@@ -5,9 +5,14 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Context\ClientPortal\Support;
 
 use App\Context\ClientPortal\Application\Port\AnimalWeightsInterface;
+use App\Context\ClientPortal\Application\Port\AppointmentScope;
+use App\Context\ClientPortal\Application\Port\BookingMotifsInterface;
 use App\Context\ClientPortal\Application\Port\BookletFileRepositoryInterface;
 use App\Context\ClientPortal\Application\Port\BookletRendererInterface;
+use App\Context\ClientPortal\Application\Port\CareBooking;
 use App\Context\ClientPortal\Application\Port\ConsultationWeightsInterface;
+use App\Context\ClientPortal\Application\Port\OnlineMotif;
+use App\Context\ClientPortal\Application\Port\OwnerAppointment;
 use App\Context\ClientPortal\Application\Port\OwnerAppointmentsInterface;
 use App\Context\ClientPortal\Application\Port\PetDirectoryInterface;
 use App\Context\ClientPortal\Application\Port\PetIdentity;
@@ -23,6 +28,7 @@ use App\Context\ClientPortal\Application\Port\VaccinationRecordsInterface;
 use App\Context\ClientPortal\Application\Port\VisitSummariesInterface;
 use App\Context\ClientPortal\Application\Port\VisitSummary;
 use App\Context\ClientPortal\Application\Port\VisitWeight;
+use App\Shared\Application\Pagination\CursorPage;
 
 /**
  * The other contexts behind the pet reads, on public maps; every call is
@@ -35,6 +41,7 @@ final class PetFakes implements
     ConsultationWeightsInterface,
     VisitSummariesInterface,
     OwnerAppointmentsInterface,
+    BookingMotifsInterface,
     PractitionerNamesInterface,
     VaccinationRecordsInterface,
     BookletRendererInterface,
@@ -59,6 +66,17 @@ final class PetFakes implements
     public array $visits = [];
 
     public ?UpcomingAppointment $appointment = null;
+
+    /** @var list<OwnerAppointment> every appointment of the clinic, answered as one page */
+    public array $appointments = [];
+
+    public ?string $nextCursor = null;
+
+    /** @var list<CareBooking> */
+    public array $careBookings = [];
+
+    /** @var list<OnlineMotif> */
+    public array $motifs = [];
 
     /** @var array<string, string> by user id */
     public array $practitioners = [];
@@ -116,6 +134,36 @@ final class PetFakes implements
         $this->calls[] = 'nextFor:' . $clinicId . ':' . implode(',', $animalIds) . ':' . $nowUtc->format('c');
 
         return $this->appointment;
+    }
+
+    public function page(string $clinicId, array $ownerIds, array $animalIds, AppointmentScope $scope, ?string $cursor, ?int $limit, \DateTimeImmutable $nowUtc): CursorPage
+    {
+        $this->calls[] = \sprintf('page:%s:%s:%s:%s:%s:%s:%s', $clinicId, implode(',', $ownerIds), implode(',', $animalIds), $scope->value, $cursor ?? '-', $limit ?? '-', $nowUtc->format('c'));
+
+        return new CursorPage($this->appointments, $this->nextCursor);
+    }
+
+    public function find(string $clinicId, string $appointmentId): ?OwnerAppointment
+    {
+        foreach ($this->appointments as $appointment) {
+            if ($appointment->id === $appointmentId) {
+                return $appointment;
+            }
+        }
+
+        return null;
+    }
+
+    public function careBookings(string $clinicId, array $animalIds, \DateTimeImmutable $fromUtc): array
+    {
+        $this->calls[] = 'careBookings:' . $clinicId . ':' . implode(',', $animalIds) . ':' . $fromUtc->format('c');
+
+        return array_values(array_filter($this->careBookings, static fn (CareBooking $booking): bool => \in_array($booking->animalId, $animalIds, true)));
+    }
+
+    public function onlineMotifs(string $clinicId): array
+    {
+        return $this->motifs;
     }
 
     public function namesOf(string $clinicId, array $userIds): array

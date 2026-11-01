@@ -151,3 +151,14 @@ services:
     test.limiter.portal_otp_unknown_global:
         alias: limiter.portal_otp_unknown_global
         public: true
+
+    # Both DBAL connections run inside DAMA's per-test transaction, so the
+    # rate limiters' lock rows (rate_limiter connection) and the shared lock
+    # rows (default connection, e.g. Idempotency-Key) would hold InnoDB locks
+    # on shared__lock_keys until the test ends and block each other. In one
+    # test process an in-memory store serialises the limiters just as well.
+    portal.rate_limiter.lock_factory:
+        class: Symfony\Component\Lock\LockFactory
+        arguments:
+            - !service
+                class: Symfony\Component\Lock\Store\InMemoryStore

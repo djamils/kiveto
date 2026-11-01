@@ -63,6 +63,17 @@ final readonly class PortalOpenApiFactory implements OpenApiFactoryInterface
             null,
             false,
         ],
+        '/clinics/{clinicId}/appointments/{appointmentId}/calendar.ics' => [
+            'api_portal_appointment_calendar',
+            'Rendez-vous',
+            'Ajouter un rendez-vous à son agenda.',
+            '`METHOD:PUBLISH`, sans participant ni organisateur, même `UID` que l\'invitation envoyée par e-mail, `SEQUENCE` de la dernière envoyée, `STATUS:TENTATIVE` tant que le rendez-vous est à confirmer. 404 pour un rendez-vous d\'un autre client, annulé, refusé, terminé ou non honoré.',
+            ['clinicId', 'appointmentId'],
+            '200',
+            'Le fichier iCalendar (`attachment`, `Cache-Control: private, no-store`).',
+            'text/calendar',
+            false,
+        ],
         '/files/booklets/{clinicId}/{animalId}/{hash}' => [
             'api_portal_booklet_download',
             'Fichiers',
