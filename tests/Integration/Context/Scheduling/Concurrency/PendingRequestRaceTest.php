@@ -81,7 +81,8 @@ final class PendingRequestRaceTest extends KernelTestCase
             reason: 'Vaccination',
             notes: null,
             createdAt: self::utc('2026-03-08 08:00'),
-            ownerId: null,
+            // A known client's request (a new client's is confirmed through « Demandes Portal »)
+            ownerId: '01960000-0000-7000-8000-0000000c0d02',
             animalId: null,
             bookingMotifId: null,
             source: AppointmentSource::PORTAL,

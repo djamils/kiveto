@@ -13,6 +13,9 @@ use App\Context\ClientPortal\Infrastructure\Link\PortalInvitationLinkBuilder;
 use App\System\IdentityAccess\Application\Command\ClaimPortalIdentity\ClaimOutcome;
 use App\System\IdentityAccess\Application\Command\ClaimPortalIdentity\ClaimPortalIdentity;
 use App\System\IdentityAccess\Application\Command\ClaimPortalIdentity\ClaimResult;
+use App\System\IdentityAccess\Application\Command\RegisterPortalUser\PortalUserRegistration;
+use App\System\IdentityAccess\Application\Command\RegisterPortalUser\RegisterPortalUser;
+use App\System\IdentityAccess\Application\Command\RegisterPortalUser\RegistrationResult;
 use App\System\IdentityAccess\Application\Command\RevokeOnboardingGrantsForPhone\RevokeOnboardingGrantsForPhone;
 use App\System\Notification\Application\Command\RequestNotification\RequestNotification;
 use App\Tests\Unit\Context\ClientPortal\Support\AnsweringCommandBus;
@@ -66,6 +69,19 @@ final class CommandBusAdaptersTest extends TestCase
             $identity = new CommandBusPortalIdentity(self::bus(static fn (): ClaimOutcome => new ClaimOutcome($result)));
 
             self::assertSame($result->value, $identity->claimIdentity(new IdentityClaimRequest('i', '+33612345678', null, null, 'g', null, true))->result->value);
+        }
+    }
+
+    public function testARegistrationGoesToIdentityAccessAndEveryResultIsMapped(): void
+    {
+        foreach (RegistrationResult::cases() as $result) {
+            $bus          = self::bus(static fn (): PortalUserRegistration => new PortalUserRegistration($result, 'user-1'));
+            $registration = new CommandBusPortalIdentity($bus)->registerPortalUser('reg-token', 'o@example.com');
+
+            self::assertSame([$result->value, 'user-1'], [$registration->result->value, $registration->userId]);
+            $command = $bus->commands[0];
+            self::assertInstanceOf(RegisterPortalUser::class, $command);
+            self::assertSame(['reg-token', 'o@example.com'], [$command->registrationToken, $command->email]);
         }
     }
 

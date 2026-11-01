@@ -2,7 +2,7 @@
 title: 'Portal API v1 — slices 2 to 7 (documents, pets, booking, consents, requests, organic arrival)'
 slug: 'portal-api-v1-slices-2-7'
 created: '2026-10-31'
-status: 'ready-for-dev'
+status: 'implemented'
 stepsCompleted: [1, 2, 3, 4]
 tech_stack: ['Symfony 7.4', 'PHP 8.5', 'API Platform 4', 'Doctrine ORM + DBAL', 'MySQL 8.4', 'Messenger (Doctrine transport)', 'lexik JWT', 'Gotenberg', 'Twig', 'PHPUnit 12', 'Foundry 2', 'DAMA']
 files_to_modify: ['openapi/portal-api-v1.md', 'openapi/portal.v1.yaml', 'src/Presentation/Api/Portal/**', 'src/Context/ClientPortal/**', 'src/Context/Billing/**', 'src/Context/Prescription/**', 'src/Context/Consultation/**', 'src/Context/Animal/**', 'src/Context/Scheduling/**', 'src/Context/Client/**', 'src/Context/ClinicListing/** (new)', 'src/System/IdentityAccess/**', 'src/System/Notification/**', 'src/Presentation/Clinic/**', 'assets/js/pages/**', 'templates/**', 'config/services.yaml', 'config/packages/security.yaml', 'migrations/**', 'fixtures/**', 'tests/**']
@@ -1145,7 +1145,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
 
 #### Slice 7 — organic arrival — `feature/portal-organic-arrival`
 
-- [ ] Task 44: Registration and unknown-number budget (S7a, S7a')
+- [x] Task 44: Registration and unknown-number budget (S7a, S7a')
   - Files:
     - `src/System/IdentityAccess/Domain/Otp/{OtpChallenge, OnboardingPurpose (invitation|registration), OtpChallengeRepositoryInterface}.php`
     - `Infrastructure/Persistence/Doctrine/Entity/OtpChallengeEntity.php` and `Repository/DbalOtpChallengeRepository.php`
@@ -1176,7 +1176,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
     - `tests/Integration/System/IdentityAccess/…/DbalOtpChallengeRepositoryTest.php` (purpose filter)
     - `tests/Integration/Presentation/Api/Portal/RegistrationTest.php`
     - the AC 74 race outside DAMA
-- [ ] Task 45: Link suggestions (S7b)
+- [x] Task 45: Link suggestions (S7b)
   - Files:
     - `src/Context/Client/Application/Query/ListClientsByMobilePhone/{ListClientsByMobilePhone, …Handler, MobileClientMatch}.php`: `{clinicId, clientId, firstName, lastName, animalNames[]}`; excludes archived clients and non-active clinics, the latter through the Client read model's join on clinic status exposed by a Clinic query
     - `migrations/Client/Version…php`: index `idx_contact_method_type_value (type, value, client_id)` on `client__contact_methods`
@@ -1203,11 +1203,11 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
     - handler tests
     - `tests/Integration/Presentation/Api/Portal/LinkSuggestionsTest.php`
     - `tests/Integration/Presentation/Clinic/PortalRequest/ClientLinkRequestTest.php`
-- [ ] Task 46: Clinic integration event (S7c)
+- [x] Task 46: Clinic integration event (S7c)
   - Files: `src/Context/Clinic/Domain/Event/ClinicProfileChangedIntegrationEvent.php`, `src/Context/Clinic/Infrastructure/Messaging/Consumer/ClinicProfileChangedIntegrationBridge.php`, `src/Context/Clinic/README.md`
   - Action: thin `{clinicId}` payload, bridged from `ClinicCreated`, `ClinicRenamed`, `ClinicOpeningHoursUpdated`, `ClinicLetterheadUpdated`, `ClinicTimeZoneChanged`, `ClinicSuspended`, `ClinicActivated`, `ClinicClosed`. `ClinicGroupSuspended` and `ClinicGroupActivated` publish one event per member clinic, read through the Clinic repository.
   - Tests: `tests/Unit/Context/Clinic/Infrastructure/Messaging/ClinicProfileChangedIntegrationBridgeTest.php` (every bridged event, group fan-out).
-- [ ] Task 47: `ClinicListing` bounded context (S7c)
+- [x] Task 47: `ClinicListing` bounded context (S7c)
   - Files:
     - `src/Context/ClinicListing/Domain/{ClinicListing, ListingSettings, ListingCoordinates}.php` and repositories
     - `Application/Command/{RefreshClinicListing, RebuildClinicListings, UpdateListingSettings, GeocodeClinicListing (ExternalApiCommandInterface), AttachListingCoordinates}/…`
@@ -1234,7 +1234,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
     - consumer pipeline test;
     - console command test;
     - VetApp settings test.
-- [ ] Task 48: New-client booking (S7d)
+- [x] Task 48: New-client booking (S7d)
   - Files:
     - `src/Context/ClientPortal/Domain/Booking/{BookingRequest, BookingRequestId, BookingRequestStatus (pending|confirmed|declined), DeclineReason (declined|expired|cancelled|account_deleted)}.php`
     - `Infrastructure/Persistence/…`
@@ -1274,7 +1274,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
     - `tests/Integration/Presentation/Clinic/PortalRequest/BookingRequestTest.php`;
     - `tests/Integration/Presentation/Clinic/Scheduling/ConfirmPortalNewClientRefusedTest.php`;
     - Notification `TemplateCatalog` test.
-- [ ] Task 49: Public listing API (slice 7 routes)
+- [x] Task 49: Public listing API (slice 7 routes)
   - Files:
     - resources `{ClinicListings, ClinicListingDetail, ListingMotifs, ListingPractitioners, ListingAvailability}.php` + providers
     - `config/packages/security.yaml`: an explicit `IS_AUTHENTICATED_FULLY` rule for `^/api/portal/v1/clinic-listings/[^/]+/booking/appointments$` placed **before** the public rule, then a public rule `^/api/portal/v1/clinic-listings` restricted to `methods: [GET]`
@@ -1285,14 +1285,14 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
     - Unlisted or inactive → 404.
     - Errors through `PortalProblemMap`.
   - Tests: `tests/Integration/Presentation/Api/Portal/{ClinicListingsTest, ListingBookingSecurityTest}.php` (booking POST without token → 401, with token → 201; GET without token → 200).
-- [ ] Task 50: Fixtures for slice 7
+- [x] Task 50: Fixtures for slice 7
   - Files: `fixtures/Context/ClinicListing/Story/ClinicListingStory.php` (coordinates seeded directly, no network), `fixtures/Context/ClientPortal/Story/PortalOrganicArrivalStory.php`, `fixtures/Dataset/PortalDataset.php`, `fixtures/DevDataset.php` (runs the rebuild with the fake geocoder)
   - Action:
     - listings: 3 listed clinics (one without online booking, one not accepting new clients); one unlisted; one suspended that was listed; one without coordinates; one with more than 4 tags (« +N »);
     - suggestions: a PORTAL user with 2 suggestions (one grouping two family files); a pending « Rattachement » request with a name mismatch; a rejected suggestion;
     - booking requests: pending, confirmed, declined, and one auto-expired;
     - all dates relative to the fixture clock.
-- [ ] Task 51: Final contract export and docs
+- [x] Task 51: Final contract export and docs
   - Files: `openapi/portal.v1.yaml`, BC READMEs (IdentityAccess, Client, ClientPortal, Clinic, ClinicListing, Scheduling, Notification), `CLAUDE.md` (ClinicListing in the BC list)
   - Action: `make openapi-export`, `make ci`.
 

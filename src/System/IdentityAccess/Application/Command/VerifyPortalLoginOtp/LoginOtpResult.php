@@ -13,7 +13,10 @@ enum LoginOtpResult: string
      * an onboarding grant accepts them.
      */
     case INVITATION_PENDING = 'invitation_pending';
-    /** The code is right but the phone has no account nor invitation (sign-up comes later). */
+    /**
+     * The code is right but the phone has no account nor invitation: a
+     * registration grant (`onboardingToken`) creates the account once.
+     */
     case REGISTRATION_REQUIRED = 'registration_required';
     /** The code is right but the owner account is disabled: no session. */
     case ACCOUNT_DISABLED = 'account_disabled';

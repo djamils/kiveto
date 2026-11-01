@@ -26,6 +26,21 @@ interface ClientLinkRepositoryInterface
     public function findConfirmedByUser(string $userId): array;
 
     /**
+     * The pending and confirmed links of a user, by clinic then oldest first.
+     *
+     * @return list<ClientLink>
+     */
+    public function findActiveByUser(string $userId): array;
+
+    /**
+     * The pending links of a clinic (link suggestions accepted by owners,
+     * waiting for the clinic), oldest request first.
+     *
+     * @return list<ClientLink>
+     */
+    public function findPendingByClinic(string $clinicId): array;
+
+    /**
      * Every link of a user, whatever its status, by clinic then oldest first.
      *
      * @return list<ClientLink>

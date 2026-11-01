@@ -41,8 +41,15 @@ use Symfony\Component\Uid\Uuid;
  * instead of `slot_taken`, so a retry after a lost response never books
  * twice.
  *
+ * New-client mode (slice 7): no owner nor animal, always pending, with the
+ * manual lead time; no natural idempotency (the Portal's Idempotency-Key
+ * answers a retry). The clinic must take new clients online
+ * (`newClientBookingEnabled`) on a motif that allows them, else
+ * `BookingNotOpenException`.
+ *
  * Refusals: `BookingNotOpenException` (settings disabled, clinic not
- * active, motif not online, practitioner not bookable for it),
+ * active, motif not online, practitioner not bookable for it, new clients
+ * not taken),
  * `OnlineBookingNotFoundException` (unknown or archived motif),
  * `SlotTakenException` (off the grid, outside the slots offered, taken).
  */
@@ -81,7 +88,18 @@ final readonly class BookOnlineAppointmentHandler
         $motifId        = BookingMotifId::fromString($command->bookingMotifId);
         $practitionerId = UserId::fromString($command->practitionerUserId);
         $motif          = $this->motif($clinicId, $motifId, $practitionerId);
-        $timeSlot       = new TimeSlot($command->startsAt->setTimezone(new \DateTimeZone('UTC')), $motif->durationMin());
+        $settings       = $this->settings->forClinic($clinicId);
+
+        // A new client has no owner nor animal yet; a known one has both
+        if ($command->newClient !== (null === $command->ownerId || null === $command->animalId)) {
+            throw new \InvalidArgumentException('A new-client booking has no owner nor animal; any other has both.');
+        }
+
+        if ($command->newClient && (!$settings->isNewClientBookingEnabled() || !$motif->newClientsAllowed())) {
+            throw new BookingNotOpenException($clinicId->toString());
+        }
+
+        $timeSlot = new TimeSlot($command->startsAt->setTimezone(new \DateTimeZone('UTC')), $motif->durationMin());
 
         // Serialise the writers of the practitioner's day(s); the reads below are current
         $this->dayLock->lock($clinicId, LockKeys::forSlot(
@@ -91,7 +109,7 @@ final readonly class BookOnlineAppointmentHandler
             $this->timezoneResolver->resolveTimezone($clinicId),
         ));
 
-        $existing = $this->appointments->findRecentOnlineBookingId(
+        $existing = null === $command->ownerId || null === $command->animalId ? null : $this->appointments->findRecentOnlineBookingId(
             $clinicId,
             $command->ownerId,
             $command->animalId,
@@ -104,14 +122,14 @@ final readonly class BookOnlineAppointmentHandler
             return $existing->toString();
         }
 
-        if (!$this->slots->isBookable($clinicId, $motifId, $practitionerId, $timeSlot->startsAtUtc(), false)) {
+        if (!$this->slots->isBookable($clinicId, $motifId, $practitionerId, $timeSlot->startsAtUtc(), $command->newClient)) {
             throw SlotTakenException::unavailable($command->startsAt);
         }
 
         $appointmentId = AppointmentId::fromString($this->uuidGenerator->generate());
         $assignee      = new PractitionerAssignee($practitionerId);
 
-        $appointment = ConfirmationMode::MANUAL === $motif->confirmationKnownClient()
+        $appointment = $command->newClient || ConfirmationMode::MANUAL === $motif->confirmationKnownClient()
             ? Appointment::request(
                 id: $appointmentId,
                 clinicId: $clinicId,
@@ -124,7 +142,7 @@ final readonly class BookOnlineAppointmentHandler
                 animalId: $command->animalId,
                 bookingMotifId: $command->bookingMotifId,
                 source: AppointmentSource::PORTAL,
-                pendingExpiresAt: $this->settings->forClinic($clinicId)->pendingExpiry($now, $timeSlot->startsAtUtc()),
+                pendingExpiresAt: $settings->pendingExpiry($now, $timeSlot->startsAtUtc()),
                 createdPetId: $command->createdPetId,
             )
             : Appointment::schedule(

@@ -50,8 +50,9 @@ Portal **profile** (name, postal address, accepted terms of use).
 |------|------------|
 | **PortalInvitation** | A clinic's invitation of one client: client's mobile (E.164) and e-mail at send time, delivery channel (`sms` \| `email`, link delivery only — codes always go to the mobile), token digest, `sentAt`, `expiresAt` (+7 days). Statuses `pending` / `accepted` / `revoked`; « expired » is derived (pending past `expiresAt`). |
 | **Reissue** | « Renvoyer l'invitation »: a pending invitation (expired or not) keeps its id and gets a new token (the old link is dead), a new 7-day expiry and the client's current addresses. Codes and grants bound to the id stay valid. |
-| **ClientLink** | Owner account ↔ clinic client. `confirmed` (access), `revoked` (access withdrawn) or `pending` (reserved for link suggestions, slice 7). One per (user, clinic, client): a revoked link is reactivated with a new `linkedAt`, never duplicated. |
-| **OwnerProfile** | One per owner account: first name, last name, postal address copied from the client file of the first accepted invitation (never overwritten by a later one; the owner edits them through `PATCH /me`), plus the terms version and date of the latest acceptance. |
+| **ClientLink** | Owner account ↔ clinic client. `confirmed` (access), `revoked` (access withdrawn, or a pending link rejected by the clinic) or `pending` (an accepted link suggestion waiting for the clinic: no access, `linkedAt` null, `requestedAt` set). One per (user, clinic, client): a revoked link is reactivated with a new `linkedAt`, never duplicated. |
+| **Link suggestion** | A clinic holding a non-archived client file whose `mobile` is the account's phone (S7b). One per clinic (family files grouped); its id is opaque. Accepted → a « Rattachement » request in VetApp « Demandes Portal ». |
+| **OwnerProfile** | One per owner account: first name, last name, postal address copied from the client file of the first accepted invitation (`createFromClient`), or the names entered at registration without invitation (`register`, no address) — never overwritten by a later one; the owner edits them through `PATCH /me` — plus the terms version and date of the latest acceptance. |
 | **Onboarding grant** | A 15-minute token IdentityAccess hands out when a phone that has pending invitations signs in; it accepts those invitations without a second code. Revoked when the phone's last pending invitation is accepted. |
 | **Portal status** (clinic sheet) | `not_invited`, `invited`, `expired`, `active`, `revoked` (« Accès retiré »). |
 
@@ -83,11 +84,12 @@ Portal **profile** (name, postal address, accepted terms of use).
 | `SendPortalInvitation(clinicId, clientId, channel, actorUserId)` | command | Checks the client (`ClientNotInvitableException::reason`: `unknown_client`, `archived`, `no_mobile`, `mobile_not_supported`, `no_email`), creates or reissues the invitation, requests `PORTAL_INVITATION` last (`{clinicName, ownerFirstName, link, expiresOn}`, key `portal-invitation:<id>:<sentAt unix>`, `clientId` set so Notification journals it in the client file). Returns the invitation id. |
 | `AcceptPortalInvitationWithCode(token, challengeId, code, termsVersion)` | command | Link flow. `AcceptOutcome{result, userId}`; `invitation_invalid` (unknown or replaced token), `invitation_expired`, `invitation_already_used` (revoked, or accepted by another account), the OTP results, `account_disabled`. |
 | `AcceptPortalInvitationWithGrant(invitationId, onboardingToken, termsVersion)` | command | Phone flow. Same outcome; `onboarding_invalid` / `invitation_invalid` per invariant 5. |
+| `CompletePortalRegistration(registrationToken, firstName, lastName, ?email, termsVersion)` | command | Organic arrival (S7a), one transaction: terms check (`TermsOutdatedException`, nothing written) → IdentityAccess `RegisterPortalUser` through `PortalIdentityInterface::registerPortalUser` (grant, per-phone mutex; an active account of the phone → IdentityAccess's `PortalAccountExistsException` goes through) → `OwnerProfile::register`. `RegistrationOutcome{result, userId}`: `registered`, `replayed` (same grant again while it lives: the account it created, nothing written), `onboarding_invalid`, `account_disabled`. |
 | `RevokeClientPortalAccess(clinicId, clientId)` | command | Invariant 7 (dispatched by the `ClientArchived` consumer). |
 | `GetPortalInvitationByToken(token)` | query | `PortalInvitationDetails` (clinic name and city, e-mail, phone, active pet names, expiry); `InvitationInvalidException` / `InvitationExpiredException` / `InvitationAlreadyUsedException`. |
 | `ListPendingInvitationsForPhone(phone)` | query | Pending, unexpired invitations of a phone (`invitationId`, clinic name, city) — IdentityAccess's pending-invitation port. |
 | `GetClientPortalStatus(clinicId, clientId)` | query | The sheet state: a confirmed link → `active`; else the pending invitation → `invited` / `expired`, unless it predates the access withdrawal → `revoked`; else `not_invited`. |
-| `ListOwnerClinics(userId)` | query | Confirmed links, one entry per clinic (name, city, IANA time zone, earliest `linkedAt`, pet names). |
+| `ListOwnerClinics(userId)` | query | Confirmed and pending links, one entry per clinic (name, city, IANA time zone, `linkStatus`, earliest confirmed `linkedAt`, pet names of the confirmed files). A confirmed link wins; a pending-only clinic has no `linkedAt` nor pets. Oldest confirmed first, pending last. |
 | `GetOwnerProfile(userId)` | query | `?OwnerProfileDetails{firstName, lastName, address: ?{line1, line2, postalCode, city, country}, termsVersion, termsAcceptedAt}`. |
 | `HasConfirmedClientLink(userId, clinicId)` | query | The Portal API's tenant guard (false for a missing, pending or revoked link). |
 
@@ -358,6 +360,114 @@ confirms it (`RequestAccountDeletion`).
 | `RequestAccountDeletion(userId, challengeId, code)` | command | `DeletionCodeCheck` (`verified`, `otp_invalid`, `otp_expired`, `otp_attempts_exceeded`); verified → account disabled, erasure queued. |
 | `DeletePortalAccount(userId)` | command (`async`) | The erasure above. |
 
+## Link suggestions (slice 7)
+
+S7b. An owner who registered without invitation (or whose phone is on file
+elsewhere) is shown the clinics that already know the number, and asks to
+be linked; the clinic decides.
+
+- **Computed on read** (`LinkSuggestions`): Client's cross-clinic
+  `ListClientsByMobilePhone` (port `ClientDirectoryInterface::mobileMatches`:
+  label `mobile` only, archived clients and suspended or closed clinics
+  excluded), grouped per clinic. A clinic is left out once the account has a
+  link of **any** status to every matching file there — a rejected (revoked)
+  link keeps it out, so a rejected suggestion never comes back. A file
+  confirmed-linked to another account is kept (families share files) and
+  flagged for staff.
+- **Opaque id**: HMAC-SHA256 of `(userId, clinicId)` keyed by
+  `%kernel.secret%` (`SuggestionIdSigner`). Only the clinic's name and city
+  and `matchedOn: phone` leave the context.
+- **Accept** → one `pending` link per matching file without a link
+  (`ClientLink::requestFromSuggestion`), then the bell of the
+  `MANAGE_ANIMALS` holders (`PORTAL_REQUEST`, « Demande de rattachement
+  Portal », the files' names, key `portal-link-request:<first link id>`,
+  opening `clinic_portal_link_requests_show`). A replay for a clinic the
+  account already waits for answers `pending` without writing.
+- **VetApp « Rattachement »** (`ListClinicLinkRequests`, `GetClinicLinkRequest`):
+  one request per account and clinic while something is pending, the Portal
+  profile name next to each file's name and animals, a mismatch flag (last
+  names compared without case nor accents, `PersonName`) and the « déjà relié
+  à un autre compte Portal » flag (D17: flags, never exclusions).
+- **Confirm** (`confirmPending`) / **reject** (`reject`, event reason
+  `link_rejected`) only the files staff were shown, each read `FOR UPDATE`;
+  a link no longer pending is left as it is (the command answers 0). Reject
+  changes no consent (D5).
+
+| Command / Query | Bus | What it does |
+|---|---|---|
+| `ListLinkSuggestions(userId)` | query | `list<LinkSuggestion{id, clinicName, city, matchedOn}>`, by clinic name. |
+| `AcceptLinkSuggestion(userId, suggestionId)` | command | `pending`; `LinkSuggestionNotFoundException`. |
+| `ConfirmClientLink(clinicId, userId, clientIds)` | command | How many pending links were confirmed (`ClientLinkConfirmed` each). |
+| `RejectClientLink(clinicId, userId, clientIds)` | command | How many pending links were revoked (`link_rejected`). |
+| `ListClinicLinkRequests(clinicId)` | query | `list<ClinicLinkRequest>`, oldest first. |
+| `GetClinicLinkRequest(clinicId, userId)` | query | `?ClinicLinkRequest` (null when nothing is pending). |
+
+## New-client booking (slice 7)
+
+S7d. An account without link to a clinic listed in the directory asks it
+for a first appointment (`POST /clinic-listings/{l}/booking/appointments`,
+authenticated, idempotent). The request is a **`BookingRequest`**
+(`Domain/Booking/`, table `client_portal__booking_requests`): `pending` →
+`confirmed` (with the client file) | `declined` (`DeclineReason`:
+`declined`, `expired`, `cancelled`, `account_deleted`). Scheduling holds the
+slot with a pending `source=portal` appointment **without owner nor
+animal** (new-client mode of `BookOnlineAppointment`: always pending, manual
+lead time). No client link exists before the clinic confirms; the owner
+follows the request through `GET /me/booking-requests` (account-scoped).
+
+- **Request** (`RequestListingBooking`), checks in this order: the listing
+  listed and active (port `ClinicListingsInterface`, ClinicListing
+  `GetClinicListing`; `ListingNotFoundException`, 404); no confirmed link to
+  the clinic (`AlreadyLinkedException`, 422 `already_linked`); at most 1
+  pending request per clinic and 3 in all, counted under `FOR UPDATE`
+  (`BookingRequestLimitException`, 422 `booking_request_limit`);
+  `limiter.portal_listing_booking` (10 per account per 24 h, port
+  `ListingBookingQuotaInterface`; 429 `rate_limited`); the listing's
+  `onlineBooking` (`ListingBookingNotOpenException`) and Scheduling's
+  refusals (`booking_not_open`, `not_found`, `slot_taken`). The requester
+  (Portal profile names, account phone) and the new pet are snapshotted.
+- **Confirm** (`ConfirmBookingRequest`, VetApp « Demandes Portal »
+  « Nouveau client »), one transaction: the request `FOR UPDATE` and
+  pending; the client file — a non-archived file of the clinic whose
+  `mobile` is the account's phone (`ClientDirectoryInterface::mobileMatches`),
+  or a new file without animals (port `ClientRegistrationInterface`, Client
+  `CreateClient`: profile names, the phone as primary `mobile`), or the file
+  a sibling request was confirmed for (AC 268); the animal — one of that
+  client's (`PetDirectoryInterface::visiblePets`) or the new pet
+  (`PetRegistrationInterface`, S4g); the `ClientLink` confirmed or
+  reactivated; Scheduling `ConfirmNewClientAppointment` (owner and animal
+  set, then confirmed); the account's other pending requests at the clinic
+  attached to the same file. `InvalidBookingChoiceException` for a file or
+  animal staff were not offered.
+- **Decline** (`DeclineBookingRequest`): Scheduling `DeclineAppointment`,
+  then `PORTAL_BOOKING_DECLINED`.
+- **Sync** (`SyncBookingRequestFromAppointment`, dispatched by the
+  consumers of Scheduling's `PendingAppointmentConfirmed|Declined|Cancelled`
+  integration events): idempotent, a resolved request is left untouched;
+  confirmed → `confirmed`; declined / expired / cancelled by the clinic →
+  `declined` with that reason. `BookingDeclineNotice` sends Kiveto's SMS
+  `PORTAL_BOOKING_DECLINED` (`{clinicName, slotLabel}`) to the request's
+  phone, key `portal-booking-declined:<requestId>` — once per request, never
+  for `account_deleted`.
+- **Account deletion** (`BookingRequestAccountErasure`, an
+  `AccountErasureStepInterface`): pending requests declined
+  (`account_deleted`, no message), their appointments withdrawn in
+  Scheduling (`WithdrawPendingOnlineAppointment`, whatever the cancellation
+  window), then `requester_*` and `new_pet_*` nulled on every request of
+  the account. Confirmed appointments stay.
+- **Export**: `account.json` lists `bookingRequests` (any clinic).
+
+| Command / Query | Bus | What it does |
+|---|---|---|
+| `RequestListingBooking(userId, listingId, petName, petSpecies, motifId, practitionerId, startsAt)` | command | The request id. |
+| `ConfirmBookingRequest(clinicId, requestId, clientChoice existing\|new, ?clientId, animalChoice existing\|new, ?animalId, actorUserId)` | command | See above. |
+| `DeclineBookingRequest(clinicId, requestId, actorUserId)` | command | `BookingRequestNotFoundException`, `BookingRequestAlreadyResolvedException`. |
+| `SyncBookingRequestFromAppointment(appointmentId, outcome, ?ownerId)` | command | Consumers only. |
+| `ListOwnerBookingRequests(userId, ?cursor, ?limit)` | query | `CursorPage<OwnerBookingRequest>`, newest first, cursor `(created_at, id)`. |
+| `GetOwnerBookingRequest(userId, requestId)` | query | `?OwnerBookingRequest` (the 201 of the booking route). |
+| `ListClinicBookingRequests(clinicId)` | query | Pending `list<ClinicBookingRequest>` (matches, mismatch and « déjà relié » flags), oldest first. |
+| `GetBookingRequest(clinicId, requestId)` | query | `?ClinicBookingRequest`, any status (matches only while pending). |
+
 ## Requests (slice 6)
 
 What the owner asks the clinic to change is a **request** the clinic answers
@@ -444,7 +554,8 @@ client file reached at submit, the account, its subject, `submittedAt` and
 ## Events
 
 - `PortalInvitationSent` (`reissued` on a resend), `PortalInvitationAccepted`,
-  `ClientLinkConfirmed`, `ClientLinkRevoked` — domain events.
+  `ClientLinkConfirmed`, `ClientLinkRevoked` (`reason`: `access_withdrawn`
+  or `link_rejected`) — domain events.
 - `ClientLinkConfirmedIntegrationEvent` (linkId, userId, clinicId, clientId) —
   bridged from `ClientLinkConfirmed`.
 - `DocumentPublished`, `DocumentWithdrawn` — domain events of the registry.
@@ -469,12 +580,13 @@ client file reached at submit, the account, its subject, `submittedAt` and
 Raw DBAL repositories (`FOR UPDATE` reads, upserts) over schema-only Doctrine
 entities: `client_portal__portal_invitations` (`token_hash` unique, index on
 `phone`), `client_portal__client_links` (unique `user_id, clinic_id,
-client_id`), `client_portal__owner_profiles` (PK `user_id`),
+client_id`, index `clinic_id, status`; `requested_at` for pending links), `client_portal__owner_profiles` (PK `user_id`),
 `client_portal__published_documents` (unique `clinic_id, type, source_ref`),
 `client_portal__document_reads` (PK `document_id, user_id`),
 `client_portal__booklet_files` (PK `animal_id`) and
 `client_portal__data_exports` (indexes `user_id, requested_at` and
-`status, expires_at`), the three request tables (unique `clinic_id,
+`status, expires_at`), `client_portal__booking_requests` (unique
+`appointment_id`, indexes `user_id, created_at, id` and `clinic_id, status`), the three request tables (unique `clinic_id,
 appointment_id` for questionnaires; unique `clinic_id, open_key` on the
 generated column of renewals). Migrations in
 `migrations/ClientPortal/`.

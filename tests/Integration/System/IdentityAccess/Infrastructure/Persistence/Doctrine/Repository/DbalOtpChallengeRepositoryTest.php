@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Integration\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository;
 
 use App\Shared\Domain\ValueObject\PhoneNumber;
+use App\System\IdentityAccess\Domain\Otp\OnboardingPurpose;
 use App\System\IdentityAccess\Domain\Otp\OtpChallenge;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeId;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeRepositoryInterface;
@@ -40,7 +41,7 @@ final class DbalOtpChallengeRepositoryTest extends KernelTestCase
         self::assertSame(['2026-10-26 07:24:00', '2026-10-26 07:14:30', '2026-10-26 07:14:00', 'UTC'], [
             $found->expiresAt()->format('Y-m-d H:i:s'), $found->resendAvailableAt()->format('Y-m-d H:i:s'), $found->createdAt()->format('Y-m-d H:i:s'), $found->createdAt()->getTimezone()->getName(),
         ]);
-        self::assertSame([null, null, null, null], [$found->consumedAt(), $found->onboardingTokenHash(), $found->onboardingExpiresAt(), $found->onboardingRevokedAt()]);
+        self::assertSame([null, null, null, null, null, null], [$found->consumedAt(), $found->onboardingTokenHash(), $found->onboardingPurpose(), $found->onboardingExpiresAt(), $found->onboardingRevokedAt(), $found->onboardingConsumedAt()]);
     }
 
     /** S5e: the subject and the target address survive the round trip; the subject type is written for the readers of the table. */
@@ -80,7 +81,7 @@ final class DbalOtpChallengeRepositoryTest extends KernelTestCase
             $locked->resend(hash('sha256', 'c2'), OtpChannel::SMS, $now->modify('+1 minute'));
             $locked->verify(hash('sha256', 'wrong'), $now->modify('+2 minutes'), OtpPurpose::LOGIN);
             self::assertSame(OtpVerificationResult::VERIFIED, $locked->verify(hash('sha256', 'c2'), $now->modify('+3 minutes'), OtpPurpose::LOGIN));
-            $locked->grantOnboarding(hash('sha256', 'grant'), $now->modify('+3 minutes'));
+            $locked->grantOnboarding(hash('sha256', 'grant'), OnboardingPurpose::INVITATION, $now->modify('+3 minutes'));
             $locked->revokeOnboarding($now->modify('+4 minutes'));
             $challenges->save($locked);
         });
@@ -104,8 +105,8 @@ final class DbalOtpChallengeRepositoryTest extends KernelTestCase
         $this->granted(self::OTHER, '+33612340502', 'grant-3', $now);
         $challenges->save($this->login('01960000-0000-7000-8000-0000000005a4', $now));
 
-        self::assertSame(self::INVITATION, $this->em()->wrapInTransaction(static fn (): ?string => $challenges->findByOnboardingHashForUpdate(hash('sha256', 'grant-2'))?->id()->toString()));
-        self::assertNull($challenges->findByOnboardingHashForUpdate(hash('sha256', 'unknown')));
+        self::assertSame(self::INVITATION, $this->em()->wrapInTransaction(static fn (): ?string => $challenges->findByOnboardingHashForUpdate(hash('sha256', 'grant-2'), OnboardingPurpose::INVITATION)?->id()->toString()));
+        self::assertNull($challenges->findByOnboardingHashForUpdate(hash('sha256', 'unknown'), OnboardingPurpose::INVITATION));
 
         $at = $now->modify('+5 minutes');
         self::assertSame(2, $challenges->revokeOnboardingGrantsForPhone(PhoneNumber::fromString(self::PHONE), $at));
@@ -116,11 +117,41 @@ final class DbalOtpChallengeRepositoryTest extends KernelTestCase
         self::assertTrue($challenges->findById(OtpChallengeId::fromString(self::OTHER))?->isOnboardingUsable($at), 'another phone keeps its grant');
     }
 
-    private function granted(string $id, string $phone, string $secret, \DateTimeImmutable $now): void
+    /** S7a, AC 73: a grant is only found by its own purpose; revocation spares registration grants. */
+    public function testTheGrantPurposeFiltersLookupsAndRevocations(): void
+    {
+        $challenges = $this->challenges();
+        $now        = new \DateTimeImmutable('2026-11-02 09:00:00', new \DateTimeZone('UTC'));
+        $this->granted(self::LOGIN, self::PHONE, 'registration', $now, OnboardingPurpose::REGISTRATION);
+        $this->granted(self::INVITATION, self::PHONE, 'invitation', $now);
+
+        self::assertNull($challenges->findByOnboardingHashForUpdate(hash('sha256', 'registration'), OnboardingPurpose::INVITATION));
+        self::assertNull($challenges->findByOnboardingHashForUpdate(hash('sha256', 'invitation'), OnboardingPurpose::REGISTRATION));
+        $registration = $challenges->findByOnboardingHashForUpdate(hash('sha256', 'registration'), OnboardingPurpose::REGISTRATION);
+        self::assertNotNull($registration);
+        self::assertSame([self::LOGIN, OnboardingPurpose::REGISTRATION, null], [$registration->id()->toString(), $registration->onboardingPurpose(), $registration->onboardingConsumedAt()]);
+
+        self::assertSame(1, $challenges->revokeOnboardingGrantsForPhone(PhoneNumber::fromString(self::PHONE), $now->modify('+1 minute')), 'the invitation grant only');
+        self::assertNull($challenges->findById(OtpChallengeId::fromString(self::LOGIN))?->onboardingRevokedAt());
+
+        $registration->consumeRegistrationGrant($now->modify('+2 minutes'));
+        $challenges->save($registration);
+        $found = $challenges->findById(OtpChallengeId::fromString(self::LOGIN));
+        self::assertSame(['09:02:00', OnboardingPurpose::REGISTRATION, true], [$found?->onboardingConsumedAt()?->format('H:i:s'), $found?->onboardingPurpose(), $found?->isOnboardingUsable($now->modify('+3 minutes'))]);
+        self::assertSame(
+            [['registration', '2026-11-02 09:02:00'], ['invitation', null]],
+            array_map(static fn (array $row): array => array_values($row), $this->em()->getConnection()->fetchAllAssociative(
+                'SELECT onboarding_purpose, onboarding_consumed_at FROM identity_access__otp_challenges WHERE phone = ? ORDER BY onboarding_purpose DESC',
+                [self::PHONE],
+            )),
+        );
+    }
+
+    private function granted(string $id, string $phone, string $secret, \DateTimeImmutable $now, OnboardingPurpose $purpose = OnboardingPurpose::INVITATION): void
     {
         $challenge = OtpChallenge::start(OtpChallengeId::fromString($id), PhoneNumber::fromString($phone), OtpPurpose::LOGIN, null, hash('sha256', 'c1'), $now);
         $challenge->verify(hash('sha256', 'c1'), $now, OtpPurpose::LOGIN);
-        $challenge->grantOnboarding(hash('sha256', $secret), $now);
+        $challenge->grantOnboarding(hash('sha256', $secret), $purpose, $now);
         $this->challenges()->save($challenge);
     }
 

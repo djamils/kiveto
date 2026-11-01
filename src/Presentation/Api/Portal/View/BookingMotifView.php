@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Presentation\Api\Portal\View;
 
 use App\Context\ClientPortal\Application\Query\ListBookableMotifs\BookableMotif;
+use App\Context\Scheduling\Application\Query\ListBookingMotifs\BookingMotifView as SchedulingMotif;
 
 /** A motif the owner may book online, suggested for the pet's overdue or due care. */
 final readonly class BookingMotifView
@@ -23,5 +24,11 @@ final readonly class BookingMotifView
     public static function of(BookableMotif $motif): self
     {
         return new self($motif->id, $motif->label, $motif->description, $motif->durationMin, $motif->suggested, $motif->suggestionReason);
+    }
+
+    /** A motif of the public directory: no pet, so never suggested. */
+    public static function forNewClient(SchedulingMotif $motif): self
+    {
+        return new self($motif->id, $motif->label, $motif->description, $motif->durationMin, false, null);
     }
 }

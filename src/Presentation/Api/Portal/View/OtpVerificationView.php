@@ -11,7 +11,8 @@ use ApiPlatform\Metadata\ApiProperty;
  * `onboardingToken` when the phone has invitations waiting),
  * `invitation_pending` (no account yet, `invitations` waiting: accept them
  * with the `onboardingToken`), or `registration_required` (no account nor
- * invitation; `registrationToken` stays null until free sign-up exists).
+ * invitation: `registrationToken`, 15 minutes, creates the account once on
+ * `POST /auth/register`).
  * Fields of the other statuses are null or empty.
  */
 final readonly class OtpVerificationView
@@ -37,6 +38,8 @@ final readonly class OtpVerificationView
         public ?string $registrationToken = null,
         #[ApiProperty(schema: ['type' => 'array', 'items' => PendingInvitationView::SCHEMA])]
         public array $invitations = [],
+        #[ApiProperty(schema: ['type' => ['string', 'null'], 'format' => 'date-time'])]
+        public ?string $registrationTokenExpiresAt = null,
     ) {
     }
 }

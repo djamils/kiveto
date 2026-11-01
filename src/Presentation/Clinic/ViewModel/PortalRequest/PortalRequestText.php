@@ -14,6 +14,22 @@ final class PortalRequestText
     public const array KIND = [
         'pet_change'           => 'Modification de fiche',
         'prescription_renewal' => 'Renouvellement d’ordonnance',
+        'client_link'          => 'Rattachement',
+        'booking_request'      => 'Nouveau client',
+    ];
+
+    public const array SPECIES = [
+        'dog'   => 'Chien',
+        'cat'   => 'Chat',
+        'nac'   => 'NAC',
+        'other' => 'Autre',
+    ];
+
+    public const array DECLINE_REASON = [
+        'declined'        => 'Refusée par la clinique',
+        'expired'         => 'Expirée sans réponse',
+        'cancelled'       => 'Créneau annulé depuis l’agenda',
+        'account_deleted' => 'Compte Portal supprimé',
     ];
 
     public const array FIELD = [

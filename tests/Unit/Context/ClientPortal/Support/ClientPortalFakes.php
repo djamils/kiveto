@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\ClientPortal\Support;
 
+use App\Context\ClientPortal\Application\Port\BookingDeclinedMessage;
 use App\Context\ClientPortal\Application\Port\ClientDirectoryInterface;
 use App\Context\ClientPortal\Application\Port\ClinicLabel;
 use App\Context\ClientPortal\Application\Port\ClinicProfileInterface;
@@ -12,6 +13,7 @@ use App\Context\ClientPortal\Application\Port\IdentityClaim;
 use App\Context\ClientPortal\Application\Port\IdentityClaimRequest;
 use App\Context\ClientPortal\Application\Port\IdentityClaimResult;
 use App\Context\ClientPortal\Application\Port\InvitationLinkBuilderInterface;
+use App\Context\ClientPortal\Application\Port\MobileFileMatch;
 use App\Context\ClientPortal\Application\Port\MobilePhonePolicyInterface;
 use App\Context\ClientPortal\Application\Port\NotificationRequesterInterface;
 use App\Context\ClientPortal\Application\Port\PetNamesInterface;
@@ -19,6 +21,8 @@ use App\Context\ClientPortal\Application\Port\PortalClientContact;
 use App\Context\ClientPortal\Application\Port\PortalClientSnapshot;
 use App\Context\ClientPortal\Application\Port\PortalIdentityInterface;
 use App\Context\ClientPortal\Application\Port\PortalInvitationMessage;
+use App\Context\ClientPortal\Application\Port\PortalRegistration;
+use App\Context\ClientPortal\Application\Port\PortalRegistrationResult;
 use App\Context\ClientPortal\Application\Port\PortalRequestResolvedMessage;
 use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Application\Document\DocumentClinic;
@@ -42,6 +46,9 @@ final class ClientPortalFakes implements ClientDirectoryInterface, ClinicProfile
     /** @var array<string, PortalClientSnapshot> by "clinic/client" */
     public array $snapshots = [];
 
+    /** @var array<string, list<MobileFileMatch>> by phone */
+    public array $mobileMatches = [];
+
     /** @var array<string, ClinicLabel> by clinic id */
     public array $clinics = [];
 
@@ -62,6 +69,9 @@ final class ClientPortalFakes implements ClientDirectoryInterface, ClinicProfile
     /** @var list<PortalRequestResolvedMessage> */
     public array $resolutionNotices = [];
 
+    /** @var list<BookingDeclinedMessage> */
+    public array $bookingDeclines = [];
+
     /** @var list<IdentityClaimRequest> */
     public array $claims = [];
 
@@ -70,6 +80,12 @@ final class ClientPortalFakes implements ClientDirectoryInterface, ClinicProfile
 
     /** @var list<string> phones whose grants were revoked */
     public array $revokedGrants = [];
+
+    /** @var list<array{string, ?string}> registrations asked: token, e-mail */
+    public array $registrations = [];
+
+    /** @var \Closure(string): PortalRegistration may throw (an existing account) */
+    public \Closure $registrationAnswer;
 
     /** @var list<DomainEventInterface> */
     public array $events = [];
@@ -80,7 +96,8 @@ final class ClientPortalFakes implements ClientDirectoryInterface, ClinicProfile
 
     public function __construct()
     {
-        $this->claimAnswer = static fn (IdentityClaimRequest $request): IdentityClaim => new IdentityClaim(IdentityClaimResult::VERIFIED, self::USER);
+        $this->claimAnswer        = static fn (IdentityClaimRequest $request): IdentityClaim => new IdentityClaim(IdentityClaimResult::VERIFIED, self::USER);
+        $this->registrationAnswer = static fn (string $token): PortalRegistration => new PortalRegistration(PortalRegistrationResult::REGISTERED, self::USER);
     }
 
     public function withClient(string $clinicId, string $clientId, ?string $mobile = '+33612345678', ?string $email = 'sophie@example.com', bool $archived = false): self
@@ -99,6 +116,11 @@ final class ClientPortalFakes implements ClientDirectoryInterface, ClinicProfile
     public function snapshotOf(string $clinicId, string $clientId): ?PortalClientSnapshot
     {
         return $this->snapshots[$clinicId . '/' . $clientId] ?? null;
+    }
+
+    public function mobileMatches(string $phone): array
+    {
+        return $this->mobileMatches[$phone] ?? [];
     }
 
     public function clinicOf(string $clinicId): ClinicLabel
@@ -138,6 +160,11 @@ final class ClientPortalFakes implements ClientDirectoryInterface, ClinicProfile
         return \sprintf('01960000-0000-7000-8000-0000000e%04d', \count($this->resolutionNotices));
     }
 
+    public function requestBookingDeclined(BookingDeclinedMessage $message): void
+    {
+        $this->bookingDeclines[] = $message;
+    }
+
     public function invitationLink(string $token): string
     {
         return 'https://portal.test/invitation#t=' . $token;
@@ -158,6 +185,13 @@ final class ClientPortalFakes implements ClientDirectoryInterface, ClinicProfile
     public function revokeOnboardingGrants(string $phone): void
     {
         $this->revokedGrants[] = $phone;
+    }
+
+    public function registerPortalUser(#[\SensitiveParameter] string $registrationToken, ?string $email): PortalRegistration
+    {
+        $this->registrations[] = [$registrationToken, $email];
+
+        return ($this->registrationAnswer)($registrationToken);
     }
 
     /** `secret-1`, `secret-2`… */

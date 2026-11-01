@@ -12,4 +12,12 @@ interface ClientDirectoryInterface
 
     /** Identity and postal address of the client; null when unknown to the clinic. */
     public function snapshotOf(string $clinicId, string $clientId): ?PortalClientSnapshot;
+
+    /**
+     * Across clinics: the non-archived files of active clinics whose
+     * `mobile` phone is exactly this number, by clinic then oldest first.
+     *
+     * @return list<MobileFileMatch>
+     */
+    public function mobileMatches(string $phone): array;
 }

@@ -250,6 +250,26 @@ final class PortalBookingCommandsTest extends TestCase
 
                 return $appointmentId;
             }
+
+            public function requestNewClientSlot(string $clinicId, string $motifId, string $practitionerId, \DateTimeImmutable $startsAt): string
+            {
+                throw new \LogicException('Not a new-client booking.');
+            }
+
+            public function confirmNewClient(string $clinicId, string $appointmentId, string $ownerId, string $animalId): void
+            {
+                throw new \LogicException('Not a new-client booking.');
+            }
+
+            public function decline(string $clinicId, string $appointmentId): void
+            {
+                throw new \LogicException('Not a new-client booking.');
+            }
+
+            public function withdrawPending(string $clinicId, string $appointmentId): void
+            {
+                throw new \LogicException('Not a new-client booking.');
+            }
         };
     }
 

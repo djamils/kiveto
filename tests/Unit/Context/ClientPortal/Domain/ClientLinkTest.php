@@ -44,7 +44,7 @@ final class ClientLinkTest extends TestCase
         self::assertCount(1, $events, 'revoked once');
         self::assertInstanceOf(ClientLinkRevoked::class, $events[0]);
         self::assertSame(['client_portal.client-link.revoked.v1', self::ID], [$events[0]->name(), $events[0]->aggregateId()]);
-        self::assertSame(['linkId' => self::ID, 'userId' => 'user-1', 'clinicId' => 'clinic-1', 'clientId' => 'client-1'], $events[0]->payload());
+        self::assertSame(['linkId' => self::ID, 'userId' => 'user-1', 'clinicId' => 'clinic-1', 'clientId' => 'client-1', 'reason' => 'access_withdrawn'], $events[0]->payload());
 
         $link->reactivate(new \DateTimeImmutable('2026-11-10'));
         $link->reactivate(new \DateTimeImmutable('2026-11-11'));

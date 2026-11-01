@@ -85,7 +85,8 @@ final class AppointmentMessagesPipelineTest extends KernelTestCase
         self::assertSame(['rendez-vous.ics', 'text/calendar; method=REQUEST', 'NOTIFICATION'], [$attachments[0]->filename, $attachments[0]->mime, $attachments[0]->owner->value]);
         $ics = $this->files()->read($attachments[0]->storageKey);
         self::assertStringContainsString("METHOD:REQUEST\r\nBEGIN:VEVENT\r\nUID:" . Appointments::ID . "@kiveto.app\r\nSEQUENCE:0\r\n", $ics);
-        self::assertMatchesRegularExpression('/\r\nORGANIZER;CN="[^"]+":mailto:[^@\s]+@[^\s]+\r\n/', $ics);
+        // Long lines are folded at 75 octets (RFC 5545 §3.1): unfold before matching.
+        self::assertMatchesRegularExpression('/\r\nORGANIZER;CN="[^"]+":mailto:[^@\s]+@[^\s]+\r\n/', str_replace("\r\n ", '', $ics));
 
         // A duplicate sync finds nothing left to say.
         $this->syncNow();

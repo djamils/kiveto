@@ -6,6 +6,8 @@ namespace App\Tests\Unit\Context\Scheduling\Application\Command\PendingRequest;
 
 use App\Context\Scheduling\Application\Command\ConfirmAppointment\ConfirmAppointment;
 use App\Context\Scheduling\Application\Command\ConfirmAppointment\ConfirmAppointmentHandler;
+use App\Context\Scheduling\Application\Command\ConfirmNewClientAppointment\ConfirmNewClientAppointment;
+use App\Context\Scheduling\Application\Command\ConfirmNewClientAppointment\ConfirmNewClientAppointmentHandler;
 use App\Context\Scheduling\Application\Command\DeclineAppointment\DeclineAppointment;
 use App\Context\Scheduling\Application\Command\DeclineAppointment\DeclineAppointmentHandler;
 use App\Context\Scheduling\Application\Command\DeclineExpiredPendingAppointment\DeclineExpiredPendingAppointment;
@@ -15,7 +17,9 @@ use App\Context\Scheduling\Application\Command\ScanExpiredPendingAppointments\Sc
 use App\Context\Scheduling\Application\Service\PendingAppointmentLoader;
 use App\Context\Scheduling\Domain\Event\AppointmentConfirmed;
 use App\Context\Scheduling\Domain\Event\AppointmentDeclined;
+use App\Context\Scheduling\Domain\Event\AppointmentOwnerChanged;
 use App\Context\Scheduling\Domain\Exception\AppointmentAlreadyHandledException;
+use App\Context\Scheduling\Domain\Exception\NewClientRequestException;
 use App\Context\Scheduling\Domain\Exception\PendingAppointmentExpiredException;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
@@ -184,6 +188,65 @@ final class PendingRequestHandlersTest extends TestCase
 
         self::assertSame(AppointmentStatus::PLANNED, $this->appointments->findById(AppointmentId::fromString(Appointments::ID))?->status());
         self::assertSame([], $this->events->events);
+    }
+
+    /** S7d, AC 266: the agenda's « Confirmer » refuses a new client's request; nothing changes. */
+    public function testANewClientsRequestIsConfirmedFromDemandesPortalOnly(): void
+    {
+        $this->appointments->save(Appointments::pending(ownerId: null));
+
+        try {
+            $this->confirm();
+            self::fail('A new client\'s request is refused in the agenda.');
+        } catch (NewClientRequestException $e) {
+            self::assertSame('À traiter dans Demandes Portal.', $e->getMessage());
+        }
+
+        self::assertSame(AppointmentStatus::PENDING_CLINIC_CONFIRMATION, $this->appointments->findById(AppointmentId::fromString(Appointments::ID))?->status());
+        self::assertSame([], $this->events->events);
+    }
+
+    public function testStaffConfirmANewClientsRequestForTheFileAndAnimalTheyChose(): void
+    {
+        $this->appointments->save(Appointments::pending(ownerId: null));
+
+        $this->confirmNewClient();
+
+        $appointment = $this->appointments->findById(AppointmentId::fromString(Appointments::ID));
+        self::assertSame([AppointmentStatus::PLANNED, 'client-new', 'pet-new'], [$appointment?->status(), $appointment?->ownerId(), $appointment?->animalId()]);
+        self::assertSame([AppointmentOwnerChanged::class, AppointmentConfirmed::class], array_map(static fn (object $e): string => $e::class, $this->events->events));
+        self::assertSame([Appointments::ID], $this->appointments->lockedForUpdate);
+    }
+
+    public function testANewClientsRequestHandledOrExpiredIsRefused(): void
+    {
+        $this->appointments->save(Appointments::pending(ownerId: null));
+        $this->clock->at('2026-10-15 08:42');
+
+        try {
+            $this->confirmNewClient();
+            self::fail('Expired.');
+        } catch (PendingAppointmentExpiredException) {
+        }
+
+        $this->clock->at('2026-10-14 09:00');
+        $this->decline();
+
+        try {
+            $this->confirmNewClient();
+            self::fail('Declined first.');
+        } catch (AppointmentAlreadyHandledException) {
+        }
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->confirmNewClient(self::OTHER_CLINIC);
+    }
+
+    private function confirmNewClient(string $clinicId = Appointments::CLINIC): void
+    {
+        new ConfirmNewClientAppointmentHandler($this->loader(), $this->appointments, $this->clock, new DomainEventPublisher($this->events))(
+            new ConfirmNewClientAppointment(Appointments::ID, $clinicId, 'client-new', 'pet-new'),
+        );
     }
 
     private function confirm(string $clinicId = Appointments::CLINIC): void

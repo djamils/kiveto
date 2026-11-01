@@ -15,6 +15,9 @@ use App\Context\Catalog\Application\Query\Catalog\ListCatalog\ArticleListRow;
 use App\Context\Catalog\Application\Query\Catalog\ListCatalog\CatalogListCriteria;
 use App\Context\Catalog\Application\Query\Catalog\ListCatalog\CatalogPage;
 use App\Context\Catalog\Application\Query\Catalog\ListCatalog\ListArticles;
+use App\Context\ClientPortal\Application\Query\ListClinicBookingRequests\ClinicBookingRequest;
+use App\Context\ClientPortal\Application\Query\ListClinicLinkRequests\ClinicLinkRequest;
+use App\Context\ClientPortal\Application\Query\ListClinicLinkRequests\LinkRequestFile;
 use App\Context\ClientPortal\Application\Query\ListClinicPortalRequests\ClinicPortalRequest;
 use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\ClinicSettingsView;
 use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\GetClinicSettings;
@@ -1004,7 +1007,7 @@ final readonly class DashboardViewBuilder
             );
         }
 
-        $tasks = [...$tasks, ...$this->pendingRequestTasks($clinicId, $now), ...$this->portalRequestTasks($clinicId, $now)];
+        $tasks = [...$tasks, ...$this->pendingRequestTasks($clinicId, $now), ...$this->portalQueueTasks($clinicId, $now)];
 
         usort(
             $alerts,
@@ -1098,9 +1101,11 @@ final readonly class DashboardViewBuilder
         ));
         \assert(\is_array($items));
 
+        // A new client's request (no owner yet) is answered in « Demandes Portal »:
+        // the agenda's Confirm refuses it, so it is a « Nouveau client » task.
         $pending = array_values(array_filter(
             $items,
-            static fn (mixed $item): bool => $item instanceof AppointmentItem && $item->isPending,
+            static fn (mixed $item): bool => $item instanceof AppointmentItem && $item->isPending && null !== $item->ownerId,
         ));
         /* @var list<AppointmentItem> $pending */
         usort($pending, static fn (AppointmentItem $a, AppointmentItem $b): int => [$a->pendingExpiresAtUtc ?? $a->startsAtUtc, $a->startsAtUtc] <=> [$b->pendingExpiresAtUtc ?? $b->startsAtUtc, $b->startsAtUtc]);
@@ -1150,17 +1155,53 @@ final readonly class DashboardViewBuilder
     }
 
     /**
+     * « Demandes Portal »: up to 4 tasks per type (file changes and renewals,
+     * « Rattachement », « Nouveau client »), then one « N autres demandes
+     * Portal » counting what none of them shows.
+     *
+     * @return list<DashboardTask>
+     */
+    private function portalQueueTasks(string $clinicId, \DateTimeImmutable $now): array
+    {
+        $open     = $this->portalRequests->open($clinicId);
+        $links    = $this->portalRequests->links($clinicId);
+        $bookings = $this->portalRequests->bookings($clinicId);
+
+        $tasks = [
+            ...$this->portalRequestTasks($open, $now),
+            ...$this->portalLinkRequestTasks($links, $now),
+            ...$this->bookingRequestTasks($bookings, $now),
+        ];
+        $rest = \count($open) + \count($links) + \count($bookings) - \count($tasks);
+
+        if ($rest > 0) {
+            $tasks[] = new DashboardTask(
+                group: 'jour',
+                icon: 'portal',
+                title: SheetText::plural($rest, 'autre demande Portal', 'autres demandes Portal'),
+                subtitle: 'Fiches, renouvellements, rattachements et nouveaux clients à traiter',
+                audience: 'clinique',
+                assigneeUserId: null,
+                actionLabel: 'Voir',
+                actionUrl: $this->urls->generate('clinic_portal_requests'),
+            );
+        }
+
+        return $tasks;
+    }
+
+    /**
      * « Demandes Portal » waiting for an answer: a renewal with adverse
      * effects first (urgent), then the oldest. Renewals are for the
      * veterinarians, file changes for the assistants; questionnaires are not
      * queue items. Owner free text never reaches a task.
      *
+     * @param list<ClinicPortalRequest> $open
+     *
      * @return list<DashboardTask>
      */
-    private function portalRequestTasks(string $clinicId, \DateTimeImmutable $now): array
+    private function portalRequestTasks(array $open, \DateTimeImmutable $now): array
     {
-        $open = $this->portalRequests->open($clinicId);
-
         usort($open, static fn (ClinicPortalRequest $a, ClinicPortalRequest $b): int => [
             'adverse_effects' === $a->petCondition ? 0 : 1, $a->submittedAt,
         ] <=> [
@@ -1194,16 +1235,83 @@ final readonly class DashboardViewBuilder
             );
         }
 
-        if (\count($open) > self::TASKS_PER_SOURCE) {
+        return $tasks;
+    }
+
+    /**
+     * « Rattachement » requests: Portal accounts waiting for the clinic to
+     * confirm their link to client files, the oldest first. For the
+     * assistants, like file changes; the Portal profile name is not shown.
+     *
+     * @param list<ClinicLinkRequest> $open
+     *
+     * @return list<DashboardTask>
+     */
+    private function portalLinkRequestTasks(array $open, \DateTimeImmutable $now): array
+    {
+        $tasks = [];
+
+        foreach (\array_slice($open, 0, self::TASKS_PER_SOURCE) as $request) {
+            $received = $request->requestedAt->setTimezone($now->getTimezone());
+            $when     = $received->format('Y-m-d') === $now->format('Y-m-d')
+                ? 'reçue à ' . $received->format('H:i')
+                : 'reçue le ' . SheetText::date($received, 'd MMM');
+            $files = array_values(array_filter(array_map(static fn (LinkRequestFile $file): ?string => $file->name(), $request->files)));
+
             $tasks[] = new DashboardTask(
                 group: 'jour',
                 icon: 'portal',
-                title: SheetText::plural(\count($open) - self::TASKS_PER_SOURCE, 'autre demande Portal', 'autres demandes Portal'),
-                subtitle: 'Modifications de fiche et renouvellements à traiter',
-                audience: 'clinique',
+                title: 'Demande de rattachement Portal — ' . ([] === $files ? 'client' : implode(', ', $files)),
+                subtitle: implode(' · ', array_filter([
+                    $request->hasNameMismatch() ? 'nom différent' : null,
+                    $request->hasFileLinkedElsewhere() ? 'déjà relié à un autre compte' : null,
+                    $when,
+                ])),
+                audience: 'asv',
                 assigneeUserId: null,
-                actionLabel: 'Voir',
-                actionUrl: $this->urls->generate('clinic_portal_requests'),
+                actionLabel: 'Vérifier',
+                actionUrl: $this->urls->generate('clinic_portal_link_requests_show', ['userId' => $request->userId]),
+            );
+        }
+
+        return $tasks;
+    }
+
+    /**
+     * « Nouveau client » requests: first appointments asked through the
+     * directory, the oldest first, answered in « Demandes Portal » (file and
+     * animal chosen there). For the assistants, like « Rattachement ».
+     *
+     * @param list<ClinicBookingRequest> $open
+     *
+     * @return list<DashboardTask>
+     */
+    private function bookingRequestTasks(array $open, \DateTimeImmutable $now): array
+    {
+        $tasks = [];
+
+        foreach (\array_slice($open, 0, self::TASKS_PER_SOURCE) as $request) {
+            $received = $request->createdAt->setTimezone($now->getTimezone());
+            $start    = $request->startAt->setTimezone($now->getTimezone());
+            $when     = $received->format('Y-m-d') === $now->format('Y-m-d')
+                ? 'reçue à ' . $received->format('H:i')
+                : 'reçue le ' . SheetText::date($received, 'd MMM');
+
+            $tasks[] = new DashboardTask(
+                group: 'jour',
+                icon: 'portal',
+                title: 'Nouveau client — ' . ($request->requesterName() ?? 'compte supprimé'),
+                subtitle: implode(' · ', array_filter([
+                    SheetText::date($start, 'EEE d MMM') . ' à ' . $start->format('H:i'),
+                    null === $request->petName ? null : $request->petName . (null === $request->petSpecies ? '' : ' (' . (self::SPECIES_LABEL[$request->petSpecies] ?? 'Animal') . ')'),
+                    $request->hasNameMismatch() ? 'nom différent' : null,
+                    $request->hasFileLinkedElsewhere() ? 'déjà relié à un autre compte' : null,
+                    $when,
+                ])),
+                audience: 'asv',
+                assigneeUserId: null,
+                actionLabel: 'Répondre',
+                actionUrl: $this->urls->generate('clinic_portal_booking_requests_show', ['id' => $request->id]),
             );
         }
 

@@ -44,7 +44,11 @@ final readonly class VerifyOtpProcessor implements ProcessorInterface
                 onboardingTokenExpiresAt: ApiDate::formatNullable($outcome->onboardingExpiresAt),
                 invitations: PendingInvitationView::list($outcome->pendingInvitations),
             ),
-            LoginOtpResult::REGISTRATION_REQUIRED => new OtpVerificationView(status: 'registration_required'),
+            LoginOtpResult::REGISTRATION_REQUIRED => new OtpVerificationView(
+                status: 'registration_required',
+                registrationToken: $outcome->onboardingToken,
+                registrationTokenExpiresAt: ApiDate::formatNullable($outcome->onboardingExpiresAt),
+            ),
             LoginOtpResult::ACCOUNT_DISABLED      => throw PortalProblemMap::problem(PortalProblemMap::ACCOUNT_DISABLED),
             LoginOtpResult::OTP_INVALID           => throw PortalProblemMap::problem(PortalProblemMap::OTP_INVALID),
             LoginOtpResult::OTP_EXPIRED           => throw PortalProblemMap::problem(PortalProblemMap::OTP_EXPIRED),

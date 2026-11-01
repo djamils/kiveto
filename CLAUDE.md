@@ -18,7 +18,7 @@ working on the repo behaves consistently across sessions and machines.
   `src/<BC>/{Domain,Application,Infrastructure}`. Presentation lives under
   `src/Presentation/<App>/`.
 - **Bounded Contexts:** under `src/Context/` — Admission, Animal, Billing,
-  Catalog, Client, ClientPortal, Clinic, Consultation, Inventory, Patient,
+  Catalog, Client, ClientPortal, Clinic, ClinicListing, Consultation, Inventory, Patient,
   Prescription, Procurement, Regulatory, Scheduling; under `src/System/` —
   AccessControl, ElectronicInvoicing, IdentityAccess, Notification,
   PharmaceuticalRegistry, Taxation, Translation; plus `src/Shared`. Each has

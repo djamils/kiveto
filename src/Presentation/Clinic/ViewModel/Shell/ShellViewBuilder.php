@@ -148,7 +148,7 @@ final class ShellViewBuilder implements ResetInterface
             stockAlertCount: $critical,
             unreadNotifications: $this->unreadNotifications($user->id(), $currentClinicId),
             portalRequestCount: $this->permissions->has(ClinicPermissionGuard::MANAGE_ANIMALS)
-                ? \count($this->portalRequests->open($currentClinicId))
+                ? $this->portalRequests->count($currentClinicId)
                 : 0,
         );
     }

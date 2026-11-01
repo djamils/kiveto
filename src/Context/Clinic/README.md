@@ -70,10 +70,15 @@ Clinic is the source of truth of what Notification needs about a clinic and push
 - **Queries for notifications** — `ListClinicMembersForNotification(clinicId, role?, administratorsOnly)`: user ids of the memberships in force now whose account is ACTIVE — an invited member who never activated is left out (bell recipients of Inventory: assistants, else administrators). `GetStaffPrintedName(clinicId, userId)` (D15): « Dr Claire Lambert » (title without a dot), « Hugo Martin », null without a staff profile.
 - **Invitations** — « Inviter un membre » no longer takes a provisional password: the address gets a PENDING account (IdentityAccess `RegisterInvitedUser`), the membership is created, then the invitation e-mail is sent. The team page shows « Invité », « Invitation expirée » and « Renvoyer », read through `InvitationStatusReaderInterface` (IdentityAccess `GetInvitationStatuses`). The onboarding search also finds PENDING clinic accounts. Disabling a membership, or ending it (end date past), revokes that clinic's invitation links (`RevokeInvitationOnMembershipEnd` → `InvitationRevokerInterface` → IdentityAccess `RevokeInvitation`); a membership that only starts later keeps them.
 
+## Integration Events
+
+- **`ClinicProfileChangedIntegrationEvent{clinicId}`** (S7c, `clinic.clinic-profile-changed-integration.event.v1`) — thin by design: something a public profile of the clinic shows may have changed, and consumers re-read it through `GetClinic` / `GetClinicSettings` / `GetClinicGroup`. `Infrastructure/Messaging/Consumer/ClinicProfileChangedIntegrationBridge` publishes it in the transaction of the change (outbox) on `ClinicCreated`, `ClinicRenamed`, `ClinicOpeningHoursUpdated`, `ClinicLetterheadUpdated`, `ClinicTimeZoneChanged`, `ClinicSuspended`, `ClinicActivated` and `ClinicClosed`; `ClinicGroupSuspended` and `ClinicGroupActivated` publish one per member clinic, read through `ClinicReadRepositoryInterface::findAllFiltered(clinicGroupId)`. Consumed by ClinicListing (the Portal's clinic directory).
+
 ## Cross-BC Dependencies
 
 | Direction | Counterpart | Mechanism |
 |-----------|-------------|-----------|
+| Produces | ClinicListing | `ClinicProfileChangedIntegrationEvent` (re-read bridge of the directory projection) |
 | Produces | Notification | `UpsertClinicMessagingProfile` and `RecordVeterinarianCount` commands (messaging profile, daily active veterinarians) |
 | Consumes | Notification | `SmsUsageThresholdCrossedIntegrationEvent` → `SMS_QUOTA` bell entry to the administrators |
 | Consumes | IdentityAccess | `UserActivatedIntegrationEvent` → recount of active veterinarians; `GetInvitationStatuses`, user statuses and `RevokeInvitation` through Clinic ports |

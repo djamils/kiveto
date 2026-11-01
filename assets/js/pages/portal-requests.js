@@ -4,7 +4,9 @@
  *
  * - queue: a whole row opens its request;
  * - detail: the prescription select only applies to « Traiter », and the
- *   message counter follows the 280 characters the owner may receive.
+ *   message counter follows the 280 characters the owner may receive;
+ * - « Rattachement »: « Refuser » asks for confirmation, and each answer
+ *   form is sent once.
  *
  * The page is rendered by Twig (owner text autoescaped); this module only
  * reads values and sets textContent. Listeners are released in cleanup().
@@ -22,6 +24,17 @@ export function init() {
       if (e.target instanceof Element && e.target.closest('a')) return;
       const href = row.dataset.href;
       if (window.Turbo?.visit) window.Turbo.visit(href); else window.location.href = href;
+    }, { signal });
+  });
+
+  root.querySelectorAll('form[data-prq-once]').forEach((once) => {
+    once.addEventListener('submit', (e) => {
+      const message = once.dataset.confirmMessage;
+      if (message && !window.confirm(message)) {
+        e.preventDefault();
+        return;
+      }
+      once.querySelector('button[type="submit"]')?.setAttribute('disabled', '');
     }, { signal });
   });
 

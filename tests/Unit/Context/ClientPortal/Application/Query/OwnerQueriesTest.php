@@ -88,7 +88,7 @@ final class OwnerQueriesTest extends TestCase
         self::assertSame([
             [W::CLINIC, 'Clinique des Lilas', 'Lyon', '2026-10-10', ['Rex', 'Moka'], 'Europe/Paris'],
             [W::CLINIC2, 'Clinique du Parc', null, '2026-10-15', ['Nala'], 'UTC'],
-        ], array_map(static fn ($c): array => [$c->clinicId, $c->clinicName, $c->city, $c->linkedAt->format('Y-m-d'), $c->petNames, $c->timeZone], $clinics));
+        ], array_map(static fn ($c): array => [$c->clinicId, $c->clinicName, $c->city, $c->linkedAt?->format('Y-m-d'), $c->petNames, $c->timeZone], $clinics));
 
         $links = new HasConfirmedClientLinkHandler($world->links);
         self::assertTrue($links(new HasConfirmedClientLink(self::USER, W::CLINIC2)));

@@ -27,16 +27,18 @@ enum MessagePurpose: string
     case PORTAL_EMAIL_CHANGED_NOTICE = 'PORTAL_EMAIL_CHANGED_NOTICE';
     case PORTAL_DATA_EXPORT_READY    = 'PORTAL_DATA_EXPORT_READY';
     case PORTAL_REQUEST_RESOLVED     = 'PORTAL_REQUEST_RESOLVED';
+    case PORTAL_BOOKING_DECLINED     = 'PORTAL_BOOKING_DECLINED';
 
     /**
-     * Only reminders and the answer to a Portal request may be held back by
+     * Only reminders, the answer to a Portal request and the decline of a
+     * new client's request may be held back by
      * the SMS overage cap; e-mail-only purposes are critical too (the cap
      * concerns SMS alone).
      */
     public function criticality(): Criticality
     {
         return match ($this) {
-            self::APPOINTMENT_REMINDER, self::INVOICE_REMINDER, self::PORTAL_REQUEST_RESOLVED => Criticality::NON_CRITICAL,
+            self::APPOINTMENT_REMINDER, self::INVOICE_REMINDER, self::PORTAL_REQUEST_RESOLVED, self::PORTAL_BOOKING_DECLINED => Criticality::NON_CRITICAL,
             default => Criticality::CRITICAL,
         };
     }
@@ -47,17 +49,19 @@ enum MessagePurpose: string
      */
     public function isSentByKiveto(): bool
     {
-        return \in_array($this, [self::STAFF_INVITATION, self::PASSWORD_RESET, self::TEST, self::PORTAL_OTP, self::PORTAL_INVITATION, self::PORTAL_EMAIL_VERIFICATION, self::PORTAL_EMAIL_CHANGED_NOTICE, self::PORTAL_DATA_EXPORT_READY], true);
+        return \in_array($this, [self::STAFF_INVITATION, self::PASSWORD_RESET, self::TEST, self::PORTAL_OTP, self::PORTAL_INVITATION, self::PORTAL_EMAIL_VERIFICATION, self::PORTAL_EMAIL_CHANGED_NOTICE, self::PORTAL_DATA_EXPORT_READY, self::PORTAL_BOOKING_DECLINED], true);
     }
 
     /**
      * Kiveto's own messages to an owner account (codes and account notices),
      * erased when the account is deleted. The Portal invitation is a clinic's
-     * message to its client, journaled in the client file: it is kept.
+     * message to its client, journaled in the client file: it is kept. The
+     * decline of a new client's request went to the account phone, not to a
+     * client file: it is erased.
      */
     public function isPortalAccountMessage(): bool
     {
-        return \in_array($this, [self::PORTAL_OTP, self::PORTAL_EMAIL_VERIFICATION, self::PORTAL_EMAIL_CHANGED_NOTICE, self::PORTAL_DATA_EXPORT_READY], true);
+        return \in_array($this, [self::PORTAL_OTP, self::PORTAL_EMAIL_VERIFICATION, self::PORTAL_EMAIL_CHANGED_NOTICE, self::PORTAL_DATA_EXPORT_READY, self::PORTAL_BOOKING_DECLINED], true);
     }
 
     /**
@@ -98,6 +102,7 @@ enum MessagePurpose: string
             self::PORTAL_EMAIL_CHANGED_NOTICE => 'Adresse e-mail Portal modifiée',
             self::PORTAL_DATA_EXPORT_READY    => 'Export de données Portal prêt',
             self::PORTAL_REQUEST_RESOLVED     => 'Réponse à une demande Portal',
+            self::PORTAL_BOOKING_DECLINED     => 'Demande de RDV Portal non confirmée',
         };
     }
 }

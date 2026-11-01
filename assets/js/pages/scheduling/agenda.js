@@ -462,6 +462,7 @@ const ERREURS = {
   CSRF_INVALID: 'Session expirée — rechargez la page',
   PENDING_EXPIRED: 'Demande expirée.',
   APPOINTMENT_ALREADY_HANDLED: 'Ce RDV a déjà été traité.',
+  NEW_CLIENT_REQUEST: 'À traiter dans Demandes Portal.',
   FORBIDDEN: 'Vous n\'avez pas le droit de traiter les demandes de rendez-vous.',
 };
 /* « · expire le 3 nov. à 14:00 » from the clinic-local `Y-m-d H:i` of `exp` */
@@ -556,7 +557,12 @@ function ouvrirPop(id, el) {
       r._busy = true; rendre();
       const { ok, body } = await post(url(accepte ? 'confirm' : 'decline', r.id), {});
       r._busy = false;
-      if (!ok) { rendre(); showToast(message(body, accepte ? 'La demande n\'a pas pu être confirmée' : 'La demande n\'a pas pu être refusée'), 'danger'); refresh(d); return; }
+      if (!ok) {
+        rendre(); showToast(message(body, accepte ? 'La demande n\'a pas pu être confirmée' : 'La demande n\'a pas pu être refusée'), 'danger');
+        // A new client's request is resolved in « Demandes Portal »
+        if (body?.redirect) { window.location.assign(body.redirect); return; }
+        refresh(d); return;
+      }
       r.pend = false; r.st = accepte ? null : 'annule'; rendre();
       showToast(body?.message || (accepte ? 'RDV confirmé.' : 'Demande refusée — le client est prévenu.'));
       refresh(d);

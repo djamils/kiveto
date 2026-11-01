@@ -7,7 +7,7 @@
  # its JSON file (ISO 8601 with offset).
  #
  # Variables:
- #   account      array   account.json (account, profile, terms)
+ #   account      array   account.json (account, profile, terms, booking requests)
  #   clinics      list    clinics/<clinicId>.json, one per clinic
  #   generatedAt  \DateTimeImmutable  Europe/Paris
  #   clinic       null    (no clinic letterhead: the export comes from Kiveto)
@@ -74,6 +74,23 @@
       <tr><td>Conditions d’utilisation</td><td>Version {{ account.terms.version }}, acceptée le {{ account.terms.acceptedAt|date('d/m/Y', false) }}</td></tr>
     {% endif %}
   </table>
+
+  {% if account.bookingRequests is not empty %}
+    <p class="plabel">Demandes de rendez-vous à une nouvelle clinique</p>
+    <table class="data">
+      <thead><tr><th style="width:28mm;">Créneau</th><th>Clinique</th><th>Animal · motif</th><th style="width:22mm;">Statut</th></tr></thead>
+      <tbody>
+        {% for booking in account.bookingRequests %}
+          <tr>
+            <td>{{ booking.startAt|date('d/m/Y H:i', false) }}</td>
+            <td>{{ booking.clinic.name }}{% if booking.clinic.city %} · {{ booking.clinic.city }}{% endif %}</td>
+            <td>{{ booking.pet.name ?? '—' }} · {{ booking.motif }}</td>
+            <td>{{ {pending: 'En attente', confirmed: 'Confirmée', declined: 'Non confirmée'}[booking.status]|default(booking.status) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
 
   {% if clinics is empty %}
     <div class="box">

@@ -6,12 +6,15 @@ namespace App\Context\ClientPortal\Domain\Link;
 
 use App\Context\ClientPortal\Domain\Event\ClientLinkConfirmed;
 use App\Context\ClientPortal\Domain\Event\ClientLinkRevoked;
+use App\Context\ClientPortal\Domain\Exception\ClientLinkNotPendingException;
 use App\Shared\Domain\Aggregate\AggregateRoot;
 
 /**
  * An owner account (PORTAL user) reaching one client file of one clinic.
  * One link per (user, clinic, client): a revoked link is reactivated, never
- * duplicated. Only a confirmed link gives access to the clinic's data.
+ * duplicated. Only a confirmed link gives access to the clinic's data; a
+ * `pending` link (an accepted link suggestion) waits for the clinic to
+ * confirm or reject it.
  */
 final class ClientLink extends AggregateRoot
 {
@@ -22,6 +25,7 @@ final class ClientLink extends AggregateRoot
     private ClientLinkStatus $status;
     private ?\DateTimeImmutable $linkedAt;
     private ?\DateTimeImmutable $revokedAt;
+    private ?\DateTimeImmutable $requestedAt = null;
 
     private function __construct()
     {
@@ -49,6 +53,30 @@ final class ClientLink extends AggregateRoot
         return $link;
     }
 
+    /**
+     * A link the owner asked for by accepting a link suggestion: pending,
+     * without access nor link date, until the clinic confirms it.
+     */
+    public static function requestFromSuggestion(
+        ClientLinkId $id,
+        string $userId,
+        string $clinicId,
+        string $clientId,
+        \DateTimeImmutable $now,
+    ): self {
+        $link              = new self();
+        $link->id          = $id;
+        $link->userId      = $userId;
+        $link->clinicId    = $clinicId;
+        $link->clientId    = $clientId;
+        $link->status      = ClientLinkStatus::PENDING;
+        $link->linkedAt    = null;
+        $link->revokedAt   = null;
+        $link->requestedAt = $now;
+
+        return $link;
+    }
+
     public static function reconstitute(
         ClientLinkId $id,
         string $userId,
@@ -57,17 +85,68 @@ final class ClientLink extends AggregateRoot
         ClientLinkStatus $status,
         ?\DateTimeImmutable $linkedAt,
         ?\DateTimeImmutable $revokedAt,
+        ?\DateTimeImmutable $requestedAt = null,
     ): self {
-        $link            = new self();
-        $link->id        = $id;
-        $link->userId    = $userId;
-        $link->clinicId  = $clinicId;
-        $link->clientId  = $clientId;
-        $link->status    = $status;
-        $link->linkedAt  = $linkedAt;
-        $link->revokedAt = $revokedAt;
+        $link              = new self();
+        $link->id          = $id;
+        $link->userId      = $userId;
+        $link->clinicId    = $clinicId;
+        $link->clientId    = $clientId;
+        $link->status      = $status;
+        $link->linkedAt    = $linkedAt;
+        $link->revokedAt   = $revokedAt;
+        $link->requestedAt = $requestedAt;
 
         return $link;
+    }
+
+    /**
+     * The clinic confirms a pending link: access from now on. A link
+     * already confirmed is left as it is; a revoked one (rejected or
+     * withdrawn meanwhile) cannot be confirmed this way.
+     */
+    public function confirmPending(\DateTimeImmutable $now): void
+    {
+        if (ClientLinkStatus::CONFIRMED === $this->status) {
+            return;
+        }
+
+        if (ClientLinkStatus::PENDING !== $this->status) {
+            throw new ClientLinkNotPendingException($this->id->toString(), $this->status->value);
+        }
+
+        $this->status   = ClientLinkStatus::CONFIRMED;
+        $this->linkedAt = $now;
+
+        $this->recordConfirmed();
+    }
+
+    /**
+     * The clinic rejects a pending link (`link_rejected`): it is revoked and
+     * kept, so the suggestion never comes back. Consents are not touched
+     * (D5). A link already revoked is left as it is; a confirmed one is not
+     * rejected (its access is withdrawn by archiving the client).
+     */
+    public function reject(\DateTimeImmutable $now): void
+    {
+        if (ClientLinkStatus::REVOKED === $this->status) {
+            return;
+        }
+
+        if (ClientLinkStatus::PENDING !== $this->status) {
+            throw new ClientLinkNotPendingException($this->id->toString(), $this->status->value);
+        }
+
+        $this->status    = ClientLinkStatus::REVOKED;
+        $this->revokedAt = $now;
+
+        $this->recordDomainEvent(new ClientLinkRevoked(
+            linkId: $this->id->toString(),
+            userId: $this->userId,
+            clinicId: $this->clinicId,
+            clientId: $this->clientId,
+            reason: ClientLinkRevoked::REASON_REJECTED,
+        ));
     }
 
     /**
@@ -110,6 +189,11 @@ final class ClientLink extends AggregateRoot
         return ClientLinkStatus::CONFIRMED === $this->status;
     }
 
+    public function isPending(): bool
+    {
+        return ClientLinkStatus::PENDING === $this->status;
+    }
+
     public function id(): ClientLinkId
     {
         return $this->id;
@@ -143,6 +227,12 @@ final class ClientLink extends AggregateRoot
     public function revokedAt(): ?\DateTimeImmutable
     {
         return $this->revokedAt;
+    }
+
+    /** When the owner accepted the link suggestion; null for a link made otherwise. */
+    public function requestedAt(): ?\DateTimeImmutable
+    {
+        return $this->requestedAt;
     }
 
     private function recordConfirmed(): void

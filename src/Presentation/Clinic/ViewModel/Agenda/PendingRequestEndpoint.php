@@ -6,6 +6,7 @@ namespace App\Presentation\Clinic\ViewModel\Agenda;
 
 use App\Context\Scheduling\Application\Query\GetAppointmentClinicId\GetAppointmentClinicId;
 use App\Context\Scheduling\Domain\Exception\AppointmentAlreadyHandledException;
+use App\Context\Scheduling\Domain\Exception\NewClientRequestException;
 use App\Context\Scheduling\Domain\Exception\PendingAppointmentExpiredException;
 use App\Presentation\Clinic\Security\ClinicPermissionGuard;
 use App\Shared\Application\Bus\QueryBusInterface;
@@ -67,6 +68,9 @@ final readonly class PendingRequestEndpoint
             return $this->refuse($request, $e->getMessage(), 'PENDING_EXPIRED', Response::HTTP_CONFLICT);
         } catch (AppointmentAlreadyHandledException $e) {
             return $this->refuse($request, $e->getMessage(), 'APPOINTMENT_ALREADY_HANDLED', Response::HTTP_CONFLICT);
+        } catch (NewClientRequestException $e) {
+            // A new client's request: the file and the animal are chosen in « Demandes Portal » (S7d)
+            return $this->refuse($request, $e->getMessage(), 'NEW_CLIENT_REQUEST', Response::HTTP_CONFLICT, $this->urls->generate('clinic_portal_requests', ['type' => 'booking_request']));
         } catch (\InvalidArgumentException) {
             throw new NotFoundHttpException();
         }
@@ -80,15 +84,15 @@ final readonly class PendingRequestEndpoint
         return new RedirectResponse($this->urls->generate('clinic_dashboard'));
     }
 
-    private function refuse(Request $request, string $reason, string $code, int $status): Response
+    private function refuse(Request $request, string $reason, string $code, int $status, ?string $redirect = null): Response
     {
         if (self::wantsJson($request)) {
-            return new JsonResponse(['success' => false, 'errors' => ['global' => [$reason]], 'errorCode' => $code, 'message' => $reason], $status);
+            return new JsonResponse(array_filter(['success' => false, 'errors' => ['global' => [$reason]], 'errorCode' => $code, 'message' => $reason, 'redirect' => $redirect], static fn (mixed $value): bool => null !== $value), $status);
         }
 
         $this->flash($request, 'error', $reason);
 
-        return new RedirectResponse($this->urls->generate('clinic_dashboard'));
+        return new RedirectResponse($redirect ?? $this->urls->generate('clinic_dashboard'));
     }
 
     private function flash(Request $request, string $type, string $message): void

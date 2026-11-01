@@ -21,10 +21,12 @@ use App\System\IdentityAccess\Domain\Exception\OtpRateLimitedException;
  * code of user A never confirms an action of user B. An `email_verification`
  * challenge carries the address it proves.
  *
- * A login challenge verified for a phone that has pending invitations may
- * carry an onboarding grant: a 15-minute token that accepts those
- * invitations without a second code. It can only be minted in the very
- * verification that consumes the challenge, once.
+ * A verified login challenge may carry an onboarding grant: a 15-minute
+ * token minted in the very verification that consumes the challenge, once.
+ * Its purpose fixes what it opens: an `invitation` grant accepts the phone's
+ * pending invitations without a second code (reusable while it lives); a
+ * `registration` grant creates the phone's owner account once (consumed,
+ * then only honoured as a replay by the account it created).
  */
 final class OtpChallenge
 {
@@ -49,8 +51,10 @@ final class OtpChallenge
     private bool $smsSuppressed;
     private ?\DateTimeImmutable $consumedAt;
     private ?string $onboardingTokenHash;
+    private ?OnboardingPurpose $onboardingPurpose;
     private ?\DateTimeImmutable $onboardingExpiresAt;
     private ?\DateTimeImmutable $onboardingRevokedAt;
+    private ?\DateTimeImmutable $onboardingConsumedAt;
     private \DateTimeImmutable $createdAt;
 
     /** Set by the verification that consumed the challenge, never persisted. */
@@ -87,24 +91,26 @@ final class OtpChallenge
             throw new \InvalidArgumentException('An e-mail verification code, and only it, carries the address it proves.');
         }
 
-        $challenge                      = new self();
-        $challenge->id                  = $id;
-        $challenge->phone               = $phone;
-        $challenge->purpose             = $purpose;
-        $challenge->subjectRef          = $subjectRef;
-        $challenge->targetEmail         = $targetEmail;
-        $challenge->codeHash            = $codeHash;
-        $challenge->attempts            = 0;
-        $challenge->sendCount           = 1;
-        $challenge->expiresAt           = $now->add(new \DateInterval(self::LIFETIME));
-        $challenge->resendAvailableAt   = $now->add(new \DateInterval(self::RESEND_DELAY));
-        $challenge->lastChannel         = null === $targetEmail ? OtpChannel::SMS : OtpChannel::EMAIL;
-        $challenge->smsSuppressed       = $smsSuppressed;
-        $challenge->consumedAt          = null;
-        $challenge->onboardingTokenHash = null;
-        $challenge->onboardingExpiresAt = null;
-        $challenge->onboardingRevokedAt = null;
-        $challenge->createdAt           = $now;
+        $challenge                       = new self();
+        $challenge->id                   = $id;
+        $challenge->phone                = $phone;
+        $challenge->purpose              = $purpose;
+        $challenge->subjectRef           = $subjectRef;
+        $challenge->targetEmail          = $targetEmail;
+        $challenge->codeHash             = $codeHash;
+        $challenge->attempts             = 0;
+        $challenge->sendCount            = 1;
+        $challenge->expiresAt            = $now->add(new \DateInterval(self::LIFETIME));
+        $challenge->resendAvailableAt    = $now->add(new \DateInterval(self::RESEND_DELAY));
+        $challenge->lastChannel          = null === $targetEmail ? OtpChannel::SMS : OtpChannel::EMAIL;
+        $challenge->smsSuppressed        = $smsSuppressed;
+        $challenge->consumedAt           = null;
+        $challenge->onboardingTokenHash  = null;
+        $challenge->onboardingPurpose    = null;
+        $challenge->onboardingExpiresAt  = null;
+        $challenge->onboardingRevokedAt  = null;
+        $challenge->onboardingConsumedAt = null;
+        $challenge->createdAt            = $now;
 
         return $challenge;
     }
@@ -127,25 +133,29 @@ final class OtpChallenge
         ?\DateTimeImmutable $onboardingRevokedAt,
         \DateTimeImmutable $createdAt,
         ?string $targetEmail = null,
+        ?OnboardingPurpose $onboardingPurpose = null,
+        ?\DateTimeImmutable $onboardingConsumedAt = null,
     ): self {
-        $challenge                      = new self();
-        $challenge->id                  = $id;
-        $challenge->phone               = $phone;
-        $challenge->purpose             = $purpose;
-        $challenge->subjectRef          = $subjectRef;
-        $challenge->targetEmail         = $targetEmail;
-        $challenge->codeHash            = $codeHash;
-        $challenge->attempts            = $attempts;
-        $challenge->sendCount           = $sendCount;
-        $challenge->expiresAt           = $expiresAt;
-        $challenge->resendAvailableAt   = $resendAvailableAt;
-        $challenge->lastChannel         = $lastChannel;
-        $challenge->smsSuppressed       = $smsSuppressed;
-        $challenge->consumedAt          = $consumedAt;
-        $challenge->onboardingTokenHash = $onboardingTokenHash;
-        $challenge->onboardingExpiresAt = $onboardingExpiresAt;
-        $challenge->onboardingRevokedAt = $onboardingRevokedAt;
-        $challenge->createdAt           = $createdAt;
+        $challenge                       = new self();
+        $challenge->id                   = $id;
+        $challenge->phone                = $phone;
+        $challenge->purpose              = $purpose;
+        $challenge->subjectRef           = $subjectRef;
+        $challenge->targetEmail          = $targetEmail;
+        $challenge->codeHash             = $codeHash;
+        $challenge->attempts             = $attempts;
+        $challenge->sendCount            = $sendCount;
+        $challenge->expiresAt            = $expiresAt;
+        $challenge->resendAvailableAt    = $resendAvailableAt;
+        $challenge->lastChannel          = $lastChannel;
+        $challenge->smsSuppressed        = $smsSuppressed;
+        $challenge->consumedAt           = $consumedAt;
+        $challenge->onboardingTokenHash  = $onboardingTokenHash;
+        $challenge->onboardingPurpose    = $onboardingPurpose;
+        $challenge->onboardingExpiresAt  = $onboardingExpiresAt;
+        $challenge->onboardingRevokedAt  = $onboardingRevokedAt;
+        $challenge->onboardingConsumedAt = $onboardingConsumedAt;
+        $challenge->createdAt            = $createdAt;
 
         return $challenge;
     }
@@ -242,14 +252,29 @@ final class OtpChallenge
      * Attaches an onboarding grant to the login challenge this verification
      * just consumed. Any other challenge, or a second grant, is refused.
      */
-    public function grantOnboarding(string $tokenHash, \DateTimeImmutable $now): void
+    public function grantOnboarding(string $tokenHash, OnboardingPurpose $purpose, \DateTimeImmutable $now): void
     {
         if (OtpPurpose::LOGIN !== $this->purpose || !$this->consumedNow || null !== $this->onboardingTokenHash) {
             throw new \LogicException('An onboarding grant is minted once, by the verification of a login code.');
         }
 
         $this->onboardingTokenHash = $tokenHash;
+        $this->onboardingPurpose   = $purpose;
         $this->onboardingExpiresAt = $now->add(new \DateInterval(self::ONBOARDING_LIFETIME));
+    }
+
+    /**
+     * Spends the registration grant: it creates one owner account, once.
+     *
+     * @throws \LogicException for another grant, or one not usable any more
+     */
+    public function consumeRegistrationGrant(\DateTimeImmutable $now): void
+    {
+        if (OnboardingPurpose::REGISTRATION !== $this->onboardingPurpose || null !== $this->onboardingConsumedAt || !$this->isOnboardingUsable($now)) {
+            throw new \LogicException('Only a live, unused registration grant can be consumed.');
+        }
+
+        $this->onboardingConsumedAt = $now;
     }
 
     public function revokeOnboarding(\DateTimeImmutable $at): void
@@ -341,6 +366,17 @@ final class OtpChallenge
     public function onboardingTokenHash(): ?string
     {
         return $this->onboardingTokenHash;
+    }
+
+    public function onboardingPurpose(): ?OnboardingPurpose
+    {
+        return $this->onboardingPurpose;
+    }
+
+    /** When a registration grant created its account. */
+    public function onboardingConsumedAt(): ?\DateTimeImmutable
+    {
+        return $this->onboardingConsumedAt;
     }
 
     public function onboardingExpiresAt(): ?\DateTimeImmutable

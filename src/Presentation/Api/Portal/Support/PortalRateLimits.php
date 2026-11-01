@@ -13,7 +13,8 @@ use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 /**
  * The quotas of the code-sending routes, consumed before the command runs:
  * a request that fails afterwards (unsupported phone…) still counts. Any
- * quota exceeded answers `429 otp_rate_limited` with `Retry-After`.
+ * quota exceeded answers `429 otp_rate_limited` with `Retry-After` (the
+ * registration quota: `429 rate_limited`).
  */
 final readonly class PortalRateLimits
 {
@@ -29,13 +30,21 @@ final readonly class PortalRateLimits
         private RateLimiterFactoryInterface $perInvitation,
         #[Autowire(service: 'limiter.portal_otp_resend')]
         private RateLimiterFactoryInterface $perChallenge,
+        #[Autowire(service: 'limiter.portal_register')]
+        private RateLimiterFactoryInterface $registrations,
     ) {
     }
 
     /** 30 an hour per client IP (behind the trusted proxies). */
     public function consumeIp(): void
     {
-        self::consume($this->perIp, $this->requests->getMainRequest()?->getClientIp() ?? 'unknown');
+        self::consume($this->perIp, $this->clientIp());
+    }
+
+    /** 10 registrations an hour per client IP (replays included). */
+    public function consumeRegistration(): void
+    {
+        self::consume($this->registrations, $this->clientIp(), PortalProblemMap::RATE_LIMITED);
     }
 
     /** 3 an hour and 10 a day per phone, sign-in and invitation codes together. */
@@ -60,14 +69,19 @@ final readonly class PortalRateLimits
     /**
      * @throws ApiProblem 429
      */
-    private static function consume(RateLimiterFactoryInterface $factory, string $key): void
+    private static function consume(RateLimiterFactoryInterface $factory, string $key, string $problem = PortalProblemMap::OTP_RATE_LIMITED): void
     {
         $limit = $factory->create($key)->consume();
 
         if (!$limit->isAccepted()) {
             $wait = max(1, $limit->getRetryAfter()->getTimestamp() - time());
 
-            throw PortalProblemMap::problem(PortalProblemMap::OTP_RATE_LIMITED, ['Retry-After' => (string) $wait]);
+            throw PortalProblemMap::problem($problem, ['Retry-After' => (string) $wait]);
         }
+    }
+
+    private function clientIp(): string
+    {
+        return $this->requests->getMainRequest()?->getClientIp() ?? 'unknown';
     }
 }

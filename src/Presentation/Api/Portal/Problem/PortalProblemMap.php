@@ -50,6 +50,9 @@ final class PortalProblemMap implements ProblemFactoryInterface
     public const string PET_NOT_ELIGIBLE        = 'pet_not_eligible';
     public const string QUESTIONNAIRE_LOCKED    = 'questionnaire_locked';
     public const string NOT_RENEWABLE           = 'prescription_not_renewable';
+    public const string ACCOUNT_EXISTS          = 'account_exists';
+    public const string ALREADY_LINKED          = 'already_linked';
+    public const string BOOKING_REQUEST_LIMIT   = 'booking_request_limit';
 
     /** The code of every violation built by violation(). */
     private const string VIOLATION_CODE = 'portal_rule';
@@ -69,7 +72,7 @@ final class PortalProblemMap implements ProblemFactoryInterface
         self::INVITATION_INVALID      => [404, 'Invitation introuvable.'],
         self::INVITATION_EXPIRED      => [410, 'Invitation expirée : demandez à votre clinique de la renvoyer.'],
         self::INVITATION_ALREADY_USED => [410, 'Invitation déjà utilisée.'],
-        self::ONBOARDING_INVALID      => [401, 'Jeton d\'invitation expiré : reconnectez-vous avec votre numéro.'],
+        self::ONBOARDING_INVALID      => [401, 'Jeton expiré ou invalide.'],
         self::TERMS_OUTDATED          => [422, 'Les conditions d\'utilisation ont changé : acceptez la nouvelle version.'],
         self::VALIDATION_FAILED       => [422, 'Données invalides.'],
         self::NOT_FOUND               => [404, 'Ressource introuvable.'],
@@ -86,6 +89,9 @@ final class PortalProblemMap implements ProblemFactoryInterface
         self::PET_NOT_ELIGIBLE        => [422, 'Cet animal ne peut pas faire l\'objet d\'une demande de modification.'],
         self::QUESTIONNAIRE_LOCKED    => [422, 'Ce questionnaire ne peut plus être modifié : le rendez-vous a commencé.'],
         self::NOT_RENEWABLE           => [422, 'Cette ordonnance ne peut pas être renouvelée en ligne : contactez la clinique.'],
+        self::ACCOUNT_EXISTS          => [409, 'Un compte Portal existe déjà pour ce numéro : connectez-vous.'],
+        self::ALREADY_LINKED          => [422, 'Vous êtes déjà client de cette clinique : prenez rendez-vous depuis son espace.'],
+        self::BOOKING_REQUEST_LIMIT   => [422, 'Vous avez déjà des demandes de rendez-vous en attente : attendez la réponse des cliniques.'],
         self::IDEMPOTENCY_KEY_MISSING => [400, 'En-tête Idempotency-Key manquant ou invalide.'],
         self::IDEMPOTENCY_KEY_REUSED  => [422, 'Cette clé Idempotency-Key a déjà servi pour une autre requête.'],
     ];

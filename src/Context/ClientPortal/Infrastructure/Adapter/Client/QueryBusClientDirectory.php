@@ -8,7 +8,10 @@ use App\Context\Client\Application\Query\GetClientById\ClientView;
 use App\Context\Client\Application\Query\GetClientById\GetClientById;
 use App\Context\Client\Application\Query\GetClientNotificationContact\ClientNotificationContact;
 use App\Context\Client\Application\Query\GetClientNotificationContact\GetClientNotificationContact;
+use App\Context\Client\Application\Query\ListClientsByMobilePhone\ListClientsByMobilePhone;
+use App\Context\Client\Application\Query\ListClientsByMobilePhone\MobileClientMatch;
 use App\Context\ClientPortal\Application\Port\ClientDirectoryInterface;
+use App\Context\ClientPortal\Application\Port\MobileFileMatch;
 use App\Context\ClientPortal\Application\Port\PortalClientContact;
 use App\Context\ClientPortal\Application\Port\PortalClientSnapshot;
 use App\Shared\Application\Bus\QueryBusInterface;
@@ -19,7 +22,8 @@ use App\Shared\Domain\ValueObject\PostalAddress;
  * first, and the e-mail) and GetClientById (identity and postal address).
  * Consents are not applied: an invitation is an explicit staff action; the
  * transactional channel (preferred, else e-mail, else SMS) carries the
- * answer to a Portal request.
+ * answer to a Portal request. ListClientsByMobilePhone (cross-clinic) feeds
+ * the link suggestions.
  */
 final readonly class QueryBusClientDirectory implements ClientDirectoryInterface
 {
@@ -67,5 +71,17 @@ final readonly class QueryBusClientDirectory implements ClientDirectoryInterface
                 postalCode: $address->postalCode,
             ),
         );
+    }
+
+    public function mobileMatches(string $phone): array
+    {
+        $matches = $this->queryBus->ask(new ListClientsByMobilePhone($phone));
+        \assert(\is_array($matches));
+
+        return array_values(array_map(static function (mixed $match): MobileFileMatch {
+            \assert($match instanceof MobileClientMatch);
+
+            return new MobileFileMatch($match->clinicId, $match->clientId, $match->firstName, $match->lastName, $match->animalNames);
+        }, $matches));
     }
 }

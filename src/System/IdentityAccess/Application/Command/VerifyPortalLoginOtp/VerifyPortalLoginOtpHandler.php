@@ -8,6 +8,7 @@ use App\Shared\Domain\Security\OpaqueTokenHasherInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\System\IdentityAccess\Application\Port\OtpCodeHasherInterface;
 use App\System\IdentityAccess\Application\Port\PendingPortalInvitationsInterface;
+use App\System\IdentityAccess\Domain\Otp\OnboardingPurpose;
 use App\System\IdentityAccess\Domain\Otp\OtpChallenge;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeId;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeRepositoryInterface;
@@ -25,7 +26,9 @@ use Symfony\Component\Uid\Uuid;
  * after a right code. A login code re-presented after its use is invalid
  * here: replays are only honoured by invitation acceptances. When the phone
  * has pending invitations (and its account is not disabled), the challenge
- * is given its one onboarding grant, in this same transaction.
+ * is given its one onboarding grant (`invitation`), in this same
+ * transaction; a phone with neither account nor invitation gets a
+ * `registration` grant instead, which creates its account once.
  */
 #[AsMessageHandler]
 final readonly class VerifyPortalLoginOtpHandler
@@ -72,20 +75,23 @@ final readonly class VerifyPortalLoginOtpHandler
         }
 
         $pending = $this->pendingInvitations->listForPhone($challenge->phone());
-        $grant   = [] === $pending ? null : $this->grant($challenge, $now);
 
-        return match (true) {
-            null !== $user  => new LoginOtpOutcome(LoginOtpResult::AUTHENTICATED, $user->id()->toString(), $grant, $challenge->onboardingExpiresAt(), $pending),
-            null !== $grant => new LoginOtpOutcome(LoginOtpResult::INVITATION_PENDING, null, $grant, $challenge->onboardingExpiresAt(), $pending),
-            default         => new LoginOtpOutcome(LoginOtpResult::REGISTRATION_REQUIRED),
-        };
+        if (null !== $user) {
+            $grant = [] === $pending ? null : $this->grant($challenge, OnboardingPurpose::INVITATION, $now);
+
+            return new LoginOtpOutcome(LoginOtpResult::AUTHENTICATED, $user->id()->toString(), $grant, $challenge->onboardingExpiresAt(), $pending);
+        }
+
+        return [] === $pending
+            ? new LoginOtpOutcome(LoginOtpResult::REGISTRATION_REQUIRED, null, $this->grant($challenge, OnboardingPurpose::REGISTRATION, $now), $challenge->onboardingExpiresAt())
+            : new LoginOtpOutcome(LoginOtpResult::INVITATION_PENDING, null, $this->grant($challenge, OnboardingPurpose::INVITATION, $now), $challenge->onboardingExpiresAt(), $pending);
     }
 
     /** The clear onboarding token; only its digest is kept on the challenge. */
-    private function grant(OtpChallenge $challenge, \DateTimeImmutable $now): string
+    private function grant(OtpChallenge $challenge, OnboardingPurpose $purpose, \DateTimeImmutable $now): string
     {
         $token = $this->tokenHasher->newSecret();
-        $challenge->grantOnboarding($this->tokenHasher->hash($token), $now);
+        $challenge->grantOnboarding($this->tokenHasher->hash($token), $purpose, $now);
         $this->challenges->save($challenge);
 
         return $token;

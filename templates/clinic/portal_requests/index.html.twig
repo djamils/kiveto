@@ -1,9 +1,10 @@
 {#
  # Kiveto — templates/clinic/portal_requests/index.html.twig
  # ────────────────────────────────────────────────────────
- # « Demandes Portal »: the owners' change and renewal requests, the ones
- # waiting for an answer first. A row opens the request
- # (clinic_portal_requests_show). Owner free text is autoescaped, never |raw.
+ # « Demandes Portal »: the owners' change, renewal and « Rattachement »
+ # requests, the ones waiting for an answer first. A row opens the request
+ # (clinic_portal_requests_show, clinic_portal_link_requests_show). Owner free
+ # text is autoescaped, never |raw.
  #
  # Variables:
  #   queue  PortalRequestPageBuilder::list() — rows, status, kind, next
@@ -25,6 +26,8 @@
   { v: '', l: 'Tous types' },
   { v: 'pet_change', l: 'Modifications de fiche' },
   { v: 'prescription_renewal', l: 'Renouvellements' },
+  { v: 'client_link', l: 'Rattachements' },
+  { v: 'booking_request', l: 'Nouveaux clients' },
 ] %}
 
 {% block main %}
@@ -62,7 +65,7 @@
         {% for r in queue.rows %}
           <tr data-href="{{ r.url }}" class="{{ r.urgent ? 'urgent' }}">
             <td class="prq-when">{{ r.submittedAt }}</td>
-            <td><a href="{{ r.url }}"><b>{{ r.kindLabel }}</b></a><small>{{ r.subject }}</small></td>
+            <td><a href="{{ r.url }}"><b>{{ r.kindLabel }}</b></a><small>{{ r.subject }}</small>{% for b in r.badges %}<span class="prq-chip warn">{{ b }}</span>{% endfor %}</td>
             <td>{{ r.petName }}</td>
             <td>{{ r.clientName }}{% if r.unreachable %}<span class="prq-chip warn">client injoignable</span>{% endif %}</td>
             <td class="prq-note" title="{{ r.note }}">{{ r.note ?? '—' }}</td>

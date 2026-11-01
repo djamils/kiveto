@@ -61,7 +61,7 @@ final class MaskPortalRecipientHandlerTest extends TestCase
     {
         $portal = array_values(array_filter(MessagePurpose::cases(), static fn (MessagePurpose $p): bool => $p->isPortalAccountMessage()));
 
-        self::assertSame([MessagePurpose::PORTAL_OTP, MessagePurpose::PORTAL_EMAIL_VERIFICATION, MessagePurpose::PORTAL_EMAIL_CHANGED_NOTICE, MessagePurpose::PORTAL_DATA_EXPORT_READY], $portal);
+        self::assertSame([MessagePurpose::PORTAL_OTP, MessagePurpose::PORTAL_EMAIL_VERIFICATION, MessagePurpose::PORTAL_EMAIL_CHANGED_NOTICE, MessagePurpose::PORTAL_DATA_EXPORT_READY, MessagePurpose::PORTAL_BOOKING_DECLINED], $portal);
     }
 
     private function message(string $id, MessagePurpose $purpose, Channel $channel, string $address, bool $sent, bool $file = false): OutboundMessage

@@ -49,7 +49,8 @@ use Zenstruck\Foundry\Story;
  * The Portal requests (slice 6), all in Paris, on the accounts of slices
  * 2–5: what the owners asked through the ClientPortal commands (bells
  * rung), what the team answered (`ResolvePortalRequest`, owner notified).
- * Lyon, the Calanques (Cassis) and the Vercors have none: an empty queue.
+ * The Calanques (Cassis) and the Vercors have none: an empty queue (Lyon
+ * gets the « Nouveau client » requests of PortalOrganicArrivalStory).
  *
  * | Account (phone)                 | Request                                                                     | State                                                    |
  * |---------------------------------|-----------------------------------------------------------------------------|----------------------------------------------------------|

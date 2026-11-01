@@ -56,6 +56,12 @@ class OtpChallengeEntity
         public ?\DateTimeImmutable $onboardingRevokedAt,
         #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
         public \DateTimeImmutable $createdAt,
+        /** `invitation` or `registration`; NULL when the challenge carries no grant. */
+        #[ORM\Column(name: 'onboarding_purpose', type: 'string', length: 16, nullable: true)]
+        public ?string $onboardingPurpose = null,
+        /** When a registration grant created its account (single use). */
+        #[ORM\Column(name: 'onboarding_consumed_at', type: 'datetime_immutable', nullable: true)]
+        public ?\DateTimeImmutable $onboardingConsumedAt = null,
     ) {
     }
 }

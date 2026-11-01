@@ -117,6 +117,10 @@ final class TemplateCatalog
             'EMAIL' => ['addressee' => self::SCALAR, 'petName' => self::SCALAR, 'sentence' => self::SCALAR, 'staffMessage' => self::SCALAR],
             'SMS'   => ['sentence' => self::SCALAR, 'staffMessage' => self::SCALAR],
         ],
+        'PORTAL_BOOKING_DECLINED' => [
+            // Sent by Kiveto to a new client's account phone (slice 7); slotLabel « jeudi 22/10 à 9h30 » in the clinic's time zone
+            'SMS' => ['clinicName' => self::SCALAR, 'slotLabel' => self::SCALAR],
+        ],
     ];
 
     public static function supports(MessagePurpose $purpose, Channel $channel): bool

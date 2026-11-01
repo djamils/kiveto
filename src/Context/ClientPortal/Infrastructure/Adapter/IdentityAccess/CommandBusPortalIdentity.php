@@ -8,14 +8,20 @@ use App\Context\ClientPortal\Application\Port\IdentityClaim;
 use App\Context\ClientPortal\Application\Port\IdentityClaimRequest;
 use App\Context\ClientPortal\Application\Port\IdentityClaimResult;
 use App\Context\ClientPortal\Application\Port\PortalIdentityInterface;
+use App\Context\ClientPortal\Application\Port\PortalRegistration;
+use App\Context\ClientPortal\Application\Port\PortalRegistrationResult;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\System\IdentityAccess\Application\Command\ClaimPortalIdentity\ClaimOutcome;
 use App\System\IdentityAccess\Application\Command\ClaimPortalIdentity\ClaimPortalIdentity;
+use App\System\IdentityAccess\Application\Command\RegisterPortalUser\PortalUserRegistration;
+use App\System\IdentityAccess\Application\Command\RegisterPortalUser\RegisterPortalUser;
 use App\System\IdentityAccess\Application\Command\RevokeOnboardingGrantsForPhone\RevokeOnboardingGrantsForPhone;
 
 /**
  * IdentityAccess commands, dispatched inside the caller's transaction (the
- * command bus nests): a later failure of the acceptance rolls the claim back.
+ * command bus nests): a later failure of the acceptance or the registration
+ * rolls the claim or the new account back. IdentityAccess's
+ * PortalAccountExistsException goes through untouched.
  */
 final readonly class CommandBusPortalIdentity implements PortalIdentityInterface
 {
@@ -42,5 +48,13 @@ final readonly class CommandBusPortalIdentity implements PortalIdentityInterface
     public function revokeOnboardingGrants(string $phone): void
     {
         $this->commandBus->dispatch(new RevokeOnboardingGrantsForPhone($phone));
+    }
+
+    public function registerPortalUser(#[\SensitiveParameter] string $registrationToken, ?string $email): PortalRegistration
+    {
+        $registration = $this->commandBus->dispatch(new RegisterPortalUser($registrationToken, $email));
+        \assert($registration instanceof PortalUserRegistration);
+
+        return new PortalRegistration(PortalRegistrationResult::from($registration->result->value), $registration->userId);
     }
 }

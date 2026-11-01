@@ -22,6 +22,7 @@ use App\System\IdentityAccess\Application\Query\GetOtpChallengePhone\GetOtpChall
 use App\System\IdentityAccess\Application\Query\GetOtpChallengePhone\GetOtpChallengePhoneHandler;
 use App\System\IdentityAccess\Domain\Exception\OtpChallengeNotFoundException;
 use App\System\IdentityAccess\Domain\Exception\OtpRateLimitedException;
+use App\System\IdentityAccess\Domain\Otp\OnboardingPurpose;
 use App\System\IdentityAccess\Domain\Otp\OtpPurpose;
 use App\System\IdentityAccess\Domain\User;
 use App\System\IdentityAccess\Domain\ValueObject\UserId;
@@ -204,7 +205,13 @@ final class PortalOtpUseCasesTest extends TestCase
         $this->users->save(User::register(UserId::fromString(self::OWNER), 'vet@example.com', 'hash', $this->now, UserType::CLINIC));
         $issued = $this->request(self::PHONE);
 
-        self::assertSame([LoginOtpResult::REGISTRATION_REQUIRED, null], $this->pair($this->verify($issued->challengeId, '123456')));
+        $outcome = $this->verify($issued->challengeId, '123456');
+
+        self::assertSame([LoginOtpResult::REGISTRATION_REQUIRED, null, []], [$outcome->result, $outcome->userId, $outcome->pendingInvitations]);
+        self::assertNotNull($outcome->onboardingToken, 'AC 72: a registration token');
+        self::assertSame('07:30:00', $outcome->onboardingExpiresAt?->format('H:i:s'), '15 minutes after the verification');
+        $challenge = $this->challenges->single();
+        self::assertSame([hash('sha256', $outcome->onboardingToken), OnboardingPurpose::REGISTRATION, null], [$challenge->onboardingTokenHash(), $challenge->onboardingPurpose(), $challenge->onboardingConsumedAt()]);
     }
 
     public function testTheRightCodeOfADisabledOwnerOpensNothing(): void
@@ -282,6 +289,7 @@ final class PortalOtpUseCasesTest extends TestCase
         self::assertSame(self::INVITATION, $outcome->pendingInvitations[0]->invitationId ?? null);
         $challenge = $this->challenges->single();
         self::assertSame(hash('sha256', $outcome->onboardingToken), $challenge->onboardingTokenHash(), 'only the digest is kept');
+        self::assertSame(OnboardingPurpose::INVITATION, $challenge->onboardingPurpose());
         self::assertSame(LoginOtpResult::OTP_INVALID, $this->verify($issued->challengeId, '123456', '+2 minutes')->result, 'no second grant');
     }
 

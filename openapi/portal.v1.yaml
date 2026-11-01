@@ -244,6 +244,345 @@ paths:
             type: string
           style: simple
           explode: false
+  /api/portal/v1/clinic-listings:
+    get:
+      operationId: api_clinic-listings_get
+      tags:
+        - Annuaire
+      responses:
+        '200':
+          description: 'Une page de cliniques.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicListings'
+        '400':
+          description: "`cursor_invalid` (illisible, ou émis pour d'autres coordonnées)."
+        '422':
+          description: '`validation_failed` (`q`, `lat`, `lng`).'
+        '429':
+          description: '`rate_limited` (120 requêtes par minute et par adresse IP), avec `Retry-After`.'
+        '404':
+          description: 'Not found'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+      summary: "Rechercher une clinique de l'annuaire."
+      description: "Publique. Seules les cliniques Kiveto actives qui ont choisi de figurer dans l'annuaire. `q` (2 caractères au moins) cherche dans le nom et la ville. Avec `lat` et `lng` (ensemble) : tri par distance (150 km au plus), les cliniques sans coordonnées sont absentes de ce résultat seulement ; sinon tri par nom. Le curseur est lié à l'ordre et aux coordonnées de la recherche. `onlineBooking` est calculé en direct. `nextAvailableAt` est toujours `null` en v1."
+      parameters:
+        -
+          name: q
+          in: query
+          description: 'Nom ou ville, 2 caractères au moins.'
+          required: false
+          deprecated: false
+          schema:
+            type: string
+          style: form
+          explode: true
+        -
+          name: lat
+          in: query
+          description: 'Latitude, de -90 à 90, avec `lng`.'
+          required: false
+          deprecated: false
+          schema:
+            type: number
+          style: form
+          explode: true
+        -
+          name: lng
+          in: query
+          description: 'Longitude, de -180 à 180, avec `lat`.'
+          required: false
+          deprecated: false
+          schema:
+            type: number
+          style: form
+          explode: true
+        -
+          name: cursor
+          in: query
+          description: 'ClinicListings cursor'
+          required: false
+          deprecated: false
+          schema:
+            type: string
+          style: form
+          explode: true
+        -
+          name: limit
+          in: query
+          description: 'Taille de page : 20 par défaut, ramenée à 50 au plus.'
+          required: false
+          deprecated: false
+          schema:
+            type: integer
+          style: form
+          explode: true
+      security: []
+  '/api/portal/v1/clinic-listings/{listingId}':
+    get:
+      operationId: api_clinic-listings_listingId_get
+      tags:
+        - Annuaire
+      responses:
+        '200':
+          description: 'La clinique.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicListingDetail'
+        '404':
+          description: '`not_found` (inconnue, non listée ou inactive).'
+        '429':
+          description: '`rate_limited`, avec `Retry-After`.'
+      summary: "La fiche d'une clinique de l'annuaire."
+      description: "Publique (servira les pages web indexables). `openingHours` : les plages de la semaine type, par jour ISO (1 = lundi) puis heure d'ouverture, en heure locale de la clinique (`timezone`) ; les fermetures exceptionnelles n'y figurent pas."
+      parameters:
+        -
+          name: listingId
+          in: path
+          description: 'ClinicListingDetail identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+      security: []
+  '/api/portal/v1/clinic-listings/{listingId}/booking/appointments':
+    post:
+      operationId: api_clinic-listings_listingIdbookingappointments_post
+      tags:
+        - Annuaire
+      responses:
+        '201':
+          description: 'La demande, `status: pending`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingBooking.BookingRequestView'
+          links: {  }
+        '400':
+          description: '`idempotency_key_missing`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: '`not_found` (fiche inconnue, non publiée ou inactive ; motif ou praticien inconnu).'
+        '409':
+          description: '`slot_taken` : recharger les créneaux.'
+        '422':
+          description: '`already_linked`, `booking_request_limit`, `booking_not_open`, `idempotency_key_reused` ou `validation_failed`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+        '429':
+          description: '`rate_limited` (en-tête `Retry-After`).'
+      summary: "Demande un premier rendez-vous à une clinique de l'annuaire, en nouveau client."
+      description: "Authentifié (seule route non-GET sous `/clinic-listings`). Le créneau est réservé en attente de confirmation par la clinique (toujours manuelle pour un nouveau client) ; aucun lien avec la clinique n'est créé avant qu'elle confirme. Au plus 1 demande en attente par clinique et 3 en tout ; 10 demandes par 24 h. La demande se suit avec `GET /me/booking-requests`."
+      parameters:
+        -
+          name: Idempotency-Key
+          in: header
+          description: 'Clé aléatoire (UUID) propre à cette demande, réutilisée pour ses nouvelles tentatives.'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+            maxLength: 128
+          style: simple
+          explode: false
+        -
+          name: listingId
+          in: path
+          description: 'ListingBooking identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+      requestBody:
+        description: 'The new ListingBooking resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListingBooking'
+        required: true
+  '/api/portal/v1/clinic-listings/{listingId}/booking/availability':
+    get:
+      operationId: api_clinic-listings_listingIdbookingavailability_get
+      tags:
+        - Annuaire
+      responses:
+        '200':
+          description: 'Les jours et leurs créneaux.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingAvailability'
+        '404':
+          description: '`not_found` (clinique inconnue, non listée ou inactive ; motif inconnu ou non ouvert aux nouveaux clients ; praticien non réservable pour ce motif).'
+        '422':
+          description: '`booking_not_open` ou `validation_failed` (intervalle).'
+        '429':
+          description: '`rate_limited`, avec `Retry-After`.'
+      summary: 'Les créneaux réservables en ligne par un nouveau client.'
+      description: 'Publique. Même forme et mêmes règles que `/clinics/{clinicId}/booking/availability`, mais un nouveau client est toujours validé par la clinique : seuls les créneaux au-delà du délai de confirmation sont proposés.'
+      parameters:
+        -
+          name: listingId
+          in: path
+          description: 'ListingAvailability identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: motifId
+          in: query
+          description: 'ListingAvailability motifId'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+            format: uuid
+          style: form
+          explode: true
+        -
+          name: practitionerId
+          in: query
+          description: 'ListingAvailability practitionerId'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+            format: uuid
+          style: form
+          explode: true
+        -
+          name: from
+          in: query
+          description: 'ListingAvailability from'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+            format: date
+          style: form
+          explode: true
+        -
+          name: to
+          in: query
+          description: 'ListingAvailability to'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+            format: date
+          style: form
+          explode: true
+      security: []
+  '/api/portal/v1/clinic-listings/{listingId}/booking/motifs':
+    get:
+      operationId: api_clinic-listings_listingIdbookingmotifs_get_collection
+      tags:
+        - Annuaire
+      responses:
+        '200':
+          description: 'Les motifs.'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ListingMotifs.BookingMotifView'
+        '404':
+          description: '`not_found` (clinique inconnue, non listée ou inactive).'
+        '422':
+          description: '`booking_not_open` (la clinique ne prend pas de nouveaux clients en ligne).'
+        '429':
+          description: '`rate_limited`, avec `Retry-After`.'
+      summary: 'Les motifs réservables en ligne par un nouveau client.'
+      description: "Publique. Même forme que `/clinics/{clinicId}/booking/motifs`, dans l'ordre de la clinique : seuls les motifs ouverts en ligne aux nouveaux clients. Sans animal, `suggested` est toujours `false`."
+      parameters:
+        -
+          name: listingId
+          in: path
+          description: 'ListingMotifs identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+      security: []
+  '/api/portal/v1/clinic-listings/{listingId}/booking/practitioners':
+    get:
+      operationId: api_clinic-listings_listingIdbookingpractitioners_get_collection
+      tags:
+        - Annuaire
+      responses:
+        '200':
+          description: 'Les praticiens.'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ListingPractitioners.PractitionerView'
+        '404':
+          description: '`not_found` (clinique inconnue, non listée ou inactive ; motif inconnu, archivé, non ouvert en ligne ou aux nouveaux clients).'
+        '422':
+          description: '`booking_not_open` ou `validation_failed`.'
+        '429':
+          description: '`rate_limited`, avec `Retry-After`.'
+      summary: 'Les praticiens réservables en ligne par un nouveau client pour un motif.'
+      description: 'Publique. Même forme que `/clinics/{clinicId}/booking/practitioners`.'
+      parameters:
+        -
+          name: listingId
+          in: path
+          description: 'ListingPractitioners identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: motifId
+          in: query
+          description: 'ListingPractitioners motifId'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+            format: uuid
+          style: form
+          explode: true
+      security: []
   /api/portal/v1/auth/logout:
     post:
       operationId: api_authlogout_post
@@ -321,8 +660,19 @@ paths:
                 $ref: '#/components/schemas/Error'
           links: {  }
       summary: 'Envoie un code de connexion par SMS.'
-      description: 'Même réponse que le numéro ait un compte ou non. Quotas : 3/h et 10/24 h par numéro, 30/h par IP.'
-      parameters: []
+      description: "Même réponse que le numéro ait un compte ou non. Quotas : 3/h et 10/24 h par numéro, 30/h par IP. Pour un numéro inconnu, le SMS part dans la limite d'un budget par réseau (/24 en IPv4, /64 en IPv6), par appareil (`X-Device-Id`, simple indice) et global (500/h) ; au-delà, même réponse 202 sans SMS."
+      parameters:
+        -
+          name: X-Device-Id
+          in: header
+          description: "Identifiant stable de l'installation de l'app (facultatif) : un indice de plus contre l'envoi massif de SMS, jamais la seule limite."
+          required: false
+          deprecated: false
+          schema:
+            type: string
+            maxLength: 128
+          style: simple
+          explode: false
       requestBody:
         description: 'The new OtpRequest resource'
         content:
@@ -337,7 +687,7 @@ paths:
         - Authentification
       responses:
         '200':
-          description: "`status` = `authenticated` (paire de jetons, invitations en attente), `invitation_pending` (jeton d'onboarding, invitations) ou `registration_required`."
+          description: "`status` = `authenticated` (paire de jetons, invitations en attente), `invitation_pending` (jeton d'onboarding, invitations) ou `registration_required` (`registrationToken`, 15 min, usage unique, à présenter à `POST /auth/register`)."
           content:
             application/json:
               schema:
@@ -477,6 +827,57 @@ paths:
             schema:
               $ref: '#/components/schemas/SessionRefresh'
         required: true
+  /api/portal/v1/auth/register:
+    post:
+      operationId: api_authregister_post
+      tags:
+        - Authentification
+      responses:
+        '201':
+          description: 'Paire de jetons et compte.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registration.AcceptedInvitationView'
+          links: {  }
+        '401':
+          description: '`onboarding_invalid`.'
+        '403':
+          description: '`account_disabled`.'
+        '409':
+          description: '`account_exists` : un compte existe déjà pour ce numéro, se connecter (le jeton reste utilisable).'
+        '422':
+          description: '`terms_outdated` ou `validation_failed`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+        '429':
+          description: '`rate_limited`, avec `Retry-After`.'
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+      summary: "Crée le compte d'un numéro sans invitation, avec le jeton d'inscription."
+      description: "Le `registrationToken` vient de la réponse `registration_required` de `/auth/otp/verify` (15 min, usage unique) et n'est accepté que par cette route. Rejouer la requête avec le même jeton pendant ses 15 minutes rend le même compte avec une nouvelle paire de jetons (réponse perdue). `email` est ignoré sans erreur quand un autre compte l'utilise déjà ; il n'est pas vérifié. 10 inscriptions par heure et par IP."
+      parameters: []
+      requestBody:
+        description: 'The new Registration resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Registration'
+        required: true
   /api/portal/v1/legal/terms/current:
     get:
       operationId: api_legaltermscurrent_get
@@ -578,6 +979,55 @@ paths:
             schema:
               $ref: '#/components/schemas/MeUpdate.jsonMergePatch'
         required: true
+  /api/portal/v1/me/booking-requests:
+    get:
+      operationId: api_mebooking-requests_get
+      tags:
+        - Compte
+      responses:
+        '200':
+          description: 'Une page de demandes.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingRequests'
+        '400':
+          description: '`cursor_invalid`.'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: 'Not found'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+      summary: "Les demandes de rendez-vous du compte auprès de cliniques de l'annuaire."
+      description: 'Toutes cliniques, de la plus récente à la plus ancienne. Une demande confirmée donne `appointmentId` : le rendez-vous se lit alors sous `/clinics/{c}/appointments`. Une demande refusée donne `declineReason`.'
+      parameters:
+        -
+          name: cursor
+          in: query
+          description: 'BookingRequests cursor'
+          required: false
+          deprecated: false
+          schema:
+            type: string
+          style: form
+          explode: true
+        -
+          name: limit
+          in: query
+          description: 'Taille de page : 20 par défaut, ramenée à 50 au plus.'
+          required: false
+          deprecated: false
+          schema:
+            type: integer
+          style: form
+          explode: true
   /api/portal/v1/me/data-export:
     post:
       operationId: api_medata-export_post
@@ -873,6 +1323,75 @@ paths:
             schema:
               $ref: '#/components/schemas/EmailChangeVerification'
         required: true
+  /api/portal/v1/me/link-suggestions:
+    get:
+      operationId: api_melink-suggestions_get_collection
+      tags:
+        - Compte
+      responses:
+        '200':
+          description: "Les suggestions (liste vide s'il n'y en a pas)."
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LinkSuggestions.LinkSuggestionView'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+      summary: 'Les cliniques qui ont un dossier client avec le numéro du compte.'
+      description: "Une suggestion par clinique (les dossiers d'une même famille sont regroupés), par nom de clinique. Seuls le nom et la ville de la clinique sont exposés, jamais un dossier client ; `id` est opaque. Le numéro doit être le mobile (`mobile`) d'un dossier non archivé d'une clinique active. Une clinique disparaît dès que le compte a un lien (quel que soit son statut) avec chacun de ses dossiers correspondants : une suggestion refusée par la clinique ne revient pas."
+      parameters: []
+  '/api/portal/v1/me/link-suggestions/{suggestionId}/accept':
+    post:
+      operationId: api_melink-suggestions_suggestionIdaccept_post
+      tags:
+        - Compte
+      responses:
+        '202':
+          description: 'Demande transmise à la clinique (`linkStatus: pending`).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkSuggestionAcceptance.LinkSuggestionAcceptedView'
+          links: {  }
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: '`not_found` (suggestion inconnue ou plus proposée).'
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+        '422':
+          description: 'An error occurred'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+      summary: 'Demande le rattachement à la clinique suggérée.'
+      description: "Ouvre un lien `pending` vers chaque dossier correspondant de la clinique ; la clinique le confirme ou le refuse dans VetApp. En attendant, `GET /me` liste la clinique avec `linkStatus: pending` et `linkedAt: null`, et les routes `/clinics/{clinicId}/…` répondent 404. Rejouer l'acceptation d'une demande en attente rend la même réponse."
+      parameters:
+        -
+          name: suggestionId
+          in: path
+          description: 'LinkSuggestionAcceptance identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
   '/api/portal/v1/clinics/{clinicId}/consents':
     get:
       operationId: api_clinics_clinicIdconsents_get
@@ -2882,6 +3401,70 @@ components:
           type:
             - string
             - 'null'
+    BookingRequestPetView:
+      type: object
+      properties:
+        name:
+          type:
+            - string
+            - 'null'
+        species:
+          type:
+            - string
+            - 'null'
+          enum:
+            - dog
+            - cat
+            - nac
+            - other
+            - null
+    BookingRequestView:
+      type: object
+      properties:
+        id:
+          type: string
+        clinic:
+          $ref: '#/components/schemas/ClinicSummaryView'
+        pet:
+          $ref: '#/components/schemas/BookingRequestPetView'
+        motif:
+          description: "The motif's label."
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+            - pending
+            - confirmed
+            - declined
+        declineReason:
+          type:
+            - string
+            - 'null'
+          enum:
+            - declined
+            - expired
+            - cancelled
+            - account_deleted
+            - null
+        appointmentId:
+          type:
+            - string
+            - 'null'
+          format: uuid
+    BookingRequests:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookingRequestView'
+        nextCursor:
+          type:
+            - string
+            - 'null'
     CareItem:
       type: object
       description: |-
@@ -2920,9 +3503,12 @@ components:
         linkStatus:
           type: string
           enum:
+            - pending
             - confirmed
         linkedAt:
-          type: string
+          type:
+            - string
+            - 'null'
           format: date-time
         petNames:
           type: array
@@ -2934,6 +3520,92 @@ components:
             type: string
         unreadDocuments:
           type: integer
+    ClinicListingDetail:
+      type: object
+      description: "A clinic of the directory, in full; `id` is the listing id, never the clinic's."
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        address:
+          anyOf:
+            -
+              $ref: '#/components/schemas/ListingAddressView'
+            -
+              type: 'null'
+        phone:
+          type:
+            - string
+            - 'null'
+        timezone:
+          type: string
+        openingHours:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpeningHoursView'
+        acceptsNewClients:
+          type: boolean
+        onlineBooking:
+          type: boolean
+        tags:
+          type: array
+          items:
+            type: string
+    ClinicListingSummaryView:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        address:
+          anyOf:
+            -
+              $ref: '#/components/schemas/ListingAddressView'
+            -
+              type: 'null'
+        phone:
+          type:
+            - string
+            - 'null'
+        distanceM:
+          type:
+            - integer
+            - 'null'
+        onKiveto:
+          type: boolean
+        onlineBooking:
+          type: boolean
+        tags:
+          type: array
+          items:
+            type: string
+        nextAvailableAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+    ClinicListings:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClinicListingSummaryView'
+        nextCursor:
+          type:
+            - string
+            - 'null'
+    ClinicSummaryView:
+      type: object
+      properties:
+        name:
+          type: string
+        city:
+          type:
+            - string
+            - 'null'
     ConsentHistory:
       type: object
       properties:
@@ -3486,6 +4158,127 @@ components:
             - partially_paid
             - paid
             - credited
+    LinkSuggestionAcceptance.LinkSuggestionAcceptedView:
+      type: object
+      properties:
+        linkStatus:
+          type: string
+          enum:
+            - pending
+    LinkSuggestions.LinkSuggestionView:
+      type: object
+      description: 'The clinics the account may ask to be linked to; the route answers a plain JSON array of them.'
+      properties:
+        id:
+          description: 'Opaque: names neither the clinic nor a client file.'
+          type: string
+        clinic:
+          $ref: '#/components/schemas/ClinicSummaryView'
+        matchedOn:
+          type: string
+          enum:
+            - phone
+    ListingAddressView:
+      type: object
+      properties:
+        line:
+          type: string
+        postalCode:
+          type:
+            - string
+            - 'null'
+        city:
+          type: string
+    ListingAvailability:
+      type: object
+      properties:
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailabilityDayView'
+    ListingBooking:
+      type: object
+      required:
+        - newPet
+      properties:
+        newPet:
+          $ref: '#/components/schemas/NewPet'
+        motifId:
+          type: string
+          format: uuid
+        practitionerId:
+          type: string
+          format: uuid
+        startAt:
+          type: string
+          format: date-time
+    ListingBooking.BookingRequestView:
+      type: object
+      properties:
+        id:
+          type: string
+        clinic:
+          $ref: '#/components/schemas/ClinicSummaryView'
+        pet:
+          $ref: '#/components/schemas/BookingRequestPetView'
+        motif:
+          description: "The motif's label."
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+            - pending
+            - confirmed
+            - declined
+        declineReason:
+          type:
+            - string
+            - 'null'
+          enum:
+            - declined
+            - expired
+            - cancelled
+            - account_deleted
+            - null
+        appointmentId:
+          type:
+            - string
+            - 'null'
+          format: uuid
+    ListingMotifs.BookingMotifView:
+      type: object
+      description: 'A motif a new client may book online; the route answers a plain JSON array of them.'
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        description:
+          type:
+            - string
+            - 'null'
+        durationMin:
+          type: integer
+        suggested:
+          type: boolean
+        suggestionReason:
+          description: '« Rappel de vaccin en retard », « Rappel de vaccin à prévoir »…, null when not suggested.'
+          type:
+            - string
+            - 'null'
+    ListingPractitioners.PractitionerView:
+      type: object
+      description: 'A practitioner a new client may book online for the motif; the route answers a plain JSON array of them.'
+      properties:
+        id:
+          type: string
+        displayName:
+          type:
+            - string
+            - 'null'
     Me:
       type: object
       properties:
@@ -3596,6 +4389,19 @@ components:
           type:
             - string
             - 'null'
+    OpeningHoursView:
+      type: object
+      properties:
+        day:
+          type: integer
+          minimum: 1
+          maximum: 7
+        opensAt:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+        closesAt:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
     OtpRequest:
       type: object
       required:
@@ -4147,6 +4953,49 @@ components:
           format: date-time
         editable:
           type: boolean
+    Registration:
+      type: object
+      required:
+        - registrationToken
+        - firstName
+        - lastName
+        - termsVersion
+      properties:
+        registrationToken:
+          type: string
+        firstName:
+          maxLength: 60
+          type: string
+        lastName:
+          maxLength: 60
+          type: string
+        email:
+          format: email
+          maxLength: 180
+          description: 'Optional, never verified; ignored when another account already uses it.'
+          externalDocs:
+            url: 'https://schema.org/email'
+          type:
+            - string
+            - 'null'
+        termsVersion:
+          description: 'The `version` of /legal/terms/current.'
+          type: string
+    Registration.AcceptedInvitationView:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        accessTokenExpiresAt:
+          type: string
+          format: date-time
+        refreshToken:
+          type: string
+        refreshTokenExpiresAt:
+          type: string
+          format: date-time
+        account:
+          $ref: '#/components/schemas/AccountView'
     RelatedCareItemView:
       type: object
       properties:
@@ -4266,17 +5115,20 @@ tags:
     name: Rendez-vous
     description: 'A practitioner bookable online for the motif; the route answers a plain JSON array of them.'
   -
+    name: Compte
+    description: "Resource 'Compte' operations."
+  -
     name: Animaux
     description: "Resource 'Animaux' operations."
+  -
+    name: Annuaire
+    description: 'A practitioner a new client may book online for the motif; the route answers a plain JSON array of them.'
   -
     name: Consentements
     description: "Resource 'Consentements' operations."
   -
     name: CGU
     description: "Resource 'CGU' operations."
-  -
-    name: Compte
-    description: "Resource 'Compte' operations."
   -
     name: Documents
     description: "Resource 'Documents' operations."

@@ -18,4 +18,7 @@ interface NotificationRequesterInterface
      * @return string the id of the message (the existing one on a repeated key)
      */
     public function requestPortalRequestResolved(PortalRequestResolvedMessage $message): string;
+
+    /** `PORTAL_BOOKING_DECLINED`: Kiveto's SMS to the phone a new-client request was made with (one per request). */
+    public function requestBookingDeclined(BookingDeclinedMessage $message): void;
 }

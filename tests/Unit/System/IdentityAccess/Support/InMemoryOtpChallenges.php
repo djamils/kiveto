@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\System\IdentityAccess\Support;
 
 use App\Shared\Domain\ValueObject\PhoneNumber;
+use App\System\IdentityAccess\Domain\Otp\OnboardingPurpose;
 use App\System\IdentityAccess\Domain\Otp\OtpChallenge;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeId;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeRepositoryInterface;
@@ -38,10 +39,10 @@ final class InMemoryOtpChallenges implements OtpChallengeRepositoryInterface
         return $this->findById($id);
     }
 
-    public function findByOnboardingHashForUpdate(string $tokenHash): ?OtpChallenge
+    public function findByOnboardingHashForUpdate(string $tokenHash, OnboardingPurpose $purpose): ?OtpChallenge
     {
         foreach ($this->challenges as $challenge) {
-            if ($challenge->onboardingTokenHash() === $tokenHash) {
+            if ($challenge->onboardingTokenHash() === $tokenHash && $purpose === $challenge->onboardingPurpose()) {
                 $this->locked[] = $challenge->id()->toString();
 
                 return $challenge;
@@ -56,7 +57,7 @@ final class InMemoryOtpChallenges implements OtpChallengeRepositoryInterface
         $count = 0;
 
         foreach ($this->challenges as $challenge) {
-            if ($challenge->phone()->equals($phone) && null !== $challenge->onboardingTokenHash() && null === $challenge->onboardingRevokedAt()) {
+            if ($challenge->phone()->equals($phone) && OnboardingPurpose::INVITATION === $challenge->onboardingPurpose() && null === $challenge->onboardingRevokedAt()) {
                 $challenge->revokeOnboarding($at);
                 ++$count;
             }

@@ -119,6 +119,8 @@ framework:
             App\Shared\Domain\Event\IntegrationEventInterface: async
             # Commands calling external services (batch senders override with a TransportNamesStamp)
             App\Shared\Application\Bus\ExternalApiCommandInterface: async_external
+            # Clinic directory (S7c): the geocoding of a listing's changed address (Messenger's 3 retries)
+            App\Context\ClinicListing\Application\Command\GeocodeClinicListing\GeocodeClinicListing: async_external
             # Steps of the local e-invoicing platform simulator (dev / test / demo), delayed
             App\System\ElectronicInvoicing\Infrastructure\Platform\Simulator\AdvanceSimulatedFlow: async
             # Faked delivery webhooks of the local notification simulator (dev / test), delayed

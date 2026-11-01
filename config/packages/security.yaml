@@ -91,9 +91,14 @@ security:
         # addresses are where the links redirect once the secret is in the session)
         - { host: '^clinic\.kiveto\.local$', path: '^/(mot-de-passe-oublie|reinitialiser(/[^/]+)?|invitation(/[^/]+)?)$', roles: PUBLIC_ACCESS }
         - { host: '^portal\.kiveto\.local$', path: '^/login', roles: PUBLIC_ACCESS }
-        # Portal API: sign-in, refresh, invitations, terms and docs are public;
+        # Portal API: sign-in, refresh, registration (anchored), invitations,
+        # terms and docs are public;
         # `_test/` routes only exist in the test env.
-        - { host: '^portal\.kiveto\.local$', path: '^/api/portal/v1/(auth/otp|auth/refresh|invitations|legal|docs|_test/|files/)', roles: PUBLIC_ACCESS }
+        - { host: '^portal\.kiveto\.local$', path: '^/api/portal/v1/(auth/otp|auth/refresh|auth/register$|invitations|legal|docs|_test/|files/)', roles: PUBLIC_ACCESS }
+        # Clinic directory: the new-client booking (the only non-GET route)
+        # is authenticated, every GET is public.
+        - { host: '^portal\.kiveto\.local$', path: '^/api/portal/v1/clinic-listings/[^/]+/booking/appointments$', roles: IS_AUTHENTICATED_FULLY }
+        - { host: '^portal\.kiveto\.local$', path: '^/api/portal/v1/clinic-listings', methods: [GET], roles: PUBLIC_ACCESS }
         - { host: '^portal\.kiveto\.local$', path: '^/api/portal/v1', roles: IS_AUTHENTICATED_FULLY }
         # Invitation landing page and app-link files of the owner app.
         - { host: '^portal\.kiveto\.local$', path: '^/(invitation$|\.well-known/)', roles: PUBLIC_ACCESS }

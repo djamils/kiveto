@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\ClientPortal\Infrastructure\Adapter\Notification;
 
+use App\Context\ClientPortal\Application\Port\BookingDeclinedMessage;
 use App\Context\ClientPortal\Application\Port\DataExportReadyMessage;
 use App\Context\ClientPortal\Application\Port\NotificationRequesterInterface;
 use App\Context\ClientPortal\Application\Port\PortalInvitationMessage;
@@ -92,5 +93,25 @@ final readonly class CommandBusNotificationRequester implements NotificationRequ
         \assert(\is_string($messageId));
 
         return $messageId;
+    }
+
+    /** Sent by Kiveto: the new client has no client file the clinic could message. */
+    public function requestBookingDeclined(BookingDeclinedMessage $message): void
+    {
+        $this->commandBus->dispatch(new RequestNotification(
+            purpose: 'PORTAL_BOOKING_DECLINED',
+            channel: 'SMS',
+            recipientAddress: $message->phone,
+            recipientName: $message->recipientName,
+            clinicId: null,
+            clientId: null,
+            subjectType: 'portal_booking_request',
+            subjectId: $message->requestId,
+            idempotencyKey: 'portal-booking-declined:' . $message->requestId,
+            parameters: [
+                'clinicName' => $message->clinicName,
+                'slotLabel'  => $message->slotLabel,
+            ],
+        ));
     }
 }

@@ -120,6 +120,25 @@ final class InvitationFlowTest extends PortalApiTestCase
         self::assertSame('onboarding_invalid', self::problemType($this->post('/invitations/' . $second . '/accept', ['onboardingToken' => $grant, 'termsVersion' => '2026-10-29']), 401), 'the lost-answer retry: sign in again');
     }
 
+    /** AC 73: neither route accepts the other's grant. */
+    public function testRegistrationAndInvitationGrantsStayOnTheirRoute(): void
+    {
+        $challengeId    = $this->requestCode('+33614000020');
+        $registration   = self::string(self::json($this->post('/auth/otp/verify', ['challengeId' => $challengeId, 'code' => $this->lastOtpCode()]), 200)['registrationToken']);
+        [$invitationId] = $this->invite(self::CLINIC_A, '+33614000020', null);
+
+        self::assertSame('onboarding_invalid', self::problemType($this->post('/invitations/' . $invitationId . '/accept', ['onboardingToken' => $registration, 'termsVersion' => '2026-10-29']), 401));
+
+        $this->connection()->executeStatement('UPDATE identity_access__otp_challenges SET resend_available_at = ? WHERE phone = ?', ['2020-01-01 00:00:00', '+33614000020']);
+        $challengeId = $this->requestCode('+33614000020');
+        $answer      = self::json($this->post('/auth/otp/verify', ['challengeId' => $challengeId, 'code' => $this->lastOtpCode()]), 200);
+        self::assertSame(['invitation_pending', null], [$answer['status'], $answer['registrationToken']]);
+
+        $body = ['registrationToken' => self::string($answer['onboardingToken']), 'firstName' => 'Sophie', 'lastName' => 'Flow', 'termsVersion' => '2026-10-29'];
+        self::assertSame('onboarding_invalid', self::problemType($this->post('/auth/register', $body), 401));
+        self::assertSame(0, $this->number('SELECT COUNT(*) FROM identity_access__users WHERE phone = ?', ['+33614000020']));
+    }
+
     /** AC 68: a grant of phone A never accepts an invitation of phone B. */
     public function testAGrantIsBoundToItsPhone(): void
     {

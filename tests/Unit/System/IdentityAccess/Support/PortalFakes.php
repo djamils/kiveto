@@ -17,7 +17,7 @@ use App\System\IdentityAccess\Application\Port\UnknownNumberSmsBudgetInterface;
 /**
  * Hand-written doubles of the Portal ports: predictable codes and a readable
  * code digest, plain access tokens, a switchable mobile policy and a
- * countable unknown-number budget.
+ * countable unknown-number budget (network, device and global layers).
  */
 final class PortalFakes implements OtpCodeGeneratorInterface, OtpCodeHasherInterface, AccessTokenIssuerInterface, MobilePhonePolicyInterface, UnknownNumberSmsBudgetInterface, PendingPortalInvitationsInterface
 {
@@ -32,10 +32,17 @@ final class PortalFakes implements OtpCodeGeneratorInterface, OtpCodeHasherInter
     /** @var list<string> phones checked against the policy */
     public array $policyChecks = [];
 
-    /** SMS left in the unknown-number budget. */
+    /** SMS left in the global unknown-number budget. */
     public int $budget = 200;
 
+    /** Global budget consumptions. */
     public int $budgetConsumptions = 0;
+
+    /** @var array<string, int> SMS left per network key or device id; 20 / 5 when absent */
+    public array $layerBudgets = [];
+
+    /** @var list<string> layers consumed, in order: `network:<key>`, `device:<id>`, `global` */
+    public array $budgetCalls = [];
 
     /** @var list<string> users an access token was issued for */
     public array $accessTokensFor = [];
@@ -69,8 +76,19 @@ final class PortalFakes implements OtpCodeGeneratorInterface, OtpCodeHasherInter
         return $this->mobile;
     }
 
-    public function consume(): bool
+    public function consumeNetwork(string $networkKey): bool
     {
+        return $this->consumeLayer('network:' . $networkKey, 20);
+    }
+
+    public function consumeDevice(string $deviceId): bool
+    {
+        return $this->consumeLayer('device:' . $deviceId, 5);
+    }
+
+    public function consumeGlobal(): bool
+    {
+        $this->budgetCalls[] = 'global';
         ++$this->budgetConsumptions;
 
         if ($this->budget <= 0) {
@@ -85,5 +103,19 @@ final class PortalFakes implements OtpCodeGeneratorInterface, OtpCodeHasherInter
     public function listForPhone(PhoneNumber $phone): array
     {
         return $this->pending[$phone->toString()] ?? [];
+    }
+
+    private function consumeLayer(string $key, int $limit): bool
+    {
+        $this->budgetCalls[] = $key;
+        $left                = $this->layerBudgets[$key] ?? $limit;
+
+        if ($left <= 0) {
+            return false;
+        }
+
+        $this->layerBudgets[$key] = $left - 1;
+
+        return true;
     }
 }

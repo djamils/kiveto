@@ -156,6 +156,8 @@ final class AgendaPendingAppointmentTest extends WebTestCase
             ->withId($id)
             ->withClinicId(self::CLINIC)
             ->withPractitionerUserId($this->vetId)
+            // A known client's request: a new client's is resolved in « Demandes Portal » (S7d)
+            ->withOwnerAndAnimal('01960000-0000-7000-8000-0000000c0d01', null)
             ->withReason('Consultation')
             ->startingAt($this->utc($start), 30)
         ;
