@@ -6,7 +6,7 @@ namespace App\Presentation\Api\Shared\Idempotency;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
-use App\Presentation\Api\Shared\Problem\ApiProblem;
+use App\Presentation\Api\Shared\Problem\ProblemFactoryInterface;
 use App\Shared\Domain\Idempotency\IdempotencyKey;
 use App\Shared\Domain\Idempotency\IdempotencyKeyReusedException;
 use App\Shared\Domain\Idempotency\IdempotencyStoreInterface;
@@ -32,6 +32,9 @@ use Symfony\Component\Uid\Uuid;
  *   stored response is replayed without running the operation again, with the
  *   `Idempotent-Replayed: true` header;
  * - same key, different request → `422 idempotency_key_reused`.
+ *
+ * Both problems are built by the API's ProblemFactoryInterface (its codes
+ * and titles).
  *
  * Only responses are stored: an operation that throws (validation, domain
  * error) records nothing, so the client can retry with the same key.
@@ -66,6 +69,7 @@ final readonly class IdempotentProcessor implements ProcessorInterface
         private ProcessorInterface $inner,
         private IdempotencyStoreInterface $store,
         private Security $security,
+        private ProblemFactoryInterface $problems,
     ) {
     }
 
@@ -99,11 +103,9 @@ final readonly class IdempotentProcessor implements ProcessorInterface
                 },
             );
         } catch (IdempotencyKeyReusedException $exception) {
-            throw new ApiProblem(
-                type: 'idempotency_key_reused',
-                status: Response::HTTP_UNPROCESSABLE_ENTITY,
-                title: 'Idempotency key already used',
-                detail: 'This Idempotency-Key was already used for a different request.',
+            throw $this->problems->create(
+                ProblemFactoryInterface::IDEMPOTENCY_KEY_REUSED,
+                'Cette clé a déjà servi pour une requête différente.',
                 previous: $exception,
             );
         }
@@ -130,11 +132,9 @@ final readonly class IdempotentProcessor implements ProcessorInterface
         try {
             return IdempotencyKey::fromString($header ?? '');
         } catch (InvalidIdempotencyKeyException $exception) {
-            throw new ApiProblem(
-                type: 'idempotency_key_missing',
-                status: Response::HTTP_BAD_REQUEST,
-                title: 'Idempotency key missing',
-                detail: \sprintf('The %s header is required: 1 to %d visible ASCII characters.', self::HEADER, IdempotencyKey::MAX_LENGTH),
+            throw $this->problems->create(
+                ProblemFactoryInterface::IDEMPOTENCY_KEY_MISSING,
+                \sprintf('L\'en-tête %s est obligatoire : de 1 à %d caractères ASCII visibles.', self::HEADER, IdempotencyKey::MAX_LENGTH),
                 previous: $exception,
             );
         }

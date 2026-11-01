@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Context\Scheduling\Support;
 use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
+use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 
 final class InMemoryAppointments implements AppointmentRepositoryInterface
 {
@@ -40,5 +41,41 @@ final class InMemoryAppointments implements AppointmentRepositoryInterface
         );
 
         return array_values(array_map(static fn (Appointment $appointment): string => $appointment->id()->toString(), $expired));
+    }
+
+    public function findRecentOnlineBookingId(
+        ClinicId $clinicId,
+        string $ownerId,
+        string $animalId,
+        string $bookingMotifId,
+        \DateTimeImmutable $startsAtUtc,
+        \DateTimeImmutable $createdSince,
+    ): ?AppointmentId {
+        foreach ($this->appointments as $appointment) {
+            $same = $appointment->clinicId()->equals($clinicId)
+                && $appointment->ownerId() === $ownerId
+                && $appointment->animalId() === $animalId
+                && $appointment->bookingMotifId() === $bookingMotifId
+                && $appointment->timeSlot()->startsAtUtc()->getTimestamp() === $startsAtUtc->getTimestamp();
+
+            if ($same && $appointment->createdAt() >= $createdSince && $appointment->status()->occupiesSlot()) {
+                return $appointment->id();
+            }
+        }
+
+        return null;
+    }
+
+    public function hasOtherAppointmentForAnimal(ClinicId $clinicId, string $animalId, AppointmentId $except): bool
+    {
+        foreach ($this->appointments as $appointment) {
+            $other = $appointment->clinicId()->equals($clinicId) && $appointment->animalId() === $animalId && !$appointment->id()->equals($except);
+
+            if ($other && !$appointment->status()->isWithdrawn()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

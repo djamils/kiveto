@@ -6,6 +6,7 @@ namespace App\Fixtures\Dataset;
 
 use App\Fixtures\Context\Animal\Story\PortalPetsAnimalStory;
 use App\Fixtures\Context\ClientPortal\Story\ClientPortalStatesStory;
+use App\Fixtures\Context\ClientPortal\Story\PortalBookingStory;
 use App\Fixtures\Context\ClientPortal\Story\PortalDocumentsStory;
 use App\Fixtures\Context\ClientPortal\Story\PortalPetsStory;
 use App\Fixtures\Context\Scheduling\Story\PortalPetsAppointmentsStory;
@@ -32,6 +33,11 @@ final class PortalDataset extends Story
         PortalPetsAnimalStory::load();
         PortalPetsAppointmentsStory::load();
         PortalPetsStory::load();
+
+        // Their appointments and online bookings: upcoming, pending, withdrawn,
+        // a long history, the cancellation window cases, and the clinics
+        // where they cannot book (booking off, empty week).
+        PortalBookingStory::load();
 
         PortalUserFactory::createMany(5);
     }

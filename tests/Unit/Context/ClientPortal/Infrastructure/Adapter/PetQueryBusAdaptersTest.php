@@ -30,8 +30,7 @@ use App\Context\ClientPortal\Infrastructure\Adapter\Consultation\QueryBusVisitSu
 use App\Context\ClientPortal\Infrastructure\Adapter\Scheduling\QueryBusOwnerAppointments;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
-use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ClinicVeterinarianItem;
-use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ListClinicVeterinarians;
+use App\Context\Clinic\Application\Query\Staff\GetStaffPrintedName\GetStaffPrintedName;
 use App\Context\Clinic\Domain\ValueObject\ClinicStatus;
 use App\Context\Consultation\Application\Query\GetConsultationPortalSummaries\ConsultationPortalSummary;
 use App\Context\Consultation\Application\Query\GetConsultationPortalSummaries\GetConsultationPortalSummaries;
@@ -216,23 +215,19 @@ final class PetQueryBusAdaptersTest extends TestCase
         self::assertNull(new QueryBusOwnerAppointments(new AnsweringQueryBus())->nextFor('clinic-1', ['a1'], $now));
     }
 
-    public function testThePractitionerNamesAreLookedUpInOneVeterinarianList(): void
+    public function testThePractitionerNamesAreThePrintedNames(): void
     {
-        $bus = new AnsweringQueryBus([ListClinicVeterinarians::class => [
-            new ClinicVeterinarianItem('u1', 'VETERINARIAN', 'employee', 'm1', ' Dr Claire Lambert '),
-            new ClinicVeterinarianItem('u2', 'VETERINARIAN', 'employee', 'm2', '  '),
-            new ClinicVeterinarianItem('u3', 'VETERINARIAN', 'employee', 'm3'),
-            new ClinicVeterinarianItem('u4', 'VETERINARIAN', 'employee', 'm4', 'Dr Paul Martin'),
-        ]]);
+        $printed = ['u1' => ' Dr Claire Lambert ', 'u2' => '  ', 'u3' => null];
+        $bus     = new AnsweringQueryBus([GetStaffPrintedName::class => static fn (GetStaffPrintedName $q): ?string => $printed[$q->userId] ?? null]);
 
-        self::assertSame(['u1' => 'Dr Claire Lambert'], new QueryBusPractitionerNames($bus)->namesOf('clinic-1', ['u1', 'u2', 'u3', 'u9']));
+        self::assertSame(['u1' => 'Dr Claire Lambert'], new QueryBusPractitionerNames($bus)->namesOf('clinic-1', ['u1', 'u2', 'u3', 'u1', 'u9']));
+        self::assertCount(4, $bus->asked, 'once per user');
         $query = $bus->asked[0];
-        self::assertInstanceOf(ListClinicVeterinarians::class, $query);
-        self::assertSame('clinic-1', $query->clinicId);
+        self::assertInstanceOf(GetStaffPrintedName::class, $query);
+        self::assertSame(['clinic-1', 'u1'], [$query->clinicId, $query->userId]);
 
         self::assertSame([], new QueryBusPractitionerNames($bus)->namesOf('clinic-1', []));
-        self::assertCount(1, $bus->asked, 'no user, no query');
-        self::assertSame([], new QueryBusPractitionerNames(new AnsweringQueryBus())->namesOf('clinic-1', ['u1']));
+        self::assertCount(4, $bus->asked, 'no user, no query');
     }
 
     public function testTheDocumentHeaderIsTheClinicsDocumentIdentity(): void

@@ -47,6 +47,7 @@ final class Appointment extends AggregateRoot
     private ?CancellationReason $cancellationReason;
     private ?\DateTimeImmutable $pendingExpiresAt;
     private bool $confirmedSilently;
+    private ?string $createdPetId;
 
     private function __construct()
     {
@@ -64,6 +65,9 @@ final class Appointment extends AggregateRoot
         ?string $ownerId = null,
         ?string $animalId = null,
         ?string $actorUserId = null,
+        AppointmentSource $source = AppointmentSource::CLINIC,
+        ?string $bookingMotifId = null,
+        ?string $createdPetId = null,
     ): self {
         $appointment                       = new self();
         $appointment->id                   = $id;
@@ -78,12 +82,13 @@ final class Appointment extends AggregateRoot
         $appointment->notes                = $notes;
         $appointment->createdAt            = $createdAt;
         $appointment->serviceStartedAt     = null;
-        $appointment->source               = AppointmentSource::CLINIC;
-        $appointment->bookingMotifId       = null;
+        $appointment->source               = $source;
+        $appointment->bookingMotifId       = $bookingMotifId;
         $appointment->cancelledBy          = null;
         $appointment->cancellationReason   = null;
         $appointment->pendingExpiresAt     = null;
         $appointment->confirmedSilently    = false;
+        $appointment->createdPetId         = $createdPetId;
 
         $appointment->recordDomainEvent(new AppointmentScheduled(
             appointmentId: $id->toString(),
@@ -120,6 +125,7 @@ final class Appointment extends AggregateRoot
         ?string $bookingMotifId,
         AppointmentSource $source,
         \DateTimeImmutable $pendingExpiresAt,
+        ?string $createdPetId = null,
     ): self {
         if ($pendingExpiresAt <= $createdAt) {
             throw new \InvalidArgumentException('A pending appointment must expire after it is requested.');
@@ -144,6 +150,7 @@ final class Appointment extends AggregateRoot
         $appointment->cancellationReason   = null;
         $appointment->pendingExpiresAt     = $pendingExpiresAt;
         $appointment->confirmedSilently    = false;
+        $appointment->createdPetId         = $createdPetId;
 
         $appointment->recordDomainEvent(new AppointmentRequested(
             appointmentId: $id->toString(),
@@ -182,6 +189,7 @@ final class Appointment extends AggregateRoot
         ?CancellationReason $cancellationReason = null,
         ?\DateTimeImmutable $pendingExpiresAt = null,
         bool $confirmedSilently = false,
+        ?string $createdPetId = null,
     ): self {
         $appointment                       = new self();
         $appointment->id                   = $id;
@@ -202,6 +210,7 @@ final class Appointment extends AggregateRoot
         $appointment->cancellationReason   = $cancellationReason;
         $appointment->pendingExpiresAt     = $pendingExpiresAt;
         $appointment->confirmedSilently    = $confirmedSilently;
+        $appointment->createdPetId         = $createdPetId;
 
         return $appointment;
     }
@@ -575,5 +584,14 @@ final class Appointment extends AggregateRoot
     public function confirmedSilently(): bool
     {
         return $this->confirmedSilently;
+    }
+
+    /**
+     * The animal registered on the Portal for this booking (with-new-pet),
+     * archived when the request is declined or expires unused.
+     */
+    public function createdPetId(): ?string
+    {
+        return $this->createdPetId;
     }
 }

@@ -957,7 +957,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
 
 #### Slice 4b — online booking — `feature/portal-booking`
 
-- [ ] Task 25: Availability computation (S4c, S4b-F1/F2/F10/F11/F12/F18)
+- [x] Task 25: Availability computation (S4c, S4b-F1/F2/F10/F11/F12/F18)
   - Files:
     - `src/Context/Scheduling/Domain/Booking/{AvailabilityCalculator, BookableInterval, BusyInterval, OpeningWindow, DaySlots}.php` (pure, Domain value objects only)
     - `src/Context/Scheduling/Application/Query/GetOnlineAvailability/{GetOnlineAvailability, GetOnlineAvailabilityHandler, OnlineAvailability}.php`
@@ -985,7 +985,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
     - DST: `Europe/Paris` both DST Sundays incl. a block crossing 02:00; `America/Martinique` constant; `Pacific/Noumea` date boundary.
 
     Plus DBAL integration tests for both readers.
-- [ ] Task 26: Portal booking commands (S4a, S4b, S4f, S4g, D1)
+- [x] Task 26: Portal booking commands (S4a, S4b, S4f, S4g, D1)
   - Files:
     - `src/Context/Scheduling/Application/Command/{BookOnlineAppointment, RescheduleOnlineAppointment, CancelOnlineAppointment}/…`
     - `src/Context/ClientPortal/Application/Command/{BookPortalAppointment, BookPortalAppointmentWithNewPet, ReschedulePortalAppointment, CancelPortalAppointment}/…`
@@ -1010,7 +1010,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
     - `tests/Integration/Context/Scheduling/Concurrency/OnlineBookingRaceTest.php` (two owners, one slot);
     - an integration test that with-new-pet + `slot_taken` leaves no animal;
     - the archive-on-decline test.
-- [ ] Task 27: Portal appointment queries and `booked` care status (S4i, S4k, D2)
+- [x] Task 27: Portal appointment queries and `booked` care status (S4i, S4k, D2)
   - Files:
     - `src/Context/Scheduling/Application/Query/{ListAppointmentsForOwners, GetOwnerAppointment, ListBookablePractitioners}/…`
     - `src/Context/ClientPortal/Application/Query/{ListOwnerAppointments, GetOwnerAppointmentDetail, ListBookableMotifs}/…`
@@ -1026,7 +1026,7 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
     - `ListBookablePractitioners` filters the motif's practitioners by current eligibility.
     - `CareItemStatusPolicy` applies S4k.
   - Tests: unit tests for the mapping and the policy (booked for an overdue item, a non-matching motif, a Noumea date boundary); integration tests for the queries (no `notes` / `reason` column read, keyset paging).
-- [ ] Task 28: Portal API — booking routes (slice 4 routes)
+- [x] Task 28: Portal API — booking routes (slice 4 routes)
   - Files:
     - `src/Presentation/Api/Portal/Resource/{BookingMotifs, BookingPractitioners, BookingAvailability, AppointmentBooking, AppointmentBookingWithNewPet, AppointmentList, Appointment, AppointmentReschedule, AppointmentCancellation}.php` + providers/processors
     - `src/Presentation/Api/Portal/View/{AppointmentView, BookingMotifView, PractitionerView, AvailabilityDayView, RelatedCareItemView}.php`
@@ -1042,11 +1042,11 @@ Each branch also regenerates `openapi/portal.v1.yaml` (`make openapi-export`) fo
     - `IdempotentProcessor` stores only responses, so the natural idempotency of Task 26 covers the crash window between commit and key write.
     - `.ics` publish mode: `METHOD:PUBLISH`, no ATTENDEE, ORGANIZER omitted, `STATUS:TENTATIVE` when pending, same UID as the e-mailed invitation, `SEQUENCE` read from the notification state. Withdrawn or terminal appointment → 404.
   - Tests: `tests/Integration/Presentation/Api/Portal/{BookingAvailabilityTest, AppointmentBookingTest, AppointmentManagementTest, AppointmentCalendarTest}.php` (every error code, tenant 404, another client's pet 404).
-- [ ] Task 29: Contract export and README
+- [x] Task 29: Contract export and README
   - Files: `openapi/portal.v1.yaml`, `src/Context/Scheduling/README.md` (SOFT for VetApp, HARD online; lock with current reads; statuses and pending rules; auto-decline; D1 exception for the three events)
   - Action: `make openapi-export`; `make ci`.
   - Tests: `make openapi-check`.
-- [ ] Task 30: Fixtures for slice 4b
+- [x] Task 30: Fixtures for slice 4b
   - Files: `fixtures/Context/Scheduling/Story/OnlineBookingStory.php`, `fixtures/Context/ClientPortal/Story/PortalBookingStory.php`
   - Action:
     - All dates are relative to the fixture clock.

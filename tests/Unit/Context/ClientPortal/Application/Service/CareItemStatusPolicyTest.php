@@ -31,6 +31,36 @@ final class CareItemStatusPolicyTest extends TestCase
     }
 
     /**
+     * @return iterable<string, array{string, list<string>, CareItemStatus}>
+     */
+    public static function provideABookingInTheWindowMakesTheItemBookedCases(): iterable
+    {
+        // Today is 2026-10-29.
+        yield 'due in 10 days, booked in 5' => ['2026-11-08', ['2026-11-03'], CareItemStatus::BOOKED];
+        yield 'overdue, booked next week' => ['2026-10-01', ['2026-11-05'], CareItemStatus::BOOKED];
+        yield 'overdue, booked within 30 days of today' => ['2026-10-01', ['2026-11-28'], CareItemStatus::BOOKED];
+        yield 'overdue, booked too late' => ['2026-10-01', ['2026-11-29'], CareItemStatus::OVERDUE];
+        yield 'booked today' => ['2026-12-31', ['2026-10-29'], CareItemStatus::BOOKED];
+        yield 'booked yesterday' => ['2026-11-08', ['2026-10-28'], CareItemStatus::DUE_SOON];
+        yield 'up to date, booked 30 days after the due date' => ['2027-01-10', ['2027-02-09'], CareItemStatus::BOOKED];
+        yield 'up to date, booked 31 days after the due date' => ['2027-01-10', ['2027-02-10'], CareItemStatus::UP_TO_DATE];
+        yield 'one booking of several in the window' => ['2026-11-08', ['2026-10-01', '2026-11-20'], CareItemStatus::BOOKED];
+        yield 'no booking' => ['2026-11-08', [], CareItemStatus::DUE_SOON];
+    }
+
+    /**
+     * @param list<string> $bookedOn
+     */
+    #[DataProvider('provideABookingInTheWindowMakesTheItemBookedCases')]
+    public function testABookingInTheWindowMakesTheItemBooked(string $dueOn, array $bookedOn, CareItemStatus $expected): void
+    {
+        $today = new \DateTimeImmutable('2026-10-29', new \DateTimeZone('Pacific/Noumea'));
+        $days  = array_map(static fn (string $day): \DateTimeImmutable => new \DateTimeImmutable($day, new \DateTimeZone('Pacific/Noumea')), $bookedOn);
+
+        self::assertSame($expected, new CareItemStatusPolicy()->statusOf(new \DateTimeImmutable($dueOn), $today, $days));
+    }
+
+    /**
      * @return iterable<string, array{string, string, string}>
      */
     public static function provideTheDayOfAnInstantIsTheClinicsCases(): iterable

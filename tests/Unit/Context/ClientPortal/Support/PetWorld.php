@@ -111,6 +111,6 @@ final class PetWorld
 
     public function careItems(): CareItems
     {
-        return new CareItems($this->fakes, new CareItemStatusPolicy(), $this->documents->fakes, $this->documents->clock);
+        return new CareItems($this->fakes, new CareItemStatusPolicy(), $this->documents->fakes, $this->documents->clock, $this->fakes);
     }
 }

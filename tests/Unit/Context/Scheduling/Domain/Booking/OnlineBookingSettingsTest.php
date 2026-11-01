@@ -144,6 +144,20 @@ final class OnlineBookingSettingsTest extends TestCase
         }
     }
 
+    public function testCancellableUntilIsTheWindowOrTheUndoGrace(): void
+    {
+        $utc       = new \DateTimeZone('UTC');
+        $createdAt = new \DateTimeImmutable('2026-11-01 10:00:00', $utc);
+        $settings  = $this->settings([]);
+
+        // Booked well ahead: 24 h before the start.
+        self::assertSame('2026-11-04 09:00', $settings->cancellableUntil(new \DateTimeImmutable('2026-11-05 09:00:00', $utc), $createdAt)->format('Y-m-d H:i'));
+        // Booked inside the window: 15 minutes after the booking.
+        self::assertSame('2026-11-01 10:15', $settings->cancellableUntil(new \DateTimeImmutable('2026-11-01 18:00:00', $utc), $createdAt)->format('Y-m-d H:i'));
+        // A zero window: until the start.
+        self::assertSame('2026-11-02 09:00', $this->settings(['cancellationWindowHours' => 0])->cancellableUntil(new \DateTimeImmutable('2026-11-02 09:00:00', $utc), $createdAt)->format('Y-m-d H:i'));
+    }
+
     public function testPendingMinLeadTimeIsTheLongerOfBothLeadTimes(): void
     {
         self::assertSame(1440, $this->settings([])->pendingMinLeadTimeMinutes());

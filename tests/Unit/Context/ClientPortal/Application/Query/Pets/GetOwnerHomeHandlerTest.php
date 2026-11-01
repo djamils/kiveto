@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\ClientPortal\Application\Query\Pets;
 
+use App\Context\ClientPortal\Application\Port\OwnerAppointment;
 use App\Context\ClientPortal\Application\Port\UpcomingAppointment;
 use App\Context\ClientPortal\Application\Query\GetOwnerHome\GetOwnerHome;
 use App\Context\ClientPortal\Application\Query\GetOwnerHome\GetOwnerHomeHandler;
@@ -11,8 +12,8 @@ use App\Context\ClientPortal\Application\Query\GetOwnerHome\HomeCareItem;
 use App\Context\ClientPortal\Application\Query\ListOwnerPets\OwnerPet;
 use App\Context\ClientPortal\Application\Query\ListPublishedDocuments\ListPublishedDocumentsHandler;
 use App\Context\ClientPortal\Application\Query\ListPublishedDocuments\PortalDocument;
+use App\Context\ClientPortal\Application\Service\PortalAppointments;
 use App\Tests\Unit\Context\ClientPortal\Support\PetWorld as W;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\ErrorHandler\BufferingLogger;
 
@@ -32,7 +33,8 @@ final class GetOwnerHomeHandlerTest extends TestCase
         $world->act(W::PET2, 'Rage', '2025-12-01', '2026-12-01');
         $world->act(W::PET2, 'Leptospirose', '2025-10-20', '2026-10-20');
         $world->act(W::PET3, 'Rage', '2025-01-01', '2026-01-01');
-        $world->fakes->appointment   = new UpcomingAppointment(self::APPOINTMENT, W::PET2, new \DateTimeImmutable('2026-11-04 22:30:00', new \DateTimeZone('UTC')), self::VET, 'vaccin');
+        $world->fakes->appointment   = self::upcoming(W::PET2);
+        $world->fakes->appointments  = [self::appointment(W::PET2)];
         $world->fakes->practitioners = [self::VET => 'Dr Claire Lambert'];
         $world->model->rows          = [
             W::report('01960000-0000-7000-8000-0000000f0001', '01960000-0000-7000-8000-0000000e0001', '2026-10-20 10:00:00'),
@@ -56,8 +58,8 @@ final class GetOwnerHomeHandlerTest extends TestCase
         $next = $home->nextAppointment;
         self::assertNotNull($next);
         self::assertSame(
-            [self::APPOINTMENT, '2026-11-05T09:30:00+11:00', W::PET2, 'Rex', 'Dr Claire Lambert', 'Vaccination'],
-            [$next->id, $next->startAt->format('c'), $next->petId, $next->petName, $next->practitioner, $next->motifLabel],
+            [self::APPOINTMENT, '2026-11-05T09:30:00+11:00', '2026-11-05T10:00:00+11:00', W::PET2, 'Rex', 'Rappel vaccin', 'Dr Claire Lambert', 'confirmed'],
+            [$next->id, $next->startAt->format('c'), $next->endAt->format('c'), $next->petId, $next->petName, $next->motifLabel, $next->practitionerName, $next->status],
         );
         self::assertContains('nextFor:' . W::CLINIC . ':' . W::PET . ',' . W::PET2 . ':2026-10-29T09:00:00+00:00', $world->fakes->calls);
         self::assertContains('namesOf:' . W::CLINIC . ':' . self::VET, $world->fakes->calls);
@@ -78,7 +80,17 @@ final class GetOwnerHomeHandlerTest extends TestCase
     {
         $world = new W();
         $world->pet(W::PET, 'Moka');
-        $world->fakes->appointment = new UpcomingAppointment(self::APPOINTMENT, W::PET3, new \DateTimeImmutable('2026-11-04 10:00:00'), self::VET, 'consult');
+        $world->fakes->appointment  = self::upcoming(W::PET3);
+        $world->fakes->appointments = [self::appointment(W::PET3)];
+
+        self::assertNull($this->handler($world)(new GetOwnerHome(W::USER, W::CLINIC))->nextAppointment);
+    }
+
+    public function testAnAppointmentGoneMeanwhileIsNotShown(): void
+    {
+        $world = new W();
+        $world->pet(W::PET, 'Moka');
+        $world->fakes->appointment = self::upcoming(W::PET);
 
         self::assertNull($this->handler($world)(new GetOwnerHome(W::USER, W::CLINIC))->nextAppointment);
     }
@@ -87,32 +99,41 @@ final class GetOwnerHomeHandlerTest extends TestCase
     {
         $world = new W();
         $world->pet(W::PET, 'Moka');
-        $world->fakes->appointment = new UpcomingAppointment(self::APPOINTMENT, W::PET, new \DateTimeImmutable('2026-11-04 10:00:00'), self::VET, 'consult');
+        $world->fakes->appointment  = self::upcoming(W::PET);
+        $world->fakes->appointments = [self::appointment(W::PET)];
 
         $next = $this->handler($world)(new GetOwnerHome(W::USER, W::CLINIC))->nextAppointment;
 
         self::assertNotNull($next);
-        self::assertSame([null, 'Consultation'], [$next->practitioner, $next->motifLabel]);
+        self::assertNull($next->practitionerName);
     }
 
-    /**
-     * @return iterable<string, array{string, string}>
-     */
-    public static function provideTheMotifLabelIsFixedPerCategoryCases(): iterable
+    private static function upcoming(string $petId): UpcomingAppointment
     {
-        yield 'vaccin' => ['vaccin', 'Vaccination'];
-        yield 'suivi' => ['suivi', 'Contrôle'];
-        yield 'bilan' => ['bilan', 'Bilan'];
-        yield 'chir' => ['chir', 'Chirurgie'];
-        yield 'urg' => ['urg', 'Urgence'];
-        yield 'consult' => ['consult', 'Consultation'];
-        yield 'anything else' => ['autre', 'Consultation'];
+        return new UpcomingAppointment(self::APPOINTMENT, $petId, new \DateTimeImmutable('2026-11-04 22:30:00', new \DateTimeZone('UTC')), self::VET, 'vaccin');
     }
 
-    #[DataProvider('provideTheMotifLabelIsFixedPerCategoryCases')]
-    public function testTheMotifLabelIsFixedPerCategory(string $category, string $label): void
+    private static function appointment(string $petId): OwnerAppointment
     {
-        self::assertSame($label, GetOwnerHomeHandler::motifLabel($category));
+        $utc = new \DateTimeZone('UTC');
+
+        return new OwnerAppointment(
+            self::APPOINTMENT,
+            W::CLIENT,
+            $petId,
+            self::VET,
+            new \DateTimeImmutable('2026-11-04 22:30:00', $utc),
+            30,
+            'confirmed',
+            true,
+            false,
+            'portal',
+            '01960000-0000-7000-8000-0000000c0001',
+            'Rappel vaccin',
+            null,
+            new \DateTimeImmutable('2026-10-01 08:00:00', $utc),
+            null,
+        );
     }
 
     private function handler(W $world): GetOwnerHomeHandler
@@ -123,10 +144,9 @@ final class GetOwnerHomeHandlerTest extends TestCase
             $world->ownerPets(),
             $world->careItems(),
             $world->fakes,
-            $world->fakes,
+            new PortalAppointments($world->careItems(), $world->fakes, $documents->fakes),
             $world->model,
             new ListPublishedDocumentsHandler($world->model, $documents->invoices, $documents->prescriptions, $documents->fakes, new BufferingLogger()),
-            $documents->fakes,
             $documents->clock,
         );
     }

@@ -58,7 +58,7 @@ abstract class PetsApiTestCase extends PortalApiTestCase
         $this->clock = new SettableClock($now);
         $this->browser->getContainer()->set(ClockInterface::class, $this->clock);
 
-        ClinicEntityFactory::new()->withId(self::CLINIC)->withName('Clinique des Lilas')->create(['timeZone' => $this->clinicTimeZone()]);
+        ClinicEntityFactory::new()->withId(self::CLINIC)->withName('Clinique des Lilas')->create(['timeZone' => $this->clinicTimeZone(), ...$this->clinicAttributes()]);
         ClinicEntityFactory::new()->withId(self::OTHER_CLINIC)->withName('Clinique du Port')->create();
         PortalUserFactory::new()->withPhone($this->phone())->create();
 
@@ -83,6 +83,16 @@ abstract class PetsApiTestCase extends PortalApiTestCase
     protected function clinicTimeZone(): string
     {
         return 'Europe/Paris';
+    }
+
+    /**
+     * ClinicEntity overrides of the linked clinic.
+     *
+     * @return array<string, mixed>
+     */
+    protected function clinicAttributes(): array
+    {
+        return [];
     }
 
     protected function link(string $clientId, string $clinicId = self::CLINIC): void

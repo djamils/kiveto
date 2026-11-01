@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\Scheduling\Infrastructure\Calendar;
 
+use App\Context\Scheduling\Application\Port\CalendarEvent;
 use App\Context\Scheduling\Application\Port\CalendarInvitation;
 use App\Context\Scheduling\Infrastructure\Calendar\IcsWriter;
 use PHPUnit\Framework\TestCase;
@@ -55,6 +56,50 @@ final class IcsWriterTest extends TestCase
         self::assertStringNotContainsString('LOCATION', $ics);
         // iTIP: a CANCEL names its organizer.
         self::assertStringContainsString('ORGANIZER;CN="Clinique \'Montmartre\'":mailto:accueil@clinique-montmartre.fr', $ics);
+    }
+
+    public function testAPublishedEventHasNoParticipantAndIsTentativeWhilePending(): void
+    {
+        $event = static fn (bool $tentative, ?string $description, ?string $location): CalendarEvent => new CalendarEvent(
+            uid: 'a-1@kiveto.app',
+            sequence: 1,
+            tentative: $tentative,
+            startsAtUtc: new \DateTimeImmutable('2026-10-22 07:30:00', new \DateTimeZone('UTC')),
+            durationMinutes: 30,
+            summary: 'Rendez-vous de Milo — Clinique Montmartre',
+            description: $description,
+            location: $location,
+            stampedAt: new \DateTimeImmutable('2026-10-13 10:44:00', new \DateTimeZone('Europe/Paris')),
+        );
+
+        self::assertSame(
+            "BEGIN:VCALENDAR\r\n"
+            . "PRODID:-//Kiveto//Agenda//FR\r\n"
+            . "VERSION:2.0\r\n"
+            . "CALSCALE:GREGORIAN\r\n"
+            . "METHOD:PUBLISH\r\n"
+            . "BEGIN:VEVENT\r\n"
+            . "UID:a-1@kiveto.app\r\n"
+            . "SEQUENCE:1\r\n"
+            . "DTSTAMP:20261013T084400Z\r\n"
+            . "DTSTART:20261022T073000Z\r\n"
+            . "DTEND:20261022T080000Z\r\n"
+            . "SUMMARY:Rendez-vous de Milo — Clinique Montmartre\r\n"
+            . "DESCRIPTION:Motif : Vaccination\r\n"
+            . "LOCATION:18 rue Lepic\\, 75018 Paris\r\n"
+            . "STATUS:CONFIRMED\r\n"
+            . "TRANSP:OPAQUE\r\n"
+            . "END:VEVENT\r\n"
+            . "END:VCALENDAR\r\n",
+            new IcsWriter()->publish($event(false, 'Motif : Vaccination', '18 rue Lepic, 75018 Paris')),
+        );
+
+        $pending = new IcsWriter()->publish($event(true, null, null));
+        self::assertStringContainsString("STATUS:TENTATIVE\r\n", $pending);
+        self::assertStringNotContainsString('DESCRIPTION', $pending);
+        self::assertStringNotContainsString('LOCATION', $pending);
+        self::assertStringNotContainsString('ORGANIZER', $pending);
+        self::assertStringNotContainsString('ATTENDEE', $pending);
     }
 
     private function invitation(bool $cancelled, int $sequence, ?string $location = '18 rue Lepic, 75018 Paris'): CalendarInvitation

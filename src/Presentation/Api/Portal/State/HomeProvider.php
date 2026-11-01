@@ -12,9 +12,9 @@ use App\Presentation\Api\Portal\Resource\Home;
 use App\Presentation\Api\Portal\Resource\PetSummary;
 use App\Presentation\Api\Portal\Security\PortalApiUser;
 use App\Presentation\Api\Portal\Support\PortalClinicGuard;
+use App\Presentation\Api\Portal\View\AppointmentView;
 use App\Presentation\Api\Portal\View\DocumentView;
 use App\Presentation\Api\Portal\View\HomeCareItemView;
-use App\Presentation\Api\Portal\View\NextAppointmentView;
 use App\Shared\Application\Bus\QueryBusInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 
@@ -43,7 +43,7 @@ final readonly class HomeProvider implements ProviderInterface
         \assert($home instanceof OwnerHome);
 
         return new Home(
-            null === $home->nextAppointment ? null : NextAppointmentView::of($home->nextAppointment),
+            null === $home->nextAppointment ? null : AppointmentView::of($home->nextAppointment),
             array_map(PetSummary::of(...), $home->pets),
             array_map(HomeCareItemView::of(...), $home->careItems),
             array_map(DocumentView::of(...), $home->latestDocuments),

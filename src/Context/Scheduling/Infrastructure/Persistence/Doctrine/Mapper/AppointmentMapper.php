@@ -40,6 +40,7 @@ final class AppointmentMapper
             cancellationReason: $entity->getCancellationReason(),
             pendingExpiresAt: $entity->getPendingExpiresAt(),
             confirmedSilently: $entity->isConfirmedSilently(),
+            createdPetId: $entity->getCreatedPetId()?->toRfc4122(),
         );
     }
 
@@ -118,5 +119,10 @@ final class AppointmentMapper
         // Stored as UTC whatever the zone of the instant handed over (e.g. a clinic-local one).
         $entity->setPendingExpiresAt($appointment->pendingExpiresAt()?->setTimezone(new \DateTimeZone('UTC')));
         $entity->setConfirmedSilently($appointment->confirmedSilently());
+        $entity->setCreatedPetId(
+            null !== $appointment->createdPetId()
+                ? Uuid::fromString($appointment->createdPetId())
+                : null
+        );
     }
 }
