@@ -27,6 +27,9 @@ final class InMemoryUsers implements UserRepositoryInterface
     /** @var list<string> phones whose claim mutex was taken, in order */
     public array $lockedPhones = [];
 
+    /** @var list<string> phones whose mutex row was deleted, in order */
+    public array $deletedPhoneLocks = [];
+
     public function save(User $user): void
     {
         $this->users[$user->id()->toString()] = $user;
@@ -70,6 +73,11 @@ final class InMemoryUsers implements UserRepositoryInterface
     public function lockPortalPhone(PhoneNumber $phone): void
     {
         $this->lockedPhones[] = $phone->toString();
+    }
+
+    public function deletePortalPhoneLock(PhoneNumber $phone): void
+    {
+        $this->deletedPhoneLocks[] = $phone->toString();
     }
 
     public function findById(UserId $id): ?User

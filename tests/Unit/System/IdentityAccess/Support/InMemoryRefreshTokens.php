@@ -70,6 +70,19 @@ final class InMemoryRefreshTokens implements RefreshTokenRepositoryInterface
         return $count;
     }
 
+    public function revokeAllForUser(string $userId, \DateTimeImmutable $at): int
+    {
+        $count = 0;
+
+        foreach ($this->tokens as $token) {
+            if ($token->userId() === $userId && !$token->isRevoked()) {
+                $count += $this->revokeFamily($token->familyId(), $at);
+            }
+        }
+
+        return $count;
+    }
+
     /**
      * The tokens of a family, in insertion order.
      *

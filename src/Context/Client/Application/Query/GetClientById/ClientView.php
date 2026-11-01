@@ -10,6 +10,7 @@ final readonly class ClientView
      * @param list<ContactMethodDto> $contactMethods
      * @param list<ConsentDto>       $consents       active consents only
      * @param list<string>           $taxWarnings    TaxProfileWarning values, in display order
+     * @param int                    $version        the record's version: a form posts it back so a stale save is refused
      */
     public function __construct(
         public string $id,
@@ -36,6 +37,7 @@ final readonly class ClientView
         public ?string $taxVatCheckedAt = null,
         public bool $taxVerificationPending = false,
         public array $taxWarnings = [],
+        public int $version = 1,
     ) {
     }
 

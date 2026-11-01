@@ -86,14 +86,30 @@ final class TemplateCatalog
             'SMS'   => ['sentAtLabel' => self::SCALAR],
         ],
         'PORTAL_OTP' => [
-            // code « 123456 »; validityMinutes « 10 »; SMS only (no e-mail channel for the code)
-            'SMS' => ['code' => self::SCALAR, 'validityMinutes' => self::SCALAR],
+            // code « 123456 »; validityMinutes « 10 »; purpose the OTP purpose (login, invitation, email_change,
+            // account_deletion): the SMS wording depends on it (portal_otp_<purpose>.txt.twig for the actions)
+            'SMS' => ['code' => self::SCALAR, 'validityMinutes' => self::SCALAR, 'purpose' => self::SCALAR],
+            // A sign-in code resent to the verified e-mail of the account (login codes only)
+            'EMAIL' => ['code' => self::SCALAR, 'validityMinutes' => self::SCALAR],
         ],
         'PORTAL_INVITATION' => [
             // ownerFirstName « Sophie » or ''; link absolute « …/invitation#t=<token> »; expiresOn « 05/11/2026 ».
             // Both channels take the same parameters (the SMS does not print ownerFirstName).
             'EMAIL' => ['clinicName' => self::SCALAR, 'ownerFirstName' => self::SCALAR, 'link' => self::SCALAR, 'expiresOn' => self::SCALAR],
             'SMS'   => ['clinicName' => self::SCALAR, 'ownerFirstName' => self::SCALAR, 'link' => self::SCALAR, 'expiresOn' => self::SCALAR],
+        ],
+        'PORTAL_EMAIL_VERIFICATION' => [
+            // The code proving an address an owner wants on their account
+            'EMAIL' => ['code' => self::SCALAR, 'validityMinutes' => self::SCALAR],
+        ],
+        'PORTAL_EMAIL_CHANGED_NOTICE' => [
+            // Sent to the previous verified address; maskedNewEmail « j***@exemple.fr »; changedAtLabel « 01/11/2026 à 14:05 »
+            'EMAIL' => ['maskedNewEmail' => self::SCALAR, 'changedAtLabel' => self::SCALAR],
+        ],
+        'PORTAL_DATA_EXPORT_READY' => [
+            // A notice only, no link: the archive is downloaded in the app. ownerFirstName « Sophie » or '';
+            // expiresAtLabel « 04/11/2026 à 10:00 » (Europe/Paris)
+            'EMAIL' => ['ownerFirstName' => self::SCALAR, 'expiresAtLabel' => self::SCALAR],
         ],
     ];
 

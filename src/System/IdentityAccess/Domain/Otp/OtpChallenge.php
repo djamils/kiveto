@@ -9,9 +9,17 @@ use App\System\IdentityAccess\Domain\Exception\OtpChallengeNotFoundException;
 use App\System\IdentityAccess\Domain\Exception\OtpRateLimitedException;
 
 /**
- * A one-time code sent to a mobile phone. Only an HMAC of the code is kept
- * (a plain digest of 10⁶ values is reversible). The code lives 10 minutes,
- * allows 5 attempts and is used once; a new one may be sent after 30 s.
+ * A one-time code sent to a mobile phone (or, to verify an address, to an
+ * e-mail). Only an HMAC of the code is kept (a plain digest of 10⁶ values is
+ * reversible). The code lives 10 minutes, allows 5 attempts and is used once;
+ * a new one may be sent after 30 s.
+ *
+ * The purpose fixes the subject the challenge is bound to: an invitation
+ * code to its invitation, an action code (`email_change`,
+ * `account_deletion`, `email_verification`) to its user, a login code to
+ * nothing. A code verified against another subject is a wrong attempt: the
+ * code of user A never confirms an action of user B. An `email_verification`
+ * challenge carries the address it proves.
  *
  * A login challenge verified for a phone that has pending invitations may
  * carry an onboarding grant: a 15-minute token that accepts those
@@ -22,14 +30,16 @@ final class OtpChallenge
 {
     public const int MAX_ATTEMPTS = 5;
 
-    private const string LIFETIME            = 'PT10M';
-    private const string RESEND_DELAY        = 'PT30S';
+    public const string LIFETIME     = 'PT10M';
+    public const string RESEND_DELAY = 'PT30S';
+
     private const string ONBOARDING_LIFETIME = 'PT15M';
 
     private OtpChallengeId $id;
     private PhoneNumber $phone;
     private OtpPurpose $purpose;
-    private ?string $invitationRef;
+    private ?string $subjectRef;
+    private ?string $targetEmail;
     private string $codeHash;
     private int $attempts;
     private int $sendCount;
@@ -51,34 +61,44 @@ final class OtpChallenge
     }
 
     /**
-     * @param bool $smsSuppressed the code is not sent (unknown-number SMS
-     *                            budget exhausted) and never will be, even on
-     *                            a resend
+     * @param ?string $subjectRef    the invitation id or the user id the
+     *                               purpose requires; null for a login code
+     * @param bool    $smsSuppressed the code is not sent (unknown-number SMS
+     *                               budget exhausted) and never will be, even
+     *                               on a resend
+     * @param ?string $targetEmail   the address an `email_verification`
+     *                               code proves, and only it
      */
     public static function start(
         OtpChallengeId $id,
         PhoneNumber $phone,
         OtpPurpose $purpose,
-        ?string $invitationRef,
+        ?string $subjectRef,
         string $codeHash,
         \DateTimeImmutable $now,
         bool $smsSuppressed = false,
+        ?string $targetEmail = null,
     ): self {
-        if ((OtpPurpose::INVITATION === $purpose) === (null === $invitationRef)) {
-            throw new \InvalidArgumentException('An invitation code, and only it, is bound to an invitation.');
+        if ((null === $purpose->subjectType()) !== (null === $subjectRef)) {
+            throw new \InvalidArgumentException(\sprintf('A code of purpose "%s" is bound to %s.', $purpose->value, null === $purpose->subjectType() ? 'no subject' : 'its ' . $purpose->subjectType()->value));
+        }
+
+        if ((OtpPurpose::EMAIL_VERIFICATION === $purpose) === (null === $targetEmail)) {
+            throw new \InvalidArgumentException('An e-mail verification code, and only it, carries the address it proves.');
         }
 
         $challenge                      = new self();
         $challenge->id                  = $id;
         $challenge->phone               = $phone;
         $challenge->purpose             = $purpose;
-        $challenge->invitationRef       = $invitationRef;
+        $challenge->subjectRef          = $subjectRef;
+        $challenge->targetEmail         = $targetEmail;
         $challenge->codeHash            = $codeHash;
         $challenge->attempts            = 0;
         $challenge->sendCount           = 1;
         $challenge->expiresAt           = $now->add(new \DateInterval(self::LIFETIME));
         $challenge->resendAvailableAt   = $now->add(new \DateInterval(self::RESEND_DELAY));
-        $challenge->lastChannel         = OtpChannel::SMS;
+        $challenge->lastChannel         = null === $targetEmail ? OtpChannel::SMS : OtpChannel::EMAIL;
         $challenge->smsSuppressed       = $smsSuppressed;
         $challenge->consumedAt          = null;
         $challenge->onboardingTokenHash = null;
@@ -93,7 +113,7 @@ final class OtpChallenge
         OtpChallengeId $id,
         PhoneNumber $phone,
         OtpPurpose $purpose,
-        ?string $invitationRef,
+        ?string $subjectRef,
         string $codeHash,
         int $attempts,
         int $sendCount,
@@ -106,12 +126,14 @@ final class OtpChallenge
         ?\DateTimeImmutable $onboardingExpiresAt,
         ?\DateTimeImmutable $onboardingRevokedAt,
         \DateTimeImmutable $createdAt,
+        ?string $targetEmail = null,
     ): self {
         $challenge                      = new self();
         $challenge->id                  = $id;
         $challenge->phone               = $phone;
         $challenge->purpose             = $purpose;
-        $challenge->invitationRef       = $invitationRef;
+        $challenge->subjectRef          = $subjectRef;
+        $challenge->targetEmail         = $targetEmail;
         $challenge->codeHash            = $codeHash;
         $challenge->attempts            = $attempts;
         $challenge->sendCount           = $sendCount;
@@ -130,15 +152,17 @@ final class OtpChallenge
 
     /**
      * Never throws: every wrong attempt is counted and must be committed.
-     * A code of another purpose or invitation counts as a wrong attempt.
+     * A code of another purpose or subject (invitation, user) counts as a
+     * wrong attempt; the subject type follows from the purpose, so comparing
+     * the purposes compares the subject types.
      */
     public function verify(
         string $codeHash,
         \DateTimeImmutable $now,
         OtpPurpose $expectedPurpose,
-        ?string $expectedInvitationRef = null,
+        ?string $expectedSubjectRef = null,
     ): OtpVerificationResult {
-        $sameTarget = $expectedPurpose === $this->purpose && $expectedInvitationRef === $this->invitationRef;
+        $sameTarget = $expectedPurpose === $this->purpose && $expectedSubjectRef === $this->subjectRef;
 
         if (null !== $this->consumedAt) {
             // A used code stays guarded: its replay is honoured within the
@@ -186,13 +210,7 @@ final class OtpChallenge
      */
     public function resend(string $newCodeHash, OtpChannel $channel, \DateTimeImmutable $now): void
     {
-        if (null !== $this->consumedAt) {
-            throw new OtpChallengeNotFoundException();
-        }
-
-        if ($now < $this->resendAvailableAt) {
-            throw new OtpRateLimitedException($this->resendAvailableAt);
-        }
+        $this->assertResendable($now);
 
         $this->codeHash          = $newCodeHash;
         $this->attempts          = 0;
@@ -200,6 +218,24 @@ final class OtpChallenge
         $this->resendAvailableAt = $now->add(new \DateInterval(self::RESEND_DELAY));
         $this->lastChannel       = $channel;
         ++$this->sendCount;
+    }
+
+    /**
+     * The checks of resend(), for a resend that ends up sending nothing (it
+     * must answer exactly like one that sends).
+     *
+     * @throws OtpRateLimitedException       before the resend delay
+     * @throws OtpChallengeNotFoundException once the challenge was used
+     */
+    public function assertResendable(\DateTimeImmutable $now): void
+    {
+        if (null !== $this->consumedAt) {
+            throw new OtpChallengeNotFoundException();
+        }
+
+        if ($now < $this->resendAvailableAt) {
+            throw new OtpRateLimitedException($this->resendAvailableAt);
+        }
     }
 
     /**
@@ -245,9 +281,21 @@ final class OtpChallenge
         return $this->purpose;
     }
 
-    public function invitationRef(): ?string
+    public function subjectType(): ?OtpSubjectType
     {
-        return $this->invitationRef;
+        return $this->purpose->subjectType();
+    }
+
+    /** The invitation id or user id the challenge is bound to. */
+    public function subjectRef(): ?string
+    {
+        return $this->subjectRef;
+    }
+
+    /** The address an `email_verification` code proves. */
+    public function targetEmail(): ?string
+    {
+        return $this->targetEmail;
     }
 
     public function codeHash(): string

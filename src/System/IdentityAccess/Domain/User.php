@@ -38,6 +38,7 @@ final class User extends AggregateRoot
     private UserStatus $status;
     private ?\DateTimeImmutable $emailVerifiedAt = null;
     private UserType $type;
+    private ?\DateTimeImmutable $anonymisedAt = null;
 
     private function __construct()
     {
@@ -135,6 +136,7 @@ final class User extends AggregateRoot
         ?UserType $type = null,
         ?PhoneNumber $phone = null,
         ?\DateTimeImmutable $phoneVerifiedAt = null,
+        ?\DateTimeImmutable $anonymisedAt = null,
     ): self {
         $user                  = new self();
         $user->id              = $id;
@@ -146,6 +148,7 @@ final class User extends AggregateRoot
         $user->type            = $type ?? UserType::CLINIC;
         $user->phone           = $phone;
         $user->phoneVerifiedAt = $phoneVerifiedAt;
+        $user->anonymisedAt    = $anonymisedAt;
 
         return $user;
     }
@@ -202,6 +205,12 @@ final class User extends AggregateRoot
         return $this->type;
     }
 
+    /** When the owner account was erased after its deletion request; null otherwise. */
+    public function anonymisedAt(): ?\DateTimeImmutable
+    {
+        return $this->anonymisedAt;
+    }
+
     /**
      * The invited user chose their password: the account becomes ACTIVE and
      * the address is proven (the link reached its mailbox).
@@ -237,12 +246,88 @@ final class User extends AggregateRoot
     }
 
     /**
+     * An owner proved this address with a code sent to it: it becomes the
+     * account's verified e-mail (and a second sign-in factor).
+     */
+    public function confirmEmail(string $email, \DateTimeImmutable $at): void
+    {
+        if (UserType::PORTAL !== $this->type) {
+            throw new \LogicException('Only an owner account verifies its e-mail with a code.');
+        }
+
+        $this->email           = $email;
+        $this->emailVerifiedAt = $at;
+    }
+
+    /**
+     * Another owner proved the address this account held without having
+     * verified it: the account loses it. A verified address is never taken.
+     */
+    public function releaseUnverifiedEmail(): void
+    {
+        if (null !== $this->emailVerifiedAt) {
+            throw new \LogicException('A verified e-mail address is never released to another account.');
+        }
+
+        $this->email = null;
+    }
+
+    /**
+     * The owner asked for the deletion of their account: it is switched off
+     * at once (no access token, refresh or sign-in is accepted any more), its
+     * data erased later by anonymisePortal(). A disabled account stays so.
+     */
+    public function disablePortal(): void
+    {
+        self::assertPortal($this->type);
+
+        $this->status = UserStatus::DISABLED;
+    }
+
+    /**
+     * Erases what identifies the owner of a disabled account: phone, e-mail
+     * and their verification dates. The row stays (the id is referenced by
+     * other contexts); the phone is free for a new account. Done once.
+     */
+    public function anonymisePortal(\DateTimeImmutable $at): void
+    {
+        self::assertPortal($this->type);
+
+        if (UserStatus::DISABLED !== $this->status) {
+            throw new \LogicException('An owner account is disabled before it is anonymised.');
+        }
+
+        if (null !== $this->anonymisedAt) {
+            return;
+        }
+
+        $this->phone           = null;
+        $this->phoneVerifiedAt = null;
+        $this->email           = null;
+        $this->emailVerifiedAt = null;
+        $this->anonymisedAt    = $at;
+    }
+
+    /** The account has an e-mail address its owner proved. */
+    public function hasVerifiedEmail(): bool
+    {
+        return null !== $this->email && null !== $this->emailVerifiedAt;
+    }
+
+    /**
      * A short digest of the password hash, kept in the session: when the
      * password changes, every session holding the old digest is closed.
      */
     public function passwordFingerprint(): string
     {
         return substr(hash('sha256', $this->passwordHash), 0, 16);
+    }
+
+    private static function assertPortal(UserType $type): void
+    {
+        if (UserType::PORTAL !== $type) {
+            throw new \LogicException('Only an owner account is deleted from the Portal.');
+        }
     }
 
     /** Staff accounts sign in by e-mail; owner accounts are created by registerPortal(). */

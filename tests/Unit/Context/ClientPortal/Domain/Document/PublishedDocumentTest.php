@@ -143,6 +143,10 @@ final class PublishedDocumentTest extends TestCase
                 $document->updatedAt()->format('Y-m-d H:i'),
             ],
         );
+
+        // A second click while that file is being made adds nothing.
+        self::assertNull($document->reshare('client-2', 'Dr Durand', true, new \DateTimeImmutable('2026-11-03 10:01')));
+        self::assertSame([2, '2026-11-03 10:00'], [$document->pendingFileVersion(), $document->updatedAt()->format('Y-m-d H:i')]);
     }
 
     public function testAReshareToAnUnlinkedClientAwaitsALink(): void

@@ -68,6 +68,11 @@ final readonly class DbalClientLinkRepository implements ClientLinkRepositoryInt
         );
     }
 
+    public function findByUser(string $userId): array
+    {
+        return $this->list('user_id = :user ORDER BY clinic_id ASC, id ASC', ['user' => SqlValues::binary($userId)]);
+    }
+
     public function hasConfirmed(string $userId, string $clinicId): bool
     {
         return false !== $this->connection->fetchOne(

@@ -34,7 +34,10 @@ final class GetPortalAccountHandlerTest extends TestCase
 
         $account = $handler(new GetPortalAccount(self::OWNER));
         self::assertNotNull($account);
-        self::assertSame([self::OWNER, 'marie@example.com', '+33612345678'], [$account->userId, $account->email, $account->phone]);
+        self::assertSame([self::OWNER, 'marie@example.com', '+33612345678', false], [$account->userId, $account->email, $account->phone, $account->emailVerified]);
+
+        $users->users[self::OWNER]->confirmEmail('marie@example.com', $at);
+        self::assertTrue($handler(new GetPortalAccount(self::OWNER))?->emailVerified);
 
         foreach ([self::DISABLED, self::STAFF, self::NO_PHONE, '01960000-0000-7000-8000-0000000004ff', 'not-a-uuid'] as $id) {
             self::assertNull($handler(new GetPortalAccount($id)), $id);

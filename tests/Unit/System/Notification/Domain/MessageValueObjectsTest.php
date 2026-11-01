@@ -31,12 +31,15 @@ final class MessageValueObjectsTest extends TestCase
         $kiveto      = array_values(array_filter(MessagePurpose::cases(), static fn (MessagePurpose $p): bool => $p->isSentByKiveto()));
 
         self::assertSame([MessagePurpose::APPOINTMENT_REMINDER, MessagePurpose::INVOICE_REMINDER], $nonCritical);
-        self::assertSame([MessagePurpose::STAFF_INVITATION, MessagePurpose::PASSWORD_RESET, MessagePurpose::TEST, MessagePurpose::PORTAL_OTP, MessagePurpose::PORTAL_INVITATION], $kiveto);
+        self::assertSame([MessagePurpose::STAFF_INVITATION, MessagePurpose::PASSWORD_RESET, MessagePurpose::TEST, MessagePurpose::PORTAL_OTP, MessagePurpose::PORTAL_INVITATION, MessagePurpose::PORTAL_EMAIL_VERIFICATION, MessagePurpose::PORTAL_EMAIL_CHANGED_NOTICE, MessagePurpose::PORTAL_DATA_EXPORT_READY], $kiveto);
 
         $labels = array_map(static fn (MessagePurpose $p): string => $p->label(), MessagePurpose::cases());
         self::assertSame($labels, array_unique($labels));
         self::assertSame("Relance d'impayé", MessagePurpose::INVOICE_REMINDER->label());
         self::assertSame(['Code de connexion Portal', 'Invitation au Portal'], [MessagePurpose::PORTAL_OTP->label(), MessagePurpose::PORTAL_INVITATION->label()]);
+        self::assertSame(["Vérification de l'adresse e-mail Portal", 'Adresse e-mail Portal modifiée'], [MessagePurpose::PORTAL_EMAIL_VERIFICATION->label(), MessagePurpose::PORTAL_EMAIL_CHANGED_NOTICE->label()]);
+        self::assertSame(['00:10', null], [MessagePurpose::PORTAL_EMAIL_VERIFICATION->linkValidity()?->format('%H:%I'), MessagePurpose::PORTAL_EMAIL_CHANGED_NOTICE->linkValidity()], 'the code is erased once handed over; the notice is kept');
+        self::assertSame(['Export de données Portal prêt', null], [MessagePurpose::PORTAL_DATA_EXPORT_READY->label(), MessagePurpose::PORTAL_DATA_EXPORT_READY->linkValidity()], 'a notice without link');
     }
 
     public function testStatusesAreRankedAndLabelled(): void

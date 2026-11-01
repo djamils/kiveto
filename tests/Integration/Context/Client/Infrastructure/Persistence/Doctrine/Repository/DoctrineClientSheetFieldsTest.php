@@ -13,7 +13,10 @@ use App\Context\Client\Domain\ValueObject\Civility;
 use App\Context\Client\Domain\ValueObject\ClientId;
 use App\Context\Client\Domain\ValueObject\ClientIdentity;
 use App\Context\Client\Domain\ValueObject\ClinicId;
+use App\Context\Client\Domain\ValueObject\ConsentActor;
+use App\Context\Client\Domain\ValueObject\ConsentActorType;
 use App\Context\Client\Domain\ValueObject\ConsentKind;
+use App\Context\Client\Domain\ValueObject\ConsentSource;
 use App\Context\Client\Domain\ValueObject\ContactChannel;
 use App\Context\Client\Domain\ValueObject\ContactLabel;
 use App\Context\Client\Domain\ValueObject\ContactMethod;
@@ -70,6 +73,8 @@ final class DoctrineClientSheetFieldsTest extends KernelTestCase
             ContactChannel::SMS,
             [ConsentKind::APPOINTMENT_REMINDERS->value => [ContactChannel::SMS, ContactChannel::EMAIL]],
             $now,
+            ConsentSource::CLINIC,
+            new ConsentActor(ConsentActorType::SYSTEM, null, 'Test'),
         );
 
         $repository->save($client);
@@ -122,7 +127,7 @@ final class DoctrineClientSheetFieldsTest extends KernelTestCase
             null,
             $now,
         ), $now);
-        $client->updateCommunicationPreferences(ContactChannel::EMAIL, [], $now);
+        $client->updateCommunicationPreferences(ContactChannel::EMAIL, [], $now, ConsentSource::CLINIC, new ConsentActor(ConsentActorType::SYSTEM, null, 'Test'));
         $repository->save($client);
         $this->entityManager()->clear();
 
@@ -131,7 +136,7 @@ final class DoctrineClientSheetFieldsTest extends KernelTestCase
         self::assertSame(ContactChannel::EMAIL, $stored->communicationPreferences()->preferredChannel);
 
         $stored->changeAuthorizedPerson(null, $now);
-        $stored->updateCommunicationPreferences(null, [], $now);
+        $stored->updateCommunicationPreferences(null, [], $now, ConsentSource::CLINIC, new ConsentActor(ConsentActorType::SYSTEM, null, 'Test'));
         $repository->save($stored);
         $this->entityManager()->clear();
 
@@ -166,6 +171,8 @@ final class DoctrineClientSheetFieldsTest extends KernelTestCase
             ContactChannel::SMS,
             [ConsentKind::MARKETING->value => [ContactChannel::EMAIL]],
             $now,
+            ConsentSource::CLINIC,
+            new ConsentActor(ConsentActorType::SYSTEM, null, 'Test'),
         );
         $repository->save($client);
         $this->entityManager()->clear();

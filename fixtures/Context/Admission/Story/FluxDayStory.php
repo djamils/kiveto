@@ -288,6 +288,8 @@ final class FluxDayStory extends Story
             firstName: $firstName,
             lastName: $lastName,
             contactMethods: [new ContactMethodDto(type: 'phone', label: 'mobile', value: $phone, isPrimary: true)],
+            actorType: 'system',
+            authorLabel: 'Données de démonstration',
         ));
         \assert(\is_string($clientId));
 

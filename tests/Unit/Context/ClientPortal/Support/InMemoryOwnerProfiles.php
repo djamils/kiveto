@@ -20,6 +20,12 @@ final class InMemoryOwnerProfiles implements OwnerProfileRepositoryInterface
         ++$this->saves;
     }
 
+    public function updateIdentity(OwnerProfile $profile): void
+    {
+        $this->profiles[$profile->userId()] = $profile;
+        ++$this->saves;
+    }
+
     public function findByUserId(string $userId): ?OwnerProfile
     {
         return $this->profiles[$userId] ?? null;

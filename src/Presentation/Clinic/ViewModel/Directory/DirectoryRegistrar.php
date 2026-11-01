@@ -13,6 +13,7 @@ use App\Context\Client\Application\Query\ListClientIdsByPhone\ListClientIdsByPho
 use App\Context\Client\Application\Query\ListCommunesForPostalCode\ListCommunesForPostalCode;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
+use App\Presentation\Clinic\ViewModel\Client\StaffConsentAuthor;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Domain\Localization\TimeZone;
@@ -30,6 +31,7 @@ final readonly class DirectoryRegistrar
         private CommandBusInterface $commandBus,
         private QueryBusInterface $queryBus,
         private ClockInterface $clock,
+        private StaffConsentAuthor $staffConsentAuthor,
     ) {
     }
 
@@ -80,6 +82,8 @@ final readonly class DirectoryRegistrar
             $animals[]                     = $animal;
         }
 
+        $author = $this->staffConsentAuthor->of($clinicId);
+
         try {
             $this->commandBus->dispatch(new CreateClient(
                 clinicId: $clinicId,
@@ -92,6 +96,9 @@ final readonly class DirectoryRegistrar
                 channelsByConsentKind: $client->consents(),
                 animals: array_map(static fn (DirectoryAnimalInput $animal) => $animal->toDto(), $animals),
                 taxProfile: $client->taxProfile?->toClientDto(),
+                actorType: 'staff',
+                actorId: $author['id'],
+                authorLabel: $author['label'],
             ));
         } catch (\LogicException) {
             return self::refused('La fiche n\'a pas pu être créée : vérifiez les coordonnées et les animaux.');

@@ -62,6 +62,9 @@ final readonly class CommandBusCounterClientRegistry implements CounterClientReg
                 siren: $client->taxProfile->siren,
                 vatNumber: $client->taxProfile->vatNumber,
             ),
+            // Opened at the counter: the consent history names the clinic team.
+            actorType: 'staff',
+            authorLabel: 'Équipe de la clinique',
         ));
         \assert(\is_string($clientId));
 

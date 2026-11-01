@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Fixtures\Dataset;
 
 use App\Fixtures\Context\Animal\Story\PortalPetsAnimalStory;
+use App\Fixtures\Context\Client\Story\ConsentsStory;
 use App\Fixtures\Context\ClientPortal\Story\ClientPortalStatesStory;
+use App\Fixtures\Context\ClientPortal\Story\PortalAccountStatesStory;
 use App\Fixtures\Context\ClientPortal\Story\PortalBookingStory;
 use App\Fixtures\Context\ClientPortal\Story\PortalDocumentsStory;
 use App\Fixtures\Context\ClientPortal\Story\PortalPetsStory;
@@ -38,6 +40,15 @@ final class PortalDataset extends Story
         // a long history, the cancellation window cases, and the clinics
         // where they cannot book (booking off, empty week).
         PortalBookingStory::load();
+
+        // Their consents (none, partial, all; two files that diverge; an
+        // archived client and its unarchived twin) with a history mixing the
+        // clinic, the Portal and the « Reprise » of older consents.
+        ConsentsStory::load();
+
+        // Their accounts: verified e-mail, pending e-mail change, data
+        // exports pending / ready / expired, and an account deleted.
+        PortalAccountStatesStory::load();
 
         PortalUserFactory::createMany(5);
     }

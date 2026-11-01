@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Context\ClientPortal\Support;
 use App\Context\ClientPortal\Application\Port\ClientDirectoryInterface;
 use App\Context\ClientPortal\Application\Port\ClinicLabel;
 use App\Context\ClientPortal\Application\Port\ClinicProfileInterface;
+use App\Context\ClientPortal\Application\Port\DataExportReadyMessage;
 use App\Context\ClientPortal\Application\Port\IdentityClaim;
 use App\Context\ClientPortal\Application\Port\IdentityClaimRequest;
 use App\Context\ClientPortal\Application\Port\IdentityClaimResult;
@@ -53,6 +54,9 @@ final class ClientPortalFakes implements ClientDirectoryInterface, ClinicProfile
 
     /** @var list<PortalInvitationMessage> */
     public array $messages = [];
+
+    /** @var list<DataExportReadyMessage> */
+    public array $exportNotices = [];
 
     /** @var list<IdentityClaimRequest> */
     public array $claims = [];
@@ -116,6 +120,11 @@ final class ClientPortalFakes implements ClientDirectoryInterface, ClinicProfile
     public function requestPortalInvitation(PortalInvitationMessage $message): void
     {
         $this->messages[] = $message;
+    }
+
+    public function requestDataExportReady(DataExportReadyMessage $message): void
+    {
+        $this->exportNotices[] = $message;
     }
 
     public function invitationLink(string $token): string

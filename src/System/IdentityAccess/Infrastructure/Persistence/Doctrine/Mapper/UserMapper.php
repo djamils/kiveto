@@ -28,6 +28,7 @@ final readonly class UserMapper
         $entity->setEmailVerifiedAt($domainUser->emailVerifiedAt());
         $entity->setPhone($domainUser->phone()?->toString());
         $entity->setPhoneVerifiedAt($domainUser->phoneVerifiedAt());
+        $entity->setAnonymisedAt($domainUser->anonymisedAt());
 
         return $entity;
     }
@@ -41,6 +42,7 @@ final readonly class UserMapper
         $entity->setEmailVerifiedAt($domainUser->emailVerifiedAt());
         $entity->setPhone($domainUser->phone()?->toString());
         $entity->setPhoneVerifiedAt($domainUser->phoneVerifiedAt());
+        $entity->setAnonymisedAt($domainUser->anonymisedAt());
     }
 
     public function toDomain(UserEntity $entity): DomainUser
@@ -55,6 +57,7 @@ final readonly class UserMapper
             $entity->getType(),
             null === $entity->getPhone() ? null : PhoneNumber::fromString($entity->getPhone()),
             $entity->getPhoneVerifiedAt(),
+            $entity->getAnonymisedAt(),
         );
     }
 }

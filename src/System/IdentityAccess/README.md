@@ -7,9 +7,9 @@ The **IdentityAccess** system context manages user identities, authentication, a
 - **User** — the abstract aggregate root representing any authenticated principal in the system.
 - **BackofficeUser** — a platform-level administrator with no clinic affiliation.
 - **ClinicUser** — a practitioner or staff member affiliated with one or more clinics via the Clinic BC.
-- **PortalUser** — a pet owner of the client Portal (mobile app). Identified by their **mobile phone** (E.164, required, verified by a one-time code), no password; the e-mail is optional and unverified (copied from a clinic's client file). Name and address live in ClientPortal's owner profile, not here.
+- **PortalUser** — a pet owner of the client Portal (mobile app). Identified by their **mobile phone** (E.164, required, verified by a one-time code), no password; the e-mail is optional — copied unverified from a clinic's client file, or proven by the owner with a code (`emailVerifiedAt`, see « Portal e-mail change »). Name and address live in ClientPortal's owner profile, not here.
 - **AuthenticationContext** — the application scope the login attempt is made against (`BACKOFFICE | CLINIC | PORTAL`). Addresses are looked up within the context's account type only: an account of another type is unknown here (`InvalidCredentialsException`).
-- **OtpChallenge** — a one-time code sent by SMS to prove a phone, for one purpose (`login` or `invitation` bound to an invitation id).
+- **OtpChallenge** — a one-time code sent by SMS to prove a phone (or by e-mail to prove an address), for one purpose: `login` (bound to nothing), `invitation` (bound to an invitation id), or the action codes `email_change`, `account_deletion`, `email_verification` (bound to a user id; `email_verification` also carries the `target_email` it proves).
 - **Onboarding grant** — a 15-minute token carried by a login challenge whose phone has pending Portal invitations; it accepts them without a second code.
 - **Refresh token family** — the chain of refresh tokens born from one sign-in; any theft signal revokes the whole family.
 
@@ -46,8 +46,40 @@ Table `identity_access__otp_challenges` (`OtpChallenge`, DBAL repository):
 - 6 digits, valid **10 min**, **5 attempts**, a resend after **30 s** (new code, attempts reset, `send_count++`), used once. The code is stored as `HMAC-SHA256(code, kernel.secret)` (`OtpCodeHasherInterface`): a plain digest of 10⁶ values would be reversible.
 - `verify()` never throws: a wrong code (or a code of another purpose / invitation) counts an attempt and is **committed** — the use cases return outcomes instead of throwing (`LoginOtpOutcome`, `RefreshResult`). A consumed challenge re-presented with the right code before its original expiry answers `already_verified` (honoured by invitation acceptances only, to make them retryable); wrong guesses on a consumed challenge still count, and no replay is honoured once the 5 attempts are spent.
 - `RequestPortalOtp(phone, purpose, ?invitationRef)`: sign-in codes only go to numbers of Client's `MobileNumberPolicy` (`IsPortalMobileNumber`, `PhoneNotSupportedException`). For a phone without an active owner account, a code spends the **global hourly budget of unknown numbers** (`PORTAL_OTP_UNKNOWN_HOURLY_CAP`, default 200); beyond it the challenge is created with `sms_suppressed` — same answer, no SMS now or on any resend — and an `alert` is logged on channel `security` once per hour. Invitation codes never spend that budget. The SMS (`PORTAL_OTP`, key `otp:<challengeId>:<sendCount>`) is requested last in the transaction.
-- `ResendPortalOtp(challengeId, channel)` (`sms` only), `GetOtpChallengePhone(challengeId)` (lets the API answer 404 and key its quotas first), `VerifyPortalLoginOtp(challengeId, code)` → `authenticated` (active owner) | `registration_required` | `account_disabled` | `otp_invalid` | `otp_expired` | `otp_attempts_exceeded`. No answer tells whether a phone has an account before its code is proven.
+- `ResendPortalOtp(challengeId, channel)` (`sms` or `email`, see below), `GetOtpChallengePhone(challengeId)` (lets the API answer 404 and key its quotas first), `VerifyPortalLoginOtp(challengeId, code)` → `authenticated` (active owner) | `registration_required` | `account_disabled` | `otp_invalid` | `otp_expired` | `otp_attempts_exceeded`. No answer tells whether a phone has an account before its code is proven.
 - The API's per-phone / per-IP quotas are database-backed rate limiters (`limiter.portal_*`, table `shared__rate_limiter_cache`), consumed by the Presentation layer before dispatching. All Portal limiters (the unknown-number budget included, spent inside `RequestPortalOtp`) go through the dedicated DBAL connection `rate_limiter`, in autocommit: a counter is never read from a transaction's stale snapshot nor kept locked until a command commits.
+
+## Portal action codes and e-mail change
+
+**Subjects.** The purpose fixes what a challenge is bound to (`subject_type`, `subject_ref` of `identity_access__otp_challenges`): `invitation` → the invitation id, the action purposes → the user id, `login` → nothing. `OtpChallenge::verify(…, expectedPurpose, expectedSubjectRef)` compares purpose and subject: the code of user A presented by user B is a wrong attempt (never `attempts_exceeded` for B).
+
+Commands reusable by any action of a signed-in owner (the account deletion uses them with `account_deletion`):
+
+| Command | Answer | What it does |
+|---|---|---|
+| `RequestPortalActionOtp(string $userId, string $purpose)` | `OtpChallengeIssued` | `purpose` ∈ `email_change`, `account_deletion` (else `\InvalidArgumentException`). SMS to the account's phone (no coverage check, no unknown-number budget), challenge bound to the user, wording per purpose (`PortalOtpRequest::$purpose`: « Code de confirmation de changement d'e-mail… », « Code de confirmation de suppression de votre compte Kiveto : … »). Not an ACTIVE owner account with a phone → `PortalAccountUnavailableException`. The API consumes `portal_otp_phone`, `portal_otp_phone_daily` and `portal_otp_ip` first. |
+| `VerifyPortalActionOtp(string $userId, string $challengeId, string $code, string $purpose)` | `ActionOtpResult` (`VERIFIED`, `OTP_INVALID`, `OTP_EXPIRED`, `OTP_ATTEMPTS_EXCEEDED`) | Same action purposes. Never throws on a wrong code (the attempt is committed); unknown challenge, other user, other purpose and a replay of a used code are `OTP_INVALID`. A verified code is consumed. Built on `Application\Service\ActionOtpVerifier`, which the e-mail commands share. |
+| `StartPortalEmailChange(string $userId, string $challengeId, string $code, string $email)` | `EmailChangeStarted{result: ActionOtpResult, ?verificationChallengeId, ?expiresAt}` | The `email_change` SMS code is verified, then an `email_verification` challenge (bound to the user, `target_email` = the address trimmed and lower-cased, 10 min, 5 attempts) sends a code to the address (`PORTAL_EMAIL_VERIFICATION`). An invalid address (> 180 characters, refused by `FILTER_VALIDATE_EMAIL`) throws `\InvalidArgumentException` before the code is spent. Also re-verifies the current unverified address. No collision is checked here. |
+| `ConfirmPortalEmailChange(string $userId, string $challengeId, string $code)` | `EmailChangeResult` (`CONFIRMED`, `OTP_INVALID`, `OTP_EXPIRED`, `OTP_ATTEMPTS_EXCEEDED`, `EMAIL_TAKEN`) | Verifies the e-mail code, then locks the caller and the PORTAL account holding the address (`findByEmailAndTypeForUpdate`): a holder that **verified** it keeps it (`EMAIL_TAKEN`, the code stays used); one that merely had it loses it (`User::releaseUnverifiedEmail()`); the caller gets it (`User::confirmEmail(email, at)`). A previous **verified** address of the caller, other than the new one, receives `PORTAL_EMAIL_CHANGED_NOTICE` (new address masked, key `email-changed:<challengeId>`). |
+
+**A verified e-mail is a sign-in factor (D6).** This reverses the slice-1 rule « no e-mail channel » (D18): `ResendPortalOtp(challengeId, 'email')` sends a **login** code (`PORTAL_OTP` by e-mail, same key space `otp:<challengeId>:<sendCount>`) to the verified address of the phone's ACTIVE owner account. Anything else — no verified address, an action code — and any resend of an `email_verification` code (it must reach the address it proves, never the phone) leaves the challenge untouched, the current code still valid, and answers like a resend (fresh `expiresAt` / `resendAvailableAt`, the 30 s delay enforced by `OtpChallenge::assertResendable()`): the answer tells nothing about the account. Action codes are resent by SMS with their wording.
+
+## Portal account deletion
+
+ClientPortal orchestrates the deletion (`RequestAccountDeletion`, then the
+`async` `DeletePortalAccount`); IdentityAccess answers with three commands,
+run in the caller's transaction:
+
+| Command | Answer | What it does |
+|---|---|---|
+| `DisablePortalUser(userId)` | — | After the `account_deletion` code is verified (`VerifyPortalActionOtp`): `User::disablePortal()` (DISABLED) and `RefreshTokenRepositoryInterface::revokeAllForUser(userId, at)`. `PortalApiUserProvider` (through `GetPortalAccount`) refuses the account's access tokens at once, `RefreshPortalSession` its refresh tokens. Not an ACTIVE owner account → `PortalAccountUnavailableException`. |
+| `PurgePortalPhoneTraces(userId)` | `PurgedPortalIdentity{?phone, ?email}` | First step of the erasure. Reads the phone, takes its lock row (`lockPortalPhone`, the claims' order: phone, then account), then deletes every challenge sent to the phone or bound to the user (`deleteForPhoneOrUser`, onboarding grants included), resets the phone's quotas `portal_otp_phone` / `portal_otp_phone_daily` (port `PortalOtpQuotasInterface`) and deletes the user's `shared__idempotency_keys` (`IdempotencyStoreInterface::forgetPrincipal`). An anonymised account has no phone: only the idempotency keys are deleted. Not a DISABLED owner account → `\LogicException`. |
+| `AnonymisePortalUser(userId)` | — | Last step. `User::anonymisePortal(at)`: phone, e-mail and their verification dates NULL, `anonymised_at` set (DISABLED required, done once); then the phone's lock row is deleted (`deletePortalPhoneLock`). |
+
+An anonymised owner row stays (other contexts reference its id) and stays
+DISABLED, like the phone-less owner rows of the migration
+`Version20261029120000`. Its phone is free: a claim of that phone finds no
+account and creates a new one.
 
 ## Portal onboarding (invitations)
 

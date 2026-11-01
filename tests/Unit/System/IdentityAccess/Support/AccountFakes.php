@@ -12,6 +12,8 @@ use App\System\IdentityAccess\Application\Port\AccountLinkBuilderInterface;
 use App\System\IdentityAccess\Application\Port\NotificationRequesterInterface;
 use App\System\IdentityAccess\Application\Port\PasswordHasherInterface;
 use App\System\IdentityAccess\Application\Port\PasswordResetRequest;
+use App\System\IdentityAccess\Application\Port\PortalEmailChangedNoticeRequest;
+use App\System\IdentityAccess\Application\Port\PortalEmailVerificationRequest;
 use App\System\IdentityAccess\Application\Port\PortalOtpRequest;
 use App\System\IdentityAccess\Application\Port\StaffInvitationRequest;
 use App\System\IdentityAccess\Domain\ValueObject\UserType;
@@ -30,6 +32,15 @@ final class AccountFakes implements PasswordHasherInterface, AccountLinkBuilderI
 
     /** @var list<PortalOtpRequest> */
     public array $portalOtps = [];
+
+    /** @var list<array{PortalOtpRequest, string}> codes resent by e-mail, with the address */
+    public array $emailedOtps = [];
+
+    /** @var list<PortalEmailVerificationRequest> */
+    public array $emailVerifications = [];
+
+    /** @var list<PortalEmailChangedNoticeRequest> */
+    public array $emailChangedNotices = [];
 
     /** @var list<object> */
     public array $events = [];
@@ -64,6 +75,21 @@ final class AccountFakes implements PasswordHasherInterface, AccountLinkBuilderI
     public function requestPortalOtp(PortalOtpRequest $request): void
     {
         $this->portalOtps[] = $request;
+    }
+
+    public function requestPortalOtpByEmail(PortalOtpRequest $request, string $email): void
+    {
+        $this->emailedOtps[] = [$request, $email];
+    }
+
+    public function requestPortalEmailVerification(PortalEmailVerificationRequest $request): void
+    {
+        $this->emailVerifications[] = $request;
+    }
+
+    public function requestPortalEmailChangedNotice(PortalEmailChangedNoticeRequest $request): void
+    {
+        $this->emailChangedNotices[] = $request;
     }
 
     public function generate(): string

@@ -41,6 +41,11 @@ final class InMemoryClientLinks implements ClientLinkRepositoryInterface
         return array_values(array_filter($this->links, static fn (ClientLink $l): bool => $l->userId() === $userId && $l->isConfirmed()));
     }
 
+    public function findByUser(string $userId): array
+    {
+        return array_values(array_filter($this->links, static fn (ClientLink $l): bool => $l->userId() === $userId));
+    }
+
     public function hasConfirmed(string $userId, string $clinicId): bool
     {
         foreach ($this->findConfirmedByUser($userId) as $link) {

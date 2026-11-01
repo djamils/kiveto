@@ -100,7 +100,12 @@ final readonly class RequestAppointmentReminderHandler
         return AppointmentStatus::PLANNED === $appointment->status() && $appointment->timeSlot()->startsAtUtc() > $now;
     }
 
-    /** The owner to remind by SMS, if they accept it. */
+    /**
+     * The owner to remind by SMS, if they accept it. An archived client
+     * receives no optional message (Client rule, enforced by
+     * `ClientNotificationContact::channelsFor()`): the `!archived` gate below
+     * states it again, its consents being kept untouched.
+     */
     private function reachableOwnerOf(Appointment $appointment): ?ClientContact
     {
         $ownerId = $appointment->ownerId();

@@ -60,6 +60,19 @@ final class InMemoryMessages implements OutboundMessageRepositoryInterface
         return \array_slice(array_values(array_map(static fn (OutboundMessage $m): OutboundMessageId => $m->id(), $due)), 0, $limit);
     }
 
+    public function findPortalAccountMessagesTo(array $addresses): array
+    {
+        $found = array_filter(
+            $this->messages,
+            static fn (OutboundMessage $m): bool => null === $m->contentPurgedAt()
+                && $m->purpose()->isPortalAccountMessage()
+                && DeliveryStatus::QUEUED !== $m->status()
+                && \in_array($m->recipient()?->address, $addresses, true),
+        );
+
+        return array_values(array_map(static fn (OutboundMessage $m): OutboundMessageId => $m->id(), $found));
+    }
+
     /**
      * @return list<OutboundMessage>
      */

@@ -24,16 +24,33 @@ final class TemplateCatalogTest extends TestCase
         self::assertSame('appointment_reminder', TemplateCatalog::templateName(MessagePurpose::APPOINTMENT_REMINDER));
     }
 
-    public function testThePortalCodeIsAnSmsAndThePortalInvitationGoesOnBothChannels(): void
+    public function testThePortalCodeGoesOnBothChannelsAndThePortalInvitationToo(): void
     {
-        self::assertSame([true, false], [TemplateCatalog::supports(MessagePurpose::PORTAL_OTP, Channel::SMS), TemplateCatalog::supports(MessagePurpose::PORTAL_OTP, Channel::EMAIL)]);
-        self::assertSame(['code' => 'scalar', 'validityMinutes' => 'scalar'], TemplateCatalog::parameters(MessagePurpose::PORTAL_OTP, Channel::SMS));
+        self::assertSame([true, true], [TemplateCatalog::supports(MessagePurpose::PORTAL_OTP, Channel::SMS), TemplateCatalog::supports(MessagePurpose::PORTAL_OTP, Channel::EMAIL)]);
+        self::assertSame(['code' => 'scalar', 'validityMinutes' => 'scalar', 'purpose' => 'scalar'], TemplateCatalog::parameters(MessagePurpose::PORTAL_OTP, Channel::SMS), 'the wording depends on the purpose');
+        self::assertSame(['code' => 'scalar', 'validityMinutes' => 'scalar'], TemplateCatalog::parameters(MessagePurpose::PORTAL_OTP, Channel::EMAIL), 'a sign-in code resent to a verified address');
         self::assertSame('portal_otp', TemplateCatalog::templateName(MessagePurpose::PORTAL_OTP));
 
         $invitation = ['clinicName' => 'scalar', 'ownerFirstName' => 'scalar', 'link' => 'scalar', 'expiresOn' => 'scalar'];
         self::assertSame($invitation, TemplateCatalog::parameters(MessagePurpose::PORTAL_INVITATION, Channel::SMS));
         self::assertSame($invitation, TemplateCatalog::parameters(MessagePurpose::PORTAL_INVITATION, Channel::EMAIL));
         self::assertSame('portal_invitation', TemplateCatalog::templateName(MessagePurpose::PORTAL_INVITATION));
+    }
+
+    public function testTheEmailChangeMessagesAreEmailsOnly(): void
+    {
+        self::assertSame([true, false], [TemplateCatalog::supports(MessagePurpose::PORTAL_EMAIL_VERIFICATION, Channel::EMAIL), TemplateCatalog::supports(MessagePurpose::PORTAL_EMAIL_VERIFICATION, Channel::SMS)]);
+        self::assertSame(['code' => 'scalar', 'validityMinutes' => 'scalar'], TemplateCatalog::parameters(MessagePurpose::PORTAL_EMAIL_VERIFICATION, Channel::EMAIL));
+        self::assertSame([true, false], [TemplateCatalog::supports(MessagePurpose::PORTAL_EMAIL_CHANGED_NOTICE, Channel::EMAIL), TemplateCatalog::supports(MessagePurpose::PORTAL_EMAIL_CHANGED_NOTICE, Channel::SMS)]);
+        self::assertSame(['maskedNewEmail' => 'scalar', 'changedAtLabel' => 'scalar'], TemplateCatalog::parameters(MessagePurpose::PORTAL_EMAIL_CHANGED_NOTICE, Channel::EMAIL));
+        self::assertSame('portal_email_changed_notice', TemplateCatalog::templateName(MessagePurpose::PORTAL_EMAIL_CHANGED_NOTICE));
+    }
+
+    public function testTheDataExportNoticeIsAnEmailWithoutLink(): void
+    {
+        self::assertSame([true, false], [TemplateCatalog::supports(MessagePurpose::PORTAL_DATA_EXPORT_READY, Channel::EMAIL), TemplateCatalog::supports(MessagePurpose::PORTAL_DATA_EXPORT_READY, Channel::SMS)]);
+        self::assertSame(['ownerFirstName' => 'scalar', 'expiresAtLabel' => 'scalar'], TemplateCatalog::parameters(MessagePurpose::PORTAL_DATA_EXPORT_READY, Channel::EMAIL));
+        self::assertSame('portal_data_export_ready', TemplateCatalog::templateName(MessagePurpose::PORTAL_DATA_EXPORT_READY));
     }
 
     public function testTheDeclineOfAPendingRequestGoesOnBothChannels(): void

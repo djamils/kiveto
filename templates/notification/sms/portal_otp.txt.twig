@@ -1,1 +1,1 @@
-Kiveto : votre code est {{ code }}. Il expire dans {{ validityMinutes }} minutes. Ne le communiquez à personne.
+{% if purpose in ['email_change', 'account_deletion'] %}{% include 'notification/sms/portal_otp_' ~ purpose ~ '.txt.twig' %}{% else %}Kiveto : votre code est {{ code }}. Il expire dans {{ validityMinutes }} minutes. Ne le communiquez à personne.{% endif %}

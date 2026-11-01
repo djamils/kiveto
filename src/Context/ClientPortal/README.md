@@ -35,7 +35,12 @@ Portal **profile** (name, postal address, accepted terms of use).
   `GetLatestClosedConsultationWeight`), Scheduling
   (`GetNextAppointmentForAnimals`, `ListAppointmentsForOwners`,
   `GetOwnerAppointment`, `ListCareBookingsForAnimals`, `ListBookingMotifs`),
-  IdentityAccess (`ClaimPortalIdentity`, `RevokeOnboardingGrantsForPhone`), Notification (`RequestNotification`).
+  IdentityAccess (`ClaimPortalIdentity`, `RevokeOnboardingGrantsForPhone`,
+  `GetPortalAccount`; `VerifyPortalActionOtp`, `DisablePortalUser`,
+  `PurgePortalPhoneTraces`, `AnonymisePortalUser` for the account deletion), Client (`GetClientConsents`, `ListClientConsentHistory`
+  for the consents screen and the data export; `SetClientConsent` through
+  `ClientConsentWriterInterface`), Notification (`RequestNotification`,
+  `MaskPortalRecipient`).
 
 ## Ubiquitous Language
 
@@ -44,7 +49,7 @@ Portal **profile** (name, postal address, accepted terms of use).
 | **PortalInvitation** | A clinic's invitation of one client: client's mobile (E.164) and e-mail at send time, delivery channel (`sms` \| `email`, link delivery only — codes always go to the mobile), token digest, `sentAt`, `expiresAt` (+7 days). Statuses `pending` / `accepted` / `revoked`; « expired » is derived (pending past `expiresAt`). |
 | **Reissue** | « Renvoyer l'invitation »: a pending invitation (expired or not) keeps its id and gets a new token (the old link is dead), a new 7-day expiry and the client's current addresses. Codes and grants bound to the id stay valid. |
 | **ClientLink** | Owner account ↔ clinic client. `confirmed` (access), `revoked` (access withdrawn) or `pending` (reserved for link suggestions, slice 7). One per (user, clinic, client): a revoked link is reactivated with a new `linkedAt`, never duplicated. |
-| **OwnerProfile** | One per owner account: first name, last name, postal address copied from the client file of the first accepted invitation (never overwritten), plus the terms version and date of the latest acceptance. |
+| **OwnerProfile** | One per owner account: first name, last name, postal address copied from the client file of the first accepted invitation (never overwritten by a later one; the owner edits them through `PATCH /me`), plus the terms version and date of the latest acceptance. |
 | **Onboarding grant** | A 15-minute token IdentityAccess hands out when a phone that has pending invitations signs in; it accepts those invitations without a second code. Revoked when the phone's last pending invitation is accepted. |
 | **Portal status** (clinic sheet) | `not_invited`, `invited`, `expired`, `active`, `revoked` (« Accès retiré »). |
 
@@ -220,6 +225,136 @@ client files or of the pets it sees.
 | `ReschedulePortalAppointment(userId, clinicId, appointmentId, practitionerId, startsAt)` | `AppointmentNotFoundException` when not the account's. |
 | `CancelPortalAppointment(userId, clinicId, appointmentId, reason?)` | `AppointmentNotFoundException` when not the account's. |
 
+## Profile and data export (slice 5)
+
+**Profile** (`PATCH /me`). The owner edits the name (each 1 to 60 characters
+after trimming) and the postal address (street, postal code, city, country;
+stored as typed, no geocoding) of the `OwnerProfile` only: the clinics'
+`Client` files never change. An acceptance still never overwrites the
+identity (`save()` moves the terms only); the owner's edit goes through
+`updateIdentity()`.
+
+**Data export** (S5f, GDPR access and portability). `DataExport` (table
+`client_portal__data_exports`): `pending` → `ready` (archive downloadable 48 h)
+or `failed`; `ready` → `expired` once the archive is deleted (a ready export
+past its 48 h already reads `expired`).
+
+- **Quota.** One export per account per 24 h (`limiter.portal_data_export`,
+  port `DataExportQuotaInterface`), consumed when the request is accepted,
+  given back when the build fails → `DataExportRateLimitedException` (429
+  `export_rate_limited`).
+- **Build.** `BuildDataExport` (`async_external`, no transaction) runs
+  `DataExportBuilder` and stores `client_portal/exports/<id>.zip`; its outcome
+  is recorded by the short `RecordDataExport`. Content `schemaVersion: 1`:
+  `account.json` (phone, e-mail and whether it is verified, profile, terms
+  accepted), one `clinics/<clinicId>.json` per clinic the account was ever
+  linked to (clinic name and city, links' status and dates; through the
+  confirmed links only: consents merged per kind and their history — port
+  `ClientConsentsInterface` —, appointments `{startAt, pet, motif, status}`,
+  published documents `{type, title, issuedAt}`, no file), and `summary.pdf`
+  (`templates/portal/export/summary.html.twig` through the shared document
+  renderer). An account without link gets `account.json` and `summary.pdf`
+  only. A failed build is not retried.
+- **Notice.** When ready, a **verified** e-mail receives
+  `PORTAL_DATA_EXPORT_READY` (no link: the archive is downloaded in the app).
+- **Deletion.** `DeleteDataExportFile` (`async`, delayed 48 h after the
+  export is ready), the nightly `SweepExpiredDataExports` (schedule
+  `client_portal`, 03:23 Europe/Paris) for a lost message, and
+  `DeleteUserDataExports(userId)` at account deletion (every export and its
+  archive; an archive stored by a build still running is deleted when its
+  outcome finds no export).
+
+| Command / Query | Bus | What it does |
+|---|---|---|
+| `UpdateOwnerProfile(userId, firstName?, lastName?, address?)` | command | Null parts unchanged; `OwnerProfileNotFoundException` before any acceptance. |
+| `RequestDataExport(userId)` | command | Consumes the quota, queues the build; returns the export id. |
+| `BuildDataExport(exportId)` | external | Builds and stores the archive, then `RecordDataExport(exportId, built)`. |
+| `RecordDataExport(exportId, built)` | command | `ready` (deletion queued, notice) or `failed` (quota refunded). |
+| `DeleteDataExportFile(exportId)`, `SweepExpiredDataExports()` | command (`async`) | Delete the archive, the export turns `expired`. |
+| `DeleteUserDataExports(userId)` | command | Account deletion: exports and archives removed. |
+| `ListDataExports(userId)` | query | `list<DataExportSummary>`, latest first, status as of now. |
+| `GetDataExportFile(userId, exportId)` | query | `?DataExportFile` (key to sign) for the account's export still downloadable. |
+
+## Consents (slice 5)
+
+The owner's consents of a clinic are those of the **confirmed-linked client
+files of that clinic that are not archived** (`PortalConsentFiles`; none →
+`ClinicNotLinkedException`, a 404). An archived file is never read nor
+written: its consents stay intact (Client S5c).
+
+- **Read** (`GetPortalConsents`). The five kinds always (`PortalConsentKind`,
+  screen order), each with `effect`: `send_control` for the optional kinds
+  (`marketing`, `appointment_reminders`, `vaccination_reminders`),
+  `channel_preference` for `billing` and `clinical_documents`. Channels = the
+  **union** across the files, `sms` then `email`; `grantedAt` = the **latest**
+  date among the files holding the kind (the date from which every channel
+  shown is consented), null without channel; `preferredChannel` = the one of
+  the oldest linked file that has one.
+- **Write** (`SetPortalConsent`). One command, one transaction: the handler
+  loops through `ClientConsentWriterInterface` (Client's `SetClientConsent`,
+  source `portal`, actor `portal_user` + user id, author = the profile's full
+  name) over every file; Client writes one history row per file and channel
+  changed. Refusals before any write: unknown kind
+  (`UnknownConsentKindException`), a channel other than `sms`/`email` or no
+  channel on `billing`/`clinical_documents` (`InvalidConsentChoiceException`).
+  A lock that still fails (version mismatch, deadlock, lock wait timeout) →
+  `ConsentConflictException` (409 `conflict`).
+- **History** (`ListPortalConsentHistory`). The files' rows, newest first,
+  grouped by `(kind, channel, action, at, source)`: a change applied to two
+  files is one line (`approximate` if any row is). Rows of one instant are
+  contiguous on `(at DESC, id DESC)`: lines are built per instant, ordered by
+  their greatest row id; the cursor is `(at, id)` of the last line shown and
+  the next page re-reads that instant from its start, dropping the lines
+  already shown, so a line never splits across pages. A `clinic` row shows
+  « La clinique » as author, never the staff member.
+
+| Command / Query | Bus | What it does |
+|---|---|---|
+| `SetPortalConsent(userId, clinicId, kind, channels)` | command | Writes the kind's channels on every active linked file of the clinic. |
+| `GetPortalConsents(userId, clinicId)` | query | `PortalConsents` (`preferredChannel`, `list<PortalConsent>`). |
+| `ListPortalConsentHistory(userId, clinicId, cursor?, limit?)` | query | `CursorPage<PortalConsentHistoryItem>`. |
+
+## Account deletion (slice 5)
+
+S5g, GDPR erasure. The owner asks for a code (`POST /me/deletion-request/otp`:
+IdentityAccess's `RequestPortalActionOtp`, purpose `account_deletion`), then
+confirms it (`RequestAccountDeletion`).
+
+- **At once, in the request's transaction.** The code is verified (a wrong
+  code, a sign-in code or another user's code is `OTP_INVALID` and changes
+  nothing but its attempt); then IdentityAccess disables the account and
+  revokes every refresh token (`DisablePortalUser`): from the 202 on, its
+  access tokens and refreshes answer 401. `DeletePortalAccount(userId)` is
+  queued on `async` in the same transaction (port
+  `AccountDeletionJobsInterface`).
+- **The erasure** (`DeletePortalAccount`, one transaction, idempotent: a retry
+  after any failure completes it without duplicate effect), in order:
+  1. IdentityAccess `PurgePortalPhoneTraces` takes the per-phone lock row,
+     deletes the challenges of the phone and of the user (onboarding grants
+     with them), the phone's code quotas and the user's idempotency keys, and
+     answers the phone and e-mail the account still has (none once anonymised);
+  2. every `ClientLink` of the user is revoked (no consent changes, D5);
+  3. the pending invitations of the phone (expired ones included) are revoked;
+  4. the `AccountErasureStepInterface` services (tagged, autoconfigured) run —
+     the extension point of slices 6 and 7 (requests closed, booking requests
+     declined); each must be idempotent;
+  5. `DeleteUserDataExports` (exports and archives);
+  6. Notification `MaskPortalRecipient(phone, email)`: Kiveto's own messages
+     to the owner (codes and account notices) lose recipient and bodies; the
+     clinics' messages, the Portal invitation included, stay;
+  7. `OwnerProfile::anonymise()` (« Compte supprimé », address erased; the
+     terms acceptance stays);
+  8. IdentityAccess `AnonymisePortalUser` (phone, e-mail and their
+     verification dates NULL, `anonymised_at`) deletes the phone's lock row.
+- **Kept**: the clinics' `Client` records, their consents and history, the
+  documents and appointments (the clinic is the controller of its records).
+  The phone is free: a new invitation to it creates a new account.
+
+| Command | Bus | What it does |
+|---|---|---|
+| `RequestAccountDeletion(userId, challengeId, code)` | command | `DeletionCodeCheck` (`verified`, `otp_invalid`, `otp_expired`, `otp_attempts_exceeded`); verified → account disabled, erasure queued. |
+| `DeletePortalAccount(userId)` | command (`async`) | The erasure above. |
+
 ## Events
 
 - `PortalInvitationSent` (`reissued` on a resend), `PortalInvitationAccepted`,
@@ -246,8 +381,10 @@ entities: `client_portal__portal_invitations` (`token_hash` unique, index on
 `phone`), `client_portal__client_links` (unique `user_id, clinic_id,
 client_id`), `client_portal__owner_profiles` (PK `user_id`),
 `client_portal__published_documents` (unique `clinic_id, type, source_ref`),
-`client_portal__document_reads` (PK `document_id, user_id`) and
-`client_portal__booklet_files` (PK `animal_id`). Migrations in
+`client_portal__document_reads` (PK `document_id, user_id`),
+`client_portal__booklet_files` (PK `animal_id`) and
+`client_portal__data_exports` (indexes `user_id, requested_at` and
+`status, expires_at`). Migrations in
 `migrations/ClientPortal/`.
 
 ## Configuration
@@ -280,6 +417,16 @@ Demo phones on the Portal API:
   the phone onboarding (`invitation_pending`). Its link token is
   `ClientPortalStatesStory::ROUSSEL_TOKEN`; `PERRIN_TOKEN` is expired.
 - **+33644556677** — an account whose only link was revoked (no clinic).
+
+Slice 5 (`portal` dataset): `fixtures/Context/Client/Story/ConsentsStory.php`
+writes the consents and their history (Girard Paris: all kinds; Girard Lyon:
+none; Rey: partial; Marchand's two Paris files diverge; Nathalie Caron
+archived with optional consents, her twin Pierre unarchived; « Reprise »
+approximate rows), and `PortalAccountStatesStory.php` the account states:
+Marchand (+33612345680) verified e-mail, exports ready (real ZIP) and
+expired; Rey (+33612345681) verified e-mail, pending change to
+sophie.rey@laposte.net, export pending; Nicolas Lefèvre's account deleted
+(anonymised, his client file kept).
 
 **Reading the one-time code in dev**: with `NOTIFICATION_DELIVERY=simulator`
 no SMS leaves; the notification worker (`external-worker`, started by `make

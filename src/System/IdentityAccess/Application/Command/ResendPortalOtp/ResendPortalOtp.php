@@ -8,7 +8,9 @@ use App\Shared\Application\Bus\CommandInterface;
 
 /**
  * A new code for the same challenge (« Renvoyer le code »), through
- * `channel` (`sms` only for now). Answers an OtpChallengeIssued.
+ * `channel`: `sms`, or `email` — honoured for a sign-in code whose phone
+ * has an active owner account with a verified e-mail only. Answers an
+ * OtpChallengeIssued, the same whether or not anything was sent.
  */
 final readonly class ResendPortalOtp implements CommandInterface
 {

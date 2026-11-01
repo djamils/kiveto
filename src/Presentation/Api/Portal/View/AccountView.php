@@ -11,8 +11,10 @@ final readonly class AccountView
         public string $id,
         public ?string $firstName,
         public ?string $lastName,
-        /** Unverified, possibly null. */
+        /** Possibly null; see emailVerified. */
         public ?string $email,
+        /** The owner proved the e-mail; a verified e-mail is a second sign-in factor. */
+        public bool $emailVerified,
         public string $maskedPhone,
         public ?AddressView $address,
     ) {

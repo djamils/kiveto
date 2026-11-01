@@ -26,8 +26,12 @@ class OtpChallengeEntity
         public string $phone,
         #[ORM\Column(type: 'string', length: 20)]
         public string $purpose,
-        #[ORM\Column(name: 'invitation_ref', type: 'string', length: 36, nullable: true)]
-        public ?string $invitationRef,
+        #[ORM\Column(name: 'subject_type', type: 'string', length: 20, nullable: true)]
+        public ?string $subjectType,
+        #[ORM\Column(name: 'subject_ref', type: 'string', length: 36, nullable: true)]
+        public ?string $subjectRef,
+        #[ORM\Column(name: 'target_email', type: 'string', length: 180, nullable: true)]
+        public ?string $targetEmail,
         #[ORM\Column(name: 'code_hash', type: 'string', length: 64, options: ['fixed' => true])]
         public string $codeHash,
         #[ORM\Column(type: 'smallint')]

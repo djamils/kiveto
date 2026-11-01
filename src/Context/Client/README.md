@@ -24,6 +24,8 @@ Le Bounded Context **Client** gère les clients / propriétaires d'animaux dans 
 - **Consent** : Accord du client pour un type d'envoi (`ConsentKind`) sur un ou plusieurs canaux automatisables, daté de son recueil
 - **ConsentKind** : `APPOINTMENT_REMINDERS` | `VACCINATION_REMINDERS` | `CLINICAL_DOCUMENTS` | `BILLING` | `MARKETING`
 - **CommunicationPreferences** : Canal préféré pour les échanges ponctuels + liste des consentements actifs
+- **Consentement optionnel** (`ConsentKind::OPTIONAL`) : `MARKETING`, `APPOINTMENT_REMINDERS`, `VACCINATION_REMINDERS` — son retrait arrête l'envoi ; `BILLING` et `CLINICAL_DOCUMENTS` partent quoi qu'il arrive, leur consentement ne choisit que le canal
+- **Historique des consentements** (`client__consent_history`) : une ligne par type et canal accordé (`granted`) ou retiré (`withdrawn`), avec sa source (`ConsentSource` : `portal` | `clinic` | `system`), son auteur (`ConsentActor` : `portal_user` | `staff` | `system`, id, nom affiché) et la version du texte consenti quand elle est connue
 - **ClientNote** : Note interne sur un client (`INFORMATION` ou `ATTENTION`), jamais visible du client, jamais modifiée
 - **ClientCommunication** : Échange avec le client (appel, SMS, e-mail, courrier) consigné par l'équipe, ou message envoyé automatiquement par Kiveto — une entrée de journal, pas un envoi
 - **ClientTaxProfile** (profil fiscal) : statut fiscal (`ClientTaxStatus`), raison sociale facultative, SIREN et n° de TVA
@@ -163,6 +165,10 @@ src/Client/
 2. Un consentement porte **au moins un canal**, et uniquement des canaux automatisables (`SMS`, `EMAIL`)
 3. Au plus un consentement par `ConsentKind`
 4. Réviser les préférences **conserve la date de recueil** d'un consentement tant qu'il ne couvre aucun canal nouveau ; accepter un canal supplémentaire est un nouveau consentement, daté du jour
+5. Chaque canal accordé ou retiré écrit **une ligne d'historique** (diff `CommunicationPreferences::changesTo()`), dans la transaction des consentements (`DoctrineClientRepository::save()` ajoute les lignes relevées par l'agrégat) ; un diff vide n'écrit rien. L'historique est en **ajout seul**. Tout écrivain nomme sa source et son auteur : fiche VetApp, création de fiche (annuaire, accueil, comptoir) → `clinic` + membre de l'équipe ; Portal → `portal` + utilisateur Portal ; données de démo → `clinic` + `system`. Les consentements antérieurs à l'historique sont repris par la migration (`granted`, `system`, « Reprise », `approximate`, daté du `grantedAt`, une borne haute)
+6. `billing` et `clinical_documents` gardent **au moins un canal** quand on les modifie un par un (`SetClientConsent`, `ConsentChannelRequiredException`)
+7. Les deux commandes de consentement verrouillent la ligne du client (`getForUpdate`, `SELECT … FOR UPDATE`) ; la fiche VetApp poste la version qu'elle a lue, et un client modifié depuis est refusé (`StaleConsentsException`, « Les consentements ont changé depuis l'ouverture de la fiche »)
+8. **Un client archivé ne reçoit aucun message optionnel** : l'archivage (comme la révocation d'un lien Portal) ne retire **aucun** consentement ni n'écrit d'historique — un client désarchivé retrouve tout. La règle est appliquée par les contextes émetteurs au moment de l'envoi, via `ClientNotificationContact::channelsFor()` (`[]` pour un type optionnel quand `archived`). Tout futur émetteur de rappels de vaccination ou de marketing **doit** passer par `channelsFor()`. Ajouter un consentement à un client archivé reste refusé
 
 ### ClientNote et ClientCommunication
 1. Agrégats distincts du Client, en **ajout seul** (ni modification ni suppression) — **les échanges manuels restent en ajout seul ; les envois automatiques ne changent que de statut**
@@ -191,6 +197,7 @@ Crée un nouveau client avec identité et moyens de contact.
 - `civility: string` (facultatif, `unspecified` par défaut)
 - `postalAddress: ?PostalAddressDto` (facultatif)
 - `preferredChannel: ?string` et `channelsByConsentKind: array<string, list<string>>` (facultatifs)
+- `actorType: string` (`staff` | `system`, `system` par défaut), `actorId: ?string`, `authorLabel: string` : l'auteur des lignes `granted` de l'historique (source `clinic`)
 - `animals: NewAnimalDto[]` (facultatif) : enregistrés dans le contexte Animal via le port
   `ClientAnimalRegistryInterface` (adapter `Infrastructure/Adapter/Animal/CommandBusClientAnimalRegistry`),
   dans la même transaction, une fois le client enregistré
@@ -331,17 +338,28 @@ Désigne, remplace ou retire la personne autorisée.
 ---
 
 #### UpdateClientCommunicationPreferences
-Enregistre le canal préféré et l'état complet des consentements.
+Enregistre le canal préféré et l'état complet des consentements (fiche VetApp). Client chargé `FOR UPDATE`.
 
 **Input:**
 - `clinicId: string`
 - `clientId: string`
 - `preferredChannel: ?string`
 - `channelsByConsentKind: array<string, list<string>>` — un type absent ou sans canal est retiré
+- `source: string`, `actorType: string`, `actorId: ?string`, `authorLabel: string` — signent l'historique
+- `expectedVersion: ?int` — version lue par le formulaire ; différente → refus
 
-**Output:** `void` — event `ClientCommunicationPreferencesUpdated`
+**Output:** `void` — event `ClientCommunicationPreferencesUpdated` (v1, inchangé) + lignes d'historique
 
-**Exceptions:** `ClientNotFoundException`, `ClientArchivedCannotBeModifiedException`, `\ValueError` (type ou canal inconnu), `\InvalidArgumentException` (canal non automatisable)
+**Exceptions:** `ClientNotFoundException`, `ClientArchivedCannotBeModifiedException`, `StaleConsentsException`, `\ValueError` (type, canal, source ou auteur inconnu), `\InvalidArgumentException` (canal non automatisable, auteur invalide)
+
+---
+
+#### SetClientConsent
+Change les canaux d'**un seul** type de consentement (Portal), les autres types et le canal préféré inchangés. Client chargé `FOR UPDATE`. Rien ne change → rien n'est écrit.
+
+**Input:** `clinicId`, `clientId`, `kind`, `channels: list<string>` (`sms` | `email` ; vide = retrait d'un type optionnel), `source`, `actorType`, `actorId: ?string`, `authorLabel`, `wordingVersion: ?string`
+
+**Exceptions:** `InvalidConsentChannelException` (canal hors `sms` / `email`), `ConsentChannelRequiredException` (`billing` / `clinical_documents` sans canal), `ClientArchivedCannotBeModifiedException`, `ClientNotFoundException`, `\InvalidArgumentException` (type inconnu)
 
 ---
 
@@ -394,6 +412,15 @@ Règles de consentement :
 - `channelsFor(kind)` : canaux consentis pour ce type d'envoi **et** dont l'adresse existe (le rappel SMS de RDV n'est envoyé que si `appointment_reminders` contient `sms`) ;
 - `transactionalChannel()` : confirmation / modification / annulation de RDV, jamais bloquées par un consentement — canal préféré si son adresse existe, sinon e-mail, sinon SMS, sinon aucun.
 - rappel SMS de RDV (D9) : le formulaire de création coche « Rappels SMS de rendez-vous » par défaut quand un mobile est saisi (`appointment_reminders` contient `sms`), et le serveur fait de même quand la requête ne dit rien (`rsms` absent) ; l'enregistrement rapide de l'accueil (`DeskRegistration`) et le nouveau client du comptoir (Billing) donnent ce consentement quand le téléphone est un mobile ; la fiche client permet de le couper (« Rappels de rendez-vous par SMS », `UpdateClientCommunicationPreferences`). Pas de reprise des clients existants.
+
+- **un client archivé ne reçoit aucun message optionnel** : `channelsFor()` rend `[]` pour `marketing`, `appointment_reminders`, `vaccination_reminders` quand `archived` ; `billing` et `clinical_documents` gardent leur canal.
+
+#### GetClientConsents / ListClientConsentHistory
+
+Lus par le Portal à travers son port.
+
+- `GetClientConsents(clinicId, clientIds[])` → `array<clientId, ClientConsentsView>` (`clientId`, `preferredChannel`, `archived`, `consents` : `kind => ClientConsentView{kind, channels, grantedAt}`) ; un client d'une autre clinique est absent.
+- `ListClientConsentHistory(clinicId, clientIds[], ?cursor, ?limit)` → `CursorPage<ConsentHistoryItemView>` (`id`, `clientId`, `kind`, `channel`, `action`, `at` UTC, `source`, `actorType`, `actorId`, `authorLabel`, `wordingVersion`, `approximate`), du plus récent au plus ancien, keyset `(at, id)` ; un curseur d'une autre forme → `InvalidCursorException`.
 
 #### SearchCompanyRegistry
 
@@ -627,7 +654,6 @@ $result = $queryBus->ask($query);
 ## Évolution future (hors scope MVP)
 
 - Preferences : `locale`
-- Historique horodaté des consentements (aujourd'hui seule la date de recueil du consentement actif est conservée)
 - Envoi réel de messages depuis le journal des communications
 - Type de client (professionnel, éleveur, association) et civilité du client
 - Unicité email par clinic (contrainte DB + validation domain)
@@ -659,6 +685,14 @@ puis `make worker-stop worker-start`.
 Les trois workers du profil `workers` : `messenger-worker` (`async`), `external-worker` (`async_external` puis `async_external_batch`), `scheduler-worker` (`scheduler_default`, `scheduler_client`).
 
 ## Changelog
+
+### 2026-11-01 - Historique des consentements, client archivé
+
+**Ajouts** :
+- ✨ Table `client__consent_history` (reprise des consentements existants par `JSON_TABLE`), `ConsentSource`, `ConsentActor`, `ConsentChange`, `ConsentKind::OPTIONAL`
+- ✨ Command `SetClientConsent` ; `UpdateClientCommunicationPreferences` signée (source, auteur) et protégée par la version ; `CreateClient` signe ses consentements
+- ✨ Queries `GetClientConsents`, `ListClientConsentHistory` ; `ClientView.version`
+- ✨ `ClientNotificationContact::channelsFor()` : aucun message optionnel pour un client archivé
 
 ### 2026-10-19 - Vérification des entreprises clientes
 

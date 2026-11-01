@@ -77,11 +77,21 @@ final class MessageRenderingTest extends KernelTestCase
                 'SMS'   => ['sentAtLabel' => '26/10/2026 à 10:42'],
             ],
             'PORTAL_OTP' => [
-                'SMS' => ['code' => '123456', 'validityMinutes' => 10],
+                'SMS'   => ['code' => '123456', 'validityMinutes' => 10, 'purpose' => 'login'],
+                'EMAIL' => ['code' => '123456', 'validityMinutes' => 10],
             ],
             'PORTAL_INVITATION' => [
                 'EMAIL' => ['clinicName' => 'Clinique Montmartre', 'ownerFirstName' => 'Sophie', 'link' => self::PORTAL_LINK, 'expiresOn' => '05/11/2026'],
                 'SMS'   => ['clinicName' => 'Clinique Montmartre', 'ownerFirstName' => 'Sophie', 'link' => self::PORTAL_LINK, 'expiresOn' => '05/11/2026'],
+            ],
+            'PORTAL_EMAIL_VERIFICATION' => [
+                'EMAIL' => ['code' => '123456', 'validityMinutes' => 10],
+            ],
+            'PORTAL_EMAIL_CHANGED_NOTICE' => [
+                'EMAIL' => ['maskedNewEmail' => 'n***@example.com', 'changedAtLabel' => '01/11/2026 à 14:05'],
+            ],
+            'PORTAL_DATA_EXPORT_READY' => [
+                'EMAIL' => ['ownerFirstName' => 'Sophie', 'expiresAtLabel' => '04/11/2026 à 11:02'],
             ],
         ];
     }
@@ -139,6 +149,43 @@ final class MessageRenderingTest extends KernelTestCase
         self::assertSame('Kiveto : message de test envoyé le 26/10/2026 à 10:42. Aucune action n\'est nécessaire.', $sms(MessagePurpose::TEST));
         self::assertSame('Kiveto : votre code est 123456. Il expire dans 10 minutes. Ne le communiquez à personne.', $sms(MessagePurpose::PORTAL_OTP));
         self::assertSame('Clinique Montmartre vous invite sur Kiveto pour suivre vos animaux : ' . self::PORTAL_LINK . ' (valable jusqu\'au 05/11/2026)', $sms(MessagePurpose::PORTAL_INVITATION));
+    }
+
+    /** AC 61, P6: an action code says what it confirms; the e-mail-change messages are Kiveto's. */
+    public function testThePortalActionCodesAndEmailChangeMessagesHaveTheirWording(): void
+    {
+        $code = static fn (string $purpose): RenderedContent => self::renderStatic(MessagePurpose::PORTAL_OTP, Channel::SMS, ['code' => '123456', 'validityMinutes' => 10, 'purpose' => $purpose]);
+
+        self::assertSame('Kiveto : votre code est 123456. Il expire dans 10 minutes. Ne le communiquez à personne.', $code('invitation')->smsText);
+        self::assertSame('Code de confirmation de changement d\'e-mail de votre compte Kiveto : 123456. Il expire dans 10 minutes. Ne le communiquez à personne.', $code('email_change')->smsText);
+        self::assertSame('Code de confirmation de suppression de votre compte Kiveto : 123456. Il expire dans 10 minutes. Ne le communiquez à personne.', $code('account_deletion')->smsText);
+        self::assertSame([SmsEncoding::GSM_7, 1, 1], [$code('email_change')->encoding, $code('email_change')->segments, $code('account_deletion')->segments]);
+
+        $login = $this->render(MessagePurpose::PORTAL_OTP, Channel::EMAIL, self::reference()['PORTAL_OTP']['EMAIL']);
+        self::assertSame('Votre code de connexion Kiveto', $login->subject);
+        self::assertStringContainsString('123456', (string) $login->text);
+
+        $verification = $this->render(MessagePurpose::PORTAL_EMAIL_VERIFICATION, Channel::EMAIL, self::reference()['PORTAL_EMAIL_VERIFICATION']['EMAIL']);
+        self::assertSame('Confirmez votre adresse e-mail Kiveto', $verification->subject);
+        self::assertStringContainsString('Il expire dans 10 minutes.', (string) $verification->text);
+
+        $notice = $this->render(MessagePurpose::PORTAL_EMAIL_CHANGED_NOTICE, Channel::EMAIL, self::reference()['PORTAL_EMAIL_CHANGED_NOTICE']['EMAIL']);
+        self::assertSame('L\'adresse e-mail de votre compte Kiveto a changé', $notice->subject);
+        self::assertStringContainsString('Le 01/11/2026 à 14:05, l\'adresse e-mail de votre compte Kiveto a été remplacée par n***@example.com.', (string) $notice->text);
+        self::assertStringNotContainsString('Clinique Montmartre', (string) $notice->html, 'sent by Kiveto, not by a clinic');
+    }
+
+    /** AC 63: the export notice names its deadline and carries no link (the archive is downloaded in the app). */
+    public function testTheDataExportNoticeCarriesNoLink(): void
+    {
+        $notice = $this->render(MessagePurpose::PORTAL_DATA_EXPORT_READY, Channel::EMAIL, self::reference()['PORTAL_DATA_EXPORT_READY']['EMAIL']);
+
+        self::assertSame('Votre export de données Kiveto est prêt', $notice->subject);
+        self::assertStringContainsString('Bonjour Sophie,', (string) $notice->text);
+        self::assertStringContainsString('Il reste disponible jusqu\'au 04/11/2026 à 11:02, puis il est supprimé.', (string) $notice->text);
+        self::assertStringNotContainsString('http', (string) $notice->text);
+        self::assertStringNotContainsString('href="http', (string) $notice->html);
+        self::assertStringNotContainsString('Clinique Montmartre', (string) $notice->html, 'sent by Kiveto, not by a clinic');
     }
 
     /**

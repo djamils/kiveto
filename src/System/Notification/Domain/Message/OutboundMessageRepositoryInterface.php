@@ -35,4 +35,15 @@ interface OutboundMessageRepositoryInterface
      * @return list<OutboundMessageId>
      */
     public function findContentToPurge(\DateTimeImmutable $before, int $limit): array;
+
+    /**
+     * Messages of the owner-account purposes (MessagePurpose::isPortalAccountMessage())
+     * sent to one of these addresses, handed over or final (never QUEUED: its
+     * dispatch still needs the recipient), content not purged yet.
+     *
+     * @param non-empty-list<string> $addresses
+     *
+     * @return list<OutboundMessageId>
+     */
+    public function findPortalAccountMessagesTo(array $addresses): array;
 }

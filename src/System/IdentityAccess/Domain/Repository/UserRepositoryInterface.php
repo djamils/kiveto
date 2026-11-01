@@ -34,6 +34,12 @@ interface UserRepositoryInterface
      */
     public function lockPortalPhone(PhoneNumber $phone): void;
 
+    /**
+     * Deletes the phone's mutex row once nothing refers to the phone any more
+     * (account deletion); its lock still lasts until the transaction ends.
+     */
+    public function deletePortalPhoneLock(PhoneNumber $phone): void;
+
     public function findById(UserId $id): ?User;
 
     /**

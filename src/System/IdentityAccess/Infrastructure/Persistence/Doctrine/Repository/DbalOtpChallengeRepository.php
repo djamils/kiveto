@@ -11,12 +11,14 @@ use App\System\IdentityAccess\Domain\Otp\OtpChallengeId;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeRepositoryInterface;
 use App\System\IdentityAccess\Domain\Otp\OtpChannel;
 use App\System\IdentityAccess\Domain\Otp\OtpPurpose;
+use App\System\IdentityAccess\Domain\Otp\OtpSubjectType;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Dates are written in UTC. Identity columns (phone, purpose, invitation)
- * never change after the insert.
+ * Dates are written in UTC. Identity columns (phone, purpose, subject,
+ * target address) never change after the insert; `subject_type` is the one
+ * the purpose fixes, written for the readers of the table.
  */
 final readonly class DbalOtpChallengeRepository implements OtpChallengeRepositoryInterface
 {
@@ -30,8 +32,8 @@ final readonly class DbalOtpChallengeRepository implements OtpChallengeRepositor
     {
         $this->connection->executeStatement(
             'INSERT INTO ' . self::TABLE
-            . ' (id, phone, purpose, invitation_ref, code_hash, attempts, send_count, expires_at, resend_available_at, last_channel, sms_suppressed, consumed_at, onboarding_token_hash, onboarding_expires_at, onboarding_revoked_at, created_at)'
-            . ' VALUES (:id, :phone, :purpose, :invitation, :code, :attempts, :sends, :expires, :resend, :channel, :suppressed, :consumed, :onboarding, :onboardingExpires, :onboardingRevoked, :created)'
+            . ' (id, phone, purpose, subject_type, subject_ref, target_email, code_hash, attempts, send_count, expires_at, resend_available_at, last_channel, sms_suppressed, consumed_at, onboarding_token_hash, onboarding_expires_at, onboarding_revoked_at, created_at)'
+            . ' VALUES (:id, :phone, :purpose, :subjectType, :subject, :targetEmail, :code, :attempts, :sends, :expires, :resend, :channel, :suppressed, :consumed, :onboarding, :onboardingExpires, :onboardingRevoked, :created)'
             . ' AS new ON DUPLICATE KEY UPDATE code_hash = new.code_hash, attempts = new.attempts, send_count = new.send_count,'
             . ' expires_at = new.expires_at, resend_available_at = new.resend_available_at, last_channel = new.last_channel,'
             . ' consumed_at = new.consumed_at, onboarding_token_hash = new.onboarding_token_hash,'
@@ -40,7 +42,9 @@ final readonly class DbalOtpChallengeRepository implements OtpChallengeRepositor
                 'id'                => Uuid::fromString($challenge->id()->toString())->toBinary(),
                 'phone'             => $challenge->phone()->toString(),
                 'purpose'           => $challenge->purpose()->value,
-                'invitation'        => $challenge->invitationRef(),
+                'subjectType'       => $challenge->subjectType()?->value,
+                'subject'           => $challenge->subjectRef(),
+                'targetEmail'       => $challenge->targetEmail(),
                 'code'              => $challenge->codeHash(),
                 'attempts'          => $challenge->attempts(),
                 'sends'             => $challenge->sendCount(),
@@ -81,6 +85,14 @@ final readonly class DbalOtpChallengeRepository implements OtpChallengeRepositor
         );
     }
 
+    public function deleteForPhoneOrUser(PhoneNumber $phone, string $userId): int
+    {
+        return (int) $this->connection->executeStatement(
+            'DELETE FROM ' . self::TABLE . ' WHERE phone = :phone OR (subject_type = :user AND subject_ref = :userId)',
+            ['phone' => $phone->toString(), 'user' => OtpSubjectType::USER->value, 'userId' => $userId],
+        );
+    }
+
     private function find(string $condition, string $key, string $lock): ?OtpChallenge
     {
         // Malformed ids never reach SQL: the binary form needs a valid UUID.
@@ -94,7 +106,7 @@ final readonly class DbalOtpChallengeRepository implements OtpChallengeRepositor
             id: OtpChallengeId::fromString(RowAccessor::uuid($row, 'id')),
             phone: PhoneNumber::fromString(RowAccessor::string($row, 'phone')),
             purpose: OtpPurpose::from(RowAccessor::string($row, 'purpose')),
-            invitationRef: RowAccessor::nullableString($row, 'invitation_ref'),
+            subjectRef: RowAccessor::nullableString($row, 'subject_ref'),
             codeHash: RowAccessor::string($row, 'code_hash'),
             attempts: RowAccessor::int($row, 'attempts'),
             sendCount: RowAccessor::int($row, 'send_count'),
@@ -107,6 +119,7 @@ final readonly class DbalOtpChallengeRepository implements OtpChallengeRepositor
             onboardingExpiresAt: self::nullableDate(RowAccessor::nullableString($row, 'onboarding_expires_at')),
             onboardingRevokedAt: self::nullableDate(RowAccessor::nullableString($row, 'onboarding_revoked_at')),
             createdAt: self::date(RowAccessor::string($row, 'created_at')),
+            targetEmail: RowAccessor::nullableString($row, 'target_email'),
         );
     }
 

@@ -56,6 +56,10 @@ abstract class UserEntity implements UserInterface, PasswordAuthenticatedUserInt
     #[ORM\Column(name: 'last_login_at', type: 'datetime_immutable', nullable: true)]
     protected ?\DateTimeImmutable $lastLoginAt = null;
 
+    /** Set when an owner account is erased after its deletion request (phone and e-mail NULL). */
+    #[ORM\Column(name: 'anonymised_at', type: 'datetime_immutable', nullable: true)]
+    protected ?\DateTimeImmutable $anonymisedAt = null;
+
     #[ORM\Version]
     #[ORM\Column(type: 'integer', options: ['default' => 1])]
     protected int $version = 1;
@@ -138,6 +142,16 @@ abstract class UserEntity implements UserInterface, PasswordAuthenticatedUserInt
     public function setEmailVerifiedAt(?\DateTimeImmutable $emailVerifiedAt): void
     {
         $this->emailVerifiedAt = $emailVerifiedAt;
+    }
+
+    public function getAnonymisedAt(): ?\DateTimeImmutable
+    {
+        return $this->anonymisedAt;
+    }
+
+    public function setAnonymisedAt(?\DateTimeImmutable $anonymisedAt): void
+    {
+        $this->anonymisedAt = $anonymisedAt;
     }
 
     public function getUserIdentifier(): string

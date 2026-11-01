@@ -279,6 +279,14 @@ services:
             - '@portal.rate_limiter.storage'
             - '@portal.rate_limiter.lock_factory'
 
+    # One data export per account per 24 hours, given back when the build fails.
+    limiter.portal_data_export:
+        class: Symfony\Component\RateLimiter\RateLimiterFactory
+        arguments:
+            - { id: 'portal_data_export', policy: 'fixed_window', limit: 1, interval: '24 hours' }
+            - '@portal.rate_limiter.storage'
+            - '@portal.rate_limiter.lock_factory'
+
     limiter.portal_otp_unknown_global:
         class: Symfony\Component\RateLimiter\RateLimiterFactory
         arguments:
@@ -404,6 +412,39 @@ services:
 
     App\Context\ClientPortal\Application\Port\BookletFileRepositoryInterface:
         class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalBookletFileRepository
+
+    # Data exports (Task 36)
+    App\Context\ClientPortal\Domain\Export\DataExportRepositoryInterface:
+        class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalDataExportRepository
+
+    App\Context\ClientPortal\Application\Port\DataExportBuilderInterface:
+        class: App\Context\ClientPortal\Infrastructure\Export\DataExportBuilder
+
+    App\Context\ClientPortal\Application\Port\DataExportQuotaInterface:
+        class: App\Context\ClientPortal\Infrastructure\Export\RateLimiterDataExportQuota
+
+    App\Context\ClientPortal\Application\Port\DataExportJobsInterface:
+        class: App\Context\ClientPortal\Infrastructure\Messaging\MessengerDataExportJobs
+
+    App\Context\ClientPortal\Application\Port\OwnerAccountsInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\IdentityAccess\QueryBusOwnerAccounts
+
+    App\Context\ClientPortal\Application\Port\ClientConsentsInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Client\QueryBusClientConsents
+
+    # Portal consents (Task 33): Client's SetClientConsent
+    App\Context\ClientPortal\Application\Port\ClientConsentWriterInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Client\CommandBusClientConsents
+
+    # Account deletion (Task 37): IdentityAccess's account commands, Notification's masking, the async erasure
+    App\Context\ClientPortal\Application\Port\PortalAccountErasureInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\IdentityAccess\CommandBusPortalAccountErasure
+
+    App\Context\ClientPortal\Application\Port\PortalRecipientMaskerInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Notification\CommandBusPortalRecipientMasker
+
+    App\Context\ClientPortal\Application\Port\AccountDeletionJobsInterface:
+        class: App\Context\ClientPortal\Infrastructure\Messaging\MessengerAccountDeletionJobs
 
     # ============================================================================
     # BOUNDED CONTEXT: TRANSLATION

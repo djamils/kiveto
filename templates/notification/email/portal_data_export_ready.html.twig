@@ -1,0 +1,12 @@
+{% extends 'notification/email/_account_layout.html.twig' %}
+
+{% block subject %}Votre export de données Kiveto est prêt{% endblock %}
+
+{% block body %}
+<p>Bonjour{{ ownerFirstName ? ' ' ~ ownerFirstName : '' }},</p>
+<p>L'export des données de votre compte Kiveto que vous avez demandé est prêt.</p>
+<p>Pour le télécharger, ouvrez l'app Kiveto, puis <strong>Compte › Exporter mes données</strong>. Il reste disponible jusqu'au {{ expiresAtLabel }}, puis il est supprimé.</p>
+<div class="note">Par sécurité, ce message ne contient aucun lien : l'export se télécharge uniquement depuis l'app, une fois connecté.</div>
+{% endblock %}
+
+{% block footer_note %}Vous n'avez pas demandé cet export ? Connectez-vous à l'app Kiveto avec votre numéro de mobile et vérifiez votre compte.{% endblock %}

@@ -65,6 +65,7 @@ final class DbalDocumentReadRepositoryTest extends KernelTestCase
         $read = $em->find(DocumentReadEntity::class, $key);
         self::assertInstanceOf(DocumentReadEntity::class, $read);
         self::assertSame('2026-10-31 10:00', $read->readAt->format('Y-m-d H:i'));
+        self::assertSame($at, new DocumentReadEntity(Uuid::v7(), Uuid::v7(), $at)->readAt);
 
         $now      = new \DateTimeImmutable('2026-10-31');
         $document = new PublishedDocumentEntity(

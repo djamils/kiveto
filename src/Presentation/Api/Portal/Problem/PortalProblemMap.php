@@ -43,6 +43,9 @@ final class PortalProblemMap implements ProblemFactoryInterface
     public const string NOT_MODIFIABLE          = 'appointment_not_modifiable';
     public const string BOOKING_NOT_OPEN        = 'booking_not_open';
     public const string PET_NOT_BOOKABLE        = 'pet_not_bookable';
+    public const string EXPORT_RATE_LIMITED     = 'export_rate_limited';
+    public const string EMAIL_TAKEN             = 'email_taken';
+    public const string CONFLICT                = 'conflict';
 
     /** The code of every violation built by violation(). */
     private const string VIOLATION_CODE = 'portal_rule';
@@ -72,6 +75,9 @@ final class PortalProblemMap implements ProblemFactoryInterface
         self::NOT_MODIFIABLE          => [422, 'Ce rendez-vous ne peut plus être modifié.'],
         self::BOOKING_NOT_OPEN        => [422, 'La prise de rendez-vous en ligne n\'est pas ouverte pour cette clinique.'],
         self::PET_NOT_BOOKABLE        => [422, 'Cet animal ne peut pas être inscrit à un rendez-vous en ligne.'],
+        self::EXPORT_RATE_LIMITED     => [429, 'Un export de vos données a déjà été demandé : réessayez dans 24 heures.'],
+        self::EMAIL_TAKEN             => [422, 'Cette adresse e-mail est déjà vérifiée par un autre compte.'],
+        self::CONFLICT                => [409, 'Modification concurrente : rechargez puis réessayez.'],
         self::IDEMPOTENCY_KEY_MISSING => [400, 'En-tête Idempotency-Key manquant ou invalide.'],
         self::IDEMPOTENCY_KEY_REUSED  => [422, 'Cette clé Idempotency-Key a déjà servi pour une autre requête.'],
     ];

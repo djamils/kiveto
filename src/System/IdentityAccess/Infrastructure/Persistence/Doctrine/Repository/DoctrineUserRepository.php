@@ -75,6 +75,14 @@ final readonly class DoctrineUserRepository implements UserRepositoryInterface
         );
     }
 
+    public function deletePortalPhoneLock(PhoneNumber $phone): void
+    {
+        $this->em->getConnection()->executeStatement(
+            'DELETE FROM identity_access__portal_phone_locks WHERE phone = :phone',
+            ['phone' => $phone->toString()],
+        );
+    }
+
     public function findById(UserId $id): ?User
     {
         $entity = $this->em->getRepository(UserEntity::class)->find(Uuid::fromString($id->toString()));

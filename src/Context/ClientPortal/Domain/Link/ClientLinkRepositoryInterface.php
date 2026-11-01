@@ -25,5 +25,12 @@ interface ClientLinkRepositoryInterface
      */
     public function findConfirmedByUser(string $userId): array;
 
+    /**
+     * Every link of a user, whatever its status, by clinic then oldest first.
+     *
+     * @return list<ClientLink>
+     */
+    public function findByUser(string $userId): array;
+
     public function hasConfirmed(string $userId, string $clinicId): bool;
 }

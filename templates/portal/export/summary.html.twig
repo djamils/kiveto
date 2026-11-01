@@ -1,0 +1,159 @@
+{#
+ # Kiveto — templates/portal/export/summary.html.twig
+ # ────────────────────────────────────────────────────
+ # The readable summary of a Portal data export (`summary.pdf`): the same
+ # content as the JSON files of the archive, rendered by DataExportBuilder.
+ # Instants of a clinic are printed in the clinic's time zone, as written in
+ # its JSON file (ISO 8601 with offset).
+ #
+ # Variables:
+ #   account      array   account.json (account, profile, terms)
+ #   clinics      list    clinics/<clinicId>.json, one per clinic
+ #   generatedAt  \DateTimeImmutable  Europe/Paris
+ #   clinic       null    (no clinic letterhead: the export comes from Kiveto)
+ #}
+{% extends 'clinic/document/_base.html.twig' %}
+
+{% set KIND_LABELS = {
+  'appointment_reminders': 'Rappels de rendez-vous',
+  'vaccination_reminders': 'Rappels de vaccination',
+  'clinical_documents': 'Comptes rendus et ordonnances',
+  'billing': 'Factures et relances de règlement',
+  'marketing': 'Actualités et offres',
+} %}
+{% set CHANNEL_LABELS = { 'sms': 'SMS', 'email': 'E-mail' } %}
+{% set ACTION_LABELS = { 'granted': 'Accordé', 'withdrawn': 'Retiré' } %}
+{% set SOURCE_LABELS = { 'portal': 'Portal', 'clinic': 'Clinique', 'system': 'Kiveto' } %}
+{% set LINK_LABELS = { 'confirmed': 'Actif', 'revoked': 'Accès retiré', 'pending': 'En attente' } %}
+{% set STATUS_LABELS = {
+  'confirmed': 'Confirmé',
+  'pending_clinic_confirmation': 'À confirmer par la clinique',
+  'cancelled_by_client': 'Annulé par vous',
+  'cancelled_by_clinic': 'Annulé par la clinique',
+  'declined': 'Non confirmé',
+  'completed': 'Effectué',
+  'no_show': 'Non honoré',
+} %}
+{% set DOCUMENT_LABELS = { 'invoice': 'Facture', 'prescription': 'Ordonnance', 'report': 'Compte rendu', 'lab_result': 'Résultat d’analyse', 'certificate': 'Certificat' } %}
+{% set profile = account.profile %}
+
+{% block doc_title %}Export de vos données Kiveto{% endblock %}
+
+{% block doc_kind %}Export de vos données{% endblock %}
+
+{% block doc_meta %}
+  Généré le {{ generatedAt|date('d/m/Y à H:i', false) }}<br/>
+  Format {{ account.schemaVersion }}
+{% endblock %}
+
+{% block content %}
+
+  <table class="h2"><tr><td>Votre compte</td></tr></table>
+  <table class="pgrid">
+    {% if profile %}
+      <tr><td>Nom</td><td>{{ profile.firstName }} {{ profile.lastName }}</td></tr>
+      {% if profile.address %}
+        <tr>
+          <td>Adresse</td>
+          <td>
+            {{ profile.address.streetLine1 }}{% if profile.address.streetLine2 %}, {{ profile.address.streetLine2 }}{% endif %},
+            {{ profile.address.postalCode }} {{ profile.address.city }} ({{ profile.address.countryCode }})
+          </td>
+        </tr>
+      {% endif %}
+    {% endif %}
+    <tr><td>Téléphone</td><td>{{ account.account.phone }}</td></tr>
+    <tr>
+      <td>E-mail</td>
+      <td>{{ account.account.email ?? 'Non renseigné' }}{% if account.account.email %} ({{ account.account.emailVerified ? 'vérifié' : 'non vérifié' }}){% endif %}</td>
+    </tr>
+    {% if account.terms %}
+      <tr><td>Conditions d’utilisation</td><td>Version {{ account.terms.version }}, acceptée le {{ account.terms.acceptedAt|date('d/m/Y', false) }}</td></tr>
+    {% endif %}
+  </table>
+
+  {% if clinics is empty %}
+    <div class="box">
+      <p>Votre compte n’est rattaché à aucune clinique.</p>
+    </div>
+  {% endif %}
+
+  {% for file in clinics %}
+    <table class="h2"><tr><td>{{ file.clinic.name }}{% if file.clinic.city %} · {{ file.clinic.city }}{% endif %}</td></tr></table>
+
+    <table class="pgrid">
+      {% for link in file.links %}
+        <tr>
+          <td>Rattachement</td>
+          <td>
+            {{ LINK_LABELS[link.status]|default(link.status) }}
+            {%- if link.linkedAt %}, depuis le {{ link.linkedAt|date('d/m/Y', false) }}{% endif %}
+            {%- if link.revokedAt %}, retiré le {{ link.revokedAt|date('d/m/Y', false) }}{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      {% for consent in file.consents %}
+        <tr>
+          <td>{{ KIND_LABELS[consent.kind]|default(consent.kind) }}</td>
+          <td>{{ consent.channels is empty ? 'Aucun canal' : consent.channels|map(c => CHANNEL_LABELS[c]|default(c))|join(', ') }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+
+    {% if file.consentHistory is not empty %}
+      <p class="plabel">Historique des consentements</p>
+      <table class="data">
+        <thead><tr><th style="width:28mm;">Date</th><th>Consentement</th><th style="width:20mm;">Canal</th><th style="width:22mm;">Action</th><th style="width:22mm;">Origine</th></tr></thead>
+        <tbody>
+          {% for change in file.consentHistory %}
+            <tr>
+              <td>{{ change.at|date('d/m/Y H:i', false) }}</td>
+              <td>{{ KIND_LABELS[change.kind]|default(change.kind) }}</td>
+              <td>{{ CHANNEL_LABELS[change.channel]|default(change.channel) }}</td>
+              <td>{{ ACTION_LABELS[change.action]|default(change.action) }}</td>
+              <td>{{ SOURCE_LABELS[change.source]|default(change.source) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+
+    <p class="plabel">Rendez-vous</p>
+    {% if file.appointments is empty %}
+      <div class="box"><p>Aucun rendez-vous.</p></div>
+    {% else %}
+      <table class="data">
+        <thead><tr><th style="width:28mm;">Date</th><th>Motif</th><th style="width:30mm;">Animal</th><th style="width:40mm;">Statut</th></tr></thead>
+        <tbody>
+          {% for appointment in file.appointments %}
+            <tr>
+              <td>{{ appointment.startAt|date('d/m/Y H:i', false) }}</td>
+              <td>{{ appointment.motif }}</td>
+              <td>{{ appointment.pet ?? '—' }}</td>
+              <td>{{ STATUS_LABELS[appointment.status]|default(appointment.status) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+
+    <p class="plabel">Documents partagés</p>
+    {% if file.documents is empty %}
+      <div class="box"><p>Aucun document.</p></div>
+    {% else %}
+      <table class="data">
+        <thead><tr><th style="width:28mm;">Date</th><th style="width:30mm;">Type</th><th>Titre</th></tr></thead>
+        <tbody>
+          {% for document in file.documents %}
+            <tr>
+              <td>{{ document.issuedAt|date('d/m/Y', false) }}</td>
+              <td>{{ DOCUMENT_LABELS[document.type]|default(document.type) }}</td>
+              <td>{{ document.title }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  {% endfor %}
+
+{% endblock %}

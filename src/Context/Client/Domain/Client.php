@@ -18,6 +18,7 @@ use App\Context\Client\Domain\Event\ClientUnarchived;
 use App\Context\Client\Domain\Exception\ClientAlreadyArchivedException;
 use App\Context\Client\Domain\Exception\ClientArchivedCannotBeModifiedException;
 use App\Context\Client\Domain\Exception\ClientMustHaveAtLeastOneContactMethodException;
+use App\Context\Client\Domain\Exception\ConsentChannelRequiredException;
 use App\Context\Client\Domain\Exception\DuplicateContactMethodException;
 use App\Context\Client\Domain\Exception\PrimaryContactMethodConflictException;
 use App\Context\Client\Domain\TaxProfile\TaxProfileVerification;
@@ -31,6 +32,10 @@ use App\Context\Client\Domain\ValueObject\ClientTaxStatus;
 use App\Context\Client\Domain\ValueObject\ClinicId;
 use App\Context\Client\Domain\ValueObject\CommunicationPreferences;
 use App\Context\Client\Domain\ValueObject\Consent;
+use App\Context\Client\Domain\ValueObject\ConsentActor;
+use App\Context\Client\Domain\ValueObject\ConsentHistoryEntry;
+use App\Context\Client\Domain\ValueObject\ConsentKind;
+use App\Context\Client\Domain\ValueObject\ConsentSource;
 use App\Context\Client\Domain\ValueObject\ContactChannel;
 use App\Context\Client\Domain\ValueObject\ContactMethod;
 use App\Context\Client\Domain\ValueObject\ContactMethodType;
@@ -52,6 +57,10 @@ final class Client extends AggregateRoot
     private TaxProfileVerification $taxProfileVerification;
     private \DateTimeImmutable $createdAt;
     private \DateTimeImmutable $updatedAt;
+    // The persisted version the aggregate was read at (optimistic lock); 1 for a new client.
+    private int $version = 1;
+    /** @var list<ConsentHistoryEntry> consent changes not yet written to the history */
+    private array $consentHistory = [];
 
     private function __construct()
     {
@@ -115,6 +124,7 @@ final class Client extends AggregateRoot
         ?CommunicationPreferences $communicationPreferences = null,
         ?ClientTaxProfile $taxProfile = null,
         ?TaxProfileVerification $taxProfileVerification = null,
+        int $version = 1,
     ): self {
         $client                 = new self();
         $client->id             = $id;
@@ -130,6 +140,7 @@ final class Client extends AggregateRoot
         $client->communicationPreferences = $communicationPreferences ?? CommunicationPreferences::none();
         $client->taxProfile               = $taxProfile ?? ClientTaxProfile::default();
         $client->taxProfileVerification   = $taxProfileVerification ?? TaxProfileVerification::unchecked();
+        $client->version                  = $version;
 
         return $client;
     }
@@ -358,35 +369,72 @@ final class Client extends AggregateRoot
     }
 
     /**
+     * Replaces the preferred channel and every consent. Each channel granted
+     * or withdrawn is kept for the history, with its source and author.
+     *
      * @param array<string, list<ContactChannel>> $channelsByConsentKind keyed by ConsentKind value
      */
     public function updateCommunicationPreferences(
         ?ContactChannel $preferredChannel,
         array $channelsByConsentKind,
         \DateTimeImmutable $now,
+        ConsentSource $source,
+        ConsentActor $actor,
+        ?string $wordingVersion = null,
     ): void {
         $this->ensureNotArchived();
 
-        $this->communicationPreferences = $this->communicationPreferences->revise(
-            $preferredChannel,
-            $channelsByConsentKind,
+        $this->reviseCommunicationPreferences(
+            $this->communicationPreferences->revise($preferredChannel, $channelsByConsentKind, $now),
             $now,
+            $source,
+            $actor,
+            $wordingVersion,
         );
-        $this->updatedAt = $now;
+    }
 
-        $this->recordDomainEvent(new ClientCommunicationPreferencesUpdated(
-            clientId: $this->id->toString(),
-            clinicId: $this->clinicId->toString(),
-            preferredChannel: $preferredChannel?->value,
-            consents: array_map(
-                static fn (Consent $consent): array => [
-                    'kind'      => $consent->kind->value,
-                    'channels'  => array_map(static fn (ContactChannel $c): string => $c->value, $consent->channels),
-                    'grantedAt' => $consent->grantedAt->format(\DATE_ATOM),
-                ],
-                $this->communicationPreferences->consents,
-            ),
-        ));
+    /**
+     * Changes the channels of one consent kind, the others untouched. An
+     * optional kind left without channel is withdrawn; billing and clinical
+     * documents are sent anyway, so they always keep a channel. Changing
+     * nothing records nothing.
+     *
+     * @param list<ContactChannel> $channels
+     */
+    public function setConsent(
+        ConsentKind $kind,
+        array $channels,
+        \DateTimeImmutable $now,
+        ConsentSource $source,
+        ConsentActor $actor,
+        ?string $wordingVersion = null,
+    ): void {
+        $this->ensureNotArchived();
+
+        if ([] === $channels && !$kind->isOptional()) {
+            throw new ConsentChannelRequiredException($kind);
+        }
+
+        $next = $this->communicationPreferences->withConsent($kind, $channels, $now);
+
+        if ([] === $this->communicationPreferences->changesTo($next)) {
+            return;
+        }
+
+        $this->reviseCommunicationPreferences($next, $now, $source, $actor, $wordingVersion);
+    }
+
+    /**
+     * The consent changes recorded since the last call, for the history.
+     *
+     * @return list<ConsentHistoryEntry>
+     */
+    public function pullConsentHistory(): array
+    {
+        $entries              = $this->consentHistory;
+        $this->consentHistory = [];
+
+        return $entries;
     }
 
     public function id(): ClientId
@@ -452,6 +500,11 @@ final class Client extends AggregateRoot
         return $this->updatedAt;
     }
 
+    public function version(): int
+    {
+        return $this->version;
+    }
+
     public function isArchived(): bool
     {
         return ClientStatus::ARCHIVED === $this->status;
@@ -484,6 +537,35 @@ final class Client extends AggregateRoot
             siren: $this->taxProfile->siren()?->value(),
             previousVatNumber: $previous->vatNumber()?->value(),
             vatNumber: $this->taxProfile->vatNumber()?->value(),
+        ));
+    }
+
+    private function reviseCommunicationPreferences(
+        CommunicationPreferences $next,
+        \DateTimeImmutable $now,
+        ConsentSource $source,
+        ConsentActor $actor,
+        ?string $wordingVersion,
+    ): void {
+        foreach ($this->communicationPreferences->changesTo($next) as $change) {
+            $this->consentHistory[] = new ConsentHistoryEntry($this->clinicId, $this->id, $change, $now, $source, $actor, $wordingVersion);
+        }
+
+        $this->communicationPreferences = $next;
+        $this->updatedAt                = $now;
+
+        $this->recordDomainEvent(new ClientCommunicationPreferencesUpdated(
+            clientId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            preferredChannel: $next->preferredChannel?->value,
+            consents: array_map(
+                static fn (Consent $consent): array => [
+                    'kind'      => $consent->kind->value,
+                    'channels'  => array_map(static fn (ContactChannel $c): string => $c->value, $consent->channels),
+                    'grantedAt' => $consent->grantedAt->format(\DATE_ATOM),
+                ],
+                $next->consents,
+            ),
         ));
     }
 

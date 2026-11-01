@@ -391,7 +391,7 @@ paths:
         '404':
           description: '`otp_challenge_not_found`.'
         '422':
-          description: '`validation_failed` (canal inconnu).'
+          description: '`validation_failed` (canal autre que `sms` ou `email`).'
           content:
             application/problem+json:
               schema:
@@ -413,7 +413,7 @@ paths:
                 $ref: '#/components/schemas/Error'
           links: {  }
       summary: 'Renvoie un nouveau code pour le même challenge.'
-      description: "Le code précédent ne fonctionne plus. Seul le canal `sms` existe pour l'instant."
+      description: "Le code précédent ne fonctionne plus. `email` n'est honoré que pour un code de **connexion** dont le numéro a un compte actif avec e-mail **vérifié** (second facteur) ; sinon même 202, rien ne change et le code SMS reste valable. Les codes d'action (changement d'e-mail, suppression) ne sont jamais renvoyés par e-mail ; un code de vérification d'e-mail n'est jamais renvoyé."
       parameters:
         -
           name: challengeId
@@ -529,6 +529,499 @@ paths:
       summary: 'Le compte et ses cliniques rattachées.'
       description: 'Ne liste pas les invitations en attente : elles apparaissent à la prochaine connexion par code.'
       parameters: []
+    patch:
+      operationId: api_me_patch
+      tags:
+        - Compte
+      responses:
+        '200':
+          description: 'Le compte modifié.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeUpdate.AccountView'
+          links: {  }
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: '`not_found` (aucun profil : aucune invitation acceptée).'
+        '422':
+          description: '`validation_failed`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+      summary: "Modifie le nom ou l'adresse du profil Portal."
+      description: "Chaque champ absent (ou `null`) reste inchangé. Modifie le profil Portal uniquement : les fiches client des cliniques ne changent pas. Adresse enregistrée telle que saisie, sans géocodage. Le téléphone et l'e-mail ne se modifient pas par cette route."
+      parameters: []
+      requestBody:
+        description: 'The updated MeUpdate resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeUpdate.jsonMergePatch'
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/MeUpdate.jsonMergePatch'
+        required: true
+  /api/portal/v1/me/data-export:
+    post:
+      operationId: api_medata-export_post
+      tags:
+        - Compte
+      responses:
+        '202':
+          description: 'Export en cours de construction.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataExportRequest.DataExportRequestView'
+          links: {  }
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '429':
+          description: '`export_rate_limited` (`Retry-After`).'
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+        '422':
+          description: 'An error occurred'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+      summary: 'Demande un export des données du compte.'
+      description: "Construit en asynchrone (suivi par `GET /me/data-exports`), sans exigence d'e-mail. Une archive ZIP (`schemaVersion: 1`) : `account.json`, `clinics/<clinicId>.json` par clinique rattachée, `summary.pdf`. Une adresse e-mail vérifiée reçoit seulement un avis, sans lien. Un export par 24 h ; le quota est rendu si la construction échoue."
+      parameters: []
+  /api/portal/v1/me/data-exports:
+    get:
+      operationId: api_medata-exports_get_collection
+      tags:
+        - Compte
+      responses:
+        '200':
+          description: 'Les exports.'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DataExportList.DataExportView'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+      summary: 'Les exports de données du compte.'
+      description: "Les plus récents d'abord. `ready` : l'archive se télécharge par `GET /me/data-exports/{id}/file` jusqu'à `expiresAt` (48 h), puis l'export est `expired`. `failed` : une nouvelle demande est acceptée aussitôt."
+      parameters: []
+  '/api/portal/v1/me/data-exports/{exportId}/file':
+    get:
+      operationId: api_portal_data_export_file
+      tags:
+        - Compte
+      responses:
+        '302':
+          description: "Redirection vers l'URL signée (`Cache-Control: private, no-store`)."
+        '404':
+          description: '`not_found`.'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+      summary: 'Télécharger un export de données.'
+      description: "Export de l'appelant à l'état `ready`, dans ses 48 h : redirige vers une URL signée valable 5 minutes. Un export expiré, supprimé, en cours, en échec ou d'un autre compte répond 404."
+      parameters:
+        -
+          name: exportId
+          in: path
+          description: ''
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+  /api/portal/v1/me/deletion-request:
+    post:
+      operationId: api_medeletion-request_post
+      tags:
+        - Compte
+      responses:
+        '202':
+          description: 'Suppression engagée.'
+          links: {  }
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '422':
+          description: "`otp_invalid` (code faux, de connexion ou d'un autre utilisateur), `otp_expired`, `otp_attempts_exceeded` ou `validation_failed`."
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+      summary: 'Supprime le compte, confirmé par le code SMS.'
+      description: 'Le code de `POST /me/deletion-request/otp` est vérifié. Dès la 202, le compte est désactivé : tout access token et tout refresh répondent 401. En asynchrone : liens, invitations en attente, jetons et challenges du numéro révoqués ; exports supprimés ; profil et compte anonymisés (« Compte supprimé », téléphone et e-mail effacés). Les fiches `Client` des cliniques et leurs consentements ne sont pas modifiés. Une nouvelle invitation vers ce numéro crée un nouveau compte.'
+      parameters: []
+      requestBody:
+        description: 'The new DeletionRequest resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeletionRequest'
+        required: true
+  /api/portal/v1/me/deletion-request/otp:
+    post:
+      operationId: api_medeletion-requestotp_post
+      tags:
+        - Compte
+      responses:
+        '202':
+          description: 'Code envoyé.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeletionOtp.OtpChallengeView'
+          links: {  }
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '429':
+          description: '`otp_rate_limited`, avec `Retry-After`.'
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+        '422':
+          description: 'An error occurred'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+      summary: 'Envoie par SMS le code qui confirme la suppression du compte.'
+      description: 'Code de finalité `account_deletion`, lié au compte, envoyé au mobile du compte (« Code de confirmation de suppression de votre compte Kiveto »). Mêmes quotas que les codes de connexion (par numéro, par jour, par IP). Renvoi : `POST /auth/otp/{challengeId}/resend` avec `sms` (jamais par e-mail).'
+      parameters: []
+  /api/portal/v1/me/email-change:
+    post:
+      operationId: api_meemail-change_post
+      tags:
+        - Compte
+      responses:
+        '202':
+          description: 'Code envoyé à la nouvelle adresse.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailChange.EmailVerificationChallengeView'
+          links: {  }
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '422':
+          description: "`otp_invalid` (code faux, d'une autre finalité ou d'un autre utilisateur), `otp_expired`, `otp_attempts_exceeded` ou `validation_failed`."
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+      summary: 'Vérifie le code SMS et envoie un code à la nouvelle adresse.'
+      description: "Le code SMS (`POST /me/email-change/otp`) est vérifié ; un code est envoyé à `email` (challenge `email_verification`, 10 min, 5 essais), à saisir sur `POST /me/email-change/verify`. Sert aussi à revérifier l'adresse actuelle non vérifiée. Aucune collision n'est signalée ici."
+      parameters: []
+      requestBody:
+        description: 'The new EmailChange resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailChange'
+        required: true
+  /api/portal/v1/me/email-change/otp:
+    post:
+      operationId: api_meemail-changeotp_post
+      tags:
+        - Compte
+      responses:
+        '202':
+          description: 'Code envoyé.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailChangeOtp.OtpChallengeView'
+          links: {  }
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '429':
+          description: '`otp_rate_limited`, avec `Retry-After`.'
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+        '422':
+          description: 'An error occurred'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+      summary: "Envoie par SMS le code qui confirme un changement d'e-mail."
+      description: "Code de finalité `email_change`, lié au compte, envoyé au mobile du compte (« Code de confirmation de changement d'e-mail »). Mêmes quotas que les codes de connexion (par numéro, par jour, par IP). Renvoi : `POST /auth/otp/{challengeId}/resend` avec `sms` (jamais par e-mail)."
+      parameters: []
+  /api/portal/v1/me/email-change/verify:
+    post:
+      operationId: api_meemail-changeverify_post
+      tags:
+        - Compte
+      responses:
+        '200':
+          description: 'Le compte, e-mail vérifié.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailChangeVerification.AccountView'
+          links: {  }
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '422':
+          description: '`otp_invalid`, `otp_expired`, `otp_attempts_exceeded`, `email_taken` ou `validation_failed`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+      summary: "Vérifie le code reçu à la nouvelle adresse : elle devient l'e-mail vérifié du compte."
+      description: "Un autre compte qui détenait l'adresse sans l'avoir vérifiée la perd ; s'il l'a vérifiée → `email_taken` (seulement ici). L'ancienne adresse vérifiée reçoit un avis de changement. Une fois vérifiée, l'adresse sert de second facteur de connexion (`resend` par e-mail)."
+      parameters: []
+      requestBody:
+        description: 'The new EmailChangeVerification resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailChangeVerification'
+        required: true
+  '/api/portal/v1/clinics/{clinicId}/consents':
+    get:
+      operationId: api_clinics_clinicIdconsents_get
+      tags:
+        - Consentements
+      responses:
+        '200':
+          description: 'Les consentements.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Consents'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: '`not_found` (pas de fiche liée active dans la clinique).'
+      summary: "Les consentements de l'appelant dans la clinique."
+      description: "Les cinq `kind` sont toujours renvoyés ; `channels: []` = non consenti. Relié à plusieurs fiches de la clinique : union des canaux par `kind` sur les fiches confirmées non archivées ; `grantedAt` = la date la plus récente parmi ces fiches. `effect` : `send_control` (sans consentement, le message n'est pas envoyé) ou `channel_preference` (le message part de toute façon, le consentement choisit le canal)."
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'Consents identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+  '/api/portal/v1/clinics/{clinicId}/consents/history':
+    get:
+      operationId: api_clinics_clinicIdconsentshistory_get
+      tags:
+        - Consentements
+      responses:
+        '200':
+          description: "Une page de l'historique."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentHistory'
+        '400':
+          description: '`cursor_invalid`.'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: '`not_found` (pas de fiche liée active dans la clinique).'
+      summary: "L'historique des consentements de l'appelant dans la clinique."
+      description: 'Ajout seul, du plus récent au plus ancien ; un changement appliqué à plusieurs fiches donne une seule ligne. `source: clinic` = saisie à la clinique, auteur « La clinique » ; `source: system` + `approximate: true` = reprise des consentements existants (date au plus tard).'
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'ConsentHistory identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: cursor
+          in: query
+          description: 'ConsentHistory cursor'
+          required: false
+          deprecated: false
+          schema:
+            type: string
+          style: form
+          explode: true
+        -
+          name: limit
+          in: query
+          description: 'Taille de page, ramenée entre 1 et 50 (20 par défaut).'
+          required: false
+          deprecated: false
+          schema:
+            type: integer
+          style: form
+          explode: true
+  '/api/portal/v1/clinics/{clinicId}/consents/{kind}':
+    put:
+      operationId: api_clinics_clinicIdconsents_kind_put
+      tags:
+        - Consentements
+      responses:
+        '200':
+          description: 'Les consentements après modification.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentUpdate.Consents'
+          links: {  }
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: '`not_found` (pas de fiche liée active, ou `kind` inconnu).'
+        '409':
+          description: '`conflict` : modification concurrente, relire puis réessayer.'
+        '422':
+          description: '`validation_failed` (canal hors `sms`|`email`, ou liste vide sur `billing` / `clinical_documents`).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+      summary: "Choisit les canaux d'un consentement."
+      description: "`kind` : `appointment_reminders`, `vaccination_reminders`, `clinical_documents`, `billing` ou `marketing`. `channels` vide = retrait (types `send_control` seulement). S'applique à chaque fiche confirmée non archivée de la clinique, en une transaction ; chaque changement ajoute des lignes d'historique (source `portal`, auteur = nom du profil). Ajouter un canal = consentement daté du jour. Renvoie la même forme que `GET /clinics/{clinicId}/consents`."
+      parameters:
+        -
+          name: clinicId
+          in: path
+          description: 'ConsentUpdate identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+        -
+          name: kind
+          in: path
+          description: 'ConsentUpdate identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+      requestBody:
+        description: 'The updated ConsentUpdate resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsentUpdate'
+        required: true
   '/api/portal/v1/clinics/{clinicId}/documents':
     get:
       operationId: api_clinics_clinicIddocuments_get
@@ -772,6 +1265,35 @@ paths:
           explode: false
         -
           name: version
+          in: path
+          description: ''
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+      security: []
+  '/api/portal/v1/files/exports/{exportId}':
+    get:
+      operationId: api_portal_data_export_download
+      tags:
+        - Fichiers
+      responses:
+        '200':
+          description: "L'archive (`attachment`, `Cache-Control: private, no-store`)."
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: '`not_found`.'
+      summary: "L'archive ZIP d'un export de données (URL signée)."
+      description: "Publique : la signature tient lieu d'authentification, 5 minutes. Servie en pièce jointe tant que l'export n'a pas expiré (48 h)."
+      parameters:
+        -
+          name: exportId
           in: path
           description: ''
           required: true
@@ -2096,6 +2618,125 @@ components:
             type: string
         unreadDocuments:
           type: integer
+    ConsentHistory:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConsentHistoryItemView'
+        nextCursor:
+          type:
+            - string
+            - 'null'
+    ConsentHistoryItemView:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+            - appointment_reminders
+            - vaccination_reminders
+            - clinical_documents
+            - billing
+            - marketing
+        channel:
+          type: string
+          enum:
+            - sms
+            - email
+        action:
+          type: string
+          enum:
+            - granted
+            - withdrawn
+        at:
+          type: string
+          format: date-time
+        source:
+          type: string
+          enum:
+            - portal
+            - clinic
+            - system
+        author:
+          type: string
+        approximate:
+          type: boolean
+    ConsentUpdate:
+      type: object
+      required:
+        - channels
+      properties:
+        channels:
+          type: array
+          items:
+            type: string
+            enum:
+              - sms
+              - email
+    ConsentUpdate.Consents:
+      type: object
+      properties:
+        preferredChannel:
+          type:
+            - string
+            - 'null'
+          enum:
+            - sms
+            - email
+            - phone
+            - mail
+            - null
+        consents:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConsentView'
+    ConsentView:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+            - appointment_reminders
+            - vaccination_reminders
+            - clinical_documents
+            - billing
+            - marketing
+        channels:
+          type: array
+          items:
+            type: string
+            enum:
+              - sms
+              - email
+        grantedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        effect:
+          type: string
+          enum:
+            - send_control
+            - channel_preference
+    Consents:
+      type: object
+      properties:
+        preferredChannel:
+          type:
+            - string
+            - 'null'
+          enum:
+            - sms
+            - email
+            - phone
+            - mail
+            - null
+        consents:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConsentView'
     ConstraintViolation:
       type: object
       description: 'Unprocessable entity'
@@ -2150,6 +2791,56 @@ components:
           type: string
         url:
           type: string
+    DataExportList.DataExportView:
+      type: object
+      description: 'The exports of the account; the route answers a plain JSON array of them.'
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        requestedAt:
+          type: string
+        readyAt:
+          type:
+            - string
+            - 'null'
+        expiresAt:
+          type:
+            - string
+            - 'null'
+    DataExportRequest.DataExportRequestView:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+    DeletionOtp.OtpChallengeView:
+      type: object
+      properties:
+        challengeId:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+        resendAvailableAt:
+          type: string
+          format: date-time
+    DeletionRequest:
+      type: object
+      required:
+        - challengeId
+        - code
+      properties:
+        challengeId:
+          format: uuid
+          externalDocs:
+            url: 'https://schema.org/identifier'
+          type: string
+        code:
+          pattern: '^(\d{6})$'
+          type: string
     DocumentList:
       type: object
       properties:
@@ -2195,6 +2886,83 @@ components:
           anyOf:
             -
               $ref: '#/components/schemas/PrescriptionSummaryView'
+            -
+              type: 'null'
+    EmailChange:
+      type: object
+      required:
+        - challengeId
+        - code
+        - email
+      properties:
+        challengeId:
+          format: uuid
+          externalDocs:
+            url: 'https://schema.org/identifier'
+          type: string
+        code:
+          pattern: '^(\d{6})$'
+          type: string
+        email:
+          format: email
+          maxLength: 180
+          externalDocs:
+            url: 'https://schema.org/email'
+          type: string
+    EmailChange.EmailVerificationChallengeView:
+      type: object
+      properties:
+        challengeId:
+          type: string
+    EmailChangeOtp.OtpChallengeView:
+      type: object
+      properties:
+        challengeId:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+        resendAvailableAt:
+          type: string
+          format: date-time
+    EmailChangeVerification:
+      type: object
+      required:
+        - challengeId
+        - code
+      properties:
+        challengeId:
+          format: uuid
+          externalDocs:
+            url: 'https://schema.org/identifier'
+          type: string
+        code:
+          pattern: '^(\d{6})$'
+          type: string
+    EmailChangeVerification.AccountView:
+      type: object
+      properties:
+        id:
+          type: string
+        firstName:
+          type:
+            - string
+            - 'null'
+        lastName:
+          type:
+            - string
+            - 'null'
+        email:
+          description: 'Unverified, possibly null.'
+          type:
+            - string
+            - 'null'
+        maskedPhone:
+          type: string
+        address:
+          anyOf:
+            -
+              $ref: '#/components/schemas/AddressView'
             -
               type: 'null'
     Error:
@@ -2411,6 +3179,53 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ClinicLinkView'
+    MeUpdate.AccountView:
+      type: object
+      properties:
+        id:
+          type: string
+        firstName:
+          type:
+            - string
+            - 'null'
+        lastName:
+          type:
+            - string
+            - 'null'
+        email:
+          description: 'Unverified, possibly null.'
+          type:
+            - string
+            - 'null'
+        maskedPhone:
+          type: string
+        address:
+          anyOf:
+            -
+              $ref: '#/components/schemas/AddressView'
+            -
+              type: 'null'
+    MeUpdate.jsonMergePatch:
+      type: object
+      properties:
+        firstName:
+          type:
+            - string
+            - 'null'
+          minLength: 1
+          maxLength: 60
+        lastName:
+          type:
+            - string
+            - 'null'
+          minLength: 1
+          maxLength: 60
+        address:
+          anyOf:
+            -
+              $ref: '#/components/schemas/ProfileAddress'
+            -
+              type: 'null'
     MoneyView:
       type: object
       properties:
@@ -2470,6 +3285,7 @@ components:
         channel:
           enum:
             - sms
+            - email
           type: string
     OtpResend.OtpChallengeView:
       type: object
@@ -2753,6 +3569,27 @@ components:
           type:
             - object
             - 'null'
+    ProfileAddress:
+      type: object
+      required:
+        - streetLine1
+        - city
+      properties:
+        streetLine1:
+          maxLength: 255
+          type: string
+        postalCode:
+          maxLength: 20
+          type:
+            - string
+            - 'null'
+        city:
+          maxLength: 255
+          type: string
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          example: FR
     RelatedCareItemView:
       type: object
       properties:
@@ -2850,17 +3687,20 @@ tags:
     name: Animaux
     description: "Resource 'Animaux' operations."
   -
+    name: Consentements
+    description: "Resource 'Consentements' operations."
+  -
     name: CGU
     description: "Resource 'CGU' operations."
+  -
+    name: Compte
+    description: "Resource 'Compte' operations."
   -
     name: Documents
     description: "Resource 'Documents' operations."
   -
     name: Invitation
     description: "Resource 'Invitation' operations."
-  -
-    name: Compte
-    description: "Resource 'Compte' operations."
   -
     name: Authentification
     description: "Resource 'Authentification' operations."

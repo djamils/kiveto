@@ -75,13 +75,13 @@ final class OtpQuotaTest extends PortalApiTestCase
         self::assertSame('authenticated', self::json($this->post('/auth/otp/verify', ['challengeId' => $challengeId, 'code' => $second]), 200)['status']);
     }
 
-    /** AC 53: only the SMS channel exists. */
-    public function testOnlyTheSmsChannelExists(): void
+    /** AC 53, AC 62: the channels are `sms` and `email`. */
+    public function testOnlySmsAndEmailChannelsExist(): void
     {
         $this->clientIp = '203.0.113.25';
         $challengeId    = $this->requestCode('+33613300001');
 
-        $answer = self::json($this->post('/auth/otp/' . $challengeId . '/resend', ['channel' => 'email']), 422);
+        $answer = self::json($this->post('/auth/otp/' . $challengeId . '/resend', ['channel' => 'whatsapp']), 422);
         self::assertSame(['validation_failed', 'channel'], [$answer['type'], self::firstViolationPath($answer)]);
         self::assertSame(1, $this->number('SELECT send_count FROM identity_access__otp_challenges WHERE phone = ?', ['+33613300001']));
     }

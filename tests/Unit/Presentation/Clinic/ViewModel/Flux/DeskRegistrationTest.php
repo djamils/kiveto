@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Presentation\Clinic\ViewModel\Flux;
 
 use App\Context\Client\Application\Command\CreateClient\CreateClient;
+use App\Presentation\Clinic\ViewModel\Client\StaffConsentAuthor;
+use App\Presentation\Clinic\ViewModel\Client\StaffNameResolver;
 use App\Presentation\Clinic\ViewModel\Flux\DeskRegistration;
 use App\Shared\Application\Bus\CommandBusInterface;
+use App\Shared\Application\Bus\QueryBusInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Bundle\SecurityBundle\Security;
 
 /**
  * The phone given at the desk is labelled by its prefix, and a mobile gets
@@ -44,7 +48,7 @@ final class DeskRegistrationTest extends TestCase
             return $command instanceof CreateClient ? self::CLIENT_ID : null;
         });
 
-        self::assertSame(self::CLIENT_ID, new DeskRegistration($bus)->createOwner(self::CLINIC_ID, 'Paul', 'Garcia', $typed));
+        self::assertSame(self::CLIENT_ID, new DeskRegistration($bus, $this->author())->createOwner(self::CLINIC_ID, 'Paul', 'Garcia', $typed));
 
         self::assertCount(1, $sent);
         self::assertInstanceOf(CreateClient::class, $sent[0]);
@@ -52,5 +56,12 @@ final class DeskRegistrationTest extends TestCase
         self::assertSame($stored, $sent[0]->contactMethods[0]->value);
         self::assertSame($label, $sent[0]->contactMethods[0]->label);
         self::assertSame($consents, $sent[0]->channelsByConsentKind);
+        // Signed by the team in the consent history.
+        self::assertSame(['staff', null, 'Équipe de la clinique'], [$sent[0]->actorType, $sent[0]->actorId, $sent[0]->authorLabel]);
+    }
+
+    private function author(): StaffConsentAuthor
+    {
+        return new StaffConsentAuthor($this->createStub(Security::class), new StaffNameResolver($this->createStub(QueryBusInterface::class)));
     }
 }
