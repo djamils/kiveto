@@ -2,49 +2,32 @@
 
 Kiveto est une application SaaS de gestion de cliniques vétérinaires construite avec une architecture **Domain-Driven Design (DDD)** et **CQRS**.
 
+Les règles de contribution (git, `make ci`, architecture, BMAD) sont dans [CONTRIBUTING.md](./CONTRIBUTING.md) ; les directives des agents IA dans [CLAUDE.md](./CLAUDE.md).
+
 ---
 
 ## 🏗️ Architecture
 
-### Bounded Contexts (BCs)
+Monolithe DDD organisé en **Bounded Contexts**, chacun découpé en `Domain/`, `Application/` et `Infrastructure/`. La présentation est à part, dans `src/Presentation/` (`Clinic`, `Portal`, `Backoffice`, `Api`). Chaque contexte décrit son langage, ses invariants et ses cas d'usage dans son `README.md`.
 
-Le projet est organisé en **Bounded Contexts** autonomes :
-
-| BC | Description | Status |
-|----|-------------|--------|
-| **AccessControl** | Gestion des rôles et permissions (RBAC) | ✅ Production |
-| **IdentityAccess** | Authentification et utilisateurs | ✅ Production |
-| **Clinic** | Gestion des cliniques (multi-tenant) | ✅ Production |
-| **Client** | Gestion des propriétaires d'animaux | ✅ Production |
-| **Animal** | Gestion des animaux patients | ✅ Production |
-| **Scheduling** | **Agenda & File d'attente** | ✅ **v1.0.0 (Nouveau !)** |
-| **Translation** | Internationalisation (i18n) | ✅ Production |
-| **Shared** | Abstractions communes (Bus, Clock, etc.) | ✅ Production |
-
-### 🎉 Nouveau : Module Scheduling v1.0.0
-
-Le module **Scheduling** (Agenda & File d'attente) est maintenant disponible ! 
-
-**Fonctionnalités :**
-- 📅 Gestion complète de l'agenda (RDV planifiés)
-- 🏥 File d'attente en temps réel (Waiting Room)
-- 🚨 Urgences walk-in avec priorités
-- 📊 Système de triage clinique
-- 🎨 Interface UI moderne et responsive
-
-👉 **[Documentation complète](./src/Scheduling/INDEX.md)**
+| Groupe | Bounded Contexts |
+|----|----|
+| `src/Context/` (métier) | [Admission](./src/Context/Admission/README.md), [Animal](./src/Context/Animal/README.md), [Billing](./src/Context/Billing/README.md), [Catalog](./src/Context/Catalog/README.md), [Client](./src/Context/Client/README.md), [ClientPortal](./src/Context/ClientPortal/README.md), [Clinic](./src/Context/Clinic/README.md), [ClinicListing](./src/Context/ClinicListing/README.md), [Consultation](./src/Context/Consultation/README.md), [Inventory](./src/Context/Inventory/README.md), [Patient](./src/Context/Patient/README.md), [Prescription](./src/Context/Prescription/README.md), [Procurement](./src/Context/Procurement/README.md), [Regulatory](./src/Context/Regulatory/README.md), [Scheduling](./src/Context/Scheduling/README.md) |
+| `src/System/` (transverses) | [AccessControl](./src/System/AccessControl/README.md), [ElectronicInvoicing](./src/System/ElectronicInvoicing/README.md), [IdentityAccess](./src/System/IdentityAccess/README.md), [Notification](./src/System/Notification/README.md), [PharmaceuticalRegistry](./src/System/PharmaceuticalRegistry/README.md), [Taxation](./src/System/Taxation/README.md), [Translation](./src/System/Translation/README.md) |
+| `src/Shared/` | [Noyau partagé](./src/Shared/README.md) (bus, horloge, identifiants, `Money`, recherche…) |
 
 ---
 
 ## 🚀 Stack Technique
 
-- **Backend** : PHP 8.3+, Symfony 7.x
-- **Frontend** : Twig, Stimulus, Turbo
-- **Database** : MySQL 8.0+ (multi-database, 1 par BC)
+- **Backend** : PHP ≥ 8.5, Symfony 7.4, Doctrine ORM 3, API Platform 4 (API du Portal, JWT)
+- **Frontend** : Twig, Stimulus, Turbo, Tailwind CSS v4 (AssetMapper, sans Node)
+- **Database** : MySQL 8.4, une seule base ; tables préfixées par contexte (`clinic__…`) et migrations par contexte
 - **Architecture** : DDD, CQRS, Hexagonal, Event-Driven
-- **Tests** : PHPUnit, Foundry (fixtures)
-- **CI/CD** : GitHub Actions
-- **Docker** : php-fpm + nginx + mysql
+- **Tests** : PHPUnit 12, Foundry, DAMA DoctrineTestBundle
+- **Qualité** : PHP-CS-Fixer, PHPCS (PSR-12), PHPStan niveau `max`, réunis dans la gate locale `make ci`
+- **CI/CD** : pas encore de CI distante ; `make ci` se lance en local (voir [CONTRIBUTING.md §5](./CONTRIBUTING.md#5-local-dev--ci))
+- **Docker** : php-fpm, nginx, MySQL, Gotenberg (PDF), Mailpit (e-mails de dev), phpMyAdmin, et les workers Messenger (profil `workers`)
 
 ---
 
@@ -52,34 +35,20 @@ Le module **Scheduling** (Agenda & File d'attente) est maintenant disponible !
 
 ### Prérequis
 
-- PHP 8.3+
-- Composer 2.x
-- MySQL 8.0+
-- Node 18+ (pour assets)
+- Docker avec Docker Compose v2
+- GNU Make, bash et curl
+
+PHP, Composer et MySQL tournent dans les conteneurs.
 
 ### Setup
 
 ```bash
-# Clone repository
-git clone git@github.com:kiveto/kiveto.git
+git clone https://github.com/djamils/kiveto.git
 cd kiveto
-
-# Install dependencies
-composer install
-
-# Setup environment
-cp .env .env.local
-# Edit .env.local with your database credentials
-
-# Run migrations (all BCs)
-php bin/console doctrine:migrations:migrate --all-or-nothing
-
-# Load fixtures (dev only)
-php bin/console doctrine:fixtures:load
-
-# Start server
-symfony server:start
+make install
 ```
+
+`make install` construit les images, démarre les conteneurs, installe les dépendances Composer, génère les clés JWT du Portal, crée et migre les bases de dev et de test, charge les fixtures et compile les assets. `make help` liste les autres cibles.
 
 ### Hosts Configuration
 
@@ -95,104 +64,55 @@ Ajouter à `/etc/hosts` :
 
 ## 🎯 URLs d'Accès
 
-- **Clinic** (interface clinique) : http://clinic.kiveto.local
-- **Portal** (interface clients) : http://portal.kiveto.local
-- **Backoffice** (admin) : http://backoffice.kiveto.local
-
-### Scheduling (nouveau)
-
-- **Dashboard Agenda** : http://clinic.kiveto.local/scheduling/dashboard
+- **Clinic** (interface clinique) : http://clinic.kiveto.local:81
+- **Portal** (interface clients et API `/api/portal/v1`) : http://portal.kiveto.local:81
+- **Backoffice** (admin) : http://backoffice.kiveto.local:81
+- **Mailpit** (e-mails envoyés en dev) : http://localhost:8025
+- **phpMyAdmin** : http://localhost:8081
 
 ---
 
 ## 🧪 Tests
 
 ```bash
-# All tests
-php bin/phpunit
-
-# Specific BC
-php bin/phpunit tests/Unit/Scheduling/
-
-# With coverage
-XDEBUG_MODE=coverage php bin/phpunit --coverage-html var/coverage
+make test               # toutes les suites
+make test-unit          # tests/Unit
+make test-integration   # tests/Integration
+make test-coverage      # rapport HTML de couverture dans coverage/
 ```
+
+L'objectif est de 100 % de couverture de lignes par contexte (hors Presentation). C'est une règle vérifiée par l'auteur et la revue avec `make test-coverage` : `make ci` ne mesure pas la couverture (voir [CONTRIBUTING.md](./CONTRIBUTING.md#test-coverage-policy)).
 
 ---
 
 ## 📚 Documentation
 
-### Architecture Générale
+- [CONTRIBUTING.md](./CONTRIBUTING.md) : git flow, `make ci`, contrôles automatisés et règles restant manuelles, architecture, BMAD, Definition of Done
+- [CLAUDE.md](./CLAUDE.md) : directives non négociables pour les agents IA
+- [Contexte projet pour les agents](./_bmad-output/project-context.md) : règles de code PHP, Symfony, DDD et tests
+- [Contrat de l'API Portal](./openapi/portal-api-v1.md) et son export OpenAPI [`openapi/portal.v1.yaml`](./openapi/portal.v1.yaml)
+- [Feuille de route de l'UI Kit](./_bmad-output/ui-kit-roadmap.md)
+- Les `README.md` de chaque contexte (tableau ci-dessus)
 
-- [Architecture DDD/CQRS](./docs/README_architecture_vet_saas.md)
-- [Guide nouveau BC](./docs/GUIDE_NOUVEAU_BC.md)
-- [Coding Rules](./docs/CODING_RULES.md)
-
-### Bounded Contexts
-
-- **AccessControl** : `src/AccessControl/README.md`
-- **Clinic** : `src/Clinic/README.md`
-- **Client** : `src/Client/README.md`
-- **Animal** : `src/Animal/README.md`
-- **Scheduling** : `src/Scheduling/INDEX.md` ⭐ **Nouveau !**
-- **Translation** : `src/Translation/README.md`
-
-### Frontend
-
-- [Design System](./docs/FRONTEND_DESIGN_SYSTEM.md)
-- [Layout 15 Implementation](./docs/LAYOUT15_IMPLEMENTATION.md)
-- [Layout 16 Migration](./docs/LAYOUT16_MIGRATION_COMPLETE.md)
+Le dossier `docs/` (notes historiques, maquettes) est ignoré par git et n'existe que sur les postes qui l'ont.
 
 ---
 
 ## 🛠️ Commandes Utiles
 
 ```bash
-# Migrations
-php bin/console doctrine:migrations:status
-php bin/console doctrine:migrations:migrate
-
-# Fixtures
-php bin/console doctrine:fixtures:load --group=scheduling
-
-# Code Quality
-vendor/bin/phpcs src/
-vendor/bin/phpstan analyse src/
-
-# Cache
-php bin/console cache:clear
-php bin/console cache:warmup
+make start / make stop            # démarrer / arrêter la stack
+make ci                           # gate qualité complète (obligatoire avant chaque commit)
+make phpstan                      # analyse statique
+make phpcs                        # PSR-12 (seules les erreurs font échouer)
+make php-cs-fixer && make phpcbf  # corriger le style
+make reset-db                     # recréer la base de dev et charger les fixtures
+make load-fixtures                # recharger les fixtures
+make assets                       # recompiler Tailwind et AssetMapper
+make worker-start / worker-logs   # workers Messenger et Scheduler
+make openapi-export               # régénérer openapi/portal.v1.yaml
+make openapi-check                # vérifier que le contrat correspond au code
 ```
-
----
-
-## 📊 Statistiques Projet
-
-```
-┌─────────────────────────────────────────────┐
-│  📦 Bounded Contexts      8                 │
-│  💻 Lignes de Code        ~50,000           │
-│  🧪 Tests Unitaires       300+              │
-│  📖 Couverture            ~85%              │
-│  📚 Pages Documentation   ~100              │
-└─────────────────────────────────────────────┘
-```
-
----
-
-## 🏆 Nouveautés v1.0.0
-
-### ✨ Module Scheduling (Février 2026)
-
-Le module Scheduling établit un **nouveau standard de qualité** pour le projet :
-
-- ✅ **Architecture DDD/CQRS exemplaire** (88% test coverage)
-- ✅ **14 Commands + 6 Queries** (CQRS complet)
-- ✅ **Interface UI moderne** (Dashboard + Waiting Room)
-- ✅ **Documentation exhaustive** (13 docs, 50 pages)
-- ✅ **Production ready** (0 bugs critiques)
-
-👉 **[Release Notes Scheduling](./src/Scheduling/RELEASE_NOTES.md)**
 
 ---
 
@@ -200,16 +120,18 @@ Le module Scheduling établit un **nouveau standard de qualité** pour le projet
 
 ### Workflow
 
-1. Créer une branche feature : `git checkout -b feature/my-feature`
+1. Créer une branche depuis `master` : `git checkout -b feature/my-feature master` (types `feature/`, `fix/`, `hotfix/`, `chore/`)
 2. Committer avec messages conventionnels : `feat(scheduling): add week view`
-3. Push et créer PR
-4. Review + CI/CD passe → Merge
+3. Lancer `make ci` en local : il doit être vert
+4. Push et créer la PR vers `master` → review → merge
+
+Le détail est dans [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ### Standards
 
-- **PSR-12** pour le code PHP
-- **PHPStan Level 8** (strict types)
-- **Tests unitaires** obligatoires pour Domain + Application
+- **PSR-12** pour le code PHP (PHP-CS-Fixer + PHPCS)
+- **PHPStan niveau `max`**
+- **Couverture de 100 %** par contexte hors Presentation (règle, pas encore un seuil automatisé)
 - **Documentation** Markdown pour chaque BC
 
 ---
@@ -217,7 +139,7 @@ Le module Scheduling établit un **nouveau standard de qualité** pour le projet
 ## 📞 Support
 
 - **Issues** : GitHub Issues
-- **Documentation** : `/docs/` et `/src/{BC}/`
+- **Documentation** : `CONTRIBUTING.md` et `src/{Context,System}/<BC>/README.md`
 - **Email** : tech@kiveto.com
 
 ---
@@ -236,4 +158,4 @@ Développé avec ❤️ par l'équipe Kiveto.
 
 ---
 
-*README mis à jour le 1er février 2026*
+*README mis à jour le 2 novembre 2026*

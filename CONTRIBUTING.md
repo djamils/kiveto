@@ -120,7 +120,7 @@ the change fixes a non-obvious bug or unblocks a downstream task, say so.
 ```
 feature/* ──► PR → master
                     │
-                CI run (make ci must be 100% green)
+                make ci 100% green on the branch (run locally, see §5)
                     │
                 Review (human or AI)
                     │
@@ -137,7 +137,9 @@ feature/* ──► PR → master
   commit it will produce.
 - **PR body** describes the change, links to related issues / BMAD stories,
   and lists any manual test plan if needed.
-- **CI must be green** before merge. Non-negotiable. See section 5.
+- **`make ci` must be green** before merge. Non-negotiable. There is no
+  remote CI pipeline yet, so the author runs it locally on the branch
+  head. See section 5.
 - **Reviews**: at least one approval (human or AI agent) for any PR
   touching production code. `chore/` PRs may self-approve at the author's
   discretion.
@@ -168,17 +170,47 @@ make load-fixtures   # seed dev data
 | Run static analysis                 | `make phpstan`                           |
 | Run code style check (dry-run)      | `make php-cs-fixer.dry-run`              |
 | Auto-fix code style                 | `make php-cs-fixer && make phpcbf`       |
+| Export the Portal API contract      | `make openapi-export`                    |
+| Check the contract matches the code | `make openapi-check`                     |
 | **Run the full CI gate locally**    | `make ci`                                |
 
 ### CI gate (`make ci`)
 
-`make ci` chains `php-cs-fixer.dry-run → phpcs → phpstan → tailwind-build → test`.
+`make ci` chains `php-cs-fixer.dry-run → phpcs → phpstan → openapi-check →
+tailwind-build → test`.
 
 **It must be 100% green before any commit and before opening any PR.**
 This is non-negotiable. If it fails, fix the failures rather than
-committing yellow. PHPStan runs at `level: max`, tests run with
-`failOnDeprecation`, `failOnNotice` and `failOnWarning` enabled, so
-warnings are treated as failures.
+committing yellow.
+
+`make ci` runs only on the developer's machine: the repository has no
+remote CI pipeline (no `.github/workflows/`) and no git hook, so nothing
+runs it automatically on a commit or a PR.
+
+What each step fails on:
+
+| Step | Fails on | Does not fail on |
+|---|---|---|
+| `php-cs-fixer.dry-run` | Any file the fixer would change | — |
+| `phpcs` | PSR-1/2/12 and forbidden-function **errors** | **Warnings**: `phpcs.xml` sets `ignore_warnings_on_exit`, so they are printed and the exit code stays 0. Today every warning is `Generic.Files.LineLength` (lines over 120 characters). |
+| `phpstan` | Any error at `level: max` in `src/`, `tests/`, `migrations/` and `fixtures/` | — |
+| `openapi-check` | `openapi/portal.v1.yaml` differing from what the code exports | A drift hidden by a stale dev cache: the export reads API Platform's metadata from `var/cache/dev`. On 2026-11-02 the check passed on a cache built before the latest resources and failed once the cache was cleared. After changing a resource, run `bin/console cache:clear` before `make openapi-export` or `make openapi-check`. |
+| `tailwind-build` | A Tailwind build error | — |
+| `test` | A failing test, and any deprecation, notice or warning (`failOnDeprecation`, `failOnNotice`, `failOnWarning`; deprecations raised between two vendor packages are ignored, see `phpunit.xml`) | Coverage: the suite runs with `XDEBUG_MODE=off`, nothing is measured |
+
+### Quality rules: what is automated today
+
+| Rule | Enforced today by | Still to implement |
+|---|---|---|
+| Code style (PHP-CS-Fixer, PHPCS errors) | `make ci` | — |
+| PHPCS line length (120 characters) | Reported by `make phpcs`, not failing | — |
+| PHPStan `level: max` | `make ci` | — |
+| Portal API contract matches the code | `make ci` (`openapi-check`), provided the dev cache is fresh | An export that does not depend on the cache state |
+| Tests green, without deprecations, notices or warnings | `make ci` | — |
+| 100% line coverage per BC (excl. Presentation) | The author and the reviewer, with `make test-coverage` | An automated per-BC threshold |
+| BC boundaries | `tests/Unit/Architecture/` for a few contexts (§6), review for the others | A check covering every BC |
+| `make ci` green before every commit and PR | The author, locally | A remote CI pipeline |
+| Conventional Commits and branch names | Review | A commit-message check |
 
 ### Test coverage policy
 
@@ -189,15 +221,21 @@ end-to-end tests that are out of scope for unit/integration tests.
 When you add or modify code in a BC, you also add the tests that cover it.
 A PR that drops a BC's coverage below 100% will be rejected.
 
+**This is a quality policy, not an automated threshold.** `make ci` does
+not measure coverage and no tool checks the 100% per BC. Measure it with
+`make test-coverage`, which writes an HTML report to `coverage/`
+(git-ignored), and check the BCs you touched before opening the PR.
+
 ---
 
 ## 6. Architecture
 
 Kiveto is a **Domain-Driven Design** monolith organised by **Bounded
-Contexts**. Each BC under `src/` follows the same internal layout:
+Contexts**. Each BC under `src/Context/` or `src/System/` follows the same
+internal layout:
 
 ```
-src/<BC>/
+src/{Context,System}/<BC>/
 ├── Domain/              # Aggregates, value objects, domain events, repository interfaces
 ├── Application/         # Commands, queries, handlers, ports (interfaces)
 ├── Infrastructure/      # Doctrine entities, mappers, DBAL adapters, port implementations
@@ -212,6 +250,22 @@ Cross-BC communication happens **only** through:
   `Infrastructure/Adapter/<OtherBC>/` folder
 
 Direct usage of another BC's Domain or Doctrine entities is forbidden.
+
+### What is checked automatically
+
+The rule applies to every BC. The automated checks are the architecture
+tests in `tests/Unit/Architecture/` (part of `make test`), and they cover a
+few contexts only:
+
+| Test | What it enforces |
+|---|---|
+| `PortalBoundaryTest` | `ClientPortal` and `ClinicListing` never `use` another context's `Domain` or `Infrastructure` (integration events excepted); `src/Presentation/Api/Portal` uses no context internals except domain exceptions |
+| `NotificationBoundaryTest` | Code outside `System/Notification` reaches it only through its Application commands and queries and its integration events; Notification references no `Context`, `Presentation` or other `System` code (imports, inline class names and service ids) |
+| `ElectronicInvoicingBoundaryTest` | Code outside `System/ElectronicInvoicing` reaches it only through its Application commands and queries and its integration events; it references no `Context` or `Presentation` code |
+| `AppointmentStatusLiteralTest` | Outside `src/Context/Scheduling`, no code writes the `PLANNED`, `PENDING_CLINIC_CONFIRMATION` or `DECLINED` appointment status literals |
+
+For every other BC, the boundary rule is enforced by review only. A check
+covering every BC is still to be implemented.
 
 ---
 
@@ -259,11 +313,13 @@ descriptions in `_bmad/bmm/`.
 A change is "done" only when **all** of the following hold:
 
 - [ ] `make ci` is 100% green locally
-- [ ] Tests cover the change (BC coverage stays at 100%)
+- [ ] Tests cover the change (BC coverage stays at 100%, checked with
+      `make test-coverage`)
 - [ ] Commit messages follow Conventional Commits
 - [ ] Branch name follows the conventions in section 2
 - [ ] PR opened against `master`, with a descriptive title and body
 - [ ] PR references the BMAD story / artefact when applicable
 - [ ] Code review approved (at least one reviewer)
-- [ ] CI in CI/CD platform is green
+- [ ] Remote CI is green on the PR — *not available yet: no CI pipeline is
+      configured, so the local `make ci` above is the only gate today*
 - [ ] Branch deleted after merge
