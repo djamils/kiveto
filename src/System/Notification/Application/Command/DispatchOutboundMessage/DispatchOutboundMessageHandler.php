@@ -36,7 +36,9 @@ use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
  * Hands one queued message to the e-mail or SMS transport, outside any
  * database transaction, and records the outcome through a short command.
  *
- * - Only a QUEUED message is sent: a replayed dispatch does nothing.
+ * - Only a QUEUED message is sent: a replayed dispatch does nothing, and a
+ *   message CANCELLED while its dispatch waited on the transport (its Portal
+ *   account was deleted) is never handed over.
  * - An invitation or a password reset whose link has expired while it waited
  *   (retries, outage) is not sent: FAILED « Lien expiré avant l'envoi ».
  * - Attachments and the inline clinic logo are read from the file storage
@@ -88,6 +90,12 @@ final readonly class DispatchOutboundMessageHandler
             $message = $this->messages->get(OutboundMessageId::fromString($command->messageId));
         } catch (OutboundMessageNotFoundException) {
             $this->logger->warning('Notification not dispatched: no such message.', ['messageId' => $command->messageId]);
+
+            return;
+        }
+
+        if (DeliveryStatus::CANCELLED === $message->status()) {
+            $this->logger->info('Notification not dispatched: cancelled before hand-over.', ['messageId' => $command->messageId]);
 
             return;
         }

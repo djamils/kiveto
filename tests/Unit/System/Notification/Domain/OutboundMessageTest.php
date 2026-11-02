@@ -294,6 +294,36 @@ final class OutboundMessageTest extends TestCase
         Messages::email()->recordStatus(DeliveryStatus::BLOCKED_CAP, new \DateTimeImmutable(), OutboundMessage::SOURCE_PROVIDER);
     }
 
+    public function testAProviderNeverReportsACancellation(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        Messages::email()->recordStatus(DeliveryStatus::CANCELLED, new \DateTimeImmutable(), OutboundMessage::SOURCE_PROVIDER);
+    }
+
+    /** Account deletion: a message not handed over yet is withdrawn for good, never billed. */
+    public function testOnlyAQueuedMessageCanBeCancelled(): void
+    {
+        $message = Messages::sms();
+        self::assertNotSame([], $message->pullDomainEvents());
+        $at = new \DateTimeImmutable('2026-10-16 08:05:00');
+
+        self::assertTrue($message->cancel('Compte Portal supprimé avant l\'envoi', $at));
+        self::assertSame([DeliveryStatus::CANCELLED, true, null], [$message->status(), $message->status()->isFinal(), $message->sentAt()]);
+        $last = $message->history()[\count($message->history()) - 1];
+        self::assertSame([OutboundMessage::SOURCE_ERASURE, 'Compte Portal supprimé avant l\'envoi'], [$last->source, $last->reason]);
+        self::assertCount(1, $message->pullDomainEvents(), 'the cancellation is announced');
+
+        self::assertFalse($message->cancel('again', $at), 'nothing twice');
+        self::assertFalse($message->markSent('late', $at->modify('+1 second')), 'a late outcome never revives it');
+        self::assertFalse($message->recordStatus(DeliveryStatus::DELIVERED, $at->modify('+2 seconds'), OutboundMessage::SOURCE_PROVIDER));
+
+        $sent = Messages::email();
+        $sent->markSent('provider-1', $at);
+        self::assertFalse($sent->cancel('too late', $at->modify('+1 second')), 'already handed over');
+        self::assertSame(DeliveryStatus::SENT, $sent->status());
+    }
+
     public function testAComplaintIsAFlagNotAStatus(): void
     {
         $message = $this->sent();

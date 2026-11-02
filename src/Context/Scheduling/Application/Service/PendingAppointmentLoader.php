@@ -40,6 +40,16 @@ final readonly class PendingAppointmentLoader
             return null;
         }
 
+        return $this->lockAndReload($appointment);
+    }
+
+    /**
+     * Takes the practitioner-day lock on the days of an appointment read
+     * plainly, then reads it again `FOR UPDATE` (current). Null when it is
+     * gone meanwhile.
+     */
+    public function lockAndReload(Appointment $appointment): ?Appointment
+    {
         $slot = $appointment->timeSlot();
 
         $this->dayLock->lock($appointment->clinicId(), LockKeys::forSlot(
@@ -49,6 +59,6 @@ final readonly class PendingAppointmentLoader
             $this->timezoneResolver->resolveTimezone($appointment->clinicId()),
         ));
 
-        return $this->appointments->findByIdForUpdate($appointmentId);
+        return $this->appointments->findByIdForUpdate($appointment->id());
     }
 }

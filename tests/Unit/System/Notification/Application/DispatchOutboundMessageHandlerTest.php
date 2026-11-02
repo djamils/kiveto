@@ -127,6 +127,23 @@ final class DispatchOutboundMessageHandlerTest extends TestCase
         self::assertStringContainsString('no such message', $this->firstLog());
     }
 
+    /** A message cancelled while its dispatch waited on the transport (account deleted) is never handed over. */
+    public function testACancelledMessageIsNeverSent(): void
+    {
+        $message = Messages::sms();
+        $message->purgeContent(new \DateTimeImmutable('2026-10-16 08:01:00'));
+        $message->cancel('Compte Portal supprimé avant l\'envoi', new \DateTimeImmutable('2026-10-16 08:01:00'));
+        $this->messages->save($message);
+
+        ($this->handler)(new DispatchOutboundMessage('01960000-0000-7000-8000-000000000501'));
+        ($this->handler)(new DispatchOutboundMessage('01960000-0000-7000-8000-000000000501'));
+
+        self::assertSame([], $this->senders->sms);
+        self::assertSame([], $this->buses->commands, 'no outcome recorded');
+        self::assertSame(DeliveryStatus::CANCELLED, $message->status());
+        self::assertStringContainsString('cancelled before hand-over', $this->firstLog());
+    }
+
     /**
      * AC 4: a refusal for good is recorded FAILED with its reason, no retry.
      */

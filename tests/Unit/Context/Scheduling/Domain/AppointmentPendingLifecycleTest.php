@@ -256,12 +256,13 @@ final class AppointmentPendingLifecycleTest extends TestCase
         self::assertSame(AppointmentStatus::PENDING_CLINIC_CONFIRMATION, $appointment->status());
     }
 
-    /** AC 140: checked in at the desk, confirmed silently then completed. */
-    public function testCompletingAPendingRequestConfirmsItSilentlyFirst(): void
+    /** AC 140: the client is on site — confirmed silently, without any message. */
+    public function testASilentConfirmationThenACompletion(): void
     {
         $appointment = $this->request();
         $this->drain($appointment);
 
+        $appointment->confirm(silent: true);
         $appointment->complete();
 
         self::assertSame(AppointmentStatus::COMPLETED, $appointment->status());
@@ -274,22 +275,44 @@ final class AppointmentPendingLifecycleTest extends TestCase
         self::assertInstanceOf(AppointmentCompleted::class, $events[1]);
     }
 
-    /** AC 140: a consultation started from it, confirmed silently too. */
-    public function testStartingServiceOnAPendingRequestConfirmsItSilently(): void
+    /** The one path of a silent confirmation is SilentPendingConfirmation (under the lock). */
+    public function testAPendingRequestIsNeitherCompletedNorServedBeforeItsConfirmation(): void
     {
         $appointment = $this->request();
+        $this->drain($appointment);
+
+        $attempts = [
+            'Un rendez-vous à confirmer doit être confirmé avant d’être honoré.'      => static fn () => $appointment->complete(),
+            'Un rendez-vous à confirmer doit être confirmé avant sa prise en charge.' => static fn () => $appointment->startService(new \DateTimeImmutable('2026-02-01 09:02:00')),
+        ];
+
+        foreach ($attempts as $message => $attempt) {
+            try {
+                $attempt();
+                self::fail('A pending request went on without its confirmation.');
+            } catch (AppointmentNotModifiableException $e) {
+                self::assertSame($message, $e->getMessage());
+            }
+        }
+
+        self::assertSame(AppointmentStatus::PENDING_CLINIC_CONFIRMATION, $appointment->status());
+        self::assertSame([], $this->drain($appointment));
+    }
+
+    /** AC 140: a consultation started from it, once confirmed silently. */
+    public function testStartingServiceOnASilentlyConfirmedRequest(): void
+    {
+        $appointment = $this->request();
+        $appointment->confirm(silent: true);
         $this->drain($appointment);
 
         $appointment->startService(new \DateTimeImmutable('2026-02-01 09:02:00'));
 
         self::assertSame(AppointmentStatus::PLANNED, $appointment->status());
         self::assertTrue($appointment->confirmedSilently());
-
         $events = $this->drain($appointment);
-        self::assertCount(2, $events);
-        self::assertInstanceOf(AppointmentConfirmed::class, $events[0]);
-        self::assertTrue($events[0]->silent());
-        self::assertInstanceOf(AppointmentServiceStarted::class, $events[1]);
+        self::assertCount(1, $events);
+        self::assertInstanceOf(AppointmentServiceStarted::class, $events[0]);
     }
 
     /** AC 142 */

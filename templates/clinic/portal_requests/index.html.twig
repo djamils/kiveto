@@ -13,7 +13,8 @@
  # from clinic_portal_request_sheet, clinic_portal_link_request_sheet,
  # clinic_portal_link_decision_sheet or clinic_portal_booking_request_sheet. The answers are posted in the
  # background to their single-action controllers. Owner free text is written
- # as text by the module, never as HTML.
+ # as text by the module, never as HTML. The refusal of a « Rattachement » is
+ # confirmed in the #mRefLink dialog (the VET-OS .mveil / .mbox modal).
  #
  # Variables:
  #   payload  App\Presentation\Clinic\ViewModel\PortalRequest\PortalRequestPageBuilder::page()
@@ -58,5 +59,12 @@
       <div class="fi-foot" id="fiFoot"></div>
     </div></aside>
   </main>
+
+  {# ── Refusal of a « Rattachement » (texts written by the module) ── #}
+  <div class="mveil" id="mRefLink" role="dialog" aria-modal="true" aria-labelledby="rlT"><div class="mbox" style="width:min(480px,94vw)">
+    <div class="mhead"><div class="mt"><b id="rlT">Refuser le rattachement</b><span id="rlS">—</span></div><button type="button" class="mclose" data-close aria-label="Fermer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="mbody"><p id="rlP" style="font-size:.84rem;line-height:1.5">—</p></div>
+    <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn danger" id="rlOk">Refuser le rattachement</button></div>
+  </div></div>
 </div>
 {% endblock %}

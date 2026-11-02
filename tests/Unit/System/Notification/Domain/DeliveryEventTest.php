@@ -36,6 +36,13 @@ final class DeliveryEventTest extends TestCase
         DeliveryEvent::status(DeliveryStatus::QUEUED, new \DateTimeImmutable());
     }
 
+    public function testCancelledIsNotAProviderStatus(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        DeliveryEvent::status(DeliveryStatus::CANCELLED, new \DateTimeImmutable());
+    }
+
     public function testAProviderEventGoesThroughThePrecedence(): void
     {
         $message = Messages::sms();

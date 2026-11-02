@@ -68,6 +68,7 @@ final class AppointmentRoundTripTest extends KernelTestCase
         $this->repository->save($this->request());
 
         $appointment = $this->reload();
+        $appointment->confirm(silent: true);
         $appointment->complete();
         $this->repository->save($appointment);
 

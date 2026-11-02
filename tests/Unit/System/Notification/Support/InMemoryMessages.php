@@ -66,7 +66,6 @@ final class InMemoryMessages implements OutboundMessageRepositoryInterface
             $this->messages,
             static fn (OutboundMessage $m): bool => null === $m->contentPurgedAt()
                 && $m->purpose()->isPortalAccountMessage()
-                && DeliveryStatus::QUEUED !== $m->status()
                 && \in_array($m->recipient()?->address, $addresses, true),
         );
 

@@ -50,12 +50,14 @@ final class PlanningBlockTest extends TestCase
         $_     = $block->pullDomainEvents();
 
         $newRange = new TimeRange('2026-04-21', '09:00', '13:00');
-        $block->update(PlanningBlockType::SURGERY, $newRange, 2, RecurrenceRule::weekly(), 'Updated note');
+        $block->update(UserId::fromString('44444444-4444-4444-4444-444444444444'), PlanningBlockType::SURGERY, $newRange, 2, RecurrenceRule::weekly(), 'Updated note');
 
         $events = $block->recordedDomainEvents();
         self::assertCount(1, $events);
         self::assertInstanceOf(PlanningBlockUpdated::class, $events[0]);
 
+        self::assertSame('44444444-4444-4444-4444-444444444444', $block->staffUserId()->toString());
+        self::assertSame('44444444-4444-4444-4444-444444444444', $events[0]->payload()['staffUserId']);
         self::assertSame(PlanningBlockType::SURGERY, $block->type());
         self::assertTrue($newRange->equals($block->timeRange()));
         self::assertSame(2, $block->capacityPerHour());

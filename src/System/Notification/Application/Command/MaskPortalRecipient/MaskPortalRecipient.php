@@ -10,7 +10,9 @@ use App\Shared\Application\Bus\CommandInterface;
  * An owner account was deleted: the messages Kiveto sent to it (one-time
  * codes and account notices, MessagePurpose::isPortalAccountMessage()) at
  * its phone or e-mail lose their recipient and bodies, as the 24-month
- * retention would do. The clinics' messages are kept. Idempotent.
+ * retention would do; those still queued are cancelled, never sent (see
+ * MessagePurpose::isCancelledAtAccountDeletion()). The clinics' messages are
+ * kept. Idempotent.
  */
 final readonly class MaskPortalRecipient implements CommandInterface
 {

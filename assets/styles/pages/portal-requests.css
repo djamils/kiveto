@@ -210,6 +210,8 @@
   /* Fiche : plein écran */
   .dem .czone .fiche{position:fixed;inset:0;width:100vw!important;z-index:145;transform:translateX(100%);visibility:hidden;transition:transform .22s cubic-bezier(.2,.8,.2,1),visibility 0s .22s;border:none}
   .dem .czone.ouvert .fiche{transform:none;visibility:visible;transition:transform .22s cubic-bezier(.2,.8,.2,1),visibility 0s}
+  /* The refusal dialog of a « Rattachement » opens over the full-screen sheet */
+  .dem .mveil{z-index:150}
   .dem .fi-in{height:100%;display:flex;flex-direction:column;width:100%!important}
   .dem .fi-head{padding-top:calc(12px + env(safe-area-inset-top))}
   .dem .fi-foot{padding-bottom:calc(12px + env(safe-area-inset-bottom));flex-wrap:wrap}

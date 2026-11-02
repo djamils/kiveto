@@ -14,7 +14,8 @@
  *
  * The answers (« Marquer comme traitée » / « Refuser » with a message of at
  * most 280 characters and, for a renewal, the prescription written for it;
- * « Confirmer » / « Refuser » a « Rattachement » for the files shown;
+ * « Confirmer » / « Refuser » a « Rattachement » for the files shown, the
+ * refusal confirmed in the VET-OS dialog #mRefLink;
  * « Valider et confirmer le RDV » with the client file and animal chosen, or
  * « Refuser », of a « Nouveau client ») are posted in the background with
  * their CSRF token; the row, the counters and the sheet follow, with a
@@ -90,6 +91,8 @@ export function init() {
   const P = JSON.parse(root.dataset.payload);
   const $ = id => document.getElementById(id);
   const czone = $('czone');
+  const mRef = $('mRefLink'); // the refusal dialog of a « Rattachement »
+  let refusLien = null;       // {o, from}: the sheet it answers, the button to give the focus back to
 
   const ST = {
     f: { ...P.filters },
@@ -335,6 +338,7 @@ export function init() {
   }
   function fermerFiche({ adresse = true } = {}) {
     ++ST.fseq;
+    fermerRefusLien(false);
     if (!ST.fiche) return;
     ST.fiche = null;
     ST.mode = null;
@@ -456,7 +460,6 @@ export function init() {
         ${i === r.files.length - 1 && !fait ? `<p class="hint">Le propriétaire ne voit encore aucune donnée de la clinique. Confirmez seulement si le profil Portal correspond bien à ce${many ? 's' : ''} dossier${many ? 's' : ''} (en cas de doute, appelez le client).</p>` : ''}
       </section>`;
     });
-    if (ST.mode === 'refus') h += bandeau('crit', I.warn, 'Refuser ce rattachement ?', 'La clinique ne sera plus proposée à ce compte Portal ; ses consentements ne changent pas.');
     return h;
   }
   const badges = (f, attached = false) => [
@@ -513,7 +516,7 @@ export function init() {
     }
     if (ST.mode === 'refus') {
       const off = o.type === 'change' && ST.motif == null && !ST.msg.trim();
-      const [act, l] = o.type === 'link' ? ['reject', 'Refuser le rattachement'] : o.type === 'booking' ? ['decline', 'Refuser la demande'] : ['rejected', 'Refuser et prévenir le client'];
+      const [act, l] = o.type === 'booking' ? ['decline', 'Refuser la demande'] : ['rejected', 'Refuser et prévenir le client'];
       return `<button type="button" class="btn" data-act="annul">Retour</button><span class="sp"></span><button type="button" class="btn danger" data-act="${act}" id="fiRefuse"${off ? ' disabled' : ''}>${l}</button>`;
     }
     const [act, l] = o.type === 'link' ? ['confirm', 'Confirmer le rattachement'] : o.type === 'booking' ? ['confirm', 'Valider et confirmer le RDV'] : ['done', 'Marquer comme traitée'];
@@ -654,6 +657,11 @@ export function init() {
       ouvrirFiche(nx);
       return;
     }
+    // A « Rattachement » has nothing to write: its refusal is confirmed in a dialog.
+    if (act === 'refus' && o.type === 'link') {
+      ouvrirRefusLien(o, b);
+      return;
+    }
     if (act === 'refus') {
       ST.mode = 'refus';
       ST.motif = null;
@@ -671,6 +679,31 @@ export function init() {
       return;
     }
     agir(act);
+  }, { signal });
+
+  /* The refusal of a « Rattachement »: the VET-OS dialog, owner names written escaped. */
+  function ouvrirRefusLien(o, from) {
+    refusLien = { o, from };
+    $('rlS').textContent = o.files.map(f => f.name).join(' · ');
+    $('rlP').innerHTML = `Le compte Portal de <b>${esc(o.ownerName)}</b> ne sera pas relié ${o.files.length > 1 ? 'à ces dossiers' : 'à ce dossier'} et la clinique ne lui sera plus proposée ; ses consentements ne changent pas.`;
+    mRef.classList.add('open');
+    requestAnimationFrame(() => mRef.querySelector('.mfoot [data-close]')?.focus());
+  }
+  function fermerRefusLien(rendreFocus = true) {
+    if (!mRef.classList.contains('open')) return;
+    mRef.classList.remove('open');
+    const from = refusLien?.from;
+    refusLien = null;
+    if (rendreFocus && from?.isConnected) from.focus();
+  }
+  mRef.addEventListener('mousedown', e => { if (e.target === mRef) fermerRefusLien(); }, { signal });
+  mRef.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => fermerRefusLien(), { signal }));
+  $('rlOk').addEventListener('click', () => {
+    const o = refusLien?.o;
+    fermerRefusLien(false);
+    // The sheet changed or was answered meanwhile: nothing to refuse.
+    if (!o || ST.fiche !== o || fini(o)) return;
+    agir('reject');
   }, { signal });
 
   $('fiBody').addEventListener('click', e => {
@@ -703,6 +736,7 @@ export function init() {
   // and the search palette handle their own).
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
+    if (mRef.classList.contains('open')) { fermerRefusLien(); e.stopPropagation(); return; }
     if (document.querySelector('.dd.open') || document.querySelector('.veil.open') || document.querySelector('.mveil.open')) return;
     if (ST.fiche && ST.mode) { ST.mode = null; ST.motif = null; ST.msg = ''; rendreFiche(); e.stopPropagation(); return; }
     if (ST.fiche) { fermerFiche(); e.stopPropagation(); }

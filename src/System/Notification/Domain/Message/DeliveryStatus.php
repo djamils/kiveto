@@ -8,6 +8,8 @@ namespace App\System\Notification\Domain\Message;
  * Where a message stands. The rank orders the statuses: a lower rank never
  * replaces a higher one, and nothing replaces a final status (rank 2).
  * DEFERRED is a soft bounce — the provider keeps trying — and is never final.
+ * CANCELLED is a QUEUED message withdrawn before it was handed over (its
+ * Portal account was deleted): final, never sent, never billed.
  */
 enum DeliveryStatus: string
 {
@@ -19,6 +21,7 @@ enum DeliveryStatus: string
     case REJECTED    = 'REJECTED';
     case FAILED      = 'FAILED';
     case BLOCKED_CAP = 'BLOCKED_CAP';
+    case CANCELLED   = 'CANCELLED';
 
     public function rank(): int
     {
@@ -46,6 +49,7 @@ enum DeliveryStatus: string
             self::REJECTED    => 'Rejeté',
             self::FAILED      => 'Échec',
             self::BLOCKED_CAP => 'Bloqué (plafond)',
+            self::CANCELLED   => 'Annulé',
         };
     }
 }

@@ -119,9 +119,9 @@ final readonly class DoctrineOutboundMessageRepository implements OutboundMessag
 
         $ids = $this->em->getConnection()->fetchFirstColumn(
             'SELECT id FROM notification__outbound_messages'
-            . ' WHERE content_purged_at IS NULL AND recipient_address IN (:addresses) AND purpose IN (:purposes) AND status <> :queued'
+            . ' WHERE content_purged_at IS NULL AND recipient_address IN (:addresses) AND purpose IN (:purposes)'
             . ' ORDER BY created_at, id',
-            ['addresses' => $addresses, 'purposes' => $purposes, 'queued' => DeliveryStatus::QUEUED->value],
+            ['addresses' => $addresses, 'purposes' => $purposes],
             ['addresses' => ArrayParameterType::STRING, 'purposes' => ArrayParameterType::STRING],
         );
 

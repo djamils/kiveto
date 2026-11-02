@@ -38,7 +38,7 @@ official Symfony bridges (`symfony/brevo-mailer` API transport,
 | **OutboundMessage** | One e-mail or one SMS to one recipient, with its content frozen at request time, its attachments, the provider message id and its status history. The bodies of `STAFF_INVITATION`, `PASSWORD_RESET`, `PORTAL_INVITATION` (one-time link), `PORTAL_OTP` and `PORTAL_EMAIL_VERIFICATION` (one-time codes) are erased once the message is handed over or fails (subject and metadata stay); such a message whose link or code expired while it waited (30 min / 72 h / 7 days / 10 min after the request) is not sent: FAILED « Lien expiré avant l'envoi ». |
 | **MessagePurpose** | Why the message is sent: `APPOINTMENT_CONFIRMATION`, `APPOINTMENT_CHANGE`, `APPOINTMENT_CANCELLATION`, `APPOINTMENT_REMINDER`, `APPOINTMENT_DECLINED` (« Demande de RDV non confirmée »), `INVOICE_SENT`, `INVOICE_REMINDER`, `CONSULTATION_DOCUMENTS`, `STAFF_INVITATION`, `PASSWORD_RESET`, `TEST`, `PORTAL_OTP` (« Code de connexion Portal »), `PORTAL_INVITATION` (« Invitation au Portal »), `PORTAL_EMAIL_VERIFICATION` (« Vérification de l'adresse e-mail Portal »), `PORTAL_EMAIL_CHANGED_NOTICE` (« Adresse e-mail Portal modifiée »), `PORTAL_DATA_EXPORT_READY` (« Export de données Portal prêt »), `PORTAL_REQUEST_RESOLVED` (« Réponse à une demande Portal »), `PORTAL_BOOKING_DECLINED` (« Demande de RDV Portal non confirmée »). |
 | **Criticality** | Fixed per purpose. `NON_CRITICAL` (appointment reminder, unpaid reminder) SMS are subject to the overage cap; everything else is `CRITICAL`. |
-| **DeliveryStatus** | `QUEUED` (0) → `SENT` / `DEFERRED` (1) → `DELIVERED` / `BOUNCED` / `REJECTED` / `FAILED` / `BLOCKED_CAP` (2, final). A complaint (spam) is a flag, not a status. |
+| **DeliveryStatus** | `QUEUED` (0) → `SENT` / `DEFERRED` (1) → `DELIVERED` / `BOUNCED` / `REJECTED` / `FAILED` / `BLOCKED_CAP` / `CANCELLED` (2, final). `CANCELLED` (« Annulé ») is a QUEUED message withdrawn before hand-over because its Portal account was deleted: never sent, never billed, never reported by a provider. A complaint (spam) is a flag, not a status. |
 | **IdempotencyKey** | Opaque string built by the requester (`appointment:<id>:confirmation:1`, `invoice:<id>:send:<dispatchId>`, `invitation:<tokenId>`…), unique across messages. |
 | **SenderIdentity** | Clinic purposes: `<Clinic name> <<slug>@mail.kiveto.app>`, reply-to the letterhead e-mail, SMS sender = clinic short sender (fallback « Kiveto »). Account, Portal and test purposes: `Kiveto <no-reply@kiveto.app>`, SMS sender « Kiveto » (a Portal invitation still carries its `clinicId` and `clientId`, for the client journal). |
 | **ClinicMessagingProfile** | Notification's copy of what it needs from a clinic (name, e-mail local part, reply-to, SMS sender, overage cap, address, phone, brand colour, logo), upserted by Clinic. |
@@ -73,19 +73,46 @@ official Symfony bridges (`symfony/brevo-mailer` API transport,
 | Command / Query | Bus | What it does |
 |---|---|---|
 | `RequestNotification` | command | Resolves the sender, renders and freezes the content, applies the SMS cap (non-critical SMS, under the profile lock) with the optional e-mail fallback, saves the message and queues `DispatchOutboundMessage`. Returns the message id. The cap check holds the profile row lock and shared locks on the clinic's SMS rows until the caller's transaction commits: dispatch it last in that transaction. |
-| `DispatchOutboundMessage` | external (`async_external_notification`, chosen by `DispatchOutboundMessage::stamps()`: a YAML route would also match the generic `ExternalApiCommandInterface` route) | Hands a QUEUED message to the e-mail or SMS transport (attachments and inline logo read from the file storage, idempotency key sent as Brevo tag) and records the outcome. A 4xx other than 401 / 403 / 408 / 429, or an address the MIME layer refuses, is FAILED at once (French reason « Refusé par le fournisseur (HTTP 400) », the provider's message in the `external_api` log); 401 / 403 (key or authorised IPs wrong: error log), 408, 429, 5xx and network errors are retried (`DispatchRetryStrategy`: 5 retries, 30 s × 3, never shorter than Retry-After); retries exhausted → `DispatchFailureListener` records FAILED « Échec après plusieurs tentatives ». Once the provider has answered, the send is never repeated: an outcome that cannot be recorded at once goes to `async` as its own retried `RecordDispatchOutcome` (error log; critical log with the provider id if even that fails). Delivery is at-least-once (a worker dying mid-call). |
+| `DispatchOutboundMessage` | external (`async_external_notification`, chosen by `DispatchOutboundMessage::stamps()`: a YAML route would also match the generic `ExternalApiCommandInterface` route) | Only a QUEUED message is handed over: a replayed dispatch, or one still on the transport when its message was `CANCELLED`, sends nothing. Hands a QUEUED message to the e-mail or SMS transport (attachments and inline logo read from the file storage, idempotency key sent as Brevo tag) and records the outcome. A 4xx other than 401 / 403 / 408 / 429, or an address the MIME layer refuses, is FAILED at once (French reason « Refusé par le fournisseur (HTTP 400) », the provider's message in the `external_api` log); 401 / 403 (key or authorised IPs wrong: error log), 408, 429, 5xx and network errors are retried (`DispatchRetryStrategy`: 5 retries, 30 s × 3, never shorter than Retry-After); retries exhausted → `DispatchFailureListener` records FAILED « Échec après plusieurs tentatives ». Once the provider has answered, the send is never repeated: an outcome that cannot be recorded at once goes to `async` as its own retried `RecordDispatchOutcome` (error log; critical log with the provider id if even that fails). Delivery is at-least-once (a worker dying mid-call). |
 | `RecordDispatchOutcome` | command | Marks the message SENT with the provider id (or FAILED with the reason), then replays the provider events that arrived before that id (`notification__unmatched_delivery_events`). |
 | `RecordDeliveryEvent` | command | A provider event (`kind` = a status name or `COMPLAINT`) for a provider message id: applied with the status precedence, or kept as unmatched when no message carries that id yet. Sent by the webhook consumers and the local simulator. |
 | `GetSmsUsage` | query | Month (Europe/Paris), quota, used, queued, overage, overage amount (cents HT), cap, percent, cap reached. |
 | `PreviewSmsSegments` | query | Segments that `count` SMS of a purpose would consume for a clinic (bulk reminder confirmation); 0 without messaging profile. |
 | `GetMessageStatuses` | query | Current status and French label of many messages, by id (invoice history). |
-| `MaskPortalRecipient(phone, ?email)` | command | An owner account was deleted (ClientPortal): the messages of `MessagePurpose::isPortalAccountMessage()` (`PORTAL_OTP`, `PORTAL_EMAIL_VERIFICATION`, `PORTAL_EMAIL_CHANGED_NOTICE`, `PORTAL_DATA_EXPORT_READY`, `PORTAL_BOOKING_DECLINED`) to that phone or e-mail, handed over or final, lose recipient and bodies like the 24-month purge (`purgeContent()`); a still QUEUED one keeps them for its dispatch. The clinics' messages, `PORTAL_INVITATION` included (journaled in the client file), are kept. |
+| `MaskPortalRecipient(phone, ?email)` | command | An owner account was deleted (ClientPortal): the messages of `MessagePurpose::isPortalAccountMessage()` (`PORTAL_OTP`, `PORTAL_EMAIL_VERIFICATION`, `PORTAL_EMAIL_CHANGED_NOTICE`, `PORTAL_DATA_EXPORT_READY`, `PORTAL_BOOKING_DECLINED`) to that phone or e-mail lose recipient and bodies like the 24-month purge (`purgeContent()`). One still QUEUED (not handed over) whose purpose `isCancelledAtAccountDeletion()` is also `CANCELLED` (« Compte Portal supprimé avant l'envoi »), published like any status, and its dispatch sends nothing; the only exception, a queued `PORTAL_EMAIL_CHANGED_NOTICE`, keeps its recipient for its dispatch (see *Account deletion* below). The clinics' messages, `PORTAL_INVITATION` included (journaled in the client file), are kept. |
 | `PostInAppNotification` | command | One bell entry per user of a clinic (kinds `NEW_APPOINTMENT`, `CRITICAL_STOCK`, `EXPIRING_LOTS`, `SMS_QUOTA`, `ONLINE_BOOKING_PENDING` « RDV en ligne à confirmer », `ONLINE_BOOKING_CHANGED` « RDV modifié / annulé en ligne », `PORTAL_REQUEST` « Demande Portal », all under « Activité »), at most once per user and idempotency key (INSERT IGNORE). |
 | `MarkInAppNotificationRead` / `MarkAllInAppNotificationsRead` | command | The user reads one of their entries / all their entries of the current clinic. |
 | `WithdrawInAppNotification` | command | Deletes the unread entries posted under a key (e.g. a new appointment cancelled before being seen). |
 | `ListInAppNotifications` / `CountUnreadInAppNotifications` | query | The user's entries of the current clinic over the last 30 days (newest first, optional limit) / their unread count. |
 | `UpsertClinicMessagingProfile` | command | Clinic pushes the profile of one of its clinics. |
 | `RecordVeterinarianCount` | command | Clinic pushes the day's number of active veterinarians (read-only copy used by the quota). |
+
+## Account deletion
+
+ClientPortal's erasure (`DeletePortalAccount`) ends with `MaskPortalRecipient`
+for the account's phone and e-mail. What is still waiting for the provider is
+cancelled when sending it after the deletion is pointless
+(`MessagePurpose::isCancelledAtAccountDeletion()` — not the SMS-cap
+`criticality()`):
+
+| Purpose | Queued at deletion | Why |
+|---|---|---|
+| `PORTAL_OTP`, `PORTAL_EMAIL_VERIFICATION` | cancelled | a one-time code for a disabled account whose challenges are deleted opens nothing |
+| `PORTAL_DATA_EXPORT_READY` | cancelled | the export and its archive are deleted by the same erasure |
+| `PORTAL_BOOKING_DECLINED` | cancelled | non-critical; the deletion closes the booking requests without message |
+| `PORTAL_EMAIL_CHANGED_NOTICE` | sent | security alert to the *previous* address: after a takeover followed by a deletion it is that address's only warning (and it is not the account's current address, so the erasure does not match it anyway) |
+| clinic purposes (`PORTAL_INVITATION`, `PORTAL_REQUEST_RESOLVED`, appointments…) | untouched | the clinic's messages to its client file |
+
+A message the provider already accepted is masked, never cancelled. A
+dispatch already talking to the provider when the erasure commits can still
+hand its message over; its late outcome does not change the `CANCELLED`
+status (final), a window of one provider call.
+
+**Acceptance criterion.** Given a deleted Portal account with messages still
+queued to its phone, then non-critical ones are cancelled and never sent, and
+every message to that phone has its recipient masked
+(`MaskPortalRecipientHandlerTest`,
+`AccountDeletionTest::testMessagesStillQueuedToTheDeletedAccountAreNeverSent`).
 
 ## Consent table
 

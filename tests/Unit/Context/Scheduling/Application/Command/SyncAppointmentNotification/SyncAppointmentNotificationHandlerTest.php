@@ -419,7 +419,7 @@ final class SyncAppointmentNotificationHandlerTest extends TestCase
     {
         // AC 140: the client is on site; the slot counts as told
         $request = Appointments::pending();
-        $request->startService(Appointments::utc('2026-10-13 08:43'));
+        $request->confirm(silent: true);
         self::assertSame(AppointmentStatus::PLANNED, $request->status());
 
         $this->sync($request);

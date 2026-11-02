@@ -447,8 +447,9 @@ final class Appointment extends AggregateRoot
     }
 
     /**
-     * A pending request completed at the desk is confirmed first, silently:
-     * the client is on site.
+     * A pending request is confirmed first, silently (the client is on site),
+     * through `ConfirmPendingAppointmentSilently` / `SilentPendingConfirmation`:
+     * the one path that takes the practitioner-day lock.
      */
     public function complete(): void
     {
@@ -461,7 +462,7 @@ final class Appointment extends AggregateRoot
         }
 
         if ($this->status->isPending()) {
-            $this->confirm(silent: true);
+            throw new AppointmentNotModifiableException('Un rendez-vous à confirmer doit être confirmé avant d’être honoré.');
         }
 
         $this->status = AppointmentStatus::COMPLETED;
@@ -482,9 +483,9 @@ final class Appointment extends AggregateRoot
             return; // already started
         }
 
-        // The client is on site: a pending request is confirmed silently
+        // A pending request is confirmed silently first (SilentPendingConfirmation)
         if ($this->status->isPending()) {
-            $this->confirm(silent: true);
+            throw new AppointmentNotModifiableException('Un rendez-vous à confirmer doit être confirmé avant sa prise en charge.');
         }
 
         $this->serviceStartedAt = $serviceStartedAt;

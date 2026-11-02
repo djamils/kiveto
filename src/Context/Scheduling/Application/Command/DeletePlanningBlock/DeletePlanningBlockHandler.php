@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace App\Context\Scheduling\Application\Command\DeletePlanningBlock;
 
 use App\Context\Scheduling\Application\Port\ClinicTimezoneResolverInterface;
-use App\Context\Scheduling\Application\Port\PlanningBlockAppointmentCounterInterface;
+use App\Context\Scheduling\Application\Port\OccupyingAppointmentsReaderInterface;
 use App\Context\Scheduling\Application\Port\PractitionerDayLockInterface;
 use App\Context\Scheduling\Domain\Exception\CannotDeletePlanningBlockWithAppointments;
 use App\Context\Scheduling\Domain\Exception\PlanningBlockNotFoundException;
 use App\Context\Scheduling\Domain\Repository\PlanningBlockRepositoryInterface;
 use App\Context\Scheduling\Domain\Service\LockKeys;
+use App\Context\Scheduling\Domain\Service\PlanningBlockOccurrences;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\PlanningBlockId;
 use App\Shared\Domain\Time\ClockInterface;
@@ -21,7 +22,7 @@ final readonly class DeletePlanningBlockHandler
 {
     public function __construct(
         private PlanningBlockRepositoryInterface $repository,
-        private PlanningBlockAppointmentCounterInterface $appointmentCounter,
+        private OccupyingAppointmentsReaderInterface $appointmentsReader,
         private ClinicTimezoneResolverInterface $timezoneResolver,
         private PractitionerDayLockInterface $dayLock,
         private ClockInterface $clock,
@@ -46,12 +47,17 @@ final readonly class DeletePlanningBlockHandler
         $today = $this->clock->now()->setTimezone($tz)->format('Y-m-d');
         $this->dayLock->lock($clinicId, LockKeys::forBlock($block->staffUserId(), $block->timeRange(), $block->recurrenceRule(), $today));
 
-        $startUtc = $block->timeRange()->toUtcStart($tz);
-        $endUtc   = $block->timeRange()->toUtcEnd($tz);
+        // Every future occurrence counts, not only the first one: no appointment may lose its block
+        $occurrences = new PlanningBlockOccurrences($block->timeRange(), $block->recurrenceRule(), $tz, $today);
+        $held        = $occurrences->held($this->appointmentsReader->occupyingBetween(
+            $clinicId,
+            $block->staffUserId(),
+            $occurrences->fromUtc(),
+            $occurrences->toUtc(),
+            currentRead: true,
+        ));
 
-        $count = $this->appointmentCounter->countOccupyingInWindowLocked($clinicId, $block->staffUserId(), $startUtc, $endUtc);
-
-        if ($count > 0) {
+        if ([] !== $held) {
             throw new CannotDeletePlanningBlockWithAppointments(
                 'Cannot delete a planning block that has active appointments.'
             );

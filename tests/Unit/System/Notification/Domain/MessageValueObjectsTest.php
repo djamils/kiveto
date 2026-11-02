@@ -60,6 +60,7 @@ final class MessageValueObjectsTest extends TestCase
             'REJECTED'    => [2, 'Rejeté', true],
             'FAILED'      => [2, 'Échec', true],
             'BLOCKED_CAP' => [2, 'Bloqué (plafond)', true],
+            'CANCELLED'   => [2, 'Annulé', true],
         ], $ranks);
     }
 
