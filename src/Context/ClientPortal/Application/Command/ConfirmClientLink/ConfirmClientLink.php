@@ -11,17 +11,21 @@ use App\Shared\Application\Bus\CommandInterface;
  * these files of the clinic become confirmed (the existing rows, never a
  * duplicate). Only the files staff were shown are listed, so a file that
  * joined the request meanwhile stays pending. Returns how many links were
- * confirmed (0: nothing was pending any more).
+ * confirmed (0: nothing was pending any more). The answer is recorded
+ * (who, when, which files) when it confirmed one at least.
  */
 final readonly class ConfirmClientLink implements CommandInterface
 {
     /**
      * @param list<string> $clientIds
+     * @param string       $actorName the staff member's name, kept on the decision
      */
     public function __construct(
         public string $clinicId,
         public string $userId,
         public array $clientIds,
+        public string $actorUserId,
+        public string $actorName,
     ) {
     }
 }

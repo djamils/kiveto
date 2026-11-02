@@ -45,21 +45,18 @@ final class ClientLinkRequestTest extends PortalRequestTestCase
     {
         $this->signIn();
 
-        $html = $this->page('/portal-requests');
+        self::assertMatchesRegularExpression('#Demandes<span class="badge">1</span>#', $this->page('/portal-requests'));
+        $rows = $this->rows('/portal-requests');
 
-        self::assertResponseIsSuccessful();
-        self::assertStringContainsString('/portal-requests/rattachements/' . $this->accountId, $html);
-        self::assertStringContainsString('Rattachement', $html);
-        self::assertStringContainsString('Sophie Dupont · Jean DUPOND', $html);
-        self::assertStringContainsString('Rex', $html);
-        self::assertStringContainsString('Nom différent', $html);
-        self::assertStringContainsString('Déjà relié à un autre compte Portal', $html);
-        self::assertMatchesRegularExpression('#Demandes Portal<span class="badge">1</span>#', $html);
-
-        $links = $this->page('/portal-requests?statut=submitted&type=client_link');
-        self::assertStringContainsString('/portal-requests/rattachements/' . $this->accountId, $links);
-        self::assertStringNotContainsString('/portal-requests/rattachements/', $this->page('/portal-requests?statut=done'));
-        self::assertStringNotContainsString('/portal-requests/rattachements/', $this->page('/portal-requests?type=pet_change'));
+        self::assertCount(1, $rows);
+        self::assertSame(
+            ['id' => $this->accountId, 'kind' => 'client_link', 'short' => 'Rattachement', 'subject' => 'Nom différent', 'petName' => 'Rex', 'clientName' => 'Sophie Dupont · Jean DUPOND', 'flags' => ['Déjà relié à un autre compte Portal']],
+            self::pick($rows[0], 'id', 'kind', 'short', 'subject', 'petName', 'clientName', 'flags'),
+        );
+        self::assertSame('/portal-requests/rattachements/' . $this->accountId . '/sheet', $rows[0]['sheet']);
+        self::assertSame([$this->accountId], $this->ids('/portal-requests?statut=submitted&type=client_link'));
+        self::assertSame([], $this->ids('/portal-requests?statut=done'));
+        self::assertSame([], $this->ids('/portal-requests?type=pet_change'));
     }
 
     /** AC 267. */
@@ -67,21 +64,24 @@ final class ClientLinkRequestTest extends PortalRequestTestCase
     {
         $this->signIn();
 
-        $crawler = $this->browser->request('GET', self::HOST . '/portal-requests/rattachements/' . $this->accountId);
-
-        self::assertResponseIsSuccessful();
-        $html = (string) $this->browser->getResponse()->getContent();
+        $html = $this->page('/portal-requests/rattachements/' . $this->accountId);
         self::assertStringNotContainsString(self::XSS, $html);
         self::assertStringContainsString('&lt;img src=x onerror=alert(1)&gt; Dupond', $html);
 
-        $rows = $crawler->filter('.prq-files tbody tr');
-        self::assertSame([self::CLIENT, self::FAMILY], $rows->each(static fn ($row): string => (string) $row->attr('data-client-id')));
-        self::assertStringContainsString('Sophie Dupont', $rows->eq(0)->text());
-        self::assertStringContainsString('Rex', $rows->eq(0)->text());
-        self::assertSame(['mismatch', 'linked-elsewhere'], $rows->eq(0)->filter('[data-badge]')->each(static fn ($b): string => (string) $b->attr('data-badge')));
-        self::assertStringContainsString('Jean DUPOND', $rows->eq(1)->text());
-        self::assertSame([], $rows->eq(1)->filter('[data-badge]')->each(static fn ($b): string => (string) $b->attr('data-badge')), 'same last name, accents and case aside');
-        self::assertSame([self::CLIENT, self::FAMILY], $crawler->filter('#prqLinkConfirm input[name="client_ids[]"]')->each(static fn ($i): string => (string) $i->attr('value')));
+        $sheet = $this->sheet('/portal-requests/rattachements/' . $this->accountId);
+        self::assertSame(self::XSS . ' Dupond', $sheet['ownerName']);
+        self::assertSame([
+            'confirm' => '/portal-requests/rattachements/' . $this->accountId . '/confirm',
+            'reject'  => '/portal-requests/rattachements/' . $this->accountId . '/reject',
+        ], $sheet['actions']);
+
+        $files = array_map(self::arr(...), self::arr($sheet['files']));
+        self::assertSame([self::CLIENT, self::FAMILY], array_column($files, 'clientId'));
+        self::assertSame(['Sophie Dupont', ['Rex'], true, true], [$files[0]['name'], $files[0]['petNames'], $files[0]['mismatch'], $files[0]['linkedElsewhere']]);
+        self::assertSame(['Jean DUPOND', false, false], [$files[1]['name'], $files[1]['mismatch'], $files[1]['linkedElsewhere']], 'same last name, accents and case aside');
+
+        // The same sheet, as JSON for the page module.
+        self::assertSame($sheet, $this->json('/portal-requests/rattachements/' . $this->accountId . '/sheet'));
     }
 
     /** AC 76: confirmed, the account reaches the files; a second answer gets « Demande déjà traitée. ». */
@@ -137,6 +137,8 @@ final class ClientLinkRequestTest extends PortalRequestTestCase
         $this->withoutPermissions(ClinicPermissionGuard::MANAGE_ANIMALS);
         $this->page('/portal-requests/rattachements/' . $this->accountId);
         self::assertResponseStatusCodeSame(403);
+        $this->page('/portal-requests/rattachements/' . $this->accountId . '/sheet');
+        self::assertResponseStatusCodeSame(403);
         $this->answer('reject', $token);
         self::assertResponseStatusCodeSame(403);
         self::assertSame(['pending', 'pending'], $this->statuses());
@@ -150,6 +152,69 @@ final class ClientLinkRequestTest extends PortalRequestTestCase
         self::assertResponseStatusCodeSame(404);
         $this->page('/portal-requests/rattachements/' . $this->ownerId);
         self::assertResponseStatusCodeSame(404, 'a confirmed account has nothing pending');
+        $this->page('/portal-requests/rattachements/' . $this->ownerId . '/sheet');
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    /** S6-F3: the answer is recorded and listed under « Traitées » with who answered; its sheet says so. */
+    public function testAConfirmedRequestIsListedUnderTraiteesWithWhoAnswered(): void
+    {
+        $this->signIn();
+        $this->answer('confirm', $this->linkToken());
+
+        $decisions = $this->connection()->fetchAllAssociative('SELECT BIN_TO_UUID(id) AS id, outcome, decided_by_name, client_ids FROM client_portal__link_decisions');
+        self::assertCount(1, $decisions);
+        ['id' => $id, 'decided_by_name' => $by] = $decisions[0];
+        \assert(\is_string($id) && \is_string($by));
+        \assert(\is_string($decisions[0]['client_ids']));
+        self::assertSame(['confirmed', [self::CLIENT, self::FAMILY]], [$decisions[0]['outcome'], json_decode($decisions[0]['client_ids'], true)]);
+        self::assertNotSame('', $by);
+
+        self::assertSame([], $this->ids('/portal-requests'));
+        $rows = $this->rows('/portal-requests?statut=done');
+        self::assertCount(1, $rows);
+        self::assertSame(
+            ['id' => $id, 'kind' => 'client_link', 'status' => 'done', 'statusLabel' => 'Traitée', 'resolvedBy' => $by, 'clientName' => 'Sophie Dupont · Jean DUPOND', 'flags' => [], 'age' => null, 'sheet' => '/portal-requests/rattachements/decisions/' . $id . '/sheet'],
+            self::pick($rows[0], 'id', 'kind', 'status', 'statusLabel', 'resolvedBy', 'clientName', 'flags', 'age', 'sheet'),
+        );
+        self::assertIsString($rows[0]['resolvedDay']);
+        self::assertSame([$id], $this->ids('/portal-requests?statut=tout&type=client_link'));
+        self::assertSame([], $this->ids('/portal-requests?statut=rejected'));
+
+        $sheet = $this->sheet('/portal-requests/rattachements/decisions/' . $id);
+        self::assertSame(
+            ['type' => 'link', 'status' => 'done', 'decided' => true, 'actions' => null, 'resolvedBy' => $by, 'url' => '/portal-requests/rattachements/decisions/' . $id],
+            self::pick($sheet, 'type', 'status', 'decided', 'actions', 'resolvedBy', 'url'),
+        );
+        self::assertIsString($sheet['resolvedAt']);
+        self::assertSame([self::CLIENT, self::FAMILY], array_column(array_map(self::arr(...), self::arr($sheet['files'])), 'clientId'));
+        // Opened without filters, the page lists its own state.
+        self::assertSame('done', self::arr($this->payload('/portal-requests/rattachements/decisions/' . $id)['filters'])['statut']);
+        self::assertSame($sheet, $this->json('/portal-requests/rattachements/decisions/' . $id . '/sheet'));
+    }
+
+    public function testARejectedRequestIsListedUnderRefusees(): void
+    {
+        $this->signIn();
+        $this->answer('reject', $this->linkToken());
+
+        $rows = $this->rows('/portal-requests?statut=rejected');
+        self::assertCount(1, $rows);
+        self::assertSame(['client_link', 'rejected', 'Refusée'], [$rows[0]['kind'], $rows[0]['status'], $rows[0]['statusLabel']]);
+        self::assertIsString($rows[0]['resolvedBy']);
+        \assert(\is_string($rows[0]['sheet']));
+        self::assertSame('rejected', $this->json($rows[0]['sheet'])['status']);
+    }
+
+    public function testAnotherClinicsOrAnUnknownDecisionIsNotFound(): void
+    {
+        $this->signIn();
+        $unknown = Uuid::v7()->toRfc4122();
+
+        $this->page('/portal-requests/rattachements/decisions/' . $unknown);
+        self::assertResponseStatusCodeSame(404);
+        $this->page('/portal-requests/rattachements/decisions/' . $unknown . '/sheet');
+        self::assertResponseStatusCodeSame(404);
     }
 
     public function testTheDashboardAsksToCheckTheRequest(): void
@@ -179,10 +244,10 @@ final class ClientLinkRequestTest extends PortalRequestTestCase
 
     private function linkToken(): string
     {
-        $crawler = $this->browser->request('GET', self::HOST . '/portal-requests/rattachements/' . $this->accountId);
-        self::assertResponseIsSuccessful();
+        $token = self::arr($this->payload('/portal-requests/rattachements/' . $this->accountId)['tokens'])['link'];
+        \assert(\is_string($token));
 
-        return (string) $crawler->filter('#prqLinkConfirm input[name="_token"]')->attr('value');
+        return $token;
     }
 
     /**

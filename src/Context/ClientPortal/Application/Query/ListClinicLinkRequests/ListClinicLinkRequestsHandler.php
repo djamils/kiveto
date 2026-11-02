@@ -19,6 +19,6 @@ final readonly class ListClinicLinkRequestsHandler
      */
     public function __invoke(ListClinicLinkRequests $query): array
     {
-        return $this->requests->ofClinic($query->clinicId);
+        return $query->decided ? $this->requests->decidedOf($query->clinicId) : $this->requests->ofClinic($query->clinicId);
     }
 }

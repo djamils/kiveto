@@ -6,15 +6,20 @@ namespace App\Context\ClientPortal\Application\Query\ListClinicLinkRequests;
 
 /**
  * A « Rattachement » request in VetApp « Demandes Portal »: an owner
- * account waiting for the clinic to confirm its pending links. The Portal
- * profile names are owner text: rendered as text, never as HTML.
+ * account waiting for the clinic to confirm its pending links — or, once
+ * answered, the clinic's decision on them (who, when, which files). The
+ * Portal profile names are owner text: rendered as text, never as HTML.
  */
 final readonly class ClinicLinkRequest
 {
     /**
      * @param ?string               $ownerFirstName null when the account has no Portal profile
      * @param \DateTimeImmutable    $requestedAt    the oldest pending link, in the clinic's time zone
-     * @param list<LinkRequestFile> $files          the pending files, oldest request first
+     * @param list<LinkRequestFile> $files          the pending files (the decided ones once answered), oldest request first
+     * @param ?string               $decisionId     the answer's record, null while it waits
+     * @param ?string               $outcome        confirmed|rejected, null while it waits
+     * @param ?\DateTimeImmutable   $decidedAt      in the clinic's time zone
+     * @param ?string               $decidedByName  the staff member who answered
      */
     public function __construct(
         public string $userId,
@@ -22,7 +27,16 @@ final readonly class ClinicLinkRequest
         public ?string $ownerLastName,
         public \DateTimeImmutable $requestedAt,
         public array $files,
+        public ?string $decisionId = null,
+        public ?string $outcome = null,
+        public ?\DateTimeImmutable $decidedAt = null,
+        public ?string $decidedByName = null,
     ) {
+    }
+
+    public function isDecided(): bool
+    {
+        return null !== $this->decisionId;
     }
 
     /** « Prénom Nom » of the Portal profile, null without profile. */

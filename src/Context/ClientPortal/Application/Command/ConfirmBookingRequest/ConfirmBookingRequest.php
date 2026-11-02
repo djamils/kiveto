@@ -21,6 +21,7 @@ final readonly class ConfirmBookingRequest implements CommandInterface
      * @param ?string $clientId     the matching file, when existing
      * @param string  $animalChoice existing|new
      * @param ?string $animalId     the client's animal, when existing
+     * @param string  $actorName    the staff member's name, kept on the request
      */
     public function __construct(
         public string $clinicId,
@@ -30,6 +31,7 @@ final readonly class ConfirmBookingRequest implements CommandInterface
         public string $animalChoice,
         public ?string $animalId,
         public string $actorUserId,
+        public string $actorName,
     ) {
     }
 }

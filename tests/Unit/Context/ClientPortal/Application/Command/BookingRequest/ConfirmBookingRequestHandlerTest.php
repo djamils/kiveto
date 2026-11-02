@@ -56,6 +56,8 @@ final class ConfirmBookingRequestHandlerTest extends TestCase
 
         $request = $this->world->requests->requests[self::REQUEST];
         self::assertSame([BookingRequestStatus::CONFIRMED, W::NEW_FILE, '2026-11-02T10:00:00+00:00'], [$request->status(), $request->clientId(), $request->resolvedAt()?->format('c')]);
+        // S6-F3: who answered
+        self::assertSame([W::VET, 'Dr Vet'], [$request->resolvedByUserId(), $request->resolvedByName()]);
         // AC 268: the other pending request at the clinic carries the same file; another clinic's does not
         self::assertSame([W::NEW_FILE, null], [$this->world->requests->requests[self::SIBLING]->clientId(), $this->world->requests->requests[self::ELSEWHERE]->clientId()]);
         self::assertSame([self::REQUEST, 'user:' . W::USER], $this->world->requests->lockedForUpdate);
@@ -132,7 +134,7 @@ final class ConfirmBookingRequestHandlerTest extends TestCase
     public function testAnUnknownOrResolvedRequestIsRefused(): void
     {
         try {
-            $this->world->confirmHandler()(new ConfirmBookingRequest(W::CLINIC_2, self::REQUEST, ConfirmBookingRequest::NEW, null, ConfirmBookingRequest::NEW, null, W::VET));
+            $this->world->confirmHandler()(new ConfirmBookingRequest(W::CLINIC_2, self::REQUEST, ConfirmBookingRequest::NEW, null, ConfirmBookingRequest::NEW, null, W::VET, 'Dr Vet'));
             self::fail('Another clinic\'s request.');
         } catch (BookingRequestNotFoundException $e) {
             self::assertSame(self::REQUEST, $e->requestId);
@@ -148,6 +150,6 @@ final class ConfirmBookingRequestHandlerTest extends TestCase
 
     private function confirm(string $client, ?string $clientId, string $animal, ?string $animalId): void
     {
-        $this->world->confirmHandler()(new ConfirmBookingRequest(W::CLINIC, self::REQUEST, $client, $clientId, $animal, $animalId, W::VET));
+        $this->world->confirmHandler()(new ConfirmBookingRequest(W::CLINIC, self::REQUEST, $client, $clientId, $animal, $animalId, W::VET, 'Dr Vet'));
     }
 }

@@ -14,7 +14,8 @@ namespace App\Context\ClientPortal\Domain\Booking;
  * snapshots taken at request time: staff match them against their files,
  * the decline SMS goes to that phone; account deletion erases them.
  * Each step moves only from `pending`, so a late or replayed event changes
- * nothing.
+ * nothing. A staff answer from « Demandes » records who gave it (S6-F3);
+ * the agenda, the expiry and the account deletion leave no name.
  */
 final class BookingRequest
 {
@@ -35,6 +36,8 @@ final class BookingRequest
     private ?string $clientId;
     private \DateTimeImmutable $createdAt;
     private ?\DateTimeImmutable $resolvedAt;
+    private ?string $resolvedByUserId = null;
+    private ?string $resolvedByName   = null;
 
     private function __construct()
     {
@@ -99,6 +102,8 @@ final class BookingRequest
         ?string $clientId,
         \DateTimeImmutable $createdAt,
         ?\DateTimeImmutable $resolvedAt,
+        ?string $resolvedByUserId = null,
+        ?string $resolvedByName = null,
     ): self {
         $request                     = new self();
         $request->id                 = $id;
@@ -118,17 +123,20 @@ final class BookingRequest
         $request->clientId           = $clientId;
         $request->createdAt          = $createdAt;
         $request->resolvedAt         = $resolvedAt;
+        $request->resolvedByUserId   = $resolvedByUserId;
+        $request->resolvedByName     = $resolvedByName;
 
         return $request;
     }
 
     /**
      * The clinic confirmed the appointment, for that client file (null when
-     * it was confirmed at the desk without one).
+     * it was confirmed at the desk without one), by that staff member when
+     * answered from « Demandes ».
      *
      * @return bool false when the request was no longer pending (nothing changed)
      */
-    public function confirm(?string $clientId, \DateTimeImmutable $now): bool
+    public function confirm(?string $clientId, \DateTimeImmutable $now, ?string $byUserId = null, ?string $byName = null): bool
     {
         if (!$this->isPending()) {
             return false;
@@ -137,12 +145,18 @@ final class BookingRequest
         $this->status     = BookingRequestStatus::CONFIRMED;
         $this->clientId   = $clientId ?? $this->clientId;
         $this->resolvedAt = $now;
+        $this->resolvedBy($byUserId, $byName);
 
         return true;
     }
 
-    /** @return bool false when the request was no longer pending (nothing changed) */
-    public function decline(DeclineReason $reason, \DateTimeImmutable $now): bool
+    /**
+     * Ends the request without appointment, by that staff member when
+     * declined from « Demandes ».
+     *
+     * @return bool false when the request was no longer pending (nothing changed)
+     */
+    public function decline(DeclineReason $reason, \DateTimeImmutable $now, ?string $byUserId = null, ?string $byName = null): bool
     {
         if (!$this->isPending()) {
             return false;
@@ -151,6 +165,7 @@ final class BookingRequest
         $this->status        = BookingRequestStatus::DECLINED;
         $this->declineReason = $reason;
         $this->resolvedAt    = $now;
+        $this->resolvedBy($byUserId, $byName);
 
         return true;
     }
@@ -258,5 +273,22 @@ final class BookingRequest
     public function resolvedAt(): ?\DateTimeImmutable
     {
         return $this->resolvedAt;
+    }
+
+    /** The staff member who answered from « Demandes »; null for the agenda, the expiry, the account deletion. */
+    public function resolvedByUserId(): ?string
+    {
+        return $this->resolvedByUserId;
+    }
+
+    public function resolvedByName(): ?string
+    {
+        return $this->resolvedByName;
+    }
+
+    private function resolvedBy(?string $userId, ?string $name): void
+    {
+        $this->resolvedByUserId = $userId;
+        $this->resolvedByName   = $name;
     }
 }

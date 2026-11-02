@@ -392,15 +392,25 @@ be linked; the clinic decides.
   `link_rejected`) only the files staff were shown, each read `FOR UPDATE`;
   a link no longer pending is left as it is (the command answers 0). Reject
   changes no consent (D5).
+- **Decision record** (S6-F3 audit trail): an answer that decided at least
+  one file is recorded as a **`LinkDecision`** (`Domain/Link/`, table
+  `client_portal__link_decisions`): clinic, account, outcome
+  `confirmed|rejected`, the client files it decided (`client_ids`, JSON),
+  `decided_at`, `decided_by_user_id`, `decided_by_name`. Written once by
+  `LinkDecisionRecorder`; an answer that found nothing pending writes
+  nothing, so a request is listed once. The links keep their own status;
+  the decision is what « Demandes » lists under « Traitées » / « Refusées »
+  (`ListClinicLinkRequests(clinicId, decided: true)`, `GetClinicLinkDecision`).
 
 | Command / Query | Bus | What it does |
 |---|---|---|
 | `ListLinkSuggestions(userId)` | query | `list<LinkSuggestion{id, clinicName, city, matchedOn}>`, by clinic name. |
 | `AcceptLinkSuggestion(userId, suggestionId)` | command | `pending`; `LinkSuggestionNotFoundException`. |
-| `ConfirmClientLink(clinicId, userId, clientIds)` | command | How many pending links were confirmed (`ClientLinkConfirmed` each). |
-| `RejectClientLink(clinicId, userId, clientIds)` | command | How many pending links were revoked (`link_rejected`). |
-| `ListClinicLinkRequests(clinicId)` | query | `list<ClinicLinkRequest>`, oldest first. |
+| `ConfirmClientLink(clinicId, userId, clientIds, actorUserId, actorName)` | command | How many pending links were confirmed (`ClientLinkConfirmed` each); the decision recorded. |
+| `RejectClientLink(clinicId, userId, clientIds, actorUserId, actorName)` | command | How many pending links were revoked (`link_rejected`); the decision recorded. |
+| `ListClinicLinkRequests(clinicId, decided = false)` | query | `list<ClinicLinkRequest>`: pending, oldest first; or (`decided`) one per decision, latest first (500 at most), with `decisionId`, `outcome`, `decidedAt`, `decidedByName`. |
 | `GetClinicLinkRequest(clinicId, userId)` | query | `?ClinicLinkRequest` (null when nothing is pending). |
+| `GetClinicLinkDecision(clinicId, decisionId)` | query | `?ClinicLinkRequest` of one answered request (null: unknown or another clinic's). |
 
 ## New-client booking (slice 7)
 
@@ -441,6 +451,10 @@ follows the request through `GET /me/booking-requests` (account-scoped).
   animal staff were not offered.
 - **Decline** (`DeclineBookingRequest`): Scheduling `DeclineAppointment`,
   then `PORTAL_BOOKING_DECLINED`.
+- **Who answered** (S6-F3): a staff confirm or decline stores
+  `resolved_by_user_id` and `resolved_by_name` with `resolved_at`; the
+  agenda, the expiry, a clinic cancel and the account deletion leave them
+  null (VetApp shows « Agenda » / « Système »).
 - **Sync** (`SyncBookingRequestFromAppointment`, dispatched by the
   consumers of Scheduling's `PendingAppointmentConfirmed|Declined|Cancelled`
   integration events): idempotent, a resolved request is left untouched;
@@ -460,12 +474,12 @@ follows the request through `GET /me/booking-requests` (account-scoped).
 | Command / Query | Bus | What it does |
 |---|---|---|
 | `RequestListingBooking(userId, listingId, petName, petSpecies, motifId, practitionerId, startsAt)` | command | The request id. |
-| `ConfirmBookingRequest(clinicId, requestId, clientChoice existing\|new, ?clientId, animalChoice existing\|new, ?animalId, actorUserId)` | command | See above. |
-| `DeclineBookingRequest(clinicId, requestId, actorUserId)` | command | `BookingRequestNotFoundException`, `BookingRequestAlreadyResolvedException`. |
+| `ConfirmBookingRequest(clinicId, requestId, clientChoice existing\|new, ?clientId, animalChoice existing\|new, ?animalId, actorUserId, actorName)` | command | See above. |
+| `DeclineBookingRequest(clinicId, requestId, actorUserId, actorName)` | command | `BookingRequestNotFoundException`, `BookingRequestAlreadyResolvedException`. |
 | `SyncBookingRequestFromAppointment(appointmentId, outcome, ?ownerId)` | command | Consumers only. |
 | `ListOwnerBookingRequests(userId, ?cursor, ?limit)` | query | `CursorPage<OwnerBookingRequest>`, newest first, cursor `(created_at, id)`. |
 | `GetOwnerBookingRequest(userId, requestId)` | query | `?OwnerBookingRequest` (the 201 of the booking route). |
-| `ListClinicBookingRequests(clinicId)` | query | Pending `list<ClinicBookingRequest>` (matches, mismatch and « déjà relié » flags), oldest first. |
+| `ListClinicBookingRequests(clinicId, decided = false)` | query | Pending `list<ClinicBookingRequest>` (matches, mismatch and « déjà relié » flags), oldest first; or (`decided`) the confirmed and declined ones, latest answered first (500 at most), with `resolvedAt`, `resolvedByName`. |
 | `GetBookingRequest(clinicId, requestId)` | query | `?ClinicBookingRequest`, any status (matches only while pending). |
 
 ## Requests (slice 6)
@@ -586,7 +600,8 @@ client_id`, index `clinic_id, status`; `requested_at` for pending links), `clien
 `client_portal__booklet_files` (PK `animal_id`) and
 `client_portal__data_exports` (indexes `user_id, requested_at` and
 `status, expires_at`), `client_portal__booking_requests` (unique
-`appointment_id`, indexes `user_id, created_at, id` and `clinic_id, status`), the three request tables (unique `clinic_id,
+`appointment_id`, indexes `user_id, created_at, id` and `clinic_id, status`),
+`client_portal__link_decisions` (index `clinic_id, decided_at, id`), the three request tables (unique `clinic_id,
 appointment_id` for questionnaires; unique `clinic_id, open_key` on the
 generated column of renewals). Migrations in
 `migrations/ClientPortal/`.

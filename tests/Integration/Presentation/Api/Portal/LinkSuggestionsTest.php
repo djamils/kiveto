@@ -105,7 +105,7 @@ final class LinkSuggestionsTest extends PortalApiTestCase
         $bells = array_values(array_filter($this->bus()->recorded(PostInAppNotification::class), static fn (PostInAppNotification $n): bool => 'clinic_portal_link_requests_show' === $n->route));
         self::assertCount(1, $bells);
 
-        $this->clinicAnswers(new ConfirmClientLink(self::CLINIC_A, $this->userId, [$this->files['sophie'], $this->files['paul']]));
+        $this->clinicAnswers(new ConfirmClientLink(self::CLINIC_A, $this->userId, [$this->files['sophie'], $this->files['paul']], '01960000-0000-7000-8000-00000000e001', 'Dr Vet'));
 
         $clinic = $this->meClinic(self::CLINIC_A);
         self::assertNotNull($clinic);
@@ -121,7 +121,7 @@ final class LinkSuggestionsTest extends PortalApiTestCase
         $id       = self::string($this->suggestions()[0]['id']);
         self::json($this->authPost('/me/link-suggestions/' . $id . '/accept'), 202);
 
-        $this->clinicAnswers(new RejectClientLink(self::CLINIC_A, $this->userId, [$this->files['sophie'], $this->files['paul']]));
+        $this->clinicAnswers(new RejectClientLink(self::CLINIC_A, $this->userId, [$this->files['sophie'], $this->files['paul']], '01960000-0000-7000-8000-00000000e001', 'Dr Vet'));
 
         self::assertSame(['Clinique du Port'], array_column(array_column($this->suggestions(), 'clinic'), 'name'));
         self::assertNull($this->meClinic(self::CLINIC_A));

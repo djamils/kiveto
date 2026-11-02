@@ -19,6 +19,7 @@ use App\Context\ClientPortal\Application\Query\ListLinkSuggestions\ListLinkSugge
 use App\Context\ClientPortal\Application\Query\ListOwnerClinics\ListOwnerClinics;
 use App\Context\ClientPortal\Application\Query\ListOwnerClinics\ListOwnerClinicsHandler;
 use App\Context\ClientPortal\Application\Query\ListOwnerClinics\OwnerClinic;
+use App\Context\ClientPortal\Application\Service\LinkDecisionRecorder;
 use App\Context\ClientPortal\Application\Service\LinkSuggestions;
 use App\Context\ClientPortal\Domain\Event\ClientLinkConfirmed;
 use App\Context\ClientPortal\Domain\Event\ClientLinkRevoked;
@@ -27,7 +28,9 @@ use App\Context\ClientPortal\Domain\Link\ClientLink;
 use App\Context\ClientPortal\Domain\Link\ClientLinkId;
 use App\Context\ClientPortal\Domain\Link\ClientLinkRepositoryInterface;
 use App\Context\ClientPortal\Domain\Link\ClientLinkStatus;
+use App\Context\ClientPortal\Domain\Link\LinkDecision;
 use App\Tests\Unit\Context\ClientPortal\Support\ClientPortalWorld as W;
+use App\Tests\Unit\Context\ClientPortal\Support\InMemoryLinkDecisions;
 use App\Tests\Unit\Context\ClientPortal\Support\LinkFakes;
 use PHPUnit\Framework\TestCase;
 
@@ -48,10 +51,13 @@ final class LinkSuggestionHandlersTest extends TestCase
 
     private LinkFakes $fakes;
 
+    private InMemoryLinkDecisions $decisions;
+
     protected function setUp(): void
     {
         $this->world                                 = new W();
         $this->fakes                                 = new LinkFakes();
+        $this->decisions                             = new InMemoryLinkDecisions();
         $this->fakes->accounts[self::USER]           = new OwnerAccount(self::USER, W::PHONE, null, false);
         $this->world->fakes->clinics[W::CLINIC]      = new ClinicLabel('Clinique des Lilas', 'Lyon', 'Europe/Paris');
         $this->world->fakes->clinics[W::CLINIC2]     = new ClinicLabel('Clinique du Parc', null);
@@ -207,7 +213,7 @@ final class LinkSuggestionHandlersTest extends TestCase
         $this->accept('s:' . self::USER . ':' . W::CLINIC);
         $this->world->clock->now = new \DateTimeImmutable('2026-10-30 08:00:00', new \DateTimeZone('UTC'));
 
-        $confirmed = new ConfirmClientLinkHandler($this->world->links, $this->world->clock, $this->world->publisher())(new ConfirmClientLink(W::CLINIC, self::USER, [W::CLIENT, W::CLIENT, 'unknown']));
+        $confirmed = $this->confirmHandler()(new ConfirmClientLink(W::CLINIC, self::USER, [W::CLIENT, W::CLIENT, 'unknown'], W::ACTOR, 'Dr Lemoine'));
 
         self::assertSame(1, $confirmed, 'only the files listed');
         self::assertTrue($this->world->links->hasConfirmed(self::USER, W::CLINIC));
@@ -218,8 +224,12 @@ final class LinkSuggestionHandlersTest extends TestCase
         $this->world->fakes->pets = [W::CLINIC . '/' . W::CLIENT => ['Moka'], W::CLINIC . '/' . W::CLIENT2 => ['Rex']];
         self::assertSame([[W::CLINIC, OwnerClinic::CONFIRMED, '2026-10-30', ['Moka']]], array_map(static fn (OwnerClinic $c): array => [$c->clinicId, $c->linkStatus, $c->linkedAt?->format('Y-m-d'), $c->petNames], $this->ownerClinics()));
 
+        // S6-F3: the answer is recorded once, with the files it confirmed.
+        self::assertSame([[W::CLINIC, self::USER, 'confirmed', [W::CLIENT], '2026-10-30 08:00', W::ACTOR, 'Dr Lemoine']], $this->decisions());
+
         // A second confirmation of the same file changes nothing.
-        self::assertSame(0, new ConfirmClientLinkHandler($this->world->links, $this->world->clock, $this->world->publisher())(new ConfirmClientLink(W::CLINIC, self::USER, [W::CLIENT])));
+        self::assertSame(0, $this->confirmHandler()(new ConfirmClientLink(W::CLINIC, self::USER, [W::CLIENT], W::ACTOR, 'Dr Lemoine')));
+        self::assertCount(1, $this->decisions->decisions, 'nothing decided, nothing recorded');
     }
 
     /** AC 76, 88: on rejection the links are revoked, consents untouched, and the suggestion never comes back. */
@@ -227,7 +237,7 @@ final class LinkSuggestionHandlersTest extends TestCase
     {
         $this->accept('s:' . self::USER . ':' . W::CLINIC);
 
-        $rejected = new RejectClientLinkHandler($this->world->links, $this->world->clock, $this->world->publisher())(new RejectClientLink(W::CLINIC, self::USER, [W::CLIENT, W::CLIENT2, 'unknown']));
+        $rejected = $this->rejectHandler()(new RejectClientLink(W::CLINIC, self::USER, [W::CLIENT, W::CLIENT2, 'unknown'], W::ACTOR, 'Dr Lemoine'));
 
         self::assertSame(2, $rejected);
         self::assertSame([], $this->world->links->findPendingByClinic(W::CLINIC));
@@ -237,8 +247,31 @@ final class LinkSuggestionHandlersTest extends TestCase
         self::assertSame([], $this->ownerClinics());
         self::assertNotContains('Clinique des Lilas', array_map(static fn (LinkSuggestion $s): string => $s->clinicName, $this->suggestions()));
 
+        self::assertSame([[W::CLINIC, self::USER, 'rejected', [W::CLIENT, W::CLIENT2], '2026-10-29 09:00', W::ACTOR, 'Dr Lemoine']], $this->decisions());
+
         // Rejecting again (a colleague's late click) changes nothing.
-        self::assertSame(0, new RejectClientLinkHandler($this->world->links, $this->world->clock, $this->world->publisher())(new RejectClientLink(W::CLINIC, self::USER, [W::CLIENT])));
+        self::assertSame(0, $this->rejectHandler()(new RejectClientLink(W::CLINIC, self::USER, [W::CLIENT], W::ACTOR, 'Dr Lemoine')));
+        self::assertCount(1, $this->decisions->decisions);
+    }
+
+    private function confirmHandler(): ConfirmClientLinkHandler
+    {
+        return new ConfirmClientLinkHandler($this->world->links, new LinkDecisionRecorder($this->decisions, $this->world->fakes), $this->world->clock, $this->world->publisher());
+    }
+
+    private function rejectHandler(): RejectClientLinkHandler
+    {
+        return new RejectClientLinkHandler($this->world->links, new LinkDecisionRecorder($this->decisions, $this->world->fakes), $this->world->clock, $this->world->publisher());
+    }
+
+    /**
+     * @return list<array{string, string, string, list<string>, string, string, string}>
+     */
+    private function decisions(): array
+    {
+        return array_values(array_map(static fn (LinkDecision $d): array => [
+            $d->clinicId(), $d->userId(), $d->outcome()->value, $d->clientIds(), $d->decidedAt()->format('Y-m-d H:i'), $d->decidedByUserId(), $d->decidedByName(),
+        ], $this->decisions->decisions));
     }
 
     private function link(string $clinicId, string $clientId, ClientLinkStatus $status, string $userId = self::USER): void

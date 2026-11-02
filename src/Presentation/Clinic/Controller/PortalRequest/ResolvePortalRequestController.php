@@ -10,7 +10,6 @@ use App\Context\ClientPortal\Application\Query\GetPortalRequest\PortalRequestDet
 use App\Context\ClientPortal\Domain\Exception\InvalidPortalRequestException;
 use App\Context\ClientPortal\Domain\Exception\PortalRequestAlreadyResolvedException;
 use App\Context\ClientPortal\Domain\Exception\PortalRequestNotFoundException;
-use App\Presentation\Clinic\Controller\Shared\AbstractSheetAction;
 use App\Presentation\Clinic\Security\ClinicPermissionGuard;
 use App\Presentation\Clinic\ViewModel\Client\StaffNameResolver;
 use App\Shared\Application\Bus\CommandBusInterface;
@@ -25,11 +24,12 @@ use Symfony\Component\Routing\Requirement\Requirement;
  * « Traiter » (`done`) or « Refuser » (`rejected`) a Portal request, with an
  * optional message to the owner and, for a renewal, the prescription written
  * for it. A change request needs `manage_animals`, a renewal
- * `create_prescription`. Back on the request with a flash; a colleague who
+ * `create_prescription`. JSON for the page module, else back on the request
+ * with a flash; a colleague who
  * answered first wins (« Demande déjà traitée par … »).
  */
 #[Route('/portal-requests/{id}/resolve', name: 'clinic_portal_requests_resolve', requirements: ['id' => Requirement::UUID], methods: ['POST'])]
-final class ResolvePortalRequestController extends AbstractSheetAction
+final class ResolvePortalRequestController extends AbstractPortalRequestAnswer
 {
     protected const string CSRF_ID = 'portal_request';
 
@@ -56,17 +56,13 @@ final class ResolvePortalRequestController extends AbstractSheetAction
         $isRenewal = 'prescription_renewal' === $details->kind;
 
         if ($isRenewal && !$this->permissions->has(ClinicPermissionGuard::CREATE_PRESCRIPTION)) {
-            $this->addFlash('error', 'Seul un membre habilité à prescrire peut répondre à une demande de renouvellement.');
-
-            return $this->back($id);
+            return $this->back($request, $id, false, 'Seul un membre habilité à prescrire peut répondre à une demande de renouvellement.', Response::HTTP_FORBIDDEN);
         }
 
         $outcome = $request->request->getString('outcome');
 
         if (!\in_array($outcome, ['done', 'rejected'], true)) {
-            $this->addFlash('error', 'Choisissez « Traiter » ou « Refuser ».');
-
-            return $this->back($id);
+            return $this->back($request, $id, false, 'Choisissez « Traiter » ou « Refuser ».', Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $user = $this->getUser();
@@ -86,31 +82,24 @@ final class ResolvePortalRequestController extends AbstractSheetAction
             throw $this->createNotFoundException('Demande introuvable.');
         } catch (PortalRequestAlreadyResolvedException $exception) {
             // « Demande déjà traitée par … » / « Demande déjà close. »
-            $this->addFlash('error', $exception->getMessage());
-
-            return $this->back($id);
+            return $this->back($request, $id, false, $exception->getMessage(), Response::HTTP_CONFLICT);
         } catch (InvalidPortalRequestException $exception) {
             // Its French reason (a message too long, a prescription that does not fit).
-            $this->addFlash('error', $exception->getMessage());
-
-            return $this->back($id);
+            return $this->back($request, $id, false, $exception->getMessage(), Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (\InvalidArgumentException) {
-            $this->addFlash('error', 'La réponse n’a pas pu être enregistrée.');
-
-            return $this->back($id);
+            return $this->back($request, $id, false, 'La réponse n’a pas pu être enregistrée.', Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $this->addFlash('success', match ($status) {
+        return $this->back($request, $id, true, match ($status) {
             'done'     => 'Demande traitée — le client est prévenu.',
             'rejected' => 'Demande refusée — le client est prévenu.',
             default    => 'Demande close : l’animal n’est plus suivi.',
         });
-
-        return $this->back($id);
     }
 
-    private function back(string $id): Response
+    /** Back on the request: JSON for the page module, else PRG with a flash. */
+    private function back(Request $request, string $id, bool $done, string $message, int $failure = Response::HTTP_CONFLICT): Response
     {
-        return $this->redirectToRoute('clinic_portal_requests_show', ['id' => $id], Response::HTTP_SEE_OTHER);
+        return $this->reply($request, $done, $message, 'clinic_portal_requests_show', ['id' => $id], $failure);
     }
 }

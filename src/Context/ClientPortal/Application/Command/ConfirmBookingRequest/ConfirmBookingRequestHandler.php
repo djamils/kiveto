@@ -34,8 +34,8 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * new pet registered through Animal, S4g); the client link confirmed or
  * reactivated; the appointment given its owner and animal and confirmed in
  * Scheduling (its refusals pass through: already handled, expired); the
- * request `confirmed`; the account's other pending requests at the clinic
- * attached to the same file.
+ * request `confirmed` by the staff member; the account's other pending
+ * requests at the clinic attached to the same file.
  */
 #[AsMessageHandler]
 final readonly class ConfirmBookingRequestHandler
@@ -81,7 +81,7 @@ final readonly class ConfirmBookingRequestHandler
 
         $this->booking->confirmNewClient($request->clinicId(), $request->appointmentId(), $clientId, $animalId);
 
-        $request->confirm($clientId, $now);
+        $request->confirm($clientId, $now, $command->actorUserId, $command->actorName);
         $this->requests->save($request);
 
         foreach ($this->requests->findPendingByUserForUpdate($request->userId()) as $sibling) {

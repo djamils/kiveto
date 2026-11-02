@@ -48,6 +48,9 @@ return [
     'kiveto/tabs' => [
         'path' => './assets/js/ui/tabs.js',
     ],
+    'kiveto/history' => [
+        'path' => './assets/js/history.js',
+    ],
     'kiveto/shell' => [
         'path' => './assets/js/shell/shell.js',
     ],

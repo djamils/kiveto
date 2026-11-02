@@ -50,6 +50,14 @@ interface BookingRequestRepositoryInterface
      */
     public function findPendingByClinic(string $clinicId): array;
 
+    /**
+     * The clinic's confirmed and declined requests, the latest answered
+     * first (`resolved_at`, `id`), at most `$limit`.
+     *
+     * @return list<BookingRequest>
+     */
+    public function findDecidedByClinic(string $clinicId, int $limit): array;
+
     /** Account deletion: the requester and new-pet snapshots of every request of the account set to NULL. */
     public function scrubUser(string $userId): void;
 }

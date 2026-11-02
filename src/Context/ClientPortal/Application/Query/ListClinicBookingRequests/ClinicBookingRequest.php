@@ -20,6 +20,8 @@ final readonly class ClinicBookingRequest
      * @param ?string                  $declineReason    declined|expired|cancelled|account_deleted
      * @param ?string                  $attachedClientId the file a sibling request was confirmed for (AC 268)
      * @param list<BookingClientMatch> $matches          non-archived files of the clinic with that mobile, oldest first
+     * @param ?\DateTimeImmutable      $resolvedAt       when it was confirmed or declined, in the clinic's time zone
+     * @param ?string                  $resolvedByName   the staff member who answered from « Demandes »; null for the agenda, the expiry, the account deletion
      */
     public function __construct(
         public string $id,
@@ -37,6 +39,8 @@ final readonly class ClinicBookingRequest
         public ?string $attachedClientId,
         public string $appointmentId,
         public array $matches,
+        public ?\DateTimeImmutable $resolvedAt = null,
+        public ?string $resolvedByName = null,
     ) {
     }
 

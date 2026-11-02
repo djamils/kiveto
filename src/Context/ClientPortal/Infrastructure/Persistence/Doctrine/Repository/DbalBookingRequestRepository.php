@@ -27,27 +27,30 @@ final readonly class DbalBookingRequestRepository implements BookingRequestRepos
     {
         $this->connection->executeStatement(
             'INSERT INTO ' . self::TABLE . ' (id, user_id, clinic_id, listing_id, appointment_id, motif_label, start_at, new_pet_name, new_pet_species,'
-            . ' requester_first_name, requester_last_name, requester_phone, status, decline_reason, client_id, created_at, resolved_at)'
-            . ' VALUES (:id, :user, :clinic, :listing, :appointment, :motif, :start, :petName, :petSpecies, :firstName, :lastName, :phone, :status, :reason, :client, :created, :resolved)'
-            . ' AS new ON DUPLICATE KEY UPDATE status = new.status, decline_reason = new.decline_reason, client_id = new.client_id, resolved_at = new.resolved_at',
+            . ' requester_first_name, requester_last_name, requester_phone, status, decline_reason, client_id, created_at, resolved_at, resolved_by_user_id, resolved_by_name)'
+            . ' VALUES (:id, :user, :clinic, :listing, :appointment, :motif, :start, :petName, :petSpecies, :firstName, :lastName, :phone, :status, :reason, :client, :created, :resolved, :resolvedBy, :resolvedByName)'
+            . ' AS new ON DUPLICATE KEY UPDATE status = new.status, decline_reason = new.decline_reason, client_id = new.client_id, resolved_at = new.resolved_at,'
+            . ' resolved_by_user_id = new.resolved_by_user_id, resolved_by_name = new.resolved_by_name',
             [
-                'id'          => SqlValues::binary($request->id()->toString()),
-                'user'        => SqlValues::binary($request->userId()),
-                'clinic'      => SqlValues::binary($request->clinicId()),
-                'listing'     => SqlValues::binary($request->listingId()),
-                'appointment' => SqlValues::binary($request->appointmentId()),
-                'motif'       => $request->motifLabel(),
-                'start'       => SqlValues::utc($request->startAt()),
-                'petName'     => $request->newPetName(),
-                'petSpecies'  => $request->newPetSpecies(),
-                'firstName'   => $request->requesterFirstName(),
-                'lastName'    => $request->requesterLastName(),
-                'phone'       => $request->requesterPhone(),
-                'status'      => $request->status()->value,
-                'reason'      => $request->declineReason()?->value,
-                'client'      => SqlValues::nullableBinary($request->clientId()),
-                'created'     => SqlValues::utc($request->createdAt()),
-                'resolved'    => SqlValues::nullableUtc($request->resolvedAt()),
+                'id'             => SqlValues::binary($request->id()->toString()),
+                'user'           => SqlValues::binary($request->userId()),
+                'clinic'         => SqlValues::binary($request->clinicId()),
+                'listing'        => SqlValues::binary($request->listingId()),
+                'appointment'    => SqlValues::binary($request->appointmentId()),
+                'motif'          => $request->motifLabel(),
+                'start'          => SqlValues::utc($request->startAt()),
+                'petName'        => $request->newPetName(),
+                'petSpecies'     => $request->newPetSpecies(),
+                'firstName'      => $request->requesterFirstName(),
+                'lastName'       => $request->requesterLastName(),
+                'phone'          => $request->requesterPhone(),
+                'status'         => $request->status()->value,
+                'reason'         => $request->declineReason()?->value,
+                'client'         => SqlValues::nullableBinary($request->clientId()),
+                'created'        => SqlValues::utc($request->createdAt()),
+                'resolved'       => SqlValues::nullableUtc($request->resolvedAt()),
+                'resolvedBy'     => SqlValues::nullableBinary($request->resolvedByUserId()),
+                'resolvedByName' => $request->resolvedByName(),
             ],
         );
     }
@@ -132,6 +135,15 @@ final readonly class DbalBookingRequestRepository implements BookingRequestRepos
         ));
     }
 
+    public function findDecidedByClinic(string $clinicId, int $limit): array
+    {
+        return array_map(self::hydrate(...), $this->connection->fetchAllAssociative(
+            'SELECT * FROM ' . self::TABLE . ' WHERE clinic_id = :clinic AND status <> :pending ORDER BY resolved_at DESC, id DESC LIMIT :limit',
+            ['clinic' => SqlValues::binary($clinicId), 'pending' => BookingRequestStatus::PENDING->value, 'limit' => $limit],
+            ['limit'  => ParameterType::INTEGER],
+        ));
+    }
+
     public function scrubUser(string $userId): void
     {
         $this->connection->executeStatement(
@@ -180,6 +192,8 @@ final readonly class DbalBookingRequestRepository implements BookingRequestRepos
             clientId: RowAccessor::nullableUuid($row, 'client_id'),
             createdAt: SqlValues::date(RowAccessor::string($row, 'created_at')),
             resolvedAt: SqlValues::nullableDate(RowAccessor::nullableString($row, 'resolved_at')),
+            resolvedByUserId: RowAccessor::nullableUuid($row, 'resolved_by_user_id'),
+            resolvedByName: RowAccessor::nullableString($row, 'resolved_by_name'),
         );
     }
 }

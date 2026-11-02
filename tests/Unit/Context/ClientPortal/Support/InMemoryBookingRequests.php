@@ -86,6 +86,14 @@ final class InMemoryBookingRequests implements BookingRequestRepositoryInterface
         return array_values(array_filter($this->ordered(), static fn (BookingRequest $r): bool => $r->clinicId() === $clinicId && $r->isPending()));
     }
 
+    public function findDecidedByClinic(string $clinicId, int $limit): array
+    {
+        $rows = array_values(array_filter($this->requests, static fn (BookingRequest $r): bool => $r->clinicId() === $clinicId && !$r->isPending()));
+        usort($rows, static fn (BookingRequest $a, BookingRequest $b): int => [$b->resolvedAt(), $b->id()->toString()] <=> [$a->resolvedAt(), $a->id()->toString()]);
+
+        return \array_slice($rows, 0, $limit);
+    }
+
     public function scrubUser(string $userId): void
     {
         $this->scrubbed[] = $userId;
@@ -113,6 +121,8 @@ final class InMemoryBookingRequests implements BookingRequestRepositoryInterface
                 $r->clientId(),
                 $r->createdAt(),
                 $r->resolvedAt(),
+                $r->resolvedByUserId(),
+                $r->resolvedByName(),
             );
         }
     }

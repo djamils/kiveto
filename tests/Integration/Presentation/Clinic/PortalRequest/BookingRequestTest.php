@@ -59,17 +59,18 @@ final class BookingRequestTest extends PortalRequestTestCase
     {
         $this->signIn();
 
-        $html = $this->page('/portal-requests');
+        self::assertStringNotContainsString(self::XSS, $this->page('/portal-requests'));
+        $rows = $this->rows('/portal-requests');
 
-        self::assertResponseIsSuccessful();
-        self::assertStringContainsString('/portal-requests/nouveaux-clients/' . self::REQUEST, $html);
-        self::assertStringContainsString('Nouveau client', $html);
-        self::assertStringContainsString('Compte Portal : Marie Lenoir', $html);
-        self::assertStringContainsString('Nom différent', $html);
-        self::assertStringNotContainsString(self::XSS, $html);
-        self::assertStringContainsString('/portal-requests/nouveaux-clients/', $this->page('/portal-requests?type=booking_request'));
-        self::assertStringNotContainsString('/portal-requests/nouveaux-clients/', $this->page('/portal-requests?type=pet_change'));
-        self::assertStringNotContainsString('/portal-requests/nouveaux-clients/', $this->page('/portal-requests?statut=done'));
+        self::assertCount(1, $rows);
+        self::assertSame(
+            ['id' => self::REQUEST, 'kind' => 'booking_request', 'short' => 'Nouveau client', 'clientName' => 'Marie Lenoir', 'isNew' => true, 'petName' => self::XSS, 'flags' => ['Nom différent', 'Déjà relié à un autre compte Portal']],
+            self::pick($rows[0], 'id', 'kind', 'short', 'clientName', 'isNew', 'petName', 'flags'),
+        );
+        self::assertSame(['/portal-requests/nouveaux-clients/' . self::REQUEST, '/portal-requests/nouveaux-clients/' . self::REQUEST . '/sheet'], [$rows[0]['url'], $rows[0]['sheet']]);
+        self::assertSame([self::REQUEST], $this->ids('/portal-requests?type=booking_request'));
+        self::assertSame([], $this->ids('/portal-requests?type=pet_change'));
+        self::assertSame([], $this->ids('/portal-requests?statut=done'));
     }
 
     /** AC 267. */
@@ -77,20 +78,27 @@ final class BookingRequestTest extends PortalRequestTestCase
     {
         $this->signIn();
 
-        $crawler = $this->browser->request('GET', self::HOST . '/portal-requests/nouveaux-clients/' . self::REQUEST);
+        self::assertStringNotContainsString(self::XSS, $this->page('/portal-requests/nouveaux-clients/' . self::REQUEST));
+        $sheet = $this->sheet('/portal-requests/nouveaux-clients/' . self::REQUEST);
 
-        self::assertResponseIsSuccessful();
-        $html = (string) $this->browser->getResponse()->getContent();
-        self::assertStringNotContainsString(self::XSS, $html);
-        self::assertStringContainsString('5 nov. 2026 à 10:30', $html);
+        self::assertSame('jeu. 5 nov. · 10:30', $sheet['slotLong']);
+        self::assertSame([self::XSS, 'Chat', 'Marie Lenoir', true, null], [$sheet['petName'], $sheet['petSpecies'], $sheet['ownerName'], $sheet['pending'], $sheet['attachedClientId']]);
+        self::assertSame([
+            'confirm' => '/portal-requests/nouveaux-clients/' . self::REQUEST . '/confirm',
+            'decline' => '/portal-requests/nouveaux-clients/' . self::REQUEST . '/decline',
+        ], $sheet['actions']);
 
-        $rows = $crawler->filter('.prq-files tbody tr');
+        $matches = array_map(self::arr(...), self::arr($sheet['matches']));
         // Oldest file first
-        self::assertSame([self::LENOIR, self::CLIENT, 'new'], $rows->each(static fn ($row): string => (string) $row->attr('data-client-id')));
-        self::assertSame([], $rows->eq(0)->filter('[data-badge]')->each(static fn ($b): string => (string) $b->attr('data-badge')), 'same last name, case aside');
-        self::assertStringContainsString('Moka (Chat)', $rows->eq(0)->text());
-        self::assertSame(['mismatch', 'linked-elsewhere'], $rows->eq(1)->filter('[data-badge]')->each(static fn ($b): string => (string) $b->attr('data-badge')));
-        self::assertSame([$this->moka, $this->rex, 'new'], $crawler->filter('#prqBookingConfirm input[name="animal"]')->each(static fn ($i): string => (string) $i->attr('value')));
+        self::assertSame([self::LENOIR, self::CLIENT], array_column($matches, 'clientId'));
+        self::assertSame([false, false], [$matches[0]['mismatch'], $matches[0]['linkedElsewhere']], 'same last name, case aside');
+        self::assertSame([true, true], [$matches[1]['mismatch'], $matches[1]['linkedElsewhere']]);
+        $pets = array_map(static fn (array $m): array => array_map(self::arr(...), self::arr($m['pets'])), $matches);
+        self::assertSame([[$this->moka], [$this->rex]], array_map(static fn (array $p): array => array_column($p, 'id'), $pets));
+        self::assertSame('Moka (Chat)', $pets[0][0]['label']);
+
+        // The same sheet, as JSON for the page module.
+        self::assertSame($sheet, $this->json('/portal-requests/nouveaux-clients/' . self::REQUEST . '/sheet'));
     }
 
     /** AC 80: an existing file and animal; the link and the appointment follow; a second answer is refused. */
@@ -113,7 +121,7 @@ final class BookingRequestTest extends PortalRequestTestCase
         $this->answer('decline', $token);
         self::assertResponseRedirects('/portal-requests/nouveaux-clients/' . self::REQUEST, 303);
         self::assertStringContainsString('Demande déjà traitée.', $this->flashes());
-        self::assertStringContainsString('Confirmée', $this->page('/portal-requests/nouveaux-clients/' . self::REQUEST));
+        self::assertSame(['Confirmée', false], [($sheet = $this->sheet('/portal-requests/nouveaux-clients/' . self::REQUEST))['statusLabel'], $sheet['pending']]);
     }
 
     public function testConfirmingWithANewFileCreatesItAndThePet(): void
@@ -138,6 +146,66 @@ final class BookingRequestTest extends PortalRequestTestCase
         self::assertSame(['pending'], $this->column('SELECT status FROM client_portal__booking_requests'));
     }
 
+    public function testAnAnswerPostedInTheBackgroundIsJson(): void
+    {
+        $this->signIn();
+        $token = $this->bookingToken();
+        $json  = ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'];
+        $base  = self::HOST . '/portal-requests/nouveaux-clients/' . self::REQUEST;
+
+        $this->browser->request('POST', $base . '/confirm', ['_token' => $token, 'client' => self::CLIENT, 'animal' => $this->moka], server: $json);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(['success' => false, 'message' => 'Choisissez un animal de ce client, ou créez-le.'], $this->answered());
+
+        $this->browser->request('POST', $base . '/confirm', ['_token' => $token, 'client' => self::LENOIR, 'animal' => $this->moka], server: $json);
+        self::assertResponseIsSuccessful();
+        self::assertSame(['success' => true, 'message' => 'Rendez-vous confirmé — le compte Portal est rattaché au dossier client.'], $this->answered());
+
+        $this->browser->request('POST', $base . '/decline', ['_token' => $token], server: $json);
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame(['success' => false, 'message' => 'Demande déjà traitée.'], $this->answered());
+
+        // The confirmed request leaves the queue; its sheet tells what became of it.
+        self::assertSame([], $this->ids('/portal-requests'));
+        self::assertSame(['done', false], [($sheet = $this->json('/portal-requests/nouveaux-clients/' . self::REQUEST . '/sheet'))['status'], $sheet['pending']]);
+    }
+
+    public function testDecliningInTheBackgroundIsJson(): void
+    {
+        $this->signIn();
+
+        $this->browser->request('POST', self::HOST . '/portal-requests/nouveaux-clients/' . self::REQUEST . '/decline', ['_token' => $this->bookingToken()], server: ['HTTP_ACCEPT' => 'application/json']);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(['success' => true, 'message' => 'Demande refusée — le créneau est libéré et le propriétaire prévenu par SMS.'], $this->answered());
+        self::assertSame(['declined'], $this->column('SELECT status FROM client_portal__booking_requests'));
+
+        // S6-F3: listed under « Refusées » with who answered, as its sheet says.
+        [$by] = $this->column('SELECT resolved_by_name FROM client_portal__booking_requests');
+        self::assertNotSame('', $by);
+        self::assertSame([], $this->ids('/portal-requests'));
+        $rows = $this->rows('/portal-requests?statut=rejected');
+        self::assertSame(
+            [['id' => self::REQUEST, 'kind' => 'booking_request', 'status' => 'rejected', 'statusLabel' => 'Refusée', 'resolvedBy' => $by, 'flags' => [], 'age' => null]],
+            array_map(static fn (array $row): array => self::pick($row, 'id', 'kind', 'status', 'statusLabel', 'resolvedBy', 'flags', 'age'), $rows),
+        );
+        $sheet = $this->json('/portal-requests/nouveaux-clients/' . self::REQUEST . '/sheet');
+        self::assertSame([$by, 'rejected', false], [$sheet['resolvedBy'], $sheet['status'], $sheet['pending']]);
+        self::assertIsString($sheet['resolvedAt']);
+    }
+
+    /** No staff member answered an expired request: « Système ». */
+    public function testAnExpiredRequestIsListedUnderRefuseesAsTheSystems(): void
+    {
+        $this->signIn();
+        $this->connection()->executeStatement("UPDATE client_portal__booking_requests SET status = 'declined', decline_reason = 'expired', resolved_at = '2026-11-02 08:00:00'");
+
+        $rows = $this->rows('/portal-requests?statut=rejected');
+        self::assertSame([[self::REQUEST, 'Système · délai expiré']], array_map(static fn (array $row): array => [$row['id'], $row['resolvedBy']], $rows));
+        // The sheet names no one: its status says what ended it.
+        self::assertSame([null, 'Expirée sans réponse'], [($sheet = $this->json('/portal-requests/nouveaux-clients/' . self::REQUEST . '/sheet'))['resolvedBy'], $sheet['statusLabel']]);
+    }
+
     public function testDecliningFreesTheSlot(): void
     {
         $this->signIn();
@@ -160,6 +228,8 @@ final class BookingRequestTest extends PortalRequestTestCase
 
         $this->page('/portal-requests/nouveaux-clients/' . Uuid::v7()->toRfc4122());
         self::assertResponseStatusCodeSame(404);
+        $this->page('/portal-requests/nouveaux-clients/' . Uuid::v7()->toRfc4122() . '/sheet');
+        self::assertResponseStatusCodeSame(404);
         $this->browser->request('POST', self::HOST . '/portal-requests/nouveaux-clients/' . Uuid::v7()->toRfc4122() . '/confirm', ['_token' => $token, 'client' => 'new', 'animal' => 'new']);
         self::assertResponseStatusCodeSame(404);
         $this->browser->request('POST', self::HOST . '/portal-requests/nouveaux-clients/' . Uuid::v7()->toRfc4122() . '/decline', ['_token' => $token]);
@@ -167,6 +237,8 @@ final class BookingRequestTest extends PortalRequestTestCase
 
         $this->withoutPermissions(ClinicPermissionGuard::MANAGE_ANIMALS);
         $this->page('/portal-requests/nouveaux-clients/' . self::REQUEST);
+        self::assertResponseStatusCodeSame(403);
+        $this->page('/portal-requests/nouveaux-clients/' . self::REQUEST . '/sheet');
         self::assertResponseStatusCodeSame(403);
         $this->answer('decline', $token);
         self::assertResponseStatusCodeSame(403);
@@ -228,12 +300,20 @@ final class BookingRequestTest extends PortalRequestTestCase
         self::assertSame('/portal-requests', $last->filter('a.go')->attr('href'));
     }
 
+    /**
+     * @return array<array-key, mixed>
+     */
+    private function answered(): array
+    {
+        return self::arr(json_decode((string) $this->browser->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR));
+    }
+
     private function bookingToken(): string
     {
-        $crawler = $this->browser->request('GET', self::HOST . '/portal-requests/nouveaux-clients/' . self::REQUEST);
-        self::assertResponseIsSuccessful();
+        $token = self::arr($this->payload('/portal-requests/nouveaux-clients/' . self::REQUEST)['tokens'])['booking'];
+        \assert(\is_string($token));
 
-        return (string) $crawler->filter('#prqBookingConfirm input[name="_token"]')->attr('value');
+        return $token;
     }
 
     /** One more account asking the clinic for a first appointment, with the pending slot it holds. */
