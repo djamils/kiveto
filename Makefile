@@ -20,6 +20,9 @@ APP_URL  ?= http://$(APP_HOST):$(APP_PORT)
 
 LOG_FILE ?= var/log/make.log
 
+# Seconds `ready` / `check-web` keep retrying the web endpoint after a start
+WEB_WAIT ?= 30
+
 # Background workers (compose profile `workers`)
 WORKER_SERVICES = messenger-worker external-worker scheduler-worker
 
@@ -74,13 +77,31 @@ define fail
 printf "$(C_RED)✗ %s$(C_RESET)\n" "$(1)"
 endef
 
-# Run command quietly (log to file) unless V=1
+# Run command quietly (log to file) unless V=1. Log lines are timestamped
+# with the printf builtin on bash >= 4.2 (no fork per line); older shells
+# (macOS ships bash 3.2) fall back to date(1), same format.
 define run
 if [ "$(V)" = "1" ]; then \
   $(1); \
 else \
   mkdir -p "$(dir $(LOG_FILE))"; \
-  $(1) >>"$(LOG_FILE)" 2>&1; \
+  if printf -v ts '%(%F %T)T' -1 2>/dev/null; then \
+    stamp() { printf -v ts '%(%F %T)T' -1; }; \
+  else \
+    stamp() { ts=$$(date '+%F %T'); }; \
+  fi; \
+  stamp; printf '\n[%s] ▶ make %s\n' "$$ts" "$@" >>"$(LOG_FILE)"; \
+  log_from=$$(( $$(wc -l <"$(LOG_FILE)") )); \
+  { $(1); } 2>&1 | while IFS= read -r line || [ -n "$$line" ]; do \
+    stamp; printf '[%s] %s\n' "$$ts" "$$line"; \
+  done >>"$(LOG_FILE)"; \
+  rc=$${PIPESTATUS[0]}; \
+  if [ "$$rc" -ne 0 ]; then \
+    stamp; printf '[%s] ✗ make %s failed (exit %s)\n' "$$ts" "$@" "$$rc" >>"$(LOG_FILE)"; \
+    $(call fail,make $@ failed (exit $$rc) - last lines of $(LOG_FILE):); \
+    tail -n +"$$log_from" "$(LOG_FILE)" | tail -n 30 >&2; \
+    exit "$$rc"; \
+  fi; \
 fi
 endef
 
@@ -88,11 +109,18 @@ define run_live
 $(1)
 endef
 
-define tail_log
-echo ""
-echo "Last logs ($(LOG_FILE)):"
-tail -n 60 "$(LOG_FILE)" 2>/dev/null || true
-echo ""
+# Polls the web endpoint for up to WEB_WAIT seconds: right after a
+# (re)start nginx accepts connections before php-fpm is ready, which makes
+# a single curl fail with "(56) Connection reset by peer". Leaves the last
+# curl error in $$web_err when it gives up.
+define wait_web
+web_err=""; \
+for i in $$(seq 1 $(WEB_WAIT)); do \
+  if web_err=$$(curl -fsS -o /dev/null --max-time 5 --resolve "$(APP_HOST):$(APP_PORT):127.0.0.1" "$(APP_URL)" 2>&1); then \
+    web_err=""; break; \
+  fi; \
+  sleep 1; \
+done
 endef
 
 ##
@@ -408,20 +436,18 @@ pharma-apply:
 check-web:
 	@$(call step,Checking web endpoint...)
 	@command -v curl >/dev/null 2>&1 || { $(call warn,curl not installed - skipping check); exit 0; }
-	@if curl -fsS --resolve "$(APP_HOST):$(APP_PORT):127.0.0.1" "$(APP_URL)" >/dev/null 2>&1; then \
+	@$(call wait_web); \
+	if [ -z "$$web_err" ]; then \
 		$(call ok,Web reachable at $(APP_URL)); \
 	else \
-		$(call fail,Web check failed for $(APP_URL)); \
+		$(call fail,Web check failed for $(APP_URL): $$web_err); \
 		exit 22; \
 	fi
 
-check-web.silent:
-	@command -v curl >/dev/null 2>&1 || exit 0
-	@curl -fsS --resolve "$(APP_HOST):$(APP_PORT):127.0.0.1" "$(APP_URL)" >/dev/null 2>&1
-
 ready:
 	@$(call step,Finalizing...)
-	@if $(MAKE) check-web.silent; then \
+	@if command -v curl >/dev/null 2>&1; then $(call wait_web); fi; \
+	if [ -z "$$web_err" ]; then \
 		echo ""; \
 		echo "=============================================="; \
 		printf "$(C_GREEN)Environment ready$(C_RESET)\n"; \
@@ -433,8 +459,8 @@ ready:
 		echo "=============================================="; \
 		echo ""; \
 	else \
-		$(call warn,Application may not be reachable yet at $(APP_URL)); \
-		$(call warn,Check logs: docker-compose logs -f nginx php-fpm); \
+		$(call warn,Application not reachable at $(APP_URL) after $(WEB_WAIT)s: $$web_err); \
+		$(call warn,Check logs: docker compose logs -f nginx php-fpm); \
 		echo ""; \
 		echo "=============================================="; \
 		printf "$(C_YELLOW)Environment started$(C_RESET)\n"; \
