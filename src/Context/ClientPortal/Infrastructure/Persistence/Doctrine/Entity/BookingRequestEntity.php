@@ -11,7 +11,8 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Schema of the new clients' booking requests (S7d); rows are written and
  * read in SQL by DbalBookingRequestRepository. The requester and new-pet
- * columns are nulled at account deletion.
+ * columns are nulled at account deletion; `resolved_by_*` name the staff
+ * member who answered from « Demandes » (S6-F3).
  */
 #[ORM\Entity]
 #[ORM\Table]
@@ -56,6 +57,10 @@ class BookingRequestEntity
         public \DateTimeImmutable $createdAt,
         #[ORM\Column(name: 'resolved_at', type: 'datetime_immutable', nullable: true)]
         public ?\DateTimeImmutable $resolvedAt,
+        #[ORM\Column(name: 'resolved_by_user_id', type: UuidType::NAME, nullable: true)]
+        public ?Uuid $resolvedByUserId = null,
+        #[ORM\Column(name: 'resolved_by_name', type: 'string', length: 255, nullable: true)]
+        public ?string $resolvedByName = null,
     ) {
     }
 }

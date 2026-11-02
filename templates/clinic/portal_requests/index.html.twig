@@ -1,84 +1,62 @@
 {#
  # Kiveto — templates/clinic/portal_requests/index.html.twig
  # ────────────────────────────────────────────────────────
- # « Demandes Portal »: the owners' change, renewal and « Rattachement »
- # requests, the ones waiting for an answer first. A row opens the request
- # (clinic_portal_requests_show, clinic_portal_link_requests_show). Owner free
- # text is autoescaped, never |raw.
+ # « Demandes »: what owners send from the Portal (pet file changes,
+ # prescription renewals, « Rattachement » and « Nouveau client » requests).
+ # Ported from docs/frontend-theme/kiveto-theme/responsive/demandes-v-topbar_1.html
+ # (and its -busy / -vierge states), on the register kit of « Consultations »:
+ # page head and its counters, filter bar (search, status segments, type
+ # menu), the table and its pager, the side sheet of one request.
+ #
+ # The table and the sheet are drawn by the page module from the payload;
+ # filters and pages are asked from clinic_portal_requests_search, a sheet
+ # from clinic_portal_request_sheet, clinic_portal_link_request_sheet,
+ # clinic_portal_link_decision_sheet or clinic_portal_booking_request_sheet. The answers are posted in the
+ # background to their single-action controllers. Owner free text is written
+ # as text by the module, never as HTML.
  #
  # Variables:
- #   queue  PortalRequestPageBuilder::list() — rows, status, kind, next
+ #   payload  App\Presentation\Clinic\ViewModel\PortalRequest\PortalRequestPageBuilder::page()
  #
  # Behaviour: assets/js/pages/portal-requests.js — styles: assets/styles/pages/portal-requests.css
  #}
 {% extends 'clinic/base.html.twig' %}
 
-{% block page_body_class %}vt page-scroll{% endblock %}
-{% block title %}Demandes Portal{% endblock %}
+{% block page_body_class %}vt{% endblock %}
+{% block title %}{{ payload.sheet ? payload.sheet.title : 'Demandes' }}{% endblock %}
 
-{% set _status_tabs = [
-  { v: 'submitted', l: 'À traiter' },
-  { v: 'done', l: 'Traitées' },
-  { v: 'rejected', l: 'Refusées' },
-  { v: '', l: 'Toutes' },
-] %}
-{% set _kind_tabs = [
-  { v: '', l: 'Tous types' },
-  { v: 'pet_change', l: 'Modifications de fiche' },
-  { v: 'prescription_renewal', l: 'Renouvellements' },
-  { v: 'client_link', l: 'Rattachements' },
-  { v: 'booking_request', l: 'Nouveaux clients' },
-] %}
+{% set _vide = payload.register.head.blank %}
 
 {% block main %}
-<div class="prq" data-page="clinic_portal_requests">
+<div class="reg dem{{ _vide ? ' vide' }}" data-page="clinic_portal_requests" data-payload="{{ payload|json_encode }}">
+
   <div class="pagehead">
-    <h1>Demandes Portal<small>Ce que les propriétaires demandent depuis leur espace Portal</small></h1>
+    <h1>Demandes<small id="phSub">—</small></h1>
+    <div class="phk" id="phk"></div>
   </div>
 
-  <nav class="prq-tabs" aria-label="Filtrer les demandes">
-    <span class="prq-seg">
-      {% for t in _status_tabs %}
-        <a href="{{ path('clinic_portal_requests', { statut: t.v, type: queue.kind ?? '' }) }}"
-           class="{{ (queue.status ?? '') == t.v ? 'on' }}"{% if (queue.status ?? '') == t.v %} aria-current="page"{% endif %}>{{ t.l }}</a>
-      {% endfor %}
-    </span>
-    <span class="prq-seg">
-      {% for t in _kind_tabs %}
-        <a href="{{ path('clinic_portal_requests', { statut: queue.status ?? '', type: t.v }) }}"
-           class="{{ (queue.kind ?? '') == t.v ? 'on' }}">{{ t.l }}</a>
-      {% endfor %}
-    </span>
-  </nav>
-
-  {% if queue.rows is empty %}
-    <div class="prq-vide">
-      <b>{{ queue.status == 'submitted' ? 'Aucune demande en attente' : 'Aucune demande' }}</b>
-      <span>Les demandes envoyées depuis le Portal arrivent ici.</span>
+  <div class="cfil" id="cfil"{% if _vide %} style="display:none"{% endif %}>
+    <div class="crech">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" placeholder="Animal, client, médicament, note…" autocomplete="off" aria-label="Rechercher une demande" value="{{ payload.filters.q }}">
     </div>
-  {% else %}
-    <table class="prq-table">
-      <thead>
-        <tr><th>Reçue</th><th>Demande</th><th>Animal</th><th>Client</th><th>Note du propriétaire</th><th>Statut</th></tr>
-      </thead>
-      <tbody>
-        {% for r in queue.rows %}
-          <tr data-href="{{ r.url }}" class="{{ r.urgent ? 'urgent' }}">
-            <td class="prq-when">{{ r.submittedAt }}</td>
-            <td><a href="{{ r.url }}"><b>{{ r.kindLabel }}</b></a><small>{{ r.subject }}</small>{% for b in r.badges %}<span class="prq-chip warn">{{ b }}</span>{% endfor %}</td>
-            <td>{{ r.petName }}</td>
-            <td>{{ r.clientName }}{% if r.unreachable %}<span class="prq-chip warn">client injoignable</span>{% endif %}</td>
-            <td class="prq-note" title="{{ r.note }}">{{ r.note ?? '—' }}</td>
-            <td><span class="prq-st {{ r.status }}">{{ r.statusLabel }}</span>{% if r.resolvedBy %}<small>par {{ r.resolvedBy }}</small>{% endif %}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% if queue.next %}
-      <div class="prq-more">
-        <a class="btn" href="{{ path('clinic_portal_requests', { statut: queue.status ?? '', type: queue.kind ?? '', apres: queue.next }) }}">Demandes plus anciennes</a>
-      </div>
-    {% endif %}
-  {% endif %}
+    <span class="lblf">Filtres</span>
+    <div id="fdd" style="display:flex;gap:8px;align-items:center"></div>
+  </div>
+
+  <main class="czone{{ payload.sheet ? ' ouvert' }}" id="czone">
+    <div class="ctw">
+      <div class="cscroll scr"><table>
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+      </table><div id="cempty"></div></div>
+      <div class="cfoot" id="cfoot"></div>
+    </div>
+    <aside class="fiche" id="fiche"><div class="fi-in">
+      <div class="fi-head" id="fiHead"></div>
+      <div class="fi-body scr" id="fiBody"></div>
+      <div class="fi-foot" id="fiFoot"></div>
+    </div></aside>
+  </main>
 </div>
 {% endblock %}

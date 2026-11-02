@@ -88,6 +88,23 @@ final class BookingRequestQueriesTest extends TestCase
         self::assertSame([], new ListClinicBookingRequestsHandler($this->world->clinicRequests())(new ListClinicBookingRequests(W::CLINIC_2)));
     }
 
+    public function testStaffSeeTheAnsweredRequestsLatestFirstWithWhoAnswered(): void
+    {
+        $this->world->pending(self::FIRST)->confirm(W::CLIENT, W::utc('2026-11-01 08:00:00'), W::VET, 'Dr Lemoine');
+        $this->world->pending(self::SECOND)->decline(DeclineReason::EXPIRED, W::utc('2026-11-02 08:00:00'));
+        $this->world->pending(self::THIRD);
+        $handler = new ListClinicBookingRequestsHandler($this->world->clinicRequests());
+
+        $decided = $handler(new ListClinicBookingRequests(W::CLINIC, true));
+
+        self::assertSame([
+            [self::SECOND, 'declined', '2026-11-02T09:00:00+01:00', null, []],
+            [self::FIRST, 'confirmed', '2026-11-01T09:00:00+01:00', 'Dr Lemoine', []],
+        ], array_map(static fn ($r): array => [$r->id, $r->status, $r->resolvedAt?->format('c'), $r->resolvedByName, $r->matches], $decided));
+        self::assertSame([self::THIRD], array_map(static fn ($r): string => $r->id, $handler(new ListClinicBookingRequests(W::CLINIC))));
+        self::assertSame([], $handler(new ListClinicBookingRequests(W::CLINIC_2, true)));
+    }
+
     public function testOneRequestOfTheClinicResolvedHasNoMatch(): void
     {
         $this->world->pending(self::FIRST)->decline(DeclineReason::ACCOUNT_DELETED, W::utc(W::NOW));

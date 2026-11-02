@@ -119,7 +119,7 @@ final class BookingRequestPipelineTest extends KernelTestCase
         $first  = $this->request('2026-04-15T10:00:00+02:00');
         $second = $this->secondRequestAtTheClinic();
 
-        $this->bus->dispatch(new ConfirmBookingRequest(self::CLINIC, $first, ConfirmBookingRequest::NEW, null, ConfirmBookingRequest::NEW, null, self::VET));
+        $this->bus->dispatch(new ConfirmBookingRequest(self::CLINIC, $first, ConfirmBookingRequest::NEW, null, ConfirmBookingRequest::NEW, null, self::VET, 'Dr Vet'));
         MessengerDrain::drain(self::getContainer(), ['async']);
 
         $request = $this->stored($first);
@@ -135,7 +135,7 @@ final class BookingRequestPipelineTest extends KernelTestCase
 
         // The second request carries the same file: confirming it creates no second client
         self::assertSame($clientId, $this->stored($second)->clientId());
-        $this->bus->dispatch(new ConfirmBookingRequest(self::CLINIC, $second, ConfirmBookingRequest::NEW, null, ConfirmBookingRequest::NEW, null, self::VET));
+        $this->bus->dispatch(new ConfirmBookingRequest(self::CLINIC, $second, ConfirmBookingRequest::NEW, null, ConfirmBookingRequest::NEW, null, self::VET, 'Dr Vet'));
         self::assertSame($clientId, $this->stored($second)->clientId());
         self::assertSame(1, $this->connection->fetchOne('SELECT COUNT(*) FROM client__clients WHERE clinic_id = ?', [Uuid::fromString(self::CLINIC)->toBinary()]));
         self::assertSame([], $this->declineMessages());
@@ -146,7 +146,7 @@ final class BookingRequestPipelineTest extends KernelTestCase
         // AC 81
         $id = $this->request('2026-04-15T10:00:00+02:00');
 
-        $this->bus->dispatch(new DeclineBookingRequest(self::CLINIC, $id, self::VET));
+        $this->bus->dispatch(new DeclineBookingRequest(self::CLINIC, $id, self::VET, 'Dr Vet'));
         MessengerDrain::drain(self::getContainer(), ['async']);
         $this->deliverDeclinedAgain($id, 'declined');
 
@@ -185,7 +185,7 @@ final class BookingRequestPipelineTest extends KernelTestCase
         // AC 90, AC 269: a request confirmed (its appointment stays) and one pending
         $confirmed = $this->request('2026-04-15T10:00:00+02:00');
         $id        = $this->secondRequestAtTheClinic();
-        $this->bus->dispatch(new ConfirmBookingRequest(self::CLINIC, $confirmed, ConfirmBookingRequest::NEW, null, ConfirmBookingRequest::NEW, null, self::VET));
+        $this->bus->dispatch(new ConfirmBookingRequest(self::CLINIC, $confirmed, ConfirmBookingRequest::NEW, null, ConfirmBookingRequest::NEW, null, self::VET, 'Dr Vet'));
 
         // As RequestAccountDeletion does: the account disabled, the erasure queued
         $this->bus->dispatch(new DisablePortalUser($this->userId));

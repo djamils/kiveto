@@ -375,6 +375,9 @@ services:
     App\Context\ClientPortal\Domain\Link\ClientLinkRepositoryInterface:
         class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalClientLinkRepository
 
+    App\Context\ClientPortal\Domain\Link\LinkDecisionRepositoryInterface:
+        class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalLinkDecisionRepository
+
     App\Context\ClientPortal\Domain\Profile\OwnerProfileRepositoryInterface:
         class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalOwnerProfileRepository
 

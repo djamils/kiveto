@@ -37,10 +37,15 @@ final class DbalBookingRequestRepositoryTest extends KernelTestCase
             [$found->id()->toString(), $found->userId(), $found->clinicId(), $found->listingId(), $found->appointmentId(), $found->motifLabel(), $found->startAt()->format('Y-m-d H:i'), $found->startAt()->getTimezone()->getName(), $found->newPetName(), $found->newPetSpecies(), $found->requesterFirstName(), $found->requesterLastName(), $found->requesterPhone(), $found->status(), $found->declineReason(), $found->clientId(), $found->createdAt()->format('Y-m-d H:i'), $found->resolvedAt()],
         );
 
-        $found->confirm(self::CLIENT, new \DateTimeImmutable('2026-11-02 10:00', new \DateTimeZone('UTC')));
+        self::assertSame([null, null], [$found->resolvedByUserId(), $found->resolvedByName()]);
+
+        $found->confirm(self::CLIENT, new \DateTimeImmutable('2026-11-02 10:00', new \DateTimeZone('UTC')), self::USER2, 'Dr Lemoine');
         $repository->save($found);
         $confirmed = $repository->findInClinicForUpdate(self::CLINIC, self::R1);
-        self::assertSame([BookingRequestStatus::CONFIRMED, self::CLIENT, '2026-11-02 10:00'], [$confirmed?->status(), $confirmed?->clientId(), $confirmed?->resolvedAt()?->format('Y-m-d H:i')]);
+        self::assertSame(
+            [BookingRequestStatus::CONFIRMED, self::CLIENT, '2026-11-02 10:00', self::USER2, 'Dr Lemoine'],
+            [$confirmed?->status(), $confirmed?->clientId(), $confirmed?->resolvedAt()?->format('Y-m-d H:i'), $confirmed?->resolvedByUserId(), $confirmed?->resolvedByName()],
+        );
 
         $repository->save($declined = $this->request(self::R2, self::USER, self::CLINIC, '2026-11-01 10:00'));
         $declined->decline(DeclineReason::EXPIRED, new \DateTimeImmutable('2026-11-02 10:00'));
@@ -68,6 +73,12 @@ final class DbalBookingRequestRepositoryTest extends KernelTestCase
 
         self::assertSame([self::R1, self::R2], self::ids($repository->findPendingByUserForUpdate(self::USER)));
         self::assertSame([self::R1, self::R3], self::ids($repository->findPendingByClinic(self::CLINIC)));
+        $declined = $this->request('01960000-0000-7000-8000-0000000eb005', self::USER2, self::CLINIC, '2026-11-01 13:00');
+        $declined->decline(DeclineReason::DECLINED, new \DateTimeImmutable('2026-11-03'));
+        $repository->save($declined);
+        self::assertSame(['01960000-0000-7000-8000-0000000eb005', '01960000-0000-7000-8000-0000000eb004'], self::ids($repository->findDecidedByClinic(self::CLINIC, 5)));
+        self::assertSame(['01960000-0000-7000-8000-0000000eb005'], self::ids($repository->findDecidedByClinic(self::CLINIC, 1)));
+        self::assertSame([], $repository->findDecidedByClinic(self::CLINIC2, 5));
         self::assertSame([self::R1, self::R2, '01960000-0000-7000-8000-0000000eb004'], self::ids($repository->findByUser(self::USER)));
         self::assertSame(['01960000-0000-7000-8000-0000000eb004', self::R2], self::ids($repository->findPageByUser(self::USER, null, null, 2)));
         self::assertSame([self::R1], self::ids($repository->findPageByUser(self::USER, new \DateTimeImmutable('2026-11-01 10:00'), self::R2, 2)));
@@ -79,7 +90,7 @@ final class DbalBookingRequestRepositoryTest extends KernelTestCase
 
         // The Doctrine entity only carries the schema
         $entity = new BookingRequestEntity(Uuid::v7(), Uuid::v7(), Uuid::v7(), Uuid::v7(), Uuid::v7(), 'Consultation', new \DateTimeImmutable(), null, null, null, null, null, 'pending', null, null, new \DateTimeImmutable(), null);
-        self::assertSame('pending', $entity->status);
+        self::assertSame(['pending', null, null], [$entity->status, $entity->resolvedByUserId, $entity->resolvedByName]);
     }
 
     /**

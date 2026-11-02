@@ -23,24 +23,34 @@ final class PortalRequestsControllerTest extends PortalRequestTestCase
         $this->signIn();
 
         $html = $this->page('/portal-requests');
-
         self::assertResponseIsSuccessful();
-        self::assertStringContainsString('Demandes Portal', $html);
-        self::assertStringContainsString('/portal-requests/' . $change, $html);
-        self::assertStringContainsString('/portal-requests/' . $renewal, $html);
-        self::assertStringContainsString('Modification de fiche', $html);
-        self::assertStringContainsString('Effets indésirables', $html);
-        self::assertStringContainsString('Faute de frappe', $html);
-        self::assertStringContainsString('Sophie Dupont', $html);
+        // The badge of the navigation counts them.
+        self::assertMatchesRegularExpression('#Demandes<span class="badge">2</span>#', $html);
+
+        $payload  = $this->payload('/portal-requests');
+        $register = self::arr($payload['register']);
+        $rows     = self::rowsOf($register);
+
+        // The urgent renewal first, then the oldest.
+        self::assertSame([$renewal, $change], array_column($rows, 'id'));
+        self::assertSame(['Renouvellement', 'Modification'], array_column($rows, 'short'));
+        self::assertSame(['cls' => 'et-crit', 'label' => 'Effets indésirables'], $rows[0]['condition']);
+        self::assertTrue($rows[0]['urgent']);
+        self::assertSame(['Faute de frappe', 'Sophie Dupont', 'Nom'], [$rows[1]['note'], $rows[1]['clientName'], $rows[1]['subject']]);
+        self::assertSame(['/portal-requests/' . $change, '/portal-requests/' . $change . '/sheet'], [$rows[1]['url'], $rows[1]['sheet']]);
+        self::assertSame(['total' => 2, 'page' => 1, 'pp' => 25], ['total' => $register['total'], 'page' => $register['page'], 'pp' => $register['pp']]);
+        self::assertSame(['submitted' => 2, 'done' => 0, 'rejected' => 0, 'tout' => 2], $register['counts']);
+        self::assertSame(['pet_change' => 1, 'prescription_renewal' => 1, 'client_link' => 0, 'booking_request' => 0], $register['kinds']);
+        $head = self::arr($register['head']);
+        self::assertSame([2, 1, 0, false], [$head['pending'], $head['urgent'], $head['late'], $head['blank']]);
+        self::assertSame($renewal, self::arr(self::arr($head['first'])['urgent'])['id']);
+        self::assertSame(['statut' => 'submitted', 'type' => '', 'q' => '', 'page' => 1, 'pp' => 25], $payload['filters']);
+        self::assertNull($payload['sheet']);
+        self::assertSame(['request', 'link', 'booking'], array_keys(self::arr($payload['tokens'])));
 
         // Nothing answered yet, and the renewals filter keeps the renewal only.
-        self::assertStringContainsString('Aucune demande', $this->page('/portal-requests?statut=done'));
-        $renewals = $this->page('/portal-requests?statut=submitted&type=prescription_renewal');
-        self::assertStringContainsString($renewal, $renewals);
-        self::assertStringNotContainsString($change, $renewals);
-
-        // The badge of the navigation counts them.
-        self::assertMatchesRegularExpression('#Demandes Portal<span class="badge">2</span>#', $html);
+        self::assertSame([], $this->ids('/portal-requests?statut=done'));
+        self::assertSame([$renewal], $this->ids('/portal-requests?statut=submitted&type=prescription_renewal'));
     }
 
     public function testAWeightRequestShowsTheThreeValuesAndOffersTheWeighingForm(): void
@@ -50,18 +60,19 @@ final class PortalRequestsControllerTest extends PortalRequestTestCase
         WeightRecordEntityFactory::new()->forAnimal(self::CLINIC, $this->rex)->weighing(12000, new \DateTimeImmutable('2026-11-02'))->create();
         $this->signIn();
 
-        $crawler = $this->browser->request('GET', self::HOST . '/portal-requests/' . $id);
+        $sheet = $this->sheet('/portal-requests/' . $id);
 
-        self::assertResponseIsSuccessful();
-        self::assertSame(['Valeur à la demande', 'Valeur actuelle', 'Valeur proposée'], $crawler->filter('.prq-values span')->each(static fn ($node): string => $node->text()));
-        self::assertSame(['11,8 kg', '12 kg', '12,4 kg'], $crawler->filter('.prq-values b')->each(static fn ($node): string => $node->text()));
-        self::assertSame('pesé le 1 novembre 2026', $crawler->filter('.prq-values small')->text());
-        self::assertSame('/animals/' . $this->rex . '?pesee=12,4&pesee_le=2026-11-01', $crawler->filter('.prq-hint a.btn')->attr('href'));
+        // On file now (and when asked), proposed.
+        self::assertSame(['atSubmit' => '11,8 kg', 'current' => '12 kg', 'proposed' => '12,4 kg', 'gap' => ['label' => '+3,3 %', 'strong' => false]], $sheet['values']);
+        self::assertSame('1 novembre 2026', $sheet['measuredOn']);
+        self::assertSame('/animals/' . $this->rex . '?pesee=12,4&pesee_le=2026-11-01', $sheet['weighUrl']);
+        self::assertSame(['resolve' => '/portal-requests/' . $id . '/resolve'], $sheet['actions']);
+        self::assertTrue($sheet['canResolve']);
 
         // The animal sheet carries the hidden author field the link fills in.
-        $sheet = $this->browser->request('GET', self::HOST . '/animals/' . $this->rex . '?pesee=12%2C4&pesee_le=2026-11-01');
+        $animal = $this->browser->request('GET', self::HOST . '/animals/' . $this->rex . '?pesee=12%2C4&pesee_le=2026-11-01');
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $sheet->filter('#wForm input[name="author"]'));
+        self::assertCount(1, $animal->filter('#wForm input[name="author"]'));
     }
 
     public function testARenewalOffersThePetsPrescriptionsIssuedAfterTheRequest(): void
@@ -72,14 +83,14 @@ final class PortalRequestsControllerTest extends PortalRequestTestCase
         $other  = $this->prescription($this->pet('Nala'), '2026-11-02 10:40:00');
         $this->signIn();
 
-        $crawler = $this->browser->request('GET', self::HOST . '/portal-requests/' . $id);
+        $sheet = $this->sheet('/portal-requests/' . $id);
 
-        self::assertResponseIsSuccessful();
-        $options = $crawler->filter('select[name="resulting_prescription_id"] option')->each(static fn ($node): string => (string) $node->attr('value'));
-        self::assertSame(['', $after], $options);
-        self::assertNotContains($before, $options);
-        self::assertNotContains($other, $options);
-        self::assertStringContainsString('Pas d’amélioration', $crawler->text());
+        $candidates = array_column(array_map(self::arr(...), self::arr($sheet['candidates'])), 'id');
+        self::assertSame([$after], $candidates);
+        self::assertNotContains($before, $candidates);
+        self::assertNotContains($other, $candidates);
+        self::assertSame('Pas d’amélioration', $sheet['conditionLabel']);
+        self::assertSame('Meloxidyl · 1', self::arr($sheet['prescription'])['medication']);
     }
 
     public function testTheDashboardShowsFourTasksAndSumsUpTheRest(): void
@@ -116,10 +127,10 @@ final class PortalRequestsControllerTest extends PortalRequestTestCase
         $this->withoutPermissions(ClinicPermissionGuard::MANAGE_ANIMALS);
         $this->signIn();
 
-        $this->page('/portal-requests');
-        self::assertResponseStatusCodeSame(403);
-        $this->page('/portal-requests/' . $id);
-        self::assertResponseStatusCodeSame(403);
+        foreach (['/portal-requests', '/portal-requests/' . $id, '/portal-requests/search', '/portal-requests/' . $id . '/sheet'] as $path) {
+            $this->page($path);
+            self::assertResponseStatusCodeSame(403, $path);
+        }
 
         // No navigation entry either.
         $html = $this->page('/dashboard');
@@ -133,10 +144,14 @@ final class PortalRequestsControllerTest extends PortalRequestTestCase
         $this->connection()->executeStatement('UPDATE client_portal__pet_change_requests SET clinic_id = UUID_TO_BIN(?) WHERE id = UUID_TO_BIN(?)', [self::OTHER, $id]);
         $this->signIn();
 
-        $this->page('/portal-requests/' . $id);
-        self::assertResponseStatusCodeSame(404);
-        $this->page('/portal-requests/' . Uuid::v7()->toRfc4122());
-        self::assertResponseStatusCodeSame(404);
+        foreach ([$id, Uuid::v7()->toRfc4122()] as $requestId) {
+            $this->page('/portal-requests/' . $requestId);
+            self::assertResponseStatusCodeSame(404);
+            $this->page('/portal-requests/' . $requestId . '/sheet');
+            self::assertResponseStatusCodeSame(404);
+        }
+
+        self::assertSame([], $this->ids('/portal-requests?statut=tout'));
     }
 
     /** AC 239: the owner's note stays text in the queue and the detail, and never reaches the bell. */
@@ -151,6 +166,10 @@ final class PortalRequestsControllerTest extends PortalRequestTestCase
             self::assertStringNotContainsString(self::XSS, $html, $path);
             self::assertStringContainsString('&lt;img src=x onerror=alert(1)&gt;', $html, $path);
         }
+
+        // Handed as text to the page module, which writes it through esc().
+        self::assertSame(self::XSS, $this->sheet('/portal-requests/' . $id)['note']);
+        self::assertSame(self::XSS, $this->rows('/portal-requests')[0]['note']);
 
         $bell = $this->connection()->fetchAllAssociative('SELECT title, detail FROM notification__in_app_notifications WHERE clinic_id = UUID_TO_BIN(?)', [self::CLINIC]);
         self::assertNotEmpty($bell);

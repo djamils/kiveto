@@ -35,10 +35,11 @@ final class ResolvePortalRequestControllerTest extends PortalRequestTestCase
         self::assertSame($result, $row['result']);
         self::assertNotEmpty($row['resolved_by_name']);
 
-        // The detail now shows the answer, without the form.
-        $html = (string) $this->browser->getResponse()->getContent();
-        self::assertStringContainsString('Prête à l’accueil.', $html);
-        self::assertStringNotContainsString('id="prqForm"', $html);
+        // The sheet now shows the answer, with nothing left to choose.
+        $sheet = $this->sheet('/portal-requests/' . $id);
+        self::assertSame(['done', 'Prête à l’accueil.', []], [$sheet['status'], $sheet['resolutionMessage'], $sheet['candidates']]);
+        self::assertIsString($sheet['resultingPrescriptionUrl']);
+        self::assertStringContainsString($result, $sheet['resultingPrescriptionUrl']);
     }
 
     public function testAPrescriptionIssuedBeforeTheRequestIsRefusedWithItsReason(): void
@@ -101,9 +102,9 @@ final class ResolvePortalRequestControllerTest extends PortalRequestTestCase
         $this->withoutPermissions(ClinicPermissionGuard::CREATE_PRESCRIPTION);
         $this->signIn();
 
-        $crawler = $this->browser->request('GET', self::HOST . '/portal-requests/' . $renewal);
-        self::assertResponseIsSuccessful();
-        self::assertCount(0, $crawler->filter('#prqForm'));
+        self::assertFalse($this->sheet('/portal-requests/' . $renewal)['canResolve']);
+        self::assertFalse($this->json('/portal-requests/' . $renewal . '/sheet')['canResolve']);
+        self::assertTrue($this->sheet('/portal-requests/' . $change)['canResolve']);
         $token = $this->token($change);
 
         $this->resolve($renewal, ['outcome' => 'done'], $token);

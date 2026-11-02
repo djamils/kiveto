@@ -10,12 +10,15 @@ use App\Context\ClientPortal\Application\Command\CompletePortalRegistration\Comp
 use App\Context\ClientPortal\Application\Command\CompletePortalRegistration\RegistrationOutcome;
 use App\Context\ClientPortal\Application\Command\CompletePortalRegistration\RegistrationResult;
 use App\Context\ClientPortal\Application\Command\ConfirmBookingRequest\ConfirmBookingRequest;
+use App\Context\ClientPortal\Application\Command\ConfirmClientLink\ConfirmClientLink;
 use App\Context\ClientPortal\Application\Command\DeclineBookingRequest\DeclineBookingRequest;
 use App\Context\ClientPortal\Application\Command\RejectClientLink\RejectClientLink;
 use App\Context\ClientPortal\Application\Command\RequestListingBooking\RequestListingBooking;
 use App\Context\ClientPortal\Application\Command\SyncBookingRequestFromAppointment\SyncBookingRequestFromAppointment;
 use App\Context\ClientPortal\Application\Query\ListLinkSuggestions\LinkSuggestion;
 use App\Context\ClientPortal\Application\Query\ListLinkSuggestions\ListLinkSuggestions;
+use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ClinicVeterinarianItem;
+use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ListClinicVeterinarians;
 use App\Context\Scheduling\Application\Command\DeclineExpiredPendingAppointment\DeclineExpiredPendingAppointment;
 use App\Context\Scheduling\Application\Command\ScanExpiredPendingAppointments\ScanExpiredPendingAppointments;
 use App\Context\Scheduling\Application\Query\GetOnlineAvailability\GetOnlineAvailability;
@@ -61,8 +64,12 @@ use Zenstruck\Foundry\Story;
  * |                                |                          | ago, unanswered, declined by the 15-minute scan)             |
  * | Léa Brunet (+33645120703)      | Lyon                     | **confirmed** (new client file, new pet Gaïa): linked, her   |
  * |                                |                          | appointment planned                                          |
+ * | Nadia Roche (+33645120704)     | VetApp Lyon, « Traitées »| « Rattachement » **confirmed** by Lemoine yesterday           |
+ * | Julien Petit (+33645120705)    | VetApp Lyon, « Refusées »| « Rattachement » **rejected** by Lemoine 3 days ago           |
  *
- * The expired request's decline was queued on `async` by the scan; it is
+ * Staff answers from « Demandes » are recorded with their author (the
+ * « Traitée par » column); the expiry has none. The expired request's
+ * decline was queued on `async` by the scan; it is
  * run here at once with the sync its integration event triggers (as the
  * worker would), the queued copies find it done. Dates follow the clock of
  * the load.
@@ -72,6 +79,8 @@ final class PortalOrganicArrivalStory extends Story
     public const string GARCIA_PHONE = '+33645120701';
     public const string MASSON_PHONE = '+33645120702';
     public const string BRUNET_PHONE = '+33645120703';
+    public const string ROCHE_PHONE  = '+33645120704';
+    public const string PETIT_PHONE  = '+33645120705';
 
     private const string PARIS   = ClinicDataStory::INDEPENDENT_CLINIC_ID;
     private const string LYON    = ClinicDataStory::GROUP_CLINIC_ID;
@@ -99,6 +108,7 @@ final class PortalOrganicArrivalStory extends Story
 
         $this->suggestions();
         $this->bookingRequests();
+        $this->answeredLinks();
     }
 
     /**
@@ -125,7 +135,8 @@ final class PortalOrganicArrivalStory extends Story
 
         // The Vercors does not recognise her: the request is rejected.
         $this->commandBus->dispatch(new AcceptLinkSuggestion($userId, $suggestions['Clinique du Vercors']));
-        $rejected = $this->commandBus->dispatch(new RejectClientLink(self::VERCORS, $userId, [$vercors]));
+        $rousseau = $this->user('vet@kiveto.local');
+        $rejected = $this->commandBus->dispatch(new RejectClientLink(self::VERCORS, $userId, [$vercors], $rousseau, $this->staffName(self::VERCORS, $rousseau)));
         \assert(1 === $rejected);
 
         // Paris knows her under her maiden name: pending, « nom différent ».
@@ -143,6 +154,7 @@ final class PortalOrganicArrivalStory extends Story
     private function bookingRequests(): void
     {
         $lemoine = $this->user('vet.lyon@kiveto.local');
+        $name    = $this->staffName(self::LYON, $lemoine);
         $motif   = $this->newClientMotif();
 
         $masson = $this->register(self::MASSON_PHONE, 'Hugo', 'Masson', null);
@@ -152,7 +164,7 @@ final class PortalOrganicArrivalStory extends Story
         $this->expire($expired);
 
         $declined = $this->book($masson, 'Biscotte', 'cat', $motif, 5);
-        $this->commandBus->dispatch(new DeclineBookingRequest(self::LYON, $declined, $lemoine));
+        $this->commandBus->dispatch(new DeclineBookingRequest(self::LYON, $declined, $lemoine, $name));
 
         $this->book($masson, 'Biscotte', 'cat', $motif, 8);
 
@@ -166,7 +178,74 @@ final class PortalOrganicArrivalStory extends Story
             animalChoice: ConfirmBookingRequest::NEW,
             animalId: null,
             actorUserId: $lemoine,
+            actorName: $name,
         ));
+    }
+
+    /**
+     * Two owners found Lyon among their suggestions; Lyon answered both
+     * « Rattachement » requests: one confirmed yesterday, one rejected three
+     * days ago (another person's number on the file).
+     */
+    private function answeredLinks(): void
+    {
+        $lemoine = $this->user('vet.lyon@kiveto.local');
+        $name    = $this->staffName(self::LYON, $lemoine);
+
+        $roche = $this->client(self::LYON, 'Nadia', 'Roche', self::ROCHE_PHONE, ['22 quai Saint-Antoine', '69002', 'Lyon'], '-5 years');
+        $this->pet(self::LYON, $roche, 'Câline', 'cat', 'female', 'Sacré de Birmanie', '2017-03-08');
+        $this->answerLink(self::ROCHE_PHONE, 'Nadia', 'Roche', $roche, true, $lemoine, $name, '-1 day');
+
+        $petit = $this->client(self::LYON, 'Julien', 'Petitjean', self::PETIT_PHONE, ['9 rue Royale', '69001', 'Lyon'], '-2 years');
+        $this->pet(self::LYON, $petit, 'Ulysse', 'dog', 'male', 'Border collie', '2022-05-17');
+        $this->answerLink(self::PETIT_PHONE, 'Julien', 'Petit', $petit, false, $lemoine, $name, '-3 days');
+    }
+
+    /**
+     * The owner registers and asks Lyon to link the file; staff answer. The
+     * request and the answer are then dated `$ago` (the request one hour
+     * earlier).
+     */
+    private function answerLink(string $phone, string $firstName, string $lastName, string $clientId, bool $confirm, string $staffId, string $staffName, string $ago): void
+    {
+        $userId = $this->register($phone, $firstName, $lastName, null);
+        $this->commandBus->dispatch(new AcceptLinkSuggestion($userId, $this->suggestionsOf($userId)['Clinique Vétérinaire de Lyon']));
+
+        $answered = $this->commandBus->dispatch($confirm
+            ? new ConfirmClientLink(self::LYON, $userId, [$clientId], $staffId, $staffName)
+            : new RejectClientLink(self::LYON, $userId, [$clientId], $staffId, $staffName));
+        \assert(1 === $answered);
+
+        $utc       = new \DateTimeZone('UTC');
+        $decidedAt = $this->now->modify($ago)->setTimezone($utc);
+        $user      = Uuid::fromString($userId)->toBinary();
+        $lyon      = Uuid::fromString(self::LYON)->toBinary();
+
+        $this->connection->executeStatement(
+            'UPDATE client_portal__client_links SET requested_at = ?, linked_at = IF(linked_at IS NULL, NULL, ?), revoked_at = IF(revoked_at IS NULL, NULL, ?) WHERE user_id = ? AND clinic_id = ?',
+            [$decidedAt->modify('-1 hour')->format('Y-m-d H:i:s'), $decidedAt->format('Y-m-d H:i:s'), $decidedAt->format('Y-m-d H:i:s'), $user, $lyon],
+        );
+        $this->connection->executeStatement(
+            'UPDATE client_portal__link_decisions SET decided_at = ? WHERE user_id = ? AND clinic_id = ?',
+            [$decidedAt->format('Y-m-d H:i:s'), $user, $lyon],
+        );
+    }
+
+    /** The staff member's name as « Demandes » shows it. */
+    private function staffName(string $clinicId, string $userId): string
+    {
+        $veterinarians = $this->queryBus->ask(new ListClinicVeterinarians($clinicId));
+        \assert(\is_array($veterinarians));
+
+        foreach ($veterinarians as $vet) {
+            \assert($vet instanceof ClinicVeterinarianItem);
+
+            if ($vet->userId === $userId && null !== $vet->displayName) {
+                return $vet->displayName;
+            }
+        }
+
+        return 'Équipe de la clinique';
     }
 
     /**

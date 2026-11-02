@@ -33,11 +33,12 @@ final class DeclineAndSyncBookingRequestTest extends TestCase
 
     public function testStaffDeclineFreesTheSlotAndTellsTheOwner(): void
     {
-        $this->world->declineHandler()(new DeclineBookingRequest(W::CLINIC, self::REQUEST, W::VET));
+        $this->world->declineHandler()(new DeclineBookingRequest(W::CLINIC, self::REQUEST, W::VET, 'Dr Vet'));
 
         self::assertSame([['decline', W::CLINIC, self::APPOINTMENT]], $this->world->booking->calls);
         $request = $this->world->requests->requests[self::REQUEST];
         self::assertSame([BookingRequestStatus::DECLINED, DeclineReason::DECLINED], [$request->status(), $request->declineReason()]);
+        self::assertSame([W::VET, 'Dr Vet', '2026-11-02T10:00:00+00:00'], [$request->resolvedByUserId(), $request->resolvedByName(), $request->resolvedAt()?->format('c')]);
 
         [$message] = $this->world->fakes->bookingDeclines;
         // Thursday 5 November, 13:30 UTC = 14:30 in Lyon
@@ -45,14 +46,14 @@ final class DeclineAndSyncBookingRequestTest extends TestCase
 
         // A second answer finds it resolved
         $this->expectException(BookingRequestAlreadyResolvedException::class);
-        $this->world->declineHandler()(new DeclineBookingRequest(W::CLINIC, self::REQUEST, W::VET));
+        $this->world->declineHandler()(new DeclineBookingRequest(W::CLINIC, self::REQUEST, W::VET, 'Dr Vet'));
     }
 
     public function testAnotherClinicsRequestIsNotFound(): void
     {
         $this->expectException(BookingRequestNotFoundException::class);
 
-        $this->world->declineHandler()(new DeclineBookingRequest(W::CLINIC_2, self::REQUEST, W::VET));
+        $this->world->declineHandler()(new DeclineBookingRequest(W::CLINIC_2, self::REQUEST, W::VET, 'Dr Vet'));
     }
 
     /**
@@ -73,6 +74,8 @@ final class DeclineAndSyncBookingRequestTest extends TestCase
         $this->world->syncHandler()(new SyncBookingRequestFromAppointment(self::APPOINTMENT, $outcome));
 
         self::assertSame($reason, $this->world->requests->requests[self::REQUEST]->declineReason());
+        // Scheduling's answers carry no staff member
+        self::assertSame([null, null], [$this->world->requests->requests[self::REQUEST]->resolvedByUserId(), $this->world->requests->requests[self::REQUEST]->resolvedByName()]);
         self::assertCount(1, $this->world->fakes->bookingDeclines);
     }
 

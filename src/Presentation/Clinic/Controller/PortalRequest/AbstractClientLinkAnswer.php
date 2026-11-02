@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\PortalRequest;
 
-use App\Presentation\Clinic\Controller\Shared\AbstractSheetAction;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
  * What « Confirmer » and « Refuser » a « Rattachement » share: the CSRF
- * token, the files staff were shown, and the way back (PRG with a flash).
+ * token, the files staff were shown, and the way back — JSON for the page
+ * module (`pending` while something still waits there), else PRG with a
+ * flash.
  */
-abstract class AbstractClientLinkAnswer extends AbstractSheetAction
+abstract class AbstractClientLinkAnswer extends AbstractPortalRequestAnswer
 {
     protected const string CSRF_ID = 'portal_link_request';
 
@@ -29,10 +30,16 @@ abstract class AbstractClientLinkAnswer extends AbstractSheetAction
     }
 
     /** Back on the request while something is still pending there, else on the queue. */
-    protected function back(string $userId, bool $stillPending): Response
+    protected function back(Request $request, string $userId, int $answered, string $done, bool $stillPending): Response
     {
-        return $stillPending
-            ? $this->redirectToRoute('clinic_portal_link_requests_show', ['userId' => $userId], Response::HTTP_SEE_OTHER)
-            : $this->redirectToRoute('clinic_portal_requests', [], Response::HTTP_SEE_OTHER);
+        return $this->reply(
+            $request,
+            0 !== $answered,
+            0 === $answered ? 'Demande déjà traitée.' : $done,
+            $stillPending ? 'clinic_portal_link_requests_show' : 'clinic_portal_requests',
+            $stillPending ? ['userId' => $userId] : [],
+            Response::HTTP_CONFLICT,
+            ['pending' => $stillPending],
+        );
     }
 }

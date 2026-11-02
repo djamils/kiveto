@@ -8,6 +8,7 @@ use App\Context\ClientPortal\Application\Command\ConfirmClientLink\ConfirmClient
 use App\Context\ClientPortal\Application\Query\GetClinicLinkRequest\GetClinicLinkRequest;
 use App\Context\ClientPortal\Application\Query\ListClinicLinkRequests\ClinicLinkRequest;
 use App\Presentation\Clinic\Security\ClinicPermissionGuard;
+use App\Presentation\Clinic\ViewModel\Client\StaffNameResolver;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -28,6 +29,7 @@ final class ConfirmClientLinkController extends AbstractClientLinkAnswer
         private readonly CommandBusInterface $commandBus,
         private readonly QueryBusInterface $queryBus,
         private readonly ClinicPermissionGuard $permissions,
+        private readonly StaffNameResolver $staffNames,
     ) {
     }
 
@@ -36,14 +38,11 @@ final class ConfirmClientLinkController extends AbstractClientLinkAnswer
         $this->guard($request);
         $this->permissions->require(ClinicPermissionGuard::MANAGE_ANIMALS);
 
-        $clinicId  = $this->clinicId();
-        $confirmed = $this->commandBus->dispatch(new ConfirmClientLink($clinicId, $userId, $this->clientIds($request)));
+        $clinicId              = $this->clinicId();
+        [$actorId, $actorName] = $this->actor($this->staffNames, $clinicId);
+        $confirmed             = $this->commandBus->dispatch(new ConfirmClientLink($clinicId, $userId, $this->clientIds($request), $actorId, $actorName));
         \assert(\is_int($confirmed));
 
-        $this->addFlash(0 === $confirmed ? 'error' : 'success', 0 === $confirmed
-            ? 'Demande déjà traitée.'
-            : 'Rattachement confirmé — le compte Portal accède désormais au dossier.');
-
-        return $this->back($userId, $this->queryBus->ask(new GetClinicLinkRequest($clinicId, $userId)) instanceof ClinicLinkRequest);
+        return $this->back($request, $userId, $confirmed, 'Rattachement confirmé — le compte Portal accède désormais au dossier.', $this->queryBus->ask(new GetClinicLinkRequest($clinicId, $userId)) instanceof ClinicLinkRequest);
     }
 }

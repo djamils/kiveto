@@ -19,6 +19,6 @@ final readonly class ListClinicBookingRequestsHandler
      */
     public function __invoke(ListClinicBookingRequests $query): array
     {
-        return $this->requests->pendingOf($query->clinicId);
+        return $query->decided ? $this->requests->decidedOf($query->clinicId) : $this->requests->pendingOf($query->clinicId);
     }
 }

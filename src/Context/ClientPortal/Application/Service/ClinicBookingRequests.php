@@ -23,10 +23,14 @@ use App\Context\ClientPortal\Domain\Link\ClientLinkRepositoryInterface;
  * account's phone (Client's `ListClientsByMobilePhone`), each with its
  * animals, a mismatch flag when its last name differs from the Portal
  * profile's and a flag when another account already has a confirmed link
- * to it (D17: flags, never exclusions). Only a pending request is matched.
+ * to it (D17: flags, never exclusions). Only a pending request is matched;
+ * an answered one says when and by whom.
  */
 final readonly class ClinicBookingRequests
 {
+    /** Answered requests listed at most. */
+    private const int HISTORY = 500;
+
     public function __construct(
         private BookingRequestRepositoryInterface $requests,
         private ClientDirectoryInterface $clients,
@@ -54,6 +58,24 @@ final readonly class ClinicBookingRequests
         return array_map(fn (BookingRequest $request): ClinicBookingRequest => $this->view($request, $zone), $pending);
     }
 
+    /**
+     * The confirmed and declined ones, the latest answered first.
+     *
+     * @return list<ClinicBookingRequest>
+     */
+    public function decidedOf(string $clinicId): array
+    {
+        $decided = $this->requests->findDecidedByClinic($clinicId, self::HISTORY);
+
+        if ([] === $decided) {
+            return [];
+        }
+
+        $zone = new \DateTimeZone($this->clinics->clinicOf($clinicId)->timeZone);
+
+        return array_map(fn (BookingRequest $request): ClinicBookingRequest => $this->view($request, $zone), $decided);
+    }
+
     public function one(string $clinicId, string $requestId): ?ClinicBookingRequest
     {
         $request = $this->requests->findInClinic($clinicId, $requestId);
@@ -79,6 +101,8 @@ final readonly class ClinicBookingRequests
             attachedClientId: $request->clientId(),
             appointmentId: $request->appointmentId(),
             matches: $this->matches($request),
+            resolvedAt: $request->resolvedAt()?->setTimezone($zone),
+            resolvedByName: $request->resolvedByName(),
         );
     }
 

@@ -10,17 +10,21 @@ use App\Shared\Application\Bus\CommandInterface;
  * VetApp « Rattachement » → « Refuser »: the account's pending links to
  * these files of the clinic are revoked (`link_rejected`), so the clinic is
  * never suggested again for them. No consent changes (D5). Returns how many
- * links were rejected (0: nothing was pending any more).
+ * links were rejected (0: nothing was pending any more). The answer is
+ * recorded (who, when, which files) when it rejected one at least.
  */
 final readonly class RejectClientLink implements CommandInterface
 {
     /**
      * @param list<string> $clientIds
+     * @param string       $actorName the staff member's name, kept on the decision
      */
     public function __construct(
         public string $clinicId,
         public string $userId,
         public array $clientIds,
+        public string $actorUserId,
+        public string $actorName,
     ) {
     }
 }

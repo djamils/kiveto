@@ -242,13 +242,104 @@ abstract class PortalRequestTestCase extends WebTestCase
         return (string) $this->browser->getResponse()->getContent();
     }
 
+    /**
+     * The page module's payload of a « Demandes » page.
+     *
+     * @return array<array-key, mixed>
+     */
+    protected function payload(string $path): array
+    {
+        $crawler = $this->browser->request('GET', self::HOST . $path);
+        self::assertResponseIsSuccessful();
+
+        return self::arr(json_decode((string) $crawler->filter('[data-payload]')->attr('data-payload'), true, 512, \JSON_THROW_ON_ERROR));
+    }
+
+    /**
+     * A JSON answer of the page module's endpoints.
+     *
+     * @return array<array-key, mixed>
+     */
+    protected function json(string $path): array
+    {
+        $this->browser->request('GET', self::HOST . $path, server: ['HTTP_ACCEPT' => 'application/json']);
+        self::assertResponseIsSuccessful();
+
+        return self::arr(json_decode((string) $this->browser->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR));
+    }
+
+    /**
+     * The sheet open on a request page.
+     *
+     * @return array<array-key, mixed>
+     */
+    protected function sheet(string $path): array
+    {
+        return self::arr($this->payload($path)['sheet']);
+    }
+
+    /**
+     * The rows of the register a page shows.
+     *
+     * @return list<array<array-key, mixed>>
+     */
+    protected function rows(string $path): array
+    {
+        return self::rowsOf(self::arr($this->payload($path)['register']));
+    }
+
+    /**
+     * The ids of the rows of the register a page shows.
+     *
+     * @return list<mixed>
+     */
+    protected function ids(string $path): array
+    {
+        return array_column($this->rows($path), 'id');
+    }
+
+    /**
+     * @param array<array-key, mixed> $register
+     *
+     * @return list<array<array-key, mixed>>
+     */
+    protected static function rowsOf(array $register): array
+    {
+        $rows = $register['rows'];
+        \assert(\is_array($rows));
+
+        return array_values(array_map(self::arr(...), $rows));
+    }
+
+    /**
+     * The given keys of a row, in that order.
+     *
+     * @param array<array-key, mixed> $row
+     *
+     * @return array<string, mixed>
+     */
+    protected static function pick(array $row, string ...$keys): array
+    {
+        return array_combine($keys, array_map(static fn (string $key): mixed => $row[$key] ?? null, $keys));
+    }
+
+    /**
+     * @return array<array-key, mixed>
+     */
+    protected static function arr(mixed $value): array
+    {
+        self::assertIsArray($value);
+
+        return $value;
+    }
+
     /** The token of the answer form of a request page. */
     protected function token(string $requestId): string
     {
-        $crawler = $this->browser->request('GET', self::HOST . '/portal-requests/' . $requestId);
-        self::assertResponseIsSuccessful();
+        $token = self::arr($this->payload('/portal-requests/' . $requestId)['tokens'])['request'];
+        \assert(\is_string($token));
 
-        return (string) $crawler->filter('#prqForm input[name="_token"]')->attr('value');
+        return $token;
     }
 
     /**

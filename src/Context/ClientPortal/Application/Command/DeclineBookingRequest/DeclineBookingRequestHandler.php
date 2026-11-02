@@ -16,7 +16,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 /**
  * One transaction: the request read `FOR UPDATE` and still pending, the
  * appointment declined in Scheduling (the slot is freed; its refusals pass
- * through), the request `declined` (`declined`), then
+ * through), the request `declined` (`declined`) by the staff member, then
  * `PORTAL_BOOKING_DECLINED` to the requester's phone. Scheduling's
  * integration event later finds the request resolved and sends nothing.
  */
@@ -46,7 +46,7 @@ final readonly class DeclineBookingRequestHandler
 
         $this->booking->decline($request->clinicId(), $request->appointmentId());
 
-        $request->decline(DeclineReason::DECLINED, $this->clock->now());
+        $request->decline(DeclineReason::DECLINED, $this->clock->now(), $command->actorUserId, $command->actorName);
         $this->requests->save($request);
 
         $this->notice->send($request);

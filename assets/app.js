@@ -1,3 +1,8 @@
+// First: its popstate listener must be added before Turbo's (Turbo starts
+// with stimulus_bootstrap). A page module that writes its own history
+// entries registers a handler there and replays them in place; only the
+// entries it claims are kept from Turbo. Nothing registered: native / Turbo.
+import 'kiveto/history';
 import './stimulus_bootstrap.js';
 import './styles/app.css';
 import { initUI } from 'kiveto/ui';

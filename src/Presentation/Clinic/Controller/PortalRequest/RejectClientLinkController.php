@@ -8,6 +8,7 @@ use App\Context\ClientPortal\Application\Command\RejectClientLink\RejectClientLi
 use App\Context\ClientPortal\Application\Query\GetClinicLinkRequest\GetClinicLinkRequest;
 use App\Context\ClientPortal\Application\Query\ListClinicLinkRequests\ClinicLinkRequest;
 use App\Presentation\Clinic\Security\ClinicPermissionGuard;
+use App\Presentation\Clinic\ViewModel\Client\StaffNameResolver;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -28,6 +29,7 @@ final class RejectClientLinkController extends AbstractClientLinkAnswer
         private readonly CommandBusInterface $commandBus,
         private readonly QueryBusInterface $queryBus,
         private readonly ClinicPermissionGuard $permissions,
+        private readonly StaffNameResolver $staffNames,
     ) {
     }
 
@@ -36,14 +38,11 @@ final class RejectClientLinkController extends AbstractClientLinkAnswer
         $this->guard($request);
         $this->permissions->require(ClinicPermissionGuard::MANAGE_ANIMALS);
 
-        $clinicId = $this->clinicId();
-        $rejected = $this->commandBus->dispatch(new RejectClientLink($clinicId, $userId, $this->clientIds($request)));
+        $clinicId              = $this->clinicId();
+        [$actorId, $actorName] = $this->actor($this->staffNames, $clinicId);
+        $rejected              = $this->commandBus->dispatch(new RejectClientLink($clinicId, $userId, $this->clientIds($request), $actorId, $actorName));
         \assert(\is_int($rejected));
 
-        $this->addFlash(0 === $rejected ? 'error' : 'success', 0 === $rejected
-            ? 'Demande déjà traitée.'
-            : 'Rattachement refusé — la clinique ne sera plus proposée à ce compte Portal.');
-
-        return $this->back($userId, $this->queryBus->ask(new GetClinicLinkRequest($clinicId, $userId)) instanceof ClinicLinkRequest);
+        return $this->back($request, $userId, $rejected, 'Rattachement refusé — la clinique ne sera plus proposée à ce compte Portal.', $this->queryBus->ask(new GetClinicLinkRequest($clinicId, $userId)) instanceof ClinicLinkRequest);
     }
 }
