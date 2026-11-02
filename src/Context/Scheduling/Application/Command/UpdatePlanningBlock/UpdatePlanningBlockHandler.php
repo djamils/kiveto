@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Context\Scheduling\Application\Command\UpdatePlanningBlock;
 
 use App\Context\Scheduling\Application\Port\ClinicTimezoneResolverInterface;
-use App\Context\Scheduling\Application\Port\PlanningBlockAppointmentCounterInterface;
+use App\Context\Scheduling\Application\Port\OccupyingAppointmentsReaderInterface;
 use App\Context\Scheduling\Application\Port\PlanningBlockOverlapCheckerInterface;
 use App\Context\Scheduling\Application\Port\PractitionerDayLockInterface;
+use App\Context\Scheduling\Domain\Booking\BusyInterval;
 use App\Context\Scheduling\Domain\Exception\CannotChangePlanningBlockTypeWithActiveAppointments;
+use App\Context\Scheduling\Domain\Exception\CannotCreateOverlappingPlanningBlock;
 use App\Context\Scheduling\Domain\Exception\CannotModifyRecurrenceRuleOnExistingBlock;
 use App\Context\Scheduling\Domain\Exception\CannotReduceCapacityBelowExistingAppointmentCount;
 use App\Context\Scheduling\Domain\Exception\CannotShrinkPlanningBlockBelowExistingAppointments;
@@ -16,6 +18,7 @@ use App\Context\Scheduling\Domain\Exception\PlanningBlockNotFoundException;
 use App\Context\Scheduling\Domain\Repository\PlanningBlockRepositoryInterface;
 use App\Context\Scheduling\Domain\Service\BlockCapacity;
 use App\Context\Scheduling\Domain\Service\LockKeys;
+use App\Context\Scheduling\Domain\Service\PlanningBlockOccurrences;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\PlanningBlockId;
 use App\Context\Scheduling\Domain\ValueObject\PlanningBlockType;
@@ -31,7 +34,7 @@ final readonly class UpdatePlanningBlockHandler
     public function __construct(
         private PlanningBlockRepositoryInterface $repository,
         private PlanningBlockOverlapCheckerInterface $overlapChecker,
-        private PlanningBlockAppointmentCounterInterface $appointmentCounter,
+        private OccupyingAppointmentsReaderInterface $appointmentsReader,
         private ClinicTimezoneResolverInterface $timezoneResolver,
         private PractitionerDayLockInterface $dayLock,
         private ClockInterface $clock,
@@ -64,7 +67,8 @@ final readonly class UpdatePlanningBlockHandler
             LockKeys::forBlock($staffUserId, $newRange, $newRule, $today),
         ));
 
-        $this->overlapChecker->hasOverlap(
+        // Same rule as a creation: no two blocks of a staff member overlap
+        $hasOverlap = $this->overlapChecker->hasOverlap(
             $clinicId,
             $staffUserId,
             $command->date,
@@ -73,10 +77,13 @@ final readonly class UpdatePlanningBlockHandler
             $blockId,
         );
 
-        $startUtc = $newRange->toUtcStart($tz);
-        $endUtc   = $newRange->toUtcEnd($tz);
-
-        $count = $this->appointmentCounter->countOccupyingInWindowLocked($clinicId, $staffUserId, $startUtc, $endUtc);
+        if ($hasOverlap) {
+            throw new CannotCreateOverlappingPlanningBlock(\sprintf(
+                'Planning block overlaps with an existing block for staff member "%s" on %s.',
+                $command->staffUserId,
+                $command->date,
+            ));
+        }
 
         // D.4 — recurrence rule immutable once set
         $ruleChanged = $newRule->freq() !== $block->recurrenceRule()->freq()
@@ -88,31 +95,60 @@ final readonly class UpdatePlanningBlockHandler
             );
         }
 
+        $current = new PlanningBlockOccurrences($block->timeRange(), $block->recurrenceRule(), $tz, $today);
+        $next    = new PlanningBlockOccurrences($newRange, $newRule, $tz, $today);
+
+        // What the block holds now, in every future occurrence: the original practitioner's appointments
+        $held = $current->held($this->appointmentsReader->occupyingBetween(
+            $clinicId,
+            $block->staffUserId(),
+            $current->fromUtc(),
+            $current->toUtc(),
+            currentRead: true,
+        ));
+
         // D.1 — type change with active appointments
-        if ($newType !== $block->type() && $count > 0) {
+        if ($newType !== $block->type() && [] !== $held) {
             throw new CannotChangePlanningBlockTypeWithActiveAppointments(
                 'Cannot change block type while appointments exist in this window.'
             );
         }
 
-        // D.2/D.5 — window shrunk or staff member changed with active appointments
-        $rangeChanged = !$newRange->equals($block->timeRange());
+        // D.2/D.5 — an appointment would lose its block: staff member changed (the original
+        // practitioner's appointments), or window moved or shrunk past it — one inside the
+        // block must stay inside, one straddling its edge must still meet it
         $staffChanged = !$staffUserId->equals($block->staffUserId());
-        if (($rangeChanged || $staffChanged) && $count > 0) {
+        $orphaned     = $staffChanged
+            ? $held
+            : array_filter($held, static fn (BusyInterval $appointment): bool => $current->contains($appointment)
+                ? !$next->contains($appointment)
+                : [] === $next->held([$appointment]));
+
+        if ([] !== $orphaned) {
             throw new CannotShrinkPlanningBlockBelowExistingAppointments(
                 'Cannot shrink block window or change staff member while appointments exist in this window.'
             );
         }
 
-        // D.3 — capacity reduction below existing appointment count
+        // D.3 — capacity reduction below the appointments of an occurrence
         $capacityForSlot = BlockCapacity::of($command->capacityPerHour, $newRange->durationMinutes());
-        if ($capacityForSlot > 0 && $count > $capacityForSlot) {
-            throw new CannotReduceCapacityBelowExistingAppointmentCount(
-                'Cannot reduce capacity below the number of existing appointments in this window.'
-            );
+        if ($capacityForSlot > 0) {
+            $busiest = $next->busiestOccurrence($this->appointmentsReader->occupyingBetween(
+                $clinicId,
+                $staffUserId,
+                $next->fromUtc(),
+                $next->toUtc(),
+                currentRead: true,
+            ));
+
+            if ($busiest > $capacityForSlot) {
+                throw new CannotReduceCapacityBelowExistingAppointmentCount(
+                    'Cannot reduce capacity below the number of existing appointments in this window.'
+                );
+            }
         }
 
-        $block->update($newType, $newRange, $command->capacityPerHour, $newRule, $command->note);
+        $block->update($staffUserId, $newType, $newRange, $command->capacityPerHour, $newRule, $command->note);
 
         $this->repository->save($block);
     }

@@ -34,6 +34,7 @@ final class OutboundMessage extends AggregateRoot
     public const string SOURCE_REQUEST  = 'request';
     public const string SOURCE_DISPATCH = 'dispatch';
     public const string SOURCE_PROVIDER = 'provider';
+    public const string SOURCE_ERASURE  = 'erasure';
 
     /**
      * @param list<Attachment>   $attachments
@@ -205,6 +206,22 @@ final class OutboundMessage extends AggregateRoot
     }
 
     /**
+     * The message is withdrawn before it was handed over (its Portal account
+     * was deleted): CANCELLED, final, never sent. Only a QUEUED message can
+     * be cancelled; a dispatch still on the transport then skips it.
+     */
+    public function cancel(string $reason, \DateTimeImmutable $at): bool
+    {
+        if (DeliveryStatus::QUEUED !== $this->status) {
+            return false;
+        }
+
+        $this->apply(new StatusChange(DeliveryStatus::CANCELLED, $at, self::SOURCE_ERASURE, $reason));
+
+        return true;
+    }
+
+    /**
      * Whether the one-time link of the message (invitation, password reset)
      * has expired by $now: sending it would only deliver a dead link.
      */
@@ -221,7 +238,7 @@ final class OutboundMessage extends AggregateRoot
      */
     public function recordStatus(DeliveryStatus $status, \DateTimeImmutable $occurredAt, string $source, ?string $reason = null): bool
     {
-        if (\in_array($status, [DeliveryStatus::QUEUED, DeliveryStatus::BLOCKED_CAP], true)) {
+        if (\in_array($status, [DeliveryStatus::QUEUED, DeliveryStatus::BLOCKED_CAP, DeliveryStatus::CANCELLED], true)) {
             throw new \InvalidArgumentException(\sprintf('%s is not a status a provider reports.', $status->value));
         }
 

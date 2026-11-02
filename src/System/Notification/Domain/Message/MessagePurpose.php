@@ -65,6 +65,25 @@ enum MessagePurpose: string
     }
 
     /**
+     * Whether a message of this purpose still QUEUED when its Portal account
+     * is deleted is cancelled rather than sent. This is not the SMS-cap
+     * criticality(): once the account is gone,
+     * - a one-time code (PORTAL_OTP, PORTAL_EMAIL_VERIFICATION) opens nothing
+     *   (the account is disabled, its challenges deleted);
+     * - the export notice (PORTAL_DATA_EXPORT_READY) announces an archive
+     *   already deleted;
+     * - the decline of a booking request (PORTAL_BOOKING_DECLINED, non-critical)
+     *   answers a request the deletion closed without message.
+     * The e-mail change notice (PORTAL_EMAIL_CHANGED_NOTICE) stays critical:
+     * a security alert to the previous address — after a takeover followed by
+     * a deletion, the only warning that address gets — so it still goes out.
+     */
+    public function isCancelledAtAccountDeletion(): bool
+    {
+        return $this->isPortalAccountMessage() && self::PORTAL_EMAIL_CHANGED_NOTICE !== $this;
+    }
+
+    /**
      * How long the one-time link the message carries can be used (the
      * IdentityAccess token lifetimes, the Portal one-time code and invitation),
      * from when the message is requested; null when it carries none.

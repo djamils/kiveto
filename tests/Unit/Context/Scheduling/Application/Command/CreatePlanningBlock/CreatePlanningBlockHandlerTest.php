@@ -82,6 +82,35 @@ final class CreatePlanningBlockHandlerTest extends TestCase
     }
 
     #[AllowMockObjectsWithoutExpectations]
+    public function testEveryRecurrenceFrequencyIsKept(): void
+    {
+        $this->overlapChecker->method('hasOverlap')->willReturn(false);
+        $this->uuidGenerator->method('generate')->willReturn('01234567-89ab-cdef-0123-456789abcdef');
+
+        $saved = [];
+        $this->repository->method('save')->willReturnCallback(static function (PlanningBlock $block) use (&$saved): void {
+            $saved[] = [$block->recurrenceRule()->freq(), $block->recurrenceRule()->until()];
+        });
+
+        foreach (['daily', 'WEEKDAYS'] as $freq) {
+            ($this->handler)(new CreatePlanningBlock(
+                clinicId: '11111111-1111-1111-1111-111111111111',
+                staffUserId: '22222222-2222-2222-2222-222222222222',
+                type: 'consultation',
+                date: '2026-04-21',
+                startTime: '08:00',
+                endTime: '12:00',
+                capacityPerHour: 3,
+                recurrenceFreq: $freq,
+                recurrenceUntil: '2026-05-31',
+                note: null,
+            ));
+        }
+
+        self::assertSame([['DAILY', '2026-05-31'], ['WEEKDAYS', '2026-05-31']], $saved);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
     public function testAOneOffBlockLocksItsDayBeforeTheOverlapCheck(): void
     {
         $this->overlapChecker->method('hasOverlap')->willReturnCallback(function (): bool {

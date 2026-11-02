@@ -6,9 +6,11 @@ namespace App\Tests\Unit\Context\Scheduling\Application\Command\CancelAppointmen
 
 use App\Context\Scheduling\Application\Command\CancelAppointment\CancelAppointment;
 use App\Context\Scheduling\Application\Command\CancelAppointment\CancelAppointmentHandler;
+use App\Context\Scheduling\Application\Service\PendingAppointmentLoader;
 use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Event\AppointmentCancelled;
 use App\Context\Scheduling\Domain\Event\AppointmentDeclined;
+use App\Context\Scheduling\Domain\Exception\AppointmentAlreadyHandledException;
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentSource;
@@ -22,6 +24,8 @@ use App\Context\Scheduling\Domain\ValueObject\UserId;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Tests\Unit\Context\Scheduling\Support\CapturingEventBus;
+use App\Tests\Unit\Context\Scheduling\Support\ParisTimezone;
+use App\Tests\Unit\Context\Scheduling\Support\RecordingDayLock;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -34,6 +38,7 @@ final class CancelAppointmentHandlerTest extends TestCase
     private ClockInterface&MockObject $clock;
     private CancelAppointmentHandler $handler;
     private CapturingEventBus $events;
+    private RecordingDayLock $dayLock;
 
     protected function setUp(): void
     {
@@ -41,8 +46,10 @@ final class CancelAppointmentHandlerTest extends TestCase
         $this->clock                 = $this->createMock(ClockInterface::class);
 
         $this->events  = new CapturingEventBus();
+        $this->dayLock = new RecordingDayLock();
         $this->handler = new CancelAppointmentHandler(
             $this->appointmentRepository,
+            new PendingAppointmentLoader($this->appointmentRepository, new ParisTimezone(), $this->dayLock),
             $this->clock,
             new DomainEventPublisher($this->events),
         );
@@ -62,6 +69,9 @@ final class CancelAppointmentHandlerTest extends TestCase
         $this->clock->expects(self::once())->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:55:00'));
 
         ($this->handler)(new CancelAppointment($appointmentId->toString(), self::CLINIC));
+
+        // A planned appointment needs no practitioner-day lock
+        self::assertSame([], $this->dayLock->locked);
 
         // Published after the save: the scheduling subscribers react to it.
         $cancelled = array_values(array_filter($this->events->events, static fn (object $e): bool => $e instanceof AppointmentCancelled));
@@ -101,33 +111,74 @@ final class CancelAppointmentHandlerTest extends TestCase
     }
 
     #[AllowMockObjectsWithoutExpectations]
-    public function testTheClinicCancellingAPendingRequestDeclinesIt(): void
+    public function testTheClinicCancellingAPendingRequestDeclinesItUnderTheLocks(): void
     {
-        $appointmentId = AppointmentId::fromString('11111111-1111-1111-1111-111111111111');
-        $appointment   = Appointment::request(
-            id: $appointmentId,
-            clinicId: ClinicId::fromString(self::CLINIC),
-            practitionerAssignee: new PractitionerAssignee(UserId::fromString('44444444-4444-4444-4444-444444444444')),
-            timeSlot: new TimeSlot(new \DateTimeImmutable('2026-04-10 09:00:00'), 30),
-            reason: null,
-            notes: null,
-            createdAt: new \DateTimeImmutable('2026-04-09 12:00:00'),
-            ownerId: null,
-            animalId: null,
-            bookingMotifId: null,
-            source: AppointmentSource::PORTAL,
-            pendingExpiresAt: new \DateTimeImmutable('2026-04-10 07:00:00'),
-        );
+        $appointment = $this->makePending();
 
         $this->appointmentRepository->method('findById')->willReturn($appointment);
+        $this->appointmentRepository->expects(self::once())->method('findByIdForUpdate')->willReturn($appointment);
         $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 06:00:00'));
 
-        ($this->handler)(new CancelAppointment($appointmentId->toString(), self::CLINIC));
+        ($this->handler)(new CancelAppointment($appointment->id()->toString(), self::CLINIC));
 
         self::assertSame(AppointmentStatus::DECLINED, $appointment->status());
         $declined = array_values(array_filter($this->events->events, static fn (object $e): bool => $e instanceof AppointmentDeclined));
         self::assertCount(1, $declined);
         self::assertSame('clinic_cancelled', $declined[0]->reason());
+        // 11:00 Paris on 10 April: that day of the practitioner, before the row read for update
+        self::assertSame(['44444444-4444-4444-4444-444444444444|2026-04-10'], $this->dayLock->locked);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testAClinicCancelOfARequestConfirmedMeanwhileLosesTheRace(): void
+    {
+        $seen    = $this->makePending();
+        $current = $this->makePending();
+        $current->confirm();
+        $_ = $current->pullDomainEvents();
+
+        $this->appointmentRepository->method('findById')->willReturn($seen);
+        $this->appointmentRepository->method('findByIdForUpdate')->willReturn($current);
+        $this->appointmentRepository->expects(self::never())->method('save');
+
+        try {
+            ($this->handler)(new CancelAppointment($seen->id()->toString(), self::CLINIC));
+            self::fail('The confirmation won: the decline must be refused.');
+        } catch (AppointmentAlreadyHandledException $e) {
+            self::assertSame('Ce RDV a déjà été traité.', $e->getMessage());
+        }
+
+        self::assertSame(AppointmentStatus::PLANNED, $current->status());
+        self::assertSame([], $this->events->events);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testAClientCancelOfARequestConfirmedMeanwhileCancelsIt(): void
+    {
+        $seen    = $this->makePending();
+        $current = $this->makePending();
+        $current->confirm();
+        $_ = $current->pullDomainEvents();
+
+        $this->appointmentRepository->method('findById')->willReturn($seen);
+        $this->appointmentRepository->method('findByIdForUpdate')->willReturn($current);
+        $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 06:00:00'));
+
+        ($this->handler)(new CancelAppointment($seen->id()->toString(), self::CLINIC, cancelledBy: 'client'));
+
+        self::assertSame(AppointmentStatus::CANCELLED, $current->status());
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testAPendingRequestGoneUnderTheLockIsReportedAsMissing(): void
+    {
+        $this->appointmentRepository->method('findById')->willReturn($this->makePending());
+        $this->appointmentRepository->method('findByIdForUpdate')->willReturn(null);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Appointment with ID "11111111-1111-1111-1111-111111111111" does not exist.');
+
+        ($this->handler)(new CancelAppointment('11111111-1111-1111-1111-111111111111', self::CLINIC));
     }
 
     #[AllowMockObjectsWithoutExpectations]
@@ -169,6 +220,24 @@ final class CancelAppointmentHandlerTest extends TestCase
         $this->expectExceptionMessage('Impossible d\'annuler un rendez-vous passé.');
 
         ($this->handler)(new CancelAppointment($appointmentId->toString(), self::CLINIC));
+    }
+
+    private function makePending(): Appointment
+    {
+        return Appointment::request(
+            id: AppointmentId::fromString('11111111-1111-1111-1111-111111111111'),
+            clinicId: ClinicId::fromString(self::CLINIC),
+            practitionerAssignee: new PractitionerAssignee(UserId::fromString('44444444-4444-4444-4444-444444444444')),
+            timeSlot: new TimeSlot(new \DateTimeImmutable('2026-04-10 09:00:00', new \DateTimeZone('UTC')), 30),
+            reason: null,
+            notes: null,
+            createdAt: new \DateTimeImmutable('2026-04-09 12:00:00', new \DateTimeZone('UTC')),
+            ownerId: null,
+            animalId: null,
+            bookingMotifId: null,
+            source: AppointmentSource::PORTAL,
+            pendingExpiresAt: new \DateTimeImmutable('2026-04-10 07:00:00', new \DateTimeZone('UTC')),
+        );
     }
 
     private function makeAppointment(AppointmentId $id): Appointment

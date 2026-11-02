@@ -91,12 +91,14 @@ final class PlanningBlock extends AggregateRoot
     }
 
     public function update(
+        UserId $newStaffUserId,
         PlanningBlockType $newType,
         TimeRange $newRange,
         int $newCapacity,
         RecurrenceRule $newRule,
         ?string $newNote,
     ): void {
+        $this->staffUserId     = $newStaffUserId;
         $this->type            = $newType;
         $this->timeRange       = $newRange;
         $this->capacityPerHour = $newCapacity;

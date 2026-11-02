@@ -345,7 +345,9 @@ confirms it (`RequestAccountDeletion`).
      declined); each must be idempotent;
   5. `DeleteUserDataExports` (exports and archives);
   6. Notification `MaskPortalRecipient(phone, email)`: Kiveto's own messages
-     to the owner (codes and account notices) lose recipient and bodies; the
+     to the owner (codes and account notices) lose recipient and bodies; those
+     still queued (codes, export notice, booking decline) are cancelled and
+     never sent — only an e-mail change security notice still goes out; the
      clinics' messages, the Portal invitation included, stay;
   7. `OwnerProfile::anonymise()` (« Compte supprimé », address erased; the
      terms acceptance stays);

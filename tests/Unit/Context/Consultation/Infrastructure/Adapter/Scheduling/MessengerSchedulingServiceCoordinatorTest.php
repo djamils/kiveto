@@ -8,6 +8,7 @@ use App\Context\Consultation\Domain\ValueObject\AppointmentId;
 use App\Context\Consultation\Domain\ValueObject\UserId;
 use App\Context\Consultation\Infrastructure\Adapter\Scheduling\MessengerSchedulingServiceCoordinator;
 use App\Context\Scheduling\Application\Command\CompleteAppointment\CompleteAppointment;
+use App\Context\Scheduling\Application\Command\ConfirmPendingAppointmentSilently\ConfirmPendingAppointmentSilently;
 use App\Shared\Application\Bus\CommandBusInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -26,11 +27,16 @@ final class MessengerSchedulingServiceCoordinatorTest extends TestCase
         $this->coordinator = new MessengerSchedulingServiceCoordinator($this->commandBus);
     }
 
-    public function testEnsureAppointmentInServiceIsANoopForNow(): void
+    public function testEnsureAppointmentInServiceConfirmsAPendingRequestSilently(): void
     {
-        // The Scheduling BC does not yet expose a StartServiceForAppointment command,
-        // so this method must currently NOT call the bus.
-        $this->commandBus->expects(self::never())->method('dispatch');
+        // The client is on site: Scheduling confirms a pending request without any message
+        $this->commandBus->expects(self::once())
+            ->method('dispatch')
+            ->with(self::callback(
+                static fn (ConfirmPendingAppointmentSilently $cmd): bool => self::APPOINTMENT_ID === $cmd->appointmentId && null === $cmd->clinicId,
+            ))
+            ->willReturn(null)
+        ;
 
         $this->coordinator->ensureAppointmentInService(
             AppointmentId::fromString(self::APPOINTMENT_ID),

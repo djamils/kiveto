@@ -6,6 +6,8 @@ namespace App\Tests\Unit\Context\Scheduling\Application\Command\CompleteAppointm
 
 use App\Context\Scheduling\Application\Command\CompleteAppointment\CompleteAppointment;
 use App\Context\Scheduling\Application\Command\CompleteAppointment\CompleteAppointmentHandler;
+use App\Context\Scheduling\Application\Service\PendingAppointmentLoader;
+use App\Context\Scheduling\Application\Service\SilentPendingConfirmation;
 use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Event\AppointmentCompleted;
 use App\Context\Scheduling\Domain\Event\AppointmentConfirmed;
@@ -20,6 +22,8 @@ use App\Context\Scheduling\Domain\ValueObject\UserId;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Tests\Unit\Context\Scheduling\Support\Appointments;
 use App\Tests\Unit\Context\Scheduling\Support\CapturingEventBus;
+use App\Tests\Unit\Context\Scheduling\Support\ParisTimezone;
+use App\Tests\Unit\Context\Scheduling\Support\RecordingDayLock;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -28,12 +32,18 @@ final class CompleteAppointmentHandlerTest extends TestCase
     private AppointmentRepositoryInterface&MockObject $repository;
     private CompleteAppointmentHandler $handler;
     private CapturingEventBus $events;
+    private RecordingDayLock $dayLock;
 
     protected function setUp(): void
     {
         $this->repository = $this->createMock(AppointmentRepositoryInterface::class);
         $this->events     = new CapturingEventBus();
-        $this->handler    = new CompleteAppointmentHandler($this->repository, new DomainEventPublisher($this->events));
+        $this->dayLock    = new RecordingDayLock();
+        $this->handler    = new CompleteAppointmentHandler(
+            new SilentPendingConfirmation($this->repository, new PendingAppointmentLoader($this->repository, new ParisTimezone(), $this->dayLock)),
+            $this->repository,
+            new DomainEventPublisher($this->events),
+        );
     }
 
     public function testCompleteAppointmentSuccessfully(): void
@@ -63,6 +73,7 @@ final class CompleteAppointmentHandlerTest extends TestCase
         // AC 140: the client is on site — PLANNED then COMPLETED, Confirmed{silent} published
         $pending = Appointments::pending();
         $this->repository->expects(self::once())->method('findById')->willReturn($pending);
+        $this->repository->expects(self::once())->method('findByIdForUpdate')->willReturn($pending);
 
         ($this->handler)(new CompleteAppointment(Appointments::ID));
 
@@ -72,6 +83,8 @@ final class CompleteAppointmentHandlerTest extends TestCase
         self::assertInstanceOf(AppointmentConfirmed::class, $confirmed);
         self::assertTrue($confirmed->silent());
         self::assertInstanceOf(AppointmentCompleted::class, $this->events->events[1] ?? null);
+        // The silent confirmation path takes the practitioner-day lock
+        self::assertSame([Appointments::ROUSSEAU . '|2026-10-22'], $this->dayLock->locked);
     }
 
     public function testFailsWhenAppointmentNotFound(): void

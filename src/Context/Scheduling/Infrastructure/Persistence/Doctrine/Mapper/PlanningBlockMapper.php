@@ -51,6 +51,7 @@ final class PlanningBlockMapper
 
     public function updateEntity(PlanningBlock $block, PlanningBlockEntity $entity): void
     {
+        $entity->setStaffUserId(Uuid::fromString($block->staffUserId()->toString()));
         $entity->setType($block->type());
         $entity->setDate($block->timeRange()->date());
         $entity->setStartTime($block->timeRange()->startTime());

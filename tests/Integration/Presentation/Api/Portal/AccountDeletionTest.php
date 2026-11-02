@@ -23,8 +23,11 @@ use App\Shared\Domain\Storage\FileStorageInterface;
 use App\Shared\Domain\ValueObject\EmailAddress;
 use App\Shared\Domain\ValueObject\PhoneNumber;
 use App\System\Notification\Application\Command\RequestNotification\RequestNotification;
+use App\System\Notification\Application\Port\EmailSenderInterface;
+use App\System\Notification\Application\Port\SmsSenderInterface;
 use App\Tests\Support\Document\RecordingPdfRenderer;
 use App\Tests\Support\MessengerDrain;
+use App\Tests\Unit\System\Notification\Support\FakeSenders;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -177,6 +180,49 @@ final class AccountDeletionTest extends PortalApiTestCase
         self::assertNotSame($userId, self::array($again['account'])['id']);
         self::assertSame(1, $this->number("SELECT COUNT(*) FROM identity_access__users WHERE phone = ? AND type = 'PORTAL'", [self::PHONE]));
         self::assertSame(200, $this->get('/me', ['HTTP_AUTHORIZATION' => 'Bearer ' . self::string($again['accessToken'])])->getStatusCode());
+    }
+
+    /**
+     * Given a deleted Portal account with messages still queued to its phone,
+     * then non-critical ones are cancelled and never sent, and every message
+     * to that phone has its recipient masked.
+     */
+    public function testMessagesStillQueuedToTheDeletedAccountAreNeverSent(): void
+    {
+        $senders = new FakeSenders();
+        $this->browser->getContainer()->set(SmsSenderInterface::class, $senders);
+        $this->browser->getContainer()->set(EmailSenderInterface::class, $senders);
+
+        PortalUserFactory::new()->withPhone(self::PHONE)->create();
+        $bearer     = $this->bearerOf(self::PHONE);
+        $deletionId = self::json($this->post('/me/deletion-request/otp', [], $bearer), 202)['challengeId'];
+        $this->commandBus()->dispatch(new RequestNotification(
+            purpose: 'PORTAL_BOOKING_DECLINED',
+            channel: 'SMS',
+            recipientAddress: self::PHONE,
+            recipientName: '',
+            clinicId: null,
+            clientId: null,
+            subjectType: 'booking_request',
+            subjectId: '01960000-0000-7000-8000-0000000a37ff',
+            idempotencyKey: 'portal-booking-declined:01960000-0000-7000-8000-0000000a37ff',
+            parameters: ['clinicName' => 'Clinique des Lilas', 'slotLabel' => 'jeudi 22/10 à 9h30'],
+        ));
+        $toPhone = 'SELECT purpose, status, recipient_address, sent_at, external_message_id FROM notification__outbound_messages WHERE purpose IN (\'PORTAL_OTP\', \'PORTAL_BOOKING_DECLINED\') AND (recipient_address = ? OR recipient_address IS NULL) ORDER BY created_at, id';
+        self::assertSame(['QUEUED'], array_values(array_unique(array_column($this->connection()->fetchAllAssociative($toPhone, [self::PHONE]), 'status'))), 'nothing handed over yet');
+
+        self::assertSame(202, $this->post('/me/deletion-request', ['challengeId' => $deletionId, 'code' => $this->lastOtpCode()], $bearer)->getStatusCode());
+        MessengerDrain::drain($this->browser->getContainer(), ['async']);
+        MessengerDrain::drain($this->browser->getContainer(), ['async_external_notification']);
+
+        self::assertSame([], $senders->sms, 'nothing sent');
+        $rows = $this->connection()->fetchAllAssociative($toPhone, [self::PHONE]);
+        self::assertSame(
+            [['PORTAL_OTP', 'CANCELLED'], ['PORTAL_OTP', 'CANCELLED'], ['PORTAL_BOOKING_DECLINED', 'CANCELLED']],
+            array_map(static fn (array $row): array => [$row['purpose'], $row['status']], $rows),
+        );
+        self::assertSame([null], array_values(array_unique(array_merge(array_column($rows, 'recipient_address'), array_column($rows, 'sent_at'), array_column($rows, 'external_message_id')))), 'masked, never handed over');
+        self::assertSame(0, $this->number('SELECT COUNT(*) FROM notification__outbound_messages WHERE recipient_address = ?', [self::PHONE]), 'every message to that phone is masked');
     }
 
     /**

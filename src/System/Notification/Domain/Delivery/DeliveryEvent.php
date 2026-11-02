@@ -27,7 +27,7 @@ final readonly class DeliveryEvent
 
     public static function status(DeliveryStatus $status, \DateTimeImmutable $occurredAt, ?string $reason = null): self
     {
-        if (\in_array($status, [DeliveryStatus::QUEUED, DeliveryStatus::BLOCKED_CAP], true)) {
+        if (\in_array($status, [DeliveryStatus::QUEUED, DeliveryStatus::BLOCKED_CAP, DeliveryStatus::CANCELLED], true)) {
             throw new \InvalidArgumentException(\sprintf('%s is not a status a provider reports.', $status->value));
         }
 

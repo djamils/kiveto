@@ -22,6 +22,7 @@ use App\Context\Scheduling\Domain\Service\RecurrenceExpander;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
 use App\Context\Scheduling\Infrastructure\Adapter\DbalAppointmentConflictChecker;
+use App\Context\Scheduling\Infrastructure\Adapter\DbalOccupyingAppointmentsReader;
 use App\Context\Scheduling\Infrastructure\Adapter\DbalPlanningBlockAppointmentCounter;
 use App\Context\Scheduling\Infrastructure\Adapter\DbalPlanningBlockFinder;
 use App\Context\Scheduling\Infrastructure\Adapter\DbalPlanningBlockOverlapChecker;
@@ -292,7 +293,7 @@ final class PractitionerDayLockTest extends KernelTestCase
     {
         new DeletePlanningBlockHandler(
             repository: new DoctrinePlanningBlockRepository($this->entityManager($connection), new PlanningBlockMapper()),
-            appointmentCounter: new DbalPlanningBlockAppointmentCounter($connection),
+            appointmentsReader: new DbalOccupyingAppointmentsReader($connection),
             timezoneResolver: $this->paris(),
             dayLock: new DbalPractitionerDayLock($connection),
             clock: new FrozenClock(self::utc('2026-03-01 08:00')),

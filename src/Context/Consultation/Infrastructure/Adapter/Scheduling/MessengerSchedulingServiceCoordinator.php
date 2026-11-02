@@ -7,6 +7,7 @@ namespace App\Context\Consultation\Infrastructure\Adapter\Scheduling;
 use App\Context\Consultation\Application\Port\SchedulingServiceCoordinatorInterface;
 use App\Context\Consultation\Domain\ValueObject\AppointmentId;
 use App\Context\Consultation\Domain\ValueObject\UserId;
+use App\Context\Scheduling\Application\Command\ConfirmPendingAppointmentSilently\ConfirmPendingAppointmentSilently;
 use App\Shared\Application\Bus\CommandBusInterface;
 
 final readonly class MessengerSchedulingServiceCoordinator implements SchedulingServiceCoordinatorInterface
@@ -20,9 +21,11 @@ final readonly class MessengerSchedulingServiceCoordinator implements Scheduling
         AppointmentId $appointmentId,
         UserId $triggeredByUserId,
     ): void {
-        // TODO: Scheduling BC does not yet expose a StartServiceForAppointment command;
-        // when it does, dispatch it here. Until then this is a no-op so the calling
-        // Consultation flow does not block.
+        // The client is on site: a pending online request is confirmed silently
+        // (no message); any other appointment is left as it is.
+        $this->commandBus->dispatch(new ConfirmPendingAppointmentSilently(
+            appointmentId: $appointmentId->toString(),
+        ));
     }
 
     public function completeAppointment(

@@ -38,8 +38,9 @@ interface OutboundMessageRepositoryInterface
 
     /**
      * Messages of the owner-account purposes (MessagePurpose::isPortalAccountMessage())
-     * sent to one of these addresses, handed over or final (never QUEUED: its
-     * dispatch still needs the recipient), content not purged yet.
+     * to one of these addresses whose content is not purged yet, whatever
+     * their status (QUEUED ones included: the caller cancels them or leaves
+     * them to their dispatch).
      *
      * @param non-empty-list<string> $addresses
      *
