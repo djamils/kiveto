@@ -22,6 +22,7 @@ use App\Context\Scheduling\Domain\ValueObject\UserId;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Tests\Unit\Context\Scheduling\Support\Appointments;
 use App\Tests\Unit\Context\Scheduling\Support\CapturingEventBus;
+use App\Tests\Unit\Context\Scheduling\Support\FakeNewClientConfirmation;
 use App\Tests\Unit\Context\Scheduling\Support\ParisTimezone;
 use App\Tests\Unit\Context\Scheduling\Support\RecordingDayLock;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -40,7 +41,7 @@ final class CompleteAppointmentHandlerTest extends TestCase
         $this->events     = new CapturingEventBus();
         $this->dayLock    = new RecordingDayLock();
         $this->handler    = new CompleteAppointmentHandler(
-            new SilentPendingConfirmation($this->repository, new PendingAppointmentLoader($this->repository, new ParisTimezone(), $this->dayLock)),
+            new SilentPendingConfirmation($this->repository, new PendingAppointmentLoader($this->repository, new ParisTimezone(), $this->dayLock), new FakeNewClientConfirmation()),
             $this->repository,
             new DomainEventPublisher($this->events),
         );

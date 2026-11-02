@@ -6,7 +6,10 @@ namespace App\Context\ClientPortal\Domain\Document;
 
 interface PublishedDocumentRepositoryInterface
 {
-    /** Inserts or updates the row of the document. */
+    /**
+     * Inserts or updates the row of the document; a withdrawn row is never
+     * changed back (withdrawn is terminal).
+     */
     public function save(PublishedDocument $document): void;
 
     /**
@@ -21,23 +24,37 @@ interface PublishedDocumentRepositoryInterface
 
     public function findByIdForUpdate(string $documentId): ?PublishedDocument;
 
+    /** Whether a document row holds the key as its served file. */
+    public function isServedKey(string $storageKey): bool;
+
     /**
-     * Documents of a client still waiting for a confirmed link, oldest first.
+     * Documents of a client still waiting for a confirmed link, oldest
+     * first, locked until the transaction ends.
      *
      * @return list<PublishedDocument>
      */
-    public function findAwaitingLink(string $clinicId, string $clientId, int $limit): array;
+    public function findAwaitingLinkForUpdate(string $clinicId, string $clientId, int $limit): array;
 
     /**
      * Documents whose file has been expected since before `$updatedBefore`,
-     * with fewer than the maximum render attempts, oldest first.
+     * with fewer than the maximum render attempts, oldest first; locked
+     * until the transaction ends, a row locked by another writer skipped.
      *
      * @return list<PublishedDocument>
      */
-    public function findStalePendingFiles(\DateTimeImmutable $updatedBefore, int $limit): array;
+    public function findStalePendingFilesForUpdate(\DateTimeImmutable $updatedBefore, int $limit): array;
 
     /**
+     * Documents still waiting for a link since before `$updatedBefore`
+     * whereas their client has a confirmed link (a publication that raced
+     * the confirmation), oldest first; locked like the stale pending files.
+     *
      * @return list<PublishedDocument>
      */
-    public function findByPatient(string $clinicId, string $patientId): array;
+    public function findStaleReleasableForUpdate(\DateTimeImmutable $updatedBefore, int $limit): array;
+
+    /**
+     * @return list<PublishedDocument> locked until the transaction ends
+     */
+    public function findByPatientForUpdate(string $clinicId, string $patientId): array;
 }

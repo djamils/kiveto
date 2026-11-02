@@ -31,6 +31,7 @@ final class Messages
         ?string $clinicId = self::CLINIC,
         MessagePurpose $purpose = MessagePurpose::INVOICE_SENT,
         ?\DateTimeImmutable $at = null,
+        ?string $accountId = null,
     ): OutboundMessage {
         return OutboundMessage::queue(
             OutboundMessageId::fromString($id),
@@ -45,6 +46,7 @@ final class Messages
             RenderedContent::email('Votre facture FA-2026-0814 — Clinique Montmartre', '<p>Bonjour</p>', 'Bonjour', 'clinic/logo.png'),
             [Attachment::of('billing/sent/invoice/inv-1.pdf', 'FA-2026-0814.pdf', 'application/pdf', AttachmentOwner::REQUESTER)],
             $at ?? new \DateTimeImmutable('2026-10-16 08:00:00'),
+            $accountId,
         );
     }
 
@@ -55,6 +57,7 @@ final class Messages
         int $segments = 1,
         MessagePurpose $purpose = MessagePurpose::APPOINTMENT_REMINDER,
         ?\DateTimeImmutable $at = null,
+        ?string $accountId = null,
     ): OutboundMessage {
         return OutboundMessage::queue(
             OutboundMessageId::fromString($id),
@@ -69,6 +72,7 @@ final class Messages
             RenderedContent::sms('Clinique Montmartre : rappel du RDV de Milo demain a 9h30.', SmsEncoding::GSM_7, $segments),
             [],
             $at ?? new \DateTimeImmutable('2026-10-21 09:30:00'),
+            $accountId,
         );
     }
 }

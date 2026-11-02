@@ -11,6 +11,7 @@ use App\Context\ClientPortal\Application\Port\ListingBookingQuotaInterface;
 use App\Context\ClientPortal\Application\Port\OnlineBookingInterface;
 use App\Context\ClientPortal\Application\Port\OnlineMotif;
 use App\Context\ClientPortal\Application\Port\OwnerAccountsInterface;
+use App\Context\ClientPortal\Application\Port\PortalLockInterface;
 use App\Context\ClientPortal\Domain\Booking\BookingRequest;
 use App\Context\ClientPortal\Domain\Booking\BookingRequestId;
 use App\Context\ClientPortal\Domain\Booking\BookingRequestRepositoryInterface;
@@ -29,8 +30,8 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 /**
  * S7d, checks in this order: the listing (`ListingNotFoundException`, 404),
  * no confirmed link to the clinic (`AlreadyLinkedException`), at most one
- * pending request at the clinic and three in all (counted under `FOR
- * UPDATE` locks, `BookingRequestLimitException`), the daily quota
+ * pending request at the clinic and three in all (counted under the
+ * account lock, `BookingRequestLimitException`), the daily quota
  * (`ListingBookingRateLimitedException`), then the availability: the
  * listing open to new clients (`ListingBookingNotOpenException`) and
  * Scheduling's new-client mode (its refusals pass through: `booking_not_open`,
@@ -55,6 +56,7 @@ final readonly class RequestListingBookingHandler
         private OwnerAccountsInterface $accounts,
         private UuidGeneratorInterface $uuids,
         private ClockInterface $clock,
+        private PortalLockInterface $locks,
     ) {
     }
 
@@ -77,6 +79,9 @@ final readonly class RequestListingBookingHandler
             throw new AlreadyLinkedException($clinicId);
         }
 
+        // Serialised per account: with no pending row, `FOR UPDATE` locks
+        // nothing, so two concurrent requests would both pass the limits
+        $this->locks->lockAccount($command->userId);
         $pending = $this->requests->findPendingByUserForUpdate($command->userId);
         $here    = array_filter($pending, static fn (BookingRequest $request): bool => $request->clinicId() === $clinicId);
 

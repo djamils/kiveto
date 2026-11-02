@@ -69,7 +69,7 @@ final readonly class DeletePortalAccountHandler
         $this->commandBus->dispatch(new DeleteUserDataExports($command->userId));
 
         if (null !== $owner->phone) {
-            $this->messages->mask($owner->phone, $owner->email);
+            $this->messages->mask($command->userId, $owner->phone, $owner->email);
         }
 
         $profile = $this->profiles->findByUserId($command->userId);

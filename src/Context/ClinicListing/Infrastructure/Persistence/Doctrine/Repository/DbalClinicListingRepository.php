@@ -15,7 +15,8 @@ use Doctrine\DBAL\Connection;
 
 /**
  * One row per clinic, upserted on `clinic_id`; the listing id is written once
- * and never changed. Coordinates are DECIMAL(8|9, 6).
+ * and never changed. Coordinates are DECIMAL(8|9, 6), written apart from the
+ * rest (a geocoding answer and a refresh never overwrite each other).
  */
 final readonly class DbalClinicListingRepository implements ClinicListingRepositoryInterface
 {
@@ -34,7 +35,10 @@ final readonly class DbalClinicListingRepository implements ClinicListingReposit
             . ' (clinic_id, id, name, address_line, postal_code, city, phone, lat, lng, address_hash, timezone, opening_hours, active, refreshed_at)'
             . ' VALUES (:clinic, :id, :name, :line, :postal, :city, :phone, :lat, :lng, :hash, :timezone, :hours, :active, :refreshed)'
             . ' AS new ON DUPLICATE KEY UPDATE name = new.name, address_line = new.address_line, postal_code = new.postal_code, city = new.city,'
-            . ' phone = new.phone, lat = new.lat, lng = new.lng, address_hash = new.address_hash, timezone = new.timezone,'
+            // The coordinates belong to saveCoordinates(): kept, unless the address is gone.
+            . ' phone = new.phone, lat = IF(new.address_hash IS NULL, NULL, ' . ListingColumns::LISTINGS . '.lat),'
+            . ' lng = IF(new.address_hash IS NULL, NULL, ' . ListingColumns::LISTINGS . '.lng),'
+            . ' address_hash = new.address_hash, timezone = new.timezone,'
             . ' opening_hours = new.opening_hours, active = new.active, refreshed_at = new.refreshed_at',
             [
                 'clinic'    => ListingColumns::binary($listing->clinicId()),
@@ -51,6 +55,21 @@ final readonly class DbalClinicListingRepository implements ClinicListingReposit
                 'hours'     => json_encode($profile->openingHours(), \JSON_THROW_ON_ERROR),
                 'active'    => $profile->isActive() ? 1 : 0,
                 'refreshed' => ListingColumns::utc($listing->refreshedAt()),
+            ],
+        );
+    }
+
+    public function saveCoordinates(ClinicListing $listing): void
+    {
+        $coordinates = $listing->coordinates();
+
+        $this->connection->executeStatement(
+            'UPDATE ' . ListingColumns::LISTINGS . ' SET lat = :lat, lng = :lng WHERE clinic_id = :clinic AND address_hash = :hash',
+            [
+                'clinic' => ListingColumns::binary($listing->clinicId()),
+                'hash'   => $listing->addressHash(),
+                'lat'    => null === $coordinates ? null : \sprintf('%.6F', $coordinates->latitude()),
+                'lng'    => null === $coordinates ? null : \sprintf('%.6F', $coordinates->longitude()),
             ],
         );
     }

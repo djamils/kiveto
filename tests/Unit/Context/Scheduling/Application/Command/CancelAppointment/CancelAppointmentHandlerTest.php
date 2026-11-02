@@ -18,6 +18,7 @@ use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
 use App\Context\Scheduling\Domain\ValueObject\CancellationActor;
 use App\Context\Scheduling\Domain\ValueObject\CancellationReason;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
+use App\Context\Scheduling\Domain\ValueObject\DeclineReason;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
@@ -149,6 +150,28 @@ final class CancelAppointmentHandlerTest extends TestCase
         }
 
         self::assertSame(AppointmentStatus::PLANNED, $current->status());
+        self::assertSame([], $this->events->events);
+    }
+
+    /**
+     * FU-04: declined (or expired) meanwhile, the request is already what the
+     * clinic's cancel wanted: nothing to do, no « déjà traité ».
+     */
+    #[AllowMockObjectsWithoutExpectations]
+    public function testAClinicCancelOfARequestDeclinedMeanwhileIsANoOp(): void
+    {
+        $seen    = $this->makePending();
+        $current = $this->makePending();
+        $current->decline(DeclineReason::EXPIRED);
+        $_ = $current->pullDomainEvents();
+
+        $this->appointmentRepository->method('findById')->willReturn($seen);
+        $this->appointmentRepository->method('findByIdForUpdate')->willReturn($current);
+        $this->appointmentRepository->expects(self::never())->method('save');
+
+        ($this->handler)(new CancelAppointment($seen->id()->toString(), self::CLINIC, notifyClient: false));
+
+        self::assertSame(AppointmentStatus::DECLINED, $current->status());
         self::assertSame([], $this->events->events);
     }
 

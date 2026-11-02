@@ -39,7 +39,8 @@ final class PortalRequestsControllerTest extends PortalRequestTestCase
         self::assertSame(['Faute de frappe', 'Sophie Dupont', 'Nom'], [$rows[1]['note'], $rows[1]['clientName'], $rows[1]['subject']]);
         self::assertSame(['/portal-requests/' . $change, '/portal-requests/' . $change . '/sheet'], [$rows[1]['url'], $rows[1]['sheet']]);
         self::assertSame(['total' => 2, 'page' => 1, 'pp' => 25], ['total' => $register['total'], 'page' => $register['page'], 'pp' => $register['pp']]);
-        self::assertSame(['submitted' => 2, 'done' => 0, 'rejected' => 0, 'tout' => 2], $register['counts']);
+        // « À traiter » does not read the answered requests (REG-03)
+        self::assertSame(['submitted' => 2, 'done' => null, 'rejected' => null, 'tout' => null], $register['counts']);
         self::assertSame(['pet_change' => 1, 'prescription_renewal' => 1, 'client_link' => 0, 'booking_request' => 0], $register['kinds']);
         $head = self::arr($register['head']);
         self::assertSame([2, 1, 0, false], [$head['pending'], $head['urgent'], $head['late'], $head['blank']]);
@@ -91,6 +92,24 @@ final class PortalRequestsControllerTest extends PortalRequestTestCase
         self::assertNotContains($other, $candidates);
         self::assertSame('Pas d’amélioration', $sheet['conditionLabel']);
         self::assertSame('Meloxidyl · 1', self::arr($sheet['prescription'])['medication']);
+    }
+
+    public function testTheRenewalFindsThePetsPrescriptionBehindTheClinicsBusyDay(): void
+    {
+        $id    = $this->renewal('improved');
+        $after = $this->prescription($this->rex, '2026-11-02 10:30:00');
+        $nala  = $this->pet('Nala');
+
+        // 25 more recent ordonnances of another pet used to fill the page read
+        for ($minute = 10; $minute < 35; ++$minute) {
+            $this->prescription($nala, '2026-11-02 11:' . $minute . ':00');
+        }
+
+        $this->signIn();
+
+        $sheet = $this->sheet('/portal-requests/' . $id);
+
+        self::assertSame([$after], array_column(array_map(self::arr(...), self::arr($sheet['candidates'])), 'id'));
     }
 
     public function testTheDashboardShowsFourTasksAndSumsUpTheRest(): void

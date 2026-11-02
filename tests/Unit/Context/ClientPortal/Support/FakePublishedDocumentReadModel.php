@@ -35,7 +35,7 @@ final class FakePublishedDocumentReadModel implements PublishedDocumentReadModel
     /** @var array<string, \DateTimeImmutable> by consultation id */
     public array $sharedAt = [];
 
-    /** @var array<string, int> */
+    /** @var array<string, list<ListedDocument>> by clinic */
     public array $unread = [];
 
     /** @var list<string> every read asked, `<method>:<args>` */

@@ -144,14 +144,20 @@ final class AppointmentBookingTest extends BookingApiTestCase
         );
     }
 
-    public function testAWithNewPetRetryUnderANewKeyReusesTheAnimalAndTheBooking(): void
+    public function testAWithNewPetRetryOfTheSameRequestReusesTheAnimalAndTheBooking(): void
     {
         $first = self::json($this->authPost(self::clinicPath('/appointments/with-new-pet'), $this->newPetBody('Plume', 'cat'), 'key-new-1'), 201);
-        $retry = self::json($this->authPost(self::clinicPath('/appointments/with-new-pet'), $this->newPetBody('Plume', 'cat'), 'key-new-2'), 201);
+        // Its stored answer lost (the booking committed, the key's record did not): the same key runs it again
+        $this->connection()->executeStatement('DELETE FROM shared__idempotency_keys WHERE idempotency_key = ?', ['key-new-1']);
+        $retry = self::json($this->authPost(self::clinicPath('/appointments/with-new-pet'), $this->newPetBody('Plume', 'cat'), 'key-new-1'), 201);
 
         self::assertSame($first, $retry);
         self::assertSame(1, $this->animalsNamed('Plume'));
         self::assertSame(1, $this->appointmentsAt('2026-11-03 08:00:00'));
+
+        // S4B-01: another request (another key) never reuses an animal by its name: its own booking of that slot is refused, no animal left
+        self::assertSame('slot_taken', self::problemType($this->authPost(self::clinicPath('/appointments/with-new-pet'), $this->newPetBody('Plume', 'cat'), 'key-new-2'), 409));
+        self::assertSame(1, $this->animalsNamed('Plume'));
     }
 
     public function testAWithNewPetBookingOnATakenSlotLeavesNoAnimal(): void

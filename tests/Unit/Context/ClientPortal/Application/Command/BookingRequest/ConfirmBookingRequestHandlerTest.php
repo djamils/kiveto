@@ -148,6 +148,61 @@ final class ConfirmBookingRequestHandlerTest extends TestCase
         $this->confirm(ConfirmBookingRequest::NEW, null, ConfirmBookingRequest::NEW, null);
     }
 
+    /** S7-01: the agenda, a check-in, a consultation or a completion confirm through this command, found by the appointment. */
+    public function testFromSchedulingTheOneFileCarryingThePhoneIsTakenAndTheNewPetRegistered(): void
+    {
+        $this->world->pending(self::SIBLING, createdAt: '2026-11-01 10:00:00');
+
+        self::assertTrue($this->confirmFromScheduling(null, silent: true));
+
+        self::assertSame([[], [[W::CLINIC, W::CLIENT, 'Pixel', 'cat']]], [$this->world->registeredClients, $this->world->registeredPets]);
+        self::assertSame([['confirm', W::CLINIC, self::REQUEST, W::CLIENT, W::NEW_PET, 'silent']], $this->world->booking->calls);
+        [$link] = array_values($this->world->links->links);
+        self::assertSame([W::CLIENT, ClientLinkStatus::CONFIRMED], [$link->clientId(), $link->status()]);
+        $request = $this->world->requests->requests[self::REQUEST];
+        // Confirmed by Scheduling: nobody answered from « Demandes »
+        self::assertSame([BookingRequestStatus::CONFIRMED, W::CLIENT, null, null], [$request->status(), $request->clientId(), $request->resolvedByUserId(), $request->resolvedByName()]);
+        self::assertSame(W::CLIENT, $this->world->requests->requests[self::SIBLING]->clientId());
+    }
+
+    public function testFromSchedulingNoOrSeveralMatchingFilesOpenANewFileAndTheAppointmentsAnimalOfThatClientIsKept(): void
+    {
+        $this->world->fakes->mobileMatches[W::PHONE][] = new MobileFileMatch(W::CLINIC, '01960000-0000-7000-8000-0000000c5003', 'Sophie', 'Martin', []);
+
+        self::assertTrue($this->confirmFromScheduling(W::PET));
+
+        // Two files carry the phone: none is guessed, a new one is opened (by the system); Oslo is not that file's
+        self::assertSame([[W::CLINIC, 'Sophie', 'Martin', W::PHONE, 'system']], $this->world->registeredClients);
+        self::assertSame([['confirm', W::CLINIC, self::REQUEST, W::NEW_FILE, W::NEW_PET]], $this->world->booking->calls);
+
+        // A sibling's file is reused, with the appointment's animal when it is that client's
+        $world = new W();
+        $world->pending(self::REQUEST)->attachClient(W::CLIENT);
+        $world->pets[] = W::pet(W::PET, W::CLIENT, 'Oslo', 'dog');
+        self::assertTrue($world->confirmHandler()(ConfirmBookingRequest::forAppointment(W::CLINIC, self::REQUEST, W::PET, false)));
+        self::assertSame([[], []], [$world->registeredClients, $world->registeredPets]);
+        self::assertSame([['confirm', W::CLINIC, self::REQUEST, W::CLIENT, W::PET]], $world->booking->calls);
+    }
+
+    public function testFromSchedulingNoPendingRequestChangesNothing(): void
+    {
+        // Another appointment, another clinic, or a request already answered
+        self::assertFalse($this->world->confirmHandler()(ConfirmBookingRequest::forAppointment(W::CLINIC, '01960000-0000-7000-8000-0000000d0fff', null, false)));
+        self::assertFalse($this->world->confirmHandler()(ConfirmBookingRequest::forAppointment(W::CLINIC_2, self::REQUEST, null, false)));
+        $this->world->requests->requests[self::REQUEST]->confirm(W::CLIENT, W::utc(W::NOW));
+        self::assertFalse($this->confirmFromScheduling(null));
+
+        self::assertSame([[], [], []], [$this->world->booking->calls, $this->world->registeredClients, $this->world->links->links]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->world->confirmHandler()(new ConfirmBookingRequest(W::CLINIC, null, ConfirmBookingRequest::DEFAULT, null, ConfirmBookingRequest::DEFAULT, null, null, null));
+    }
+
+    private function confirmFromScheduling(?string $animalId, bool $silent = false): bool
+    {
+        return $this->world->confirmHandler()(ConfirmBookingRequest::forAppointment(W::CLINIC, self::REQUEST, $animalId, $silent));
+    }
+
     private function confirm(string $client, ?string $clientId, string $animal, ?string $animalId): void
     {
         $this->world->confirmHandler()(new ConfirmBookingRequest(W::CLINIC, self::REQUEST, $client, $clientId, $animal, $animalId, W::VET, 'Dr Vet'));

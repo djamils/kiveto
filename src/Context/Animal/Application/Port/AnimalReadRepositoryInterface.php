@@ -69,12 +69,13 @@ interface AnimalReadRepositoryInterface
     public function listLatestPreventiveCare(ClinicId $clinicId, array $animalIds): array;
 
     /**
-     * The latest active animal of that active primary owner whose name
-     * (case-insensitive, trimmed) and species match, created at or after
-     * `createdSince`; its id, or null.
+     * That animal, when it is still active, alive, not transferred, of that
+     * active primary owner, its name (case-insensitive, trimmed) and species
+     * matching, created at or after `createdSince`; its id, or null.
      */
     public function findRecentPetOfOwner(
         ClinicId $clinicId,
+        string $animalId,
         string $primaryOwnerClientId,
         string $name,
         string $species,

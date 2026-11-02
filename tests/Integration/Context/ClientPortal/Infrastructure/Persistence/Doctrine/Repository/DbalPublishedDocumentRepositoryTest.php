@@ -12,6 +12,7 @@ use App\Context\ClientPortal\Domain\Document\PublishedDocumentRepositoryInterfac
 use App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalPublishedDocumentRepository;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class DbalPublishedDocumentRepositoryTest extends KernelTestCase
 {
@@ -54,6 +55,7 @@ final class DbalPublishedDocumentRepositoryTest extends KernelTestCase
             PublicationStatus::PENDING_FILE,
             new \DateTimeImmutable('2026-10-29 08:00', $paris),
             new \DateTimeImmutable('2026-10-31 12:00', $paris),
+            new \DateTimeImmutable('2026-10-30 12:00', $paris),
         ));
 
         $found = $this->connection()->transactional(
@@ -65,6 +67,7 @@ final class DbalPublishedDocumentRepositoryTest extends KernelTestCase
                 self::D1, self::CLINIC, self::CLIENT, DocumentType::REPORT, self::SOURCE, self::CONSULTATION,
                 self::PATIENT, ['pet-1', 'pet-2'], 'Compte rendu', '2026-10-30 09:00', 'UTC', 'Dr Martin',
                 'portal/key-v2', 2, 3, 1, PublicationStatus::PENDING_FILE, '2026-10-29 07:00', '2026-10-31 11:00',
+                '2026-10-30 11:00',
             ],
             [
                 $found->id()->toString(), $found->clinicId(), $found->clientId(), $found->type(), $found->sourceRef(),
@@ -72,7 +75,7 @@ final class DbalPublishedDocumentRepositoryTest extends KernelTestCase
                 $found->issuedAt()->format('Y-m-d H:i'), $found->issuedAt()->getTimezone()->getName(),
                 $found->practitionerName(), $found->storageKey(), $found->fileVersion(), $found->pendingFileVersion(),
                 $found->renderAttempts(), $found->status(), $found->publishedAt()->format('Y-m-d H:i'),
-                $found->updatedAt()->format('Y-m-d H:i'),
+                $found->updatedAt()->format('Y-m-d H:i'), $found->sharedAt()->format('Y-m-d H:i'),
             ],
         );
         self::assertNull($documents->findForUpdate(self::CLINIC, DocumentType::INVOICE, self::SOURCE), 'other type');
@@ -96,6 +99,8 @@ final class DbalPublishedDocumentRepositoryTest extends KernelTestCase
             ],
         );
         self::assertNull($documents->findByIdForUpdate(self::D2));
+        self::assertTrue($documents->isServedKey('portal/key-v3'));
+        self::assertFalse($documents->isServedKey('portal/key-v2'), 'replaced');
     }
 
     public function testATombstoneKeepsNullsAndWinsOverALatePublication(): void
@@ -126,6 +131,51 @@ final class DbalPublishedDocumentRepositoryTest extends KernelTestCase
         self::assertTrue($documents->insertIfAbsent($this->published(self::D2, $type, self::SOURCE2, true, $now)));
     }
 
+    public function testAWithdrawnRowIsNeverChangedBack(): void
+    {
+        $documents = $this->documents();
+        $now       = new \DateTimeImmutable('2026-10-31 09:00', new \DateTimeZone('UTC'));
+        $documents->save($this->published(self::D1, DocumentType::REPORT, self::SOURCE, false, $now));
+
+        // A writer loaded the row before the withdrawal committed
+        $stale = $documents->findByIdForUpdate(self::D1);
+        self::assertNotNull($stale);
+
+        $withdrawn = $documents->findByIdForUpdate(self::D1);
+        self::assertNotNull($withdrawn);
+        $withdrawn->withdraw($now->modify('+1 minute'));
+        $documents->save($withdrawn);
+
+        self::assertSame(1, $stale->linkConfirmed($now->modify('+2 minutes')));
+        $stale->assignPets(['pet-9'], $now->modify('+2 minutes'));
+        $documents->save($stale);
+
+        $found = $documents->findByIdForUpdate(self::D1);
+        self::assertNotNull($found);
+        self::assertSame(
+            [PublicationStatus::WITHDRAWN, null, [], '2026-10-31 09:01'],
+            [$found->status(), $found->pendingFileVersion(), $found->petIds(), $found->updatedAt()->format('Y-m-d H:i')],
+        );
+    }
+
+    public function testTheStaleAwaitingDocumentsWhoseClientHasAConfirmedLink(): void
+    {
+        $documents = $this->documents();
+        $at        = static fn (string $time): \DateTimeImmutable => new \DateTimeImmutable($time, new \DateTimeZone('UTC'));
+        $documents->save($this->published(self::D1, DocumentType::INVOICE, self::SOURCE, false, $at('2026-10-31 08:00')));
+        $documents->save($this->published(self::D2, DocumentType::INVOICE, self::SOURCE2, false, $at('2026-10-31 07:00')));
+        $documents->save($this->published(self::D3, DocumentType::INVOICE, self::SOURCE3, false, $at('2026-10-31 07:00'), self::CLIENT2));
+        $documents->save($this->published(self::D4, DocumentType::INVOICE, self::SOURCE4, false, $at('2026-10-31 09:55')));
+        $documents->save($this->published('01960000-0000-7000-8000-0000000dd005', DocumentType::INVOICE, '01960000-0000-7000-8000-0000000dc205', true, $at('2026-10-31 06:00')));
+        $this->link(self::CLIENT, 'confirmed');
+        $this->link(self::CLIENT2, 'pending');
+
+        $before = $at('2026-10-31 09:00');
+        self::assertSame([self::D2, self::D1], $this->ids($documents->findStaleReleasableForUpdate($before, 10)));
+        self::assertSame([self::D2], $this->ids($documents->findStaleReleasableForUpdate($before, 1)));
+        self::assertSame([], $documents->findStaleReleasableForUpdate($at('2026-10-31 07:00'), 10), 'strictly before');
+    }
+
     public function testTheDocumentsAwaitingALinkOldestFirst(): void
     {
         $documents = $this->documents();
@@ -137,11 +187,11 @@ final class DbalPublishedDocumentRepositoryTest extends KernelTestCase
             $this->published(self::D4, DocumentType::REPORT, self::SOURCE4, false, new \DateTimeImmutable('2026-10-28'), self::CLIENT2),
         );
 
-        $awaiting = $documents->findAwaitingLink(self::CLINIC, self::CLIENT, 10);
+        $awaiting = $documents->findAwaitingLinkForUpdate(self::CLINIC, self::CLIENT, 10);
         self::assertSame([self::D2, self::D1], $this->ids($awaiting));
-        self::assertSame([self::D2], $this->ids($documents->findAwaitingLink(self::CLINIC, self::CLIENT, 1)));
-        self::assertSame([self::D4], $this->ids($documents->findAwaitingLink(self::CLINIC, self::CLIENT2, 10)));
-        self::assertSame([], $documents->findAwaitingLink(self::CLINIC2, self::CLIENT, 10));
+        self::assertSame([self::D2], $this->ids($documents->findAwaitingLinkForUpdate(self::CLINIC, self::CLIENT, 1)));
+        self::assertSame([self::D4], $this->ids($documents->findAwaitingLinkForUpdate(self::CLINIC, self::CLIENT2, 10)));
+        self::assertSame([], $documents->findAwaitingLinkForUpdate(self::CLINIC2, self::CLIENT, 10));
     }
 
     public function testTheStalePendingFilesBelowTheMaximumAttempts(): void
@@ -160,10 +210,10 @@ final class DbalPublishedDocumentRepositoryTest extends KernelTestCase
         ));
 
         $before = new \DateTimeImmutable('2026-10-31 10:00', new \DateTimeZone('Europe/Paris'));
-        self::assertSame([self::D2, self::D1], $this->ids($documents->findStalePendingFiles($before, 10)));
-        self::assertSame([self::D2], $this->ids($documents->findStalePendingFiles($before, 1)));
+        self::assertSame([self::D2, self::D1], $this->ids($documents->findStalePendingFilesForUpdate($before, 10)));
+        self::assertSame([self::D2], $this->ids($documents->findStalePendingFilesForUpdate($before, 1)));
         $exactly = new \DateTimeImmutable('2026-10-31 07:00', new \DateTimeZone('UTC'));
-        self::assertSame([], $documents->findStalePendingFiles($exactly, 10), 'strictly before');
+        self::assertSame([], $documents->findStalePendingFilesForUpdate($exactly, 10), 'strictly before');
     }
 
     public function testTheDocumentsOfAPatient(): void
@@ -176,9 +226,9 @@ final class DbalPublishedDocumentRepositoryTest extends KernelTestCase
         $other->repointPatient(self::PATIENT2, $now);
         $documents->save($other);
 
-        self::assertSame([self::D1, self::D2], $this->ids($documents->findByPatient(self::CLINIC, self::PATIENT)));
-        self::assertSame([self::D3], $this->ids($documents->findByPatient(self::CLINIC, self::PATIENT2)));
-        self::assertSame([], $documents->findByPatient(self::CLINIC2, self::PATIENT));
+        self::assertSame([self::D1, self::D2], $this->ids($documents->findByPatientForUpdate(self::CLINIC, self::PATIENT)));
+        self::assertSame([self::D3], $this->ids($documents->findByPatientForUpdate(self::CLINIC, self::PATIENT2)));
+        self::assertSame([], $documents->findByPatientForUpdate(self::CLINIC2, self::PATIENT));
     }
 
     private function published(
@@ -240,6 +290,18 @@ final class DbalPublishedDocumentRepositoryTest extends KernelTestCase
     private function ids(array $documents): array
     {
         return array_map(static fn (PublishedDocument $document): string => $document->id()->toString(), $documents);
+    }
+
+    private function link(string $clientId, string $status): void
+    {
+        $this->connection()->insert('client_portal__client_links', [
+            'id'           => Uuid::v7()->toBinary(),
+            'user_id'      => Uuid::v7()->toBinary(),
+            'clinic_id'    => Uuid::fromString(self::CLINIC)->toBinary(),
+            'client_id'    => Uuid::fromString($clientId)->toBinary(),
+            'status'       => $status,
+            'requested_at' => '2026-10-30 08:00:00',
+        ]);
     }
 
     private function documents(): PublishedDocumentRepositoryInterface

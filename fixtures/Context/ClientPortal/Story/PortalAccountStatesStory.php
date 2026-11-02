@@ -96,7 +96,7 @@ final class PortalAccountStatesStory extends Story
         $rey = $this->portalUserId(PortalDocumentsStory::REY_PHONE);
         $this->verifyEmail($rey, 'sophie.rey@free.fr');
         $this->startEmailChange($rey, 'sophie.rey@laposte.net');
-        $this->exports->save(DataExport::request(DataExportId::fromString(Uuid::v7()->toRfc4122()), $rey, $this->now->modify('-2 minutes')));
+        $this->exports->add(DataExport::request(DataExportId::fromString(Uuid::v7()->toRfc4122()), $rey, $this->now->modify('-2 minutes')));
 
         $this->deletedAccount();
     }
@@ -136,7 +136,7 @@ final class PortalAccountStatesStory extends Story
         $export      = DataExport::request(DataExportId::fromString(Uuid::v7()->toRfc4122()), $userId, $requestedAt);
         $export->markReady($requestedAt->modify('+4 minutes'));
         $export->expire();
-        $this->exports->save($export);
+        $this->exports->add($export);
     }
 
     /**

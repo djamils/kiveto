@@ -315,13 +315,62 @@ final class OutboundMessageTest extends TestCase
         self::assertCount(1, $message->pullDomainEvents(), 'the cancellation is announced');
 
         self::assertFalse($message->cancel('again', $at), 'nothing twice');
-        self::assertFalse($message->markSent('late', $at->modify('+1 second')), 'a late outcome never revives it');
+        self::assertFalse($message->claimForDispatch($at), 'a cancelled message is never claimed');
         self::assertFalse($message->recordStatus(DeliveryStatus::DELIVERED, $at->modify('+2 seconds'), OutboundMessage::SOURCE_PROVIDER));
+
+        // A provider that had it anyway: its id and the billing are kept, the status stays final.
+        self::assertTrue($message->markSent(' late ', $at->modify('+1 second')), 'the provider id is recorded');
+        self::assertSame([DeliveryStatus::CANCELLED, 'late', '2026-10-16 08:05:01'], [$message->status(), $message->externalMessageId(), $message->sentAt()?->format('Y-m-d H:i:s')]);
+        self::assertSame([], $message->pullDomainEvents(), 'no status change announced');
+        self::assertFalse($message->markSent('later', $at->modify('+3 seconds')), 'recorded once');
 
         $sent = Messages::email();
         $sent->markSent('provider-1', $at);
         self::assertFalse($sent->cancel('too late', $at->modify('+1 second')), 'already handed over');
         self::assertSame(DeliveryStatus::SENT, $sent->status());
+    }
+
+    /** FU-02: once its dispatch claimed it, the provider may have it — a deletion no longer cancels it. */
+    public function testAClaimedMessageIsNoLongerCancelled(): void
+    {
+        $message = Messages::sms(purpose: MessagePurpose::PORTAL_OTP);
+        $at      = new \DateTimeImmutable('2026-10-16 08:05:00');
+
+        self::assertTrue($message->claimForDispatch($at));
+        self::assertSame($at, $message->dispatchClaimedAt());
+        self::assertFalse($message->cancel('Compte Portal supprimé avant l\'envoi', $at));
+        self::assertSame(DeliveryStatus::QUEUED, $message->status());
+
+        self::assertTrue($message->eraseForDeletedAccount('Compte Portal supprimé avant l\'envoi', $at), 'masked instead');
+        self::assertSame([DeliveryStatus::QUEUED, null], [$message->status(), $message->recipient()]);
+        self::assertFalse($message->eraseForDeletedAccount('again', $at), 'nothing twice');
+
+        self::assertTrue($message->markSent('provider-1', $at->modify('+1 second')), 'its outcome is still recorded');
+        self::assertSame([DeliveryStatus::SENT, 'provider-1'], [$message->status(), $message->externalMessageId()]);
+    }
+
+    /** FU-05: the e-mail change notice queued at deletion still goes out, then is masked with its outcome. */
+    public function testAQueuedSecurityNoticeIsMaskedWithItsOutcome(): void
+    {
+        $at = new \DateTimeImmutable('2026-10-16 08:05:00');
+
+        foreach (['sent', 'failed'] as $outcome) {
+            $notice = Messages::email(purpose: MessagePurpose::PORTAL_EMAIL_CHANGED_NOTICE);
+            self::assertNotSame([], $notice->pullDomainEvents());
+
+            self::assertTrue($notice->eraseForDeletedAccount('Compte Portal supprimé avant l\'envoi', $at));
+            self::assertFalse($notice->eraseForDeletedAccount('again', $at), 'flagged once');
+            self::assertSame([DeliveryStatus::QUEUED, 't.lefebvre@orange.fr', true], [$notice->status(), $notice->recipient()?->address, $notice->erasurePending()], 'kept for its dispatch');
+
+            'sent' === $outcome ? $notice->markSent('provider-1', $at) : $notice->markFailed('Refusé', $at);
+
+            self::assertSame([null, false], [$notice->recipient(), $notice->erasurePending()], $outcome);
+            self::assertNotNull($notice->contentPurgedAt());
+            $events = $notice->pullDomainEvents();
+            $last   = $events[\count($events) - 1];
+            self::assertInstanceOf(OutboundMessageStatusChanged::class, $last);
+            self::assertSame('', $last->recipientLabel, 'announced without recipient');
+        }
     }
 
     public function testAComplaintIsAFlagNotAStatus(): void

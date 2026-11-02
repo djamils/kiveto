@@ -55,6 +55,16 @@ final class ClinicListingTest extends TestCase
         self::assertFalse($listing->refresh(ClinicListingFakes::profile(line: null), $later));
         self::assertNull($listing->addressHash());
         self::assertNull($listing->coordinates());
+        self::assertFalse($listing->refresh(ClinicListingFakes::profile(line: null), $later), 'still nothing to geocode');
+    }
+
+    /** S7-03: the same address, still without coordinates (an earlier geocoding failed), is geocoded again. */
+    public function testARefreshAsksForGeocodingWhileTheAddressHasNoCoordinates(): void
+    {
+        $listing = ClinicListing::project(ClinicListingId::fromString(self::ID), self::CLINIC, ClinicListingFakes::profile(), new \DateTimeImmutable('2026-11-02'));
+        $listing->attachCoordinates((string) $listing->addressHash(), null);
+
+        self::assertTrue($listing->refresh(ClinicListingFakes::profile(), new \DateTimeImmutable('2026-11-03')));
     }
 
     public function testCoordinatesAreAttachedOnlyForTheCurrentAddress(): void

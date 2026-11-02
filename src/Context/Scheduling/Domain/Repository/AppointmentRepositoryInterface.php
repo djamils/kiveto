@@ -28,8 +28,8 @@ interface AppointmentRepositoryInterface
     public function expiredPendingIds(\DateTimeImmutable $now): array;
 
     /**
-     * The online booking already made for that owner, animal, motif and
-     * start, still holding its slot and created at or after `createdSince`
+     * The online booking already made for that owner, animal, motif,
+     * practitioner and start, still holding its slot and created at or after `createdSince`
      * (natural idempotency of a retried booking). A current read
      * (`… FOR SHARE`): call it under the practitioner-day lock.
      */
@@ -38,6 +38,7 @@ interface AppointmentRepositoryInterface
         string $ownerId,
         string $animalId,
         string $bookingMotifId,
+        string $practitionerUserId,
         \DateTimeImmutable $startsAtUtc,
         \DateTimeImmutable $createdSince,
     ): ?AppointmentId;

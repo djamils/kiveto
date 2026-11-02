@@ -16,8 +16,9 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
  * Same locks and refusals as ConfirmAppointment; the owner and the animal
- * are set first (`changeOwnerAndAnimal`), so the confirmation and its
- * message go to the client file staff chose.
+ * are set first (`assignNewClient`), so the confirmation and its message go
+ * to the client file chosen. A silent one (the client is on site) ignores
+ * the expiry, like `SilentPendingConfirmation`, and sends no message.
  */
 #[AsMessageHandler]
 final readonly class ConfirmNewClientAppointmentHandler
@@ -33,7 +34,7 @@ final readonly class ConfirmNewClientAppointmentHandler
     /**
      * @throws \InvalidArgumentException          when the appointment does not exist in the clinic
      * @throws AppointmentAlreadyHandledException when it is no longer pending
-     * @throws PendingAppointmentExpiredException when its expiry has passed
+     * @throws PendingAppointmentExpiredException when its expiry has passed (not silent)
      */
     public function __invoke(ConfirmNewClientAppointment $command): void
     {
@@ -46,12 +47,12 @@ final readonly class ConfirmNewClientAppointmentHandler
 
         $expiresAt = $appointment->pendingExpiresAt();
 
-        if (null !== $expiresAt && $expiresAt <= $this->clock->now()) {
+        if (!$command->silent && null !== $expiresAt && $expiresAt <= $this->clock->now()) {
             throw new PendingAppointmentExpiredException();
         }
 
-        $appointment->changeOwnerAndAnimal($command->ownerId, $command->animalId);
-        $appointment->confirm();
+        $appointment->assignNewClient($command->ownerId, $command->animalId);
+        $appointment->confirm($command->silent);
         $this->appointments->save($appointment);
 
         $this->domainEventPublisher->publish($appointment);

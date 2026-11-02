@@ -23,6 +23,7 @@ use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentSource;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
+use App\Context\Scheduling\Domain\ValueObject\PractitionerDay;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
 use App\Shared\Application\Event\DomainEventPublisher;
@@ -77,28 +78,41 @@ final readonly class RescheduleOnlineAppointmentHandler
         $practitionerId = UserId::fromString($command->practitionerUserId);
         $startsAtUtc    = $command->startsAt->setTimezone(new \DateTimeZone('UTC'));
 
-        if ($appointment->timeSlot()->startsAtUtc()->getTimestamp() === $startsAtUtc->getTimestamp() && $appointment->practitionerAssignee()->userId()->equals($practitionerId)) {
+        if (self::isSameSlot($appointment, $startsAtUtc, $practitionerId)) {
             return $command->appointmentId;
         }
 
         $settings = $this->settings->forClinic($clinicId);
-        OnlineCancellationWindow::assertOpen($appointment, $settings, $this->clock->now());
+        $now      = $this->clock->now();
+        OnlineCancellationWindow::assertOpen($appointment, $settings, $now);
 
         $motif       = $this->motif($clinicId, BookingMotifId::fromString($motifId), $practitionerId);
         $newTimeSlot = new TimeSlot($startsAtUtc, $motif->durationMin());
-        $oldSlot     = $appointment->timeSlot();
-        $oldVet      = $appointment->practitionerAssignee()->userId();
         $clinicTz    = $this->timezoneResolver->resolveTimezone($clinicId);
+        $newDays     = LockKeys::forSlot($practitionerId, $newTimeSlot->startsAtUtc(), $newTimeSlot->endsAtUtc(), $clinicTz);
 
         // The union of the days left and of the days taken (P1)
-        $this->dayLock->lock($clinicId, LockKeys::merge(
-            LockKeys::forSlot($oldVet, $oldSlot->startsAtUtc(), $oldSlot->endsAtUtc(), $clinicTz),
-            LockKeys::forSlot($practitionerId, $newTimeSlot->startsAtUtc(), $newTimeSlot->endsAtUtc(), $clinicTz),
-        ));
+        $this->dayLock->lock($clinicId, LockKeys::merge(self::daysOf($appointment, $clinicTz), $newDays));
 
-        // Current read: a decline or cancel committed meanwhile is seen
-        $appointment = $this->appointments->findByIdForUpdate($appointment->id()) ?? throw OnlineBookingNotFoundException::appointment($command->appointmentId);
+        // Current read: a decline, cancel or move committed meanwhile is seen
+        $locked = $this->appointments->findByIdForUpdate($appointment->id()) ?? throw OnlineBookingNotFoundException::appointment($command->appointmentId);
+
+        // Moved meanwhile: the days it occupies now are locked too
+        if (!$locked->timeSlot()->equals($appointment->timeSlot()) || !$locked->practitionerAssignee()->equals($appointment->practitionerAssignee())) {
+            $this->dayLock->lock($clinicId, LockKeys::merge(self::daysOf($locked, $clinicTz), $newDays));
+        }
+
+        // Every check made on the plain read is made again on the current row
+        $appointment = $locked;
         self::assertModifiable($appointment);
+
+        if (self::isSameSlot($appointment, $startsAtUtc, $practitionerId)) {
+            return $command->appointmentId;
+        }
+
+        OnlineCancellationWindow::assertOpen($appointment, $settings, $now);
+
+        $oldVet = $appointment->practitionerAssignee()->userId();
 
         // A pending request keeps waiting for the clinic: the manual lead time applies (S4f)
         $pendingLeadTime = $appointment->status()->isPending() || null === $appointment->ownerId();
@@ -110,6 +124,7 @@ final readonly class RescheduleOnlineAppointmentHandler
         $appointment->reschedule(
             $newTimeSlot,
             $appointment->status()->isPending() ? $settings->pendingExpiry($appointment->createdAt(), $startsAtUtc) : null,
+            $now,
         );
         $appointment->changePractitionerAssignee(new PractitionerAssignee($practitionerId));
 
@@ -134,6 +149,22 @@ final readonly class RescheduleOnlineAppointmentHandler
         self::assertModifiable($appointment);
 
         return $appointment;
+    }
+
+    private static function isSameSlot(Appointment $appointment, \DateTimeImmutable $startsAtUtc, UserId $practitionerId): bool
+    {
+        return $appointment->timeSlot()->startsAtUtc()->getTimestamp() === $startsAtUtc->getTimestamp()
+            && $appointment->practitionerAssignee()->userId()->equals($practitionerId);
+    }
+
+    /**
+     * @return list<PractitionerDay>
+     */
+    private static function daysOf(Appointment $appointment, \DateTimeZone $clinicTz): array
+    {
+        $slot = $appointment->timeSlot();
+
+        return LockKeys::forSlot($appointment->practitionerAssignee()->userId(), $slot->startsAtUtc(), $slot->endsAtUtc(), $clinicTz);
     }
 
     private static function assertModifiable(Appointment $appointment): void

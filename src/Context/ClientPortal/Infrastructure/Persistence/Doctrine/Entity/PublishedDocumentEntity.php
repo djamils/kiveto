@@ -18,6 +18,7 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(name: 'idx_published_document_client', columns: ['clinic_id', 'client_id', 'status', 'issued_at', 'id'])]
 #[ORM\Index(name: 'idx_published_document_patient', columns: ['clinic_id', 'patient_id'])]
 #[ORM\Index(name: 'idx_published_document_pending', columns: ['status', 'updated_at'])]
+#[ORM\Index(name: 'idx_published_document_key', columns: ['storage_key'])]
 class PublishedDocumentEntity
 {
     /**
@@ -61,6 +62,8 @@ class PublishedDocumentEntity
         public \DateTimeImmutable $publishedAt,
         #[ORM\Column(name: 'updated_at', type: 'datetime_immutable')]
         public \DateTimeImmutable $updatedAt,
+        #[ORM\Column(name: 'shared_at', type: 'datetime_immutable')]
+        public \DateTimeImmutable $sharedAt,
     ) {
     }
 }

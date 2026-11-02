@@ -30,7 +30,9 @@ final readonly class ClientArchivedIntegrationEventConsumer
         $clientId = $payload['clientId'];
         \assert(\is_string($clinicId) && \is_string($clientId));
 
-        $this->commandBus->dispatch(new RevokeClientPortalAccess($clinicId, $clientId));
+        // Closed first so they keep `client_archived`; a request slipped in
+        // before the links are revoked is closed by the revocation (`link_revoked`)
         $this->commandBus->dispatch(new ClosePortalRequestsForSubject(RequestSubject::CLIENT, $clientId, ClosureReason::CLIENT_ARCHIVED, $clinicId));
+        $this->commandBus->dispatch(new RevokeClientPortalAccess($clinicId, $clientId));
     }
 }

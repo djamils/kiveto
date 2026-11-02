@@ -59,6 +59,34 @@ final class QuestionnaireQueriesTest extends TestCase
         self::assertSame(['closed', false], [$questionnaire->status, $questionnaire->editable]);
     }
 
+    public function testReadingAQuestionnaireItsAppointmentFrozeRecordsTheLock(): void
+    {
+        // Answered on D-1, the visit starts, staff move it to D+7: still locked (AC 232)
+        $world = new W();
+        $world->appointment(startsAt: '2026-10-30 09:00:00');
+        $world->questionnaires->save(Requests::questionnaire(self::ID, W::APPOINTMENT, at: '2026-10-29 09:00:00'));
+        $world->pets->now('2026-10-30 09:05:00');
+
+        self::assertFalse($world->getQuestionnaire()(new GetQuestionnaire(P::CLINIC, W::APPOINTMENT))->editable);
+        self::assertSame('2026-10-30 09:05:00', $world->questionnaires->findByAppointment(P::CLINIC, W::APPOINTMENT)?->lockedAt()?->format('Y-m-d H:i:s'));
+
+        $world->pets->fakes->appointments = [];
+        $world->appointment(startsAt: '2026-11-06 09:00:00');
+
+        self::assertFalse($world->getQuestionnaire()(new GetQuestionnaire(P::CLINIC, W::APPOINTMENT, P::USER))->editable);
+        self::assertSame(2, $world->questionnaires->saves, 'saved, then the lock recorded once');
+    }
+
+    public function testAQuestionnaireOfAnAppointmentNoLongerHoldingItsSlotIsNotLockedByAReading(): void
+    {
+        $world = new W();
+        $world->appointment(status: 'pending', occupies: false);
+        $world->questionnaires->save(Requests::questionnaire(self::ID, W::APPOINTMENT));
+
+        self::assertFalse($world->getQuestionnaire()(new GetQuestionnaire(P::CLINIC, W::APPOINTMENT, P::USER))->editable);
+        self::assertNull($world->questionnaires->findByAppointment(P::CLINIC, W::APPOINTMENT)?->lockedAt());
+    }
+
     public function testACancelledAppointmentHidesItsQuestionnaireFromTheOwner(): void
     {
         $world = new W();

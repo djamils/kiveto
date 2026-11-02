@@ -60,11 +60,11 @@ final class BookingCommandBusAdaptersTest extends TestCase
         $since   = new \DateTimeImmutable('2026-10-28 09:00:00');
         $queries = new AnsweringQueryBus([FindRecentPetOfOwner::class => 'pet-9']);
 
-        self::assertSame('pet-9', new CommandBusPetRegistration(new AnsweringCommandBus(static fn (): null => null), $queries)->recentPetOf('clinic-1', 'client-1', 'Pixel', 'cat', $since));
-        self::assertNull(new CommandBusPetRegistration(new AnsweringCommandBus(static fn (): null => null), new AnsweringQueryBus())->recentPetOf('clinic-1', 'client-1', 'Pixel', 'cat', $since));
+        self::assertSame('pet-9', new CommandBusPetRegistration(new AnsweringCommandBus(static fn (): null => null), $queries)->recentPetOf('clinic-1', 'pet-9', 'client-1', 'Pixel', 'cat', $since));
+        self::assertNull(new CommandBusPetRegistration(new AnsweringCommandBus(static fn (): null => null), new AnsweringQueryBus())->recentPetOf('clinic-1', 'pet-9', 'client-1', 'Pixel', 'cat', $since));
 
         $query = $queries->asked[0];
         self::assertInstanceOf(FindRecentPetOfOwner::class, $query);
-        self::assertSame(['clinic-1', 'client-1', 'Pixel', 'cat', $since], [$query->clinicId, $query->primaryOwnerClientId, $query->name, $query->species, $query->createdSince]);
+        self::assertSame(['clinic-1', 'pet-9', 'client-1', 'Pixel', 'cat', $since], [$query->clinicId, $query->animalId, $query->primaryOwnerClientId, $query->name, $query->species, $query->createdSince]);
     }
 }

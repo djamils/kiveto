@@ -242,31 +242,40 @@ final readonly class DoctrineAnimalReadRepository implements AnimalReadRepositor
 
     public function findRecentPetOfOwner(
         ClinicId $clinicId,
+        string $animalId,
         string $primaryOwnerClientId,
         string $name,
         string $species,
         \DateTimeImmutable $createdSince,
     ): ?string {
+        if (!Uuid::isValid($animalId)) {
+            return null;
+        }
+
         $id = $this->entityManager->getConnection()->fetchOne(
             'SELECT a.id
              FROM animal__ownerships o
              JOIN animal__animals a ON a.id = o.animal_id
-             WHERE a.clinic_id = :clinicId
+             WHERE a.id = :animalId
+               AND a.clinic_id = :clinicId
                AND o.client_id = :clientId
                AND o.role = :role
                AND o.status = :ownershipStatus
                AND a.status = :animalStatus
+               AND a.life_status = :alive
+               AND a.transfer_status = :transferStatus
                AND a.species = :species
                AND LOWER(TRIM(a.name)) = :name
-               AND a.created_at >= :since
-             ORDER BY a.created_at DESC, a.id DESC
-             LIMIT 1',
+               AND a.created_at >= :since',
             [
+                'animalId'        => Uuid::fromString($animalId)->toBinary(),
                 'clinicId'        => Uuid::fromString($clinicId->toString())->toBinary(),
                 'clientId'        => Uuid::fromString($primaryOwnerClientId)->toBinary(),
                 'role'            => OwnershipRole::PRIMARY->value,
                 'ownershipStatus' => OwnershipStatus::ACTIVE->value,
                 'animalStatus'    => AnimalStatus::ACTIVE->value,
+                'alive'           => LifeStatus::ALIVE->value,
+                'transferStatus'  => TransferStatus::NONE->value,
                 'species'         => $species,
                 'name'            => mb_strtolower(trim($name)),
                 'since'           => $createdSince->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'),

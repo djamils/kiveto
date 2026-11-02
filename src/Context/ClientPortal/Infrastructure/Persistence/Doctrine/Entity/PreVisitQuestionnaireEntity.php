@@ -17,6 +17,7 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\UniqueConstraint(name: 'uniq_questionnaire_appointment', columns: ['clinic_id', 'appointment_id'])]
 #[ORM\Index(name: 'idx_questionnaire_client', columns: ['clinic_id', 'client_id', 'status'])]
 #[ORM\Index(name: 'idx_questionnaire_user', columns: ['user_id'])]
+#[ORM\Index(name: 'idx_questionnaire_unlocked', columns: ['status', 'locked_at'])]
 class PreVisitQuestionnaireEntity
 {
     /**

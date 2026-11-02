@@ -25,7 +25,7 @@ final readonly class RepointDocumentPatientHandler
         $now      = $this->clock->now();
         $animalId = $this->visits->animalOfPatient($command->clinicId, $command->targetPatientId);
 
-        foreach ($this->documents->findByPatient($command->clinicId, $command->sourcePatientId) as $document) {
+        foreach ($this->documents->findByPatientForUpdate($command->clinicId, $command->sourcePatientId) as $document) {
             $document->repointPatient($command->targetPatientId, $now);
 
             if (null !== $animalId && [] === $document->petIds()) {

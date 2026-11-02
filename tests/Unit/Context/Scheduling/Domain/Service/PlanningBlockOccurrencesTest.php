@@ -34,6 +34,27 @@ final class PlanningBlockOccurrencesTest extends TestCase
         self::assertSame(['2026-05-06 06:00', '9999-12-31 00:00'], [$this->utc($started->fromUtc()), $this->utc($started->toUtc())]);
     }
 
+    /**
+     * FU-01: an open-ended block is locked 60 days ahead; its appointments
+     * are read current up to its last occurrence within them, plainly beyond.
+     */
+    public function testAnOpenEndedBlockIsReadUnderTheLockOnlyUpToTheLockHorizon(): void
+    {
+        $openEnded = $this->block(RecurrenceRule::weekly());
+        // 1 April + 60 days = 31 May, 12:00 Paris (summer time)
+        self::assertSame('2026-05-31 10:00', $this->utc($openEnded->lockedUntilUtc()));
+
+        // An appointment that began before the horizon was returned by the locked read already
+        self::assertSame(['2026-05-31 10:00', '2026-07-07 07:00'], array_map(
+            fn (BusyInterval $appointment): string => $this->utc($appointment->start),
+            $openEnded->beyondLock([$this->at('2026-05-31 09:45'), $this->at('2026-05-31 10:00'), $this->at('2026-07-07 07:00')]),
+        ));
+
+        // A one-off or a bounded block is locked over all of its occurrences
+        self::assertSame('2026-04-21 10:00', $this->utc($this->block(RecurrenceRule::none())->lockedUntilUtc()));
+        self::assertSame('2026-09-30 10:00', $this->utc($this->block(RecurrenceRule::weekly('2026-09-30'))->lockedUntilUtc()));
+    }
+
     public function testARecurringBlockHoldsTheAppointmentsOfEveryFutureOccurrence(): void
     {
         $block = $this->block(RecurrenceRule::weekly());

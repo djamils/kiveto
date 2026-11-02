@@ -47,9 +47,9 @@ final readonly class CommandBusOnlineBooking implements OnlineBookingInterface
         return self::id($this->commandBus->dispatch(new BookOnlineAppointment($clinicId, $motifId, $practitionerId, $startsAt, null, null, newClient: true)));
     }
 
-    public function confirmNewClient(string $clinicId, string $appointmentId, string $ownerId, string $animalId): void
+    public function confirmNewClient(string $clinicId, string $appointmentId, string $ownerId, string $animalId, bool $silent = false): void
     {
-        $this->commandBus->dispatch(new ConfirmNewClientAppointment($appointmentId, $clinicId, $ownerId, $animalId));
+        $this->commandBus->dispatch(new ConfirmNewClientAppointment($appointmentId, $clinicId, $ownerId, $animalId, $silent));
     }
 
     public function decline(string $clinicId, string $appointmentId): void

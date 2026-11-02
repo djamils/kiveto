@@ -12,10 +12,13 @@ use App\Presentation\Api\Portal\Security\PortalApiUser;
 use App\Presentation\Api\Portal\Support\AppointmentResponder;
 use App\Presentation\Api\Portal\Support\PortalClinicGuard;
 use App\Presentation\Api\Portal\View\AppointmentView;
+use App\Presentation\Api\Shared\Idempotency\IdempotentProcessor;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpFoundation\Request;
 
 /**
- * Idempotent by its key; a retry under a new key reuses the animal registered within 24 h and the booking already made.
+ * Idempotent by its key; a retry of the same request (same key) whose answer was lost reuses the animal it registered
+ * and the booking already made (S4B-01). A new key registers a new animal.
  *
  * @implements ProcessorInterface<AppointmentBookingWithNewPet, AppointmentView>
  */
@@ -37,8 +40,11 @@ final readonly class BookAppointmentWithNewPetProcessor implements ProcessorInte
 
         $this->guard->require($user->id(), $clinicId);
 
+        $request = $context['request'] ?? null;
+        $key     = $request instanceof Request ? $request->headers->get(IdempotentProcessor::HEADER) : null;
+
         return $this->appointments->run(
-            new BookPortalAppointmentWithNewPet($user->id(), $clinicId, $data->newPet->name, $data->newPet->species, $data->motifId, $data->practitionerId, AppointmentResponder::instant($data->startAt)),
+            new BookPortalAppointmentWithNewPet($user->id(), $clinicId, $data->newPet->name, $data->newPet->species, $data->motifId, $data->practitionerId, AppointmentResponder::instant($data->startAt), $key),
             $user->id(),
             $clinicId,
         );

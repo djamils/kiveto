@@ -69,8 +69,42 @@ final readonly class QuestionnaireAccess
             return false;
         }
 
-        return $appointment->occupiesSlot
-            && $appointment->startsAtUtc > $this->clock->now()
-            && [] === $this->consultations->startedFrom($clinicId, [$appointment->id]);
+        return $appointment->occupiesSlot && !$this->isFrozen($clinicId, $appointment);
+    }
+
+    /**
+     * Whether the appointment froze its questionnaire for good: it started,
+     * or a consultation began from it. The lock is then recorded, so a later
+     * reschedule never reopens it.
+     */
+    public function isFrozen(string $clinicId, OwnerAppointment $appointment): bool
+    {
+        return $appointment->startsAtUtc <= $this->clock->now()
+            || [] !== $this->consultations->startedFrom($clinicId, [$appointment->id]);
+    }
+
+    /**
+     * The appointments of the clinic, among those listed, that froze their
+     * questionnaire (one consultation lookup for the clinic).
+     *
+     * @param list<OwnerAppointment> $appointments
+     *
+     * @return list<string> their ids
+     */
+    public function frozen(string $clinicId, array $appointments): array
+    {
+        $now      = $this->clock->now();
+        $frozen   = [];
+        $upcoming = [];
+
+        foreach ($appointments as $appointment) {
+            if ($appointment->startsAtUtc <= $now) {
+                $frozen[] = $appointment->id;
+            } else {
+                $upcoming[] = $appointment->id;
+            }
+        }
+
+        return [] === $upcoming ? $frozen : [...$frozen, ...$this->consultations->startedFrom($clinicId, $upcoming)];
     }
 }

@@ -8,7 +8,6 @@ use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
 use App\System\Notification\Application\Command\DeleteMessageFiles\DeleteMessageFiles;
 use App\System\Notification\Domain\Message\AttachmentOwner;
-use App\System\Notification\Domain\Message\DeliveryStatus;
 use App\System\Notification\Domain\Message\OutboundMessageRepositoryInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -19,11 +18,13 @@ use Symfony\Component\Messenger\MessageBusInterface;
  * the metadata stays, Notification-owned files are deleted once the caller's
  * transaction commits (DeleteMessageFiles, `async`).
  *
- * A message still QUEUED (not handed over to the provider) is cancelled and
- * masked when its purpose is moot once the account is gone
- * (MessagePurpose::isCancelledAtAccountDeletion()): the dispatch still on
- * the transport finds it CANCELLED and sends nothing. A queued critical one
- * (the e-mail change notice) keeps its recipient for its dispatch.
+ * Each message is re-read under its row lock (OutboundMessageRepositoryInterface::getForUpdate()),
+ * in the caller's transaction: a dispatch worker that claimed or sent it
+ * meanwhile is seen, and never makes the erasure fail on a stale version.
+ * What happens to each is OutboundMessage::eraseForDeletedAccount(): a
+ * queued one not yet claimed by its dispatch is cancelled when moot, one
+ * already claimed is only masked (it may be with the provider), the queued
+ * e-mail change notice is masked once its hand-over outcome is recorded.
  */
 #[AsMessageHandler]
 final readonly class MaskPortalRecipientHandler
@@ -40,32 +41,27 @@ final readonly class MaskPortalRecipientHandler
     }
 
     /**
-     * @return int how many messages were masked (cancelled ones included)
+     * @return int how many messages were masked, cancelled or flagged for masking
      */
     public function __invoke(MaskPortalRecipient $command): int
     {
-        $addresses = null === $command->email ? [$command->phone] : [$command->phone, $command->email];
+        $addresses = array_values(array_filter([$command->phone, $command->email], static fn (?string $address): bool => null !== $address));
         $now       = $this->clock->now();
         $files     = [];
         $masked    = 0;
 
-        foreach ($this->messages->findPortalAccountMessagesTo($addresses) as $id) {
-            $message = $this->messages->get($id);
-            $queued  = DeliveryStatus::QUEUED === $message->status();
+        foreach ($this->messages->findPortalAccountMessages($command->userId, $addresses) as $id) {
+            $message = $this->messages->getForUpdate($id);
 
-            if ($queued && !$message->purpose()->isCancelledAtAccountDeletion()) {
+            if (!$message->eraseForDeletedAccount(self::CANCELLED_REASON, $now)) {
                 continue;
             }
 
-            // Masked first: the cancellation's status event carries no recipient.
-            $message->purgeContent($now);
-            if ($queued) {
-                $message->cancel(self::CANCELLED_REASON, $now);
-            }
-
-            foreach ($message->attachments() as $attachment) {
-                if (AttachmentOwner::NOTIFICATION === $attachment->owner) {
-                    $files[] = $attachment->storageKey;
+            if (null !== $message->contentPurgedAt()) {
+                foreach ($message->attachments() as $attachment) {
+                    if (AttachmentOwner::NOTIFICATION === $attachment->owner) {
+                        $files[] = $attachment->storageKey;
+                    }
                 }
             }
 

@@ -87,6 +87,38 @@ final class DbalPreVisitQuestionnaireRepositoryTest extends KernelTestCase
         self::assertSame([self::Q3, self::Q1], $ids($repository->findByUser(self::USER)), 'oldest first, closed included');
     }
 
+    public function testTheLockIsRecordedOnTheOpenQuestionnaireOnlyAndNeverUndone(): void
+    {
+        $repository = $this->repository();
+        $repository->save(self::questionnaire(self::Q1, self::RDV1));
+        $repository->save(self::questionnaire(self::Q2, self::RDV2));
+        $closed = self::questionnaire(self::Q3, self::RDV3);
+        $closed->close(ClosureReason::APPOINTMENT_DECLINED, self::utc('2026-10-28 09:00:00'));
+        $repository->save($closed);
+
+        $ours     = [self::Q1, self::Q2, self::Q3];
+        $unlocked = static fn (): array => array_values(array_filter(
+            array_map(static fn (PreVisitQuestionnaire $q): string => $q->id()->toString(), $repository->findUnlocked(100_000)),
+            static fn (string $id): bool => \in_array($id, $ours, true),
+        ));
+        self::assertSame([self::Q1, self::Q2], $unlocked());
+
+        // Read before the lock (no FOR UPDATE), saved after it: the lock stays
+        $stale = $repository->findByAppointment(self::CLINIC, self::RDV1);
+        \assert(null !== $stale);
+        $repository->recordLock(self::CLINIC, self::RDV1, self::utc('2026-10-29 08:00:00'));
+        $repository->recordLock(self::CLINIC, self::RDV1, self::utc('2026-10-30 08:00:00'));
+        $repository->recordLock(self::CLINIC, self::RDV3, self::utc('2026-10-29 08:00:00'));
+        $repository->recordLock(self::CLINIC2, self::RDV2, self::utc('2026-10-29 08:00:00'));
+        $repository->recordLock(self::CLINIC, 'not-a-uuid', self::utc('2026-10-29 08:00:00'));
+        $stale->eraseFreeText();
+        $repository->save($stale);
+
+        self::assertSame('2026-10-29 08:00:00', $repository->findByAppointment(self::CLINIC, self::RDV1)?->lockedAt()?->format('Y-m-d H:i:s'));
+        self::assertNull($repository->findByAppointment(self::CLINIC, self::RDV3)?->lockedAt(), 'a closed questionnaire is left alone');
+        self::assertSame([self::Q2], $unlocked());
+    }
+
     private function repository(): DbalPreVisitQuestionnaireRepository
     {
         $connection = self::getContainer()->get(Connection::class);

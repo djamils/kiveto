@@ -38,9 +38,15 @@ final readonly class SubmitQuestionnaireHandler
             throw new InvalidPortalRequestException('version', \sprintf('Version de questionnaire non prise en charge : %d.', $command->version));
         }
 
-        $answers       = QuestionnaireAnswers::of($command->symptoms, $command->hasOngoingTreatment, $command->ongoingTreatmentDetails, $command->temperament, $command->notes);
-        $questionnaire = $this->questionnaires->findByAppointmentForUpdate($command->clinicId, $command->appointmentId);
-        $now           = $this->clock->now();
+        $answers = QuestionnaireAnswers::of($command->symptoms, $command->hasOngoingTreatment, $command->ongoingTreatmentDetails, $command->temperament, $command->notes);
+        // Locked only when it exists: a FOR UPDATE on a missing row takes a gap
+        // lock, and two first answers inserting into that gap deadlock. A
+        // first answer relies on the unique key (the upsert of a racing
+        // first answer replaces it: whoever answers last wins).
+        $questionnaire = null === $this->questionnaires->findByAppointment($command->clinicId, $command->appointmentId)
+            ? null
+            : $this->questionnaires->findByAppointmentForUpdate($command->clinicId, $command->appointmentId);
+        $now = $this->clock->now();
 
         if (!$this->access->isOpen($command->clinicId, $owned->appointment, $questionnaire)) {
             if (null !== $questionnaire && $questionnaire->lock($now)) {

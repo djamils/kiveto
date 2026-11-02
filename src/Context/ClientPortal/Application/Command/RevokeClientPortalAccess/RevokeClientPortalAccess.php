@@ -8,8 +8,9 @@ use App\Shared\Application\Bus\CommandInterface;
 
 /**
  * The client file was archived: its pending invitations are revoked and its
- * links to owner accounts withdrawn. Idempotent; unarchiving restores
- * nothing (the clinic invites again).
+ * links to owner accounts withdrawn; the requests still open on that client
+ * are closed (`link_revoked`, never notified). Idempotent; unarchiving
+ * restores nothing (the clinic invites again).
  */
 final readonly class RevokeClientPortalAccess implements CommandInterface
 {

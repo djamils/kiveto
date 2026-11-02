@@ -13,7 +13,10 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
  * Marks the message SENT with the provider id, or FAILED with the reason.
- * Only a QUEUED message moves: a replayed outcome changes nothing.
+ * Only a QUEUED message moves: a replayed outcome changes nothing (a
+ * message CANCELLED although the provider had it keeps its status but gets
+ * the provider id). A message whose account was deleted while it was being
+ * handed over is masked with this outcome (OutboundMessage::erasurePending()).
  *
  * Once the provider id is known, the provider events that arrived before it
  * (kept as unmatched) are applied and dropped.
@@ -33,7 +36,8 @@ final readonly class RecordDispatchOutcomeHandler
 
     public function __invoke(RecordDispatchOutcome $command): void
     {
-        $message    = $this->messages->get(OutboundMessageId::fromString($command->messageId));
+        // Under the row lock: an account deletion masking it meanwhile is waited for, never overwritten.
+        $message    = $this->messages->getForUpdate(OutboundMessageId::fromString($command->messageId));
         $occurredAt = new \DateTimeImmutable($command->occurredAt);
         $externalId = $command->externalId;
 

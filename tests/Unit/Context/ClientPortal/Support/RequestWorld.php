@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Context\ClientPortal\Support;
 
 use App\Context\ClientPortal\Application\Command\ClosePortalRequestsForSubject\ClosePortalRequestsForSubjectHandler;
+use App\Context\ClientPortal\Application\Command\LockFrozenQuestionnaires\LockFrozenQuestionnairesHandler;
 use App\Context\ClientPortal\Application\Command\ResolvePortalRequest\ResolvePortalRequestHandler;
 use App\Context\ClientPortal\Application\Command\SubmitPetChangeRequest\SubmitPetChangeRequestHandler;
 use App\Context\ClientPortal\Application\Command\SubmitQuestionnaire\SubmitQuestionnaireHandler;
@@ -46,6 +47,7 @@ final class RequestWorld
     public InMemoryRenewalRequests $renewals;
     public RequestFakes $fakes;
     public BufferingLogger $logger;
+    public RecordingPortalLock $locks;
 
     public function __construct()
     {
@@ -55,6 +57,7 @@ final class RequestWorld
         $this->renewals       = new InMemoryRenewalRequests();
         $this->fakes          = new RequestFakes();
         $this->logger         = new BufferingLogger();
+        $this->locks          = new RecordingPortalLock();
         $this->pets->now('2026-10-29 09:00:00');
         $this->pets->pet();
         $this->pets->pet(PetWorld::PET2, 'Rex', chip: '250269604123456');
@@ -131,6 +134,7 @@ final class RequestWorld
             $this->fakes,
             $this->pets->documents->fakes,
             $this->pets->documents->clock,
+            $this->locks,
         );
     }
 
@@ -175,7 +179,12 @@ final class RequestWorld
 
     public function getQuestionnaire(): GetQuestionnaireHandler
     {
-        return new GetQuestionnaireHandler($this->access(), $this->questionnaires, $this->pets->documents->fakes);
+        return new GetQuestionnaireHandler($this->access(), $this->questionnaires, $this->pets->documents->fakes, $this->pets->documents->clock);
+    }
+
+    public function lockFrozen(): LockFrozenQuestionnairesHandler
+    {
+        return new LockFrozenQuestionnairesHandler($this->questionnaires, $this->access(), $this->pets->documents->clock);
     }
 
     public function summaries(): ListQuestionnaireSummariesHandler

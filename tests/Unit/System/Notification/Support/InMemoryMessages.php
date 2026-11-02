@@ -60,16 +60,28 @@ final class InMemoryMessages implements OutboundMessageRepositoryInterface
         return \array_slice(array_values(array_map(static fn (OutboundMessage $m): OutboundMessageId => $m->id(), $due)), 0, $limit);
     }
 
-    public function findPortalAccountMessagesTo(array $addresses): array
+    public function findPortalAccountMessages(string $accountId, array $addresses): array
     {
         $found = array_filter(
             $this->messages,
             static fn (OutboundMessage $m): bool => null === $m->contentPurgedAt()
                 && $m->purpose()->isPortalAccountMessage()
-                && \in_array($m->recipient()?->address, $addresses, true),
+                && ($m->accountId() === $accountId || \in_array($m->recipient()?->address, $addresses, true)),
         );
 
         return array_values(array_map(static fn (OutboundMessage $m): OutboundMessageId => $m->id(), $found));
+    }
+
+    public function getForUpdate(OutboundMessageId $id): OutboundMessage
+    {
+        return $this->get($id);
+    }
+
+    public function claimForDispatch(OutboundMessageId $id, \DateTimeImmutable $at): ?OutboundMessage
+    {
+        $message = $this->get($id);
+
+        return $message->claimForDispatch($at) ? $message : null;
     }
 
     /**

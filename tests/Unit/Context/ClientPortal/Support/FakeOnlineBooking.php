@@ -16,6 +16,8 @@ final class FakeOnlineBooking implements OnlineBookingInterface
 
     public ?\Throwable $refusal = null;
 
+    public string $newClientAppointment = self::APPOINTMENT;
+
     public function book(string $clinicId, string $motifId, string $practitionerId, \DateTimeImmutable $startsAt, string $ownerId, string $animalId, ?string $createdPetId = null): string
     {
         throw new \LogicException('Not a new-client booking.');
@@ -39,12 +41,12 @@ final class FakeOnlineBooking implements OnlineBookingInterface
             throw $this->refusal;
         }
 
-        return self::APPOINTMENT;
+        return $this->newClientAppointment;
     }
 
-    public function confirmNewClient(string $clinicId, string $appointmentId, string $ownerId, string $animalId): void
+    public function confirmNewClient(string $clinicId, string $appointmentId, string $ownerId, string $animalId, bool $silent = false): void
     {
-        $this->calls[] = ['confirm', $clinicId, $appointmentId, $ownerId, $animalId];
+        $this->calls[] = $silent ? ['confirm', $clinicId, $appointmentId, $ownerId, $animalId, 'silent'] : ['confirm', $clinicId, $appointmentId, $ownerId, $animalId];
 
         if (null !== $this->refusal) {
             throw $this->refusal;

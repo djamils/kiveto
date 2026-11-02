@@ -29,7 +29,7 @@
 import { showToast, creerDropdown } from 'kiveto/shell';
 import { registerHistoryHandler } from 'kiveto/history';
 
-const SEARCH_DEBOUNCE_MS = 250;
+const SEARCH_DEBOUNCE_MS = 300;
 const PP_KEY = 'kiveto-dem-pp';
 const PP_SIZES = [25, 50, 100];
 const STATUT_DEFAULT = 'submitted';
@@ -584,7 +584,15 @@ export function init() {
       return;
     }
     showToast(texte);
-    if (o.type === 'link' && !res.d.pending) {
+    if (o.type === 'link' && !res.d.pending && res.d.decision) {
+      // The pending request's address no longer answers: the sheet and the
+      // address move to the recorded decision (a reload opens it again).
+      ST.mode = null;
+      ST.resolved = { ok: act === 'confirm' };
+      rendreFiche();
+      await ouvrirFiche(res.d.decision, { adresse: false });
+      if (ST.fiche?.id === res.d.decision.id) majAdresse();
+    } else if (o.type === 'link' && !res.d.pending) {
       ST.mode = null;
       ST.resolved = { ok: act === 'confirm' };
       rendreFiche();

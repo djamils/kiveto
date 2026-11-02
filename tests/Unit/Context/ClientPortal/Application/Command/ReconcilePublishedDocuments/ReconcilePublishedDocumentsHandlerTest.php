@@ -49,12 +49,31 @@ final class ReconcilePublishedDocumentsHandlerTest extends TestCase
         self::assertSame(0, $handler(new ReconcilePublishedDocuments()), 'touched: out of the window');
     }
 
+    public function testADocumentStillAwaitingALinkWhoseClientIsLinkedIsReleased(): void
+    {
+        $world = new W();
+        $now   = $world->clock->now();
+        $world->document(DocumentType::INVOICE, PublicationStatus::AWAITING_LINK, 0, id: self::STALE, sourceRef: self::STALE, updatedAt: $now->modify('-11 minutes'));
+        $world->document(DocumentType::INVOICE, PublicationStatus::AWAITING_LINK, 0, id: self::FRESH, sourceRef: self::FRESH, updatedAt: $now->modify('-9 minutes'));
+        $handler = new ReconcilePublishedDocumentsHandler($world->documents, $world->sources, $world->clock);
+
+        self::assertSame(0, $handler(new ReconcilePublishedDocuments()), 'no confirmed link: it keeps waiting');
+
+        $world->documents->confirmedClients = [[W::CLINIC, W::CLIENT]];
+        self::assertSame(1, $handler(new ReconcilePublishedDocuments()));
+        self::assertSame(['store:' . self::STALE . ':1'], $world->sources->jobs);
+        self::assertSame(
+            [PublicationStatus::PENDING_FILE, PublicationStatus::AWAITING_LINK],
+            [$world->documents->documents[self::STALE]->status(), $world->documents->documents[self::FRESH]->status()],
+        );
+    }
+
     public function testARowNoLongerPendingIsSavedButNotAskedAgain(): void
     {
         $world    = new W();
         $document = $world->document(DocumentType::REPORT, PublicationStatus::AVAILABLE, 1);
         $stale    = $this->createMock(PublishedDocumentRepositoryInterface::class);
-        $stale->expects(self::once())->method('findStalePendingFiles')->with(
+        $stale->expects(self::once())->method('findStalePendingFilesForUpdate')->with(
             self::callback(static fn (\DateTimeImmutable $at): bool => '08:50' === $at->format('H:i')),
             100,
         )->willReturn([$document]);

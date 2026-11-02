@@ -16,6 +16,7 @@ use App\Context\Scheduling\Domain\ValueObject\DeclineReason;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Tests\Unit\Context\Scheduling\Support\Appointments;
 use App\Tests\Unit\Context\Scheduling\Support\CapturingEventBus;
+use App\Tests\Unit\Context\Scheduling\Support\FakeNewClientConfirmation;
 use App\Tests\Unit\Context\Scheduling\Support\InMemoryAppointments;
 use App\Tests\Unit\Context\Scheduling\Support\ParisTimezone;
 use App\Tests\Unit\Context\Scheduling\Support\RecordingDayLock;
@@ -33,9 +34,11 @@ final class ConfirmPendingAppointmentSilentlyHandlerTest extends TestCase
     private InMemoryAppointments $appointments;
     private RecordingDayLock $dayLock;
     private CapturingEventBus $events;
+    private FakeNewClientConfirmation $newClients;
 
     protected function setUp(): void
     {
+        $this->newClients   = new FakeNewClientConfirmation();
         $this->appointments = new InMemoryAppointments();
         $this->dayLock      = new RecordingDayLock();
         $this->events       = new CapturingEventBus();
@@ -56,6 +59,42 @@ final class ConfirmPendingAppointmentSilentlyHandlerTest extends TestCase
         $confirmed = $this->events->events[0];
         self::assertInstanceOf(AppointmentConfirmed::class, $confirmed);
         self::assertSame([true, 'portal', Appointments::OWNER], [$confirmed->silent(), $confirmed->source(), $confirmed->ownerId()]);
+    }
+
+    /** S7-01: a new client on site is confirmed through ClientPortal (client file, animal, Portal link), silently. */
+    public function testANewClientsRequestIsConfirmedThroughClientPortalSilently(): void
+    {
+        $this->appointments->save(Appointments::pending(ownerId: null));
+        $this->newClients->onConfirm = function (string $clinicId, string $appointmentId, bool $silent): void {
+            // ClientPortal's ConfirmNewClientAppointment: before any lock here, saved and published there
+            self::assertSame([], $this->dayLock->locked);
+            $appointment = $this->appointments->findById(AppointmentId::fromString($appointmentId));
+            \assert(null !== $appointment);
+            $appointment->assignNewClient('client-new', 'pet-new');
+            $appointment->confirm($silent);
+            $this->appointments->save($appointment);
+            $_ = $appointment->pullDomainEvents();
+        };
+
+        $this->confirm(null);
+
+        self::assertSame([[Appointments::CLINIC, Appointments::ID, Appointments::ANIMAL, true]], $this->newClients->calls);
+        $appointment = $this->appointments->findById(AppointmentId::fromString(Appointments::ID));
+        self::assertSame([AppointmentStatus::PLANNED, true, 'client-new'], [$appointment?->status(), $appointment?->confirmedSilently(), $appointment?->ownerId()]);
+        // Read again under the row lock; nothing left to publish here
+        self::assertSame([Appointments::ID], $this->appointments->lockedForUpdate);
+        self::assertSame([], $this->events->events);
+    }
+
+    public function testANewClientsRequestWithoutBookingRequestIsConfirmedSilentlyAsBefore(): void
+    {
+        $this->appointments->save(Appointments::pending(ownerId: null));
+
+        $this->confirm(Appointments::CLINIC);
+
+        self::assertCount(1, $this->newClients->calls);
+        $appointment = $this->appointments->findById(AppointmentId::fromString(Appointments::ID));
+        self::assertSame([AppointmentStatus::PLANNED, null], [$appointment?->status(), $appointment?->ownerId()]);
     }
 
     public function testWithoutAClinicTheAppointmentIsFoundByItsIdAlone(): void
@@ -125,7 +164,7 @@ final class ConfirmPendingAppointmentSilentlyHandlerTest extends TestCase
     private function handler(AppointmentRepositoryInterface $appointments): ConfirmPendingAppointmentSilentlyHandler
     {
         return new ConfirmPendingAppointmentSilentlyHandler(
-            new SilentPendingConfirmation($appointments, new PendingAppointmentLoader($appointments, new ParisTimezone(), $this->dayLock)),
+            new SilentPendingConfirmation($appointments, new PendingAppointmentLoader($appointments, new ParisTimezone(), $this->dayLock), $this->newClients),
             $appointments,
             new DomainEventPublisher($this->events),
         );

@@ -17,11 +17,14 @@ use App\System\IdentityAccess\Application\Command\ResendPortalOtp\ResendPortalOt
 use App\System\IdentityAccess\Application\Query\GetOtpChallengePhone\GetOtpChallengePhone;
 use App\System\IdentityAccess\Domain\Exception\OtpChallengeNotFoundException;
 use App\System\IdentityAccess\Domain\Exception\OtpRateLimitedException;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Order: the IP quota, then the challenge is resolved (an unknown one
  * answers 404 without touching any other quota), then the phone and
- * challenge quotas, then the new code.
+ * challenge quotas, then the new code (a sign-in code to an unknown number
+ * spends the unknown-number budget, from the same request context as
+ * RequestOtpProcessor).
  *
  * @implements ProcessorInterface<OtpResend, OtpChallengeView>
  */
@@ -31,6 +34,7 @@ final readonly class ResendOtpProcessor implements ProcessorInterface
         private CommandBusInterface $commandBus,
         private QueryBusInterface $queryBus,
         private PortalRateLimits $rateLimits,
+        private RequestStack $requests,
     ) {
     }
 
@@ -50,7 +54,7 @@ final readonly class ResendOtpProcessor implements ProcessorInterface
         $this->rateLimits->consumeResend($challengeId);
 
         try {
-            $issued = $this->commandBus->dispatch(new ResendPortalOtp($challengeId, $data->channel));
+            $issued = $this->commandBus->dispatch(new ResendPortalOtp($challengeId, $data->channel, RequestOtpProcessor::requestContext($this->requests)));
         } catch (OtpChallengeNotFoundException) {
             throw PortalProblemMap::problem(PortalProblemMap::OTP_CHALLENGE_NOT_FOUND);
         } catch (OtpRateLimitedException $exception) {

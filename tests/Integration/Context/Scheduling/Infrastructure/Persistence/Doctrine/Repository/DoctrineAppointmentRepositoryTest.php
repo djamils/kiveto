@@ -28,6 +28,7 @@ final class DoctrineAppointmentRepositoryTest extends KernelTestCase
     private const string OWNER  = '01960000-0000-7000-8000-0000000e8001';
     private const string PET    = '01960000-0000-7000-8000-0000000f8001';
     private const string MOTIF  = '01960000-0000-7000-8000-0000000b8001';
+    private const string VET    = '01960000-0000-7000-8000-0000000d8001';
 
     private AppointmentRepositoryInterface $repository;
 
@@ -223,10 +224,11 @@ final class DoctrineAppointmentRepositoryTest extends KernelTestCase
         $clinic = ClinicId::fromString(self::CLINIC);
         $start  = new \DateTimeImmutable('2026-04-14T10:00:00+02:00');
 
-        self::assertSame('01960000-0000-7000-8000-0000000a8001', $this->repository->findRecentOnlineBookingId($clinic, self::OWNER, self::PET, self::MOTIF, $start, self::utc('2026-04-12 06:00'))?->toString());
-        self::assertNull($this->repository->findRecentOnlineBookingId($clinic, self::OWNER, self::PET, self::MOTIF, $start, self::utc('2026-04-13 05:00:01')), 'too old');
-        self::assertNull($this->repository->findRecentOnlineBookingId($clinic, self::OWNER, self::PET, self::MOTIF, $start->modify('+15 minutes'), self::utc('2026-04-12 06:00')), 'another start');
-        self::assertNull($this->repository->findRecentOnlineBookingId($clinic, self::PET, self::PET, self::MOTIF, $start, self::utc('2026-04-12 06:00')), 'another owner');
+        self::assertSame('01960000-0000-7000-8000-0000000a8001', $this->repository->findRecentOnlineBookingId($clinic, self::OWNER, self::PET, self::MOTIF, self::VET, $start, self::utc('2026-04-12 06:00'))?->toString());
+        self::assertNull($this->repository->findRecentOnlineBookingId($clinic, self::OWNER, self::PET, self::MOTIF, self::VET, $start, self::utc('2026-04-13 05:00:01')), 'too old');
+        self::assertNull($this->repository->findRecentOnlineBookingId($clinic, self::OWNER, self::PET, self::MOTIF, self::VET, $start->modify('+15 minutes'), self::utc('2026-04-12 06:00')), 'another start');
+        self::assertNull($this->repository->findRecentOnlineBookingId($clinic, self::PET, self::PET, self::MOTIF, self::VET, $start, self::utc('2026-04-12 06:00')), 'another owner');
+        self::assertNull($this->repository->findRecentOnlineBookingId($clinic, self::OWNER, self::PET, self::MOTIF, self::OWNER, $start, self::utc('2026-04-12 06:00')), 'another practitioner');
 
         $connection->rollBack();
     }
@@ -256,7 +258,7 @@ final class DoctrineAppointmentRepositoryTest extends KernelTestCase
         return Appointment::schedule(
             id: AppointmentId::fromString($id),
             clinicId: ClinicId::fromString(self::CLINIC),
-            practitionerAssignee: new PractitionerAssignee(UserId::fromString('01960000-0000-7000-8000-0000000d8001')),
+            practitionerAssignee: new PractitionerAssignee(UserId::fromString(self::VET)),
             timeSlot: new TimeSlot(self::utc('2026-04-14 08:00'), 30),
             reason: 'Consultation',
             notes: null,

@@ -41,7 +41,7 @@ final class PublishedDocumentTest extends TestCase
             [
                 self::ID, self::CLINIC, self::CLIENT, DocumentType::REPORT, self::SOURCE, 'consultation-1', 'patient-1',
                 ['pet-1', 'pet-2'], 'Compte rendu', '2026-10-30 10:00', 'Dr Martin', null, 0, 1, 0,
-                PublicationStatus::PENDING_FILE, '2026-10-31 09:00', '2026-10-31 09:00', false,
+                PublicationStatus::PENDING_FILE, '2026-10-31 09:00', '2026-10-31 09:00', '2026-10-31 09:00', false,
             ],
             [
                 $document->id()->toString(), $document->clinicId(), $document->clientId(), $document->type(),
@@ -49,7 +49,8 @@ final class PublishedDocumentTest extends TestCase
                 $document->title(), $document->issuedAt()->format('Y-m-d H:i'), $document->practitionerName(),
                 $document->storageKey(), $document->fileVersion(), $document->pendingFileVersion(),
                 $document->renderAttempts(), $document->status(), $document->publishedAt()->format('Y-m-d H:i'),
-                $document->updatedAt()->format('Y-m-d H:i'), $document->isWithdrawn(),
+                $document->updatedAt()->format('Y-m-d H:i'), $document->sharedAt()->format('Y-m-d H:i'),
+                $document->isWithdrawn(),
             ],
         );
 
@@ -91,14 +92,15 @@ final class PublishedDocumentTest extends TestCase
         self::assertSame(
             [
                 self::ID, self::CLINIC, null, DocumentType::PRESCRIPTION, self::SOURCE, null, null, [], '', $now, null,
-                null, 0, null, 0, PublicationStatus::WITHDRAWN, $now, $now, true,
+                null, 0, null, 0, PublicationStatus::WITHDRAWN, $now, $now, $now, true,
             ],
             [
                 $document->id()->toString(), $document->clinicId(), $document->clientId(), $document->type(),
                 $document->sourceRef(), $document->consultationId(), $document->patientId(), $document->petIds(),
                 $document->title(), $document->issuedAt(), $document->practitionerName(), $document->storageKey(),
                 $document->fileVersion(), $document->pendingFileVersion(), $document->renderAttempts(),
-                $document->status(), $document->publishedAt(), $document->updatedAt(), $document->isWithdrawn(),
+                $document->status(), $document->publishedAt(), $document->updatedAt(), $document->sharedAt(),
+                $document->isWithdrawn(),
             ],
         );
         self::assertSame([], $document->pullDomainEvents());
@@ -133,20 +135,24 @@ final class PublishedDocumentTest extends TestCase
         $document = $this->published(linked: true);
         $document->attachFile(1, 'key-v1', new \DateTimeImmutable('2026-10-31 09:05'));
 
+        self::assertSame('2026-10-31 09:00', $document->sharedAt()->format('Y-m-d H:i'), 'a file attached is not a share');
+
         $version = $document->reshare('client-2', 'Dr Durand', true, new \DateTimeImmutable('2026-11-03 10:00'));
         self::assertSame(2, $version);
         self::assertSame(
-            ['client-2', 'Dr Durand', PublicationStatus::PENDING_FILE, 2, 1, 'key-v1', '2026-11-03 10:00'],
+            ['client-2', 'Dr Durand', PublicationStatus::PENDING_FILE, 2, 1, 'key-v1', '2026-11-03 10:00', '2026-11-03 10:00'],
             [
                 $document->clientId(), $document->practitionerName(), $document->status(),
                 $document->pendingFileVersion(), $document->fileVersion(), $document->storageKey(),
-                $document->updatedAt()->format('Y-m-d H:i'),
+                $document->updatedAt()->format('Y-m-d H:i'), $document->sharedAt()->format('Y-m-d H:i'),
             ],
         );
 
         // A second click while that file is being made adds nothing.
         self::assertNull($document->reshare('client-2', 'Dr Durand', true, new \DateTimeImmutable('2026-11-03 10:01')));
         self::assertSame([2, '2026-11-03 10:00'], [$document->pendingFileVersion(), $document->updatedAt()->format('Y-m-d H:i')]);
+        $document->assignPets(['pet-2'], new \DateTimeImmutable('2026-11-04 10:00'));
+        self::assertSame('2026-11-03 10:00', $document->sharedAt()->format('Y-m-d H:i'), 'nor are pets assigned');
     }
 
     public function testAReshareToAnUnlinkedClientAwaitsALink(): void
@@ -344,6 +350,7 @@ final class PublishedDocumentTest extends TestCase
         $issued    = new \DateTimeImmutable('2026-10-01');
         $published = new \DateTimeImmutable('2026-10-02');
         $updated   = new \DateTimeImmutable('2026-10-03');
+        $shared    = new \DateTimeImmutable('2026-10-02 12:00');
 
         $document = PublishedDocument::reconstitute(
             PublishedDocumentId::fromString(self::ID),
@@ -364,19 +371,20 @@ final class PublishedDocumentTest extends TestCase
             PublicationStatus::PENDING_FILE,
             $published,
             $updated,
+            $shared,
         );
 
         self::assertSame(
             [
                 self::ID, self::CLINIC, null, DocumentType::LAB_RESULT, self::SOURCE, null, null, ['pet-1'], 'Résultat',
-                $issued, null, 'key-v3', 3, 4, 2, PublicationStatus::PENDING_FILE, $published, $updated,
+                $issued, null, 'key-v3', 3, 4, 2, PublicationStatus::PENDING_FILE, $published, $updated, $shared,
             ],
             [
                 $document->id()->toString(), $document->clinicId(), $document->clientId(), $document->type(),
                 $document->sourceRef(), $document->consultationId(), $document->patientId(), $document->petIds(),
                 $document->title(), $document->issuedAt(), $document->practitionerName(), $document->storageKey(),
                 $document->fileVersion(), $document->pendingFileVersion(), $document->renderAttempts(),
-                $document->status(), $document->publishedAt(), $document->updatedAt(),
+                $document->status(), $document->publishedAt(), $document->updatedAt(), $document->sharedAt(),
             ],
         );
         self::assertSame([], $document->pullDomainEvents());

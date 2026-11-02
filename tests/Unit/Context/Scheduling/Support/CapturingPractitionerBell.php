@@ -20,6 +20,9 @@ final class CapturingPractitionerBell implements PractitionerBellInterface
     /** @var list<string> */
     public array $withdrawn = [];
 
+    /** @var list<string> pending-booking posts ("post <user>") and withdrawals ("withdraw <key>"), in order */
+    public array $calls = [];
+
     public function announceNewAppointment(string $clinicId, string $practitionerUserId, string $appointmentId, string $localDate, string $title, string $detail, string $idempotencyKey): void
     {
         $this->announced[] = ['clinicId' => $clinicId, 'userId' => $practitionerUserId, 'appointmentId' => $appointmentId, 'date' => $localDate, 'title' => $title, 'detail' => $detail, 'key' => $idempotencyKey];
@@ -27,6 +30,7 @@ final class CapturingPractitionerBell implements PractitionerBellInterface
 
     public function announcePendingBooking(string $clinicId, string $practitionerUserId, string $appointmentId, string $localDate, string $title, string $detail, string $idempotencyKey): void
     {
+        $this->calls[]           = 'post ' . $practitionerUserId;
         $this->pendingBookings[] = ['clinicId' => $clinicId, 'userId' => $practitionerUserId, 'appointmentId' => $appointmentId, 'date' => $localDate, 'title' => $title, 'detail' => $detail, 'key' => $idempotencyKey];
     }
 
@@ -38,5 +42,6 @@ final class CapturingPractitionerBell implements PractitionerBellInterface
     public function withdraw(string $idempotencyKey): void
     {
         $this->withdrawn[] = $idempotencyKey;
+        $this->calls[]     = 'withdraw ' . $idempotencyKey;
     }
 }

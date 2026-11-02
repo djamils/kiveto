@@ -19,7 +19,7 @@ use App\Shared\Application\Bus\QueryBusInterface;
 
 /**
  * The search rules are ClinicListing's: a refusal is `validation_failed` on
- * its field, a cursor it cannot read (or issued for other coordinates)
+ * its field (a coordinate that is not a plain decimal included), a cursor it cannot read (or issued for other coordinates)
  * `cursor_invalid`.
  *
  * @implements ProviderInterface<ClinicListings>
@@ -37,14 +37,14 @@ final readonly class ClinicListingsProvider implements ProviderInterface
         $this->rateLimit->consume();
 
         $query = QueryString::of($context);
-        $lat   = $query->string('lat');
-        $lng   = $query->string('lng');
+        $lat   = self::coordinate($query, 'lat', 'La latitude doit être un nombre.');
+        $lng   = self::coordinate($query, 'lng', 'La longitude doit être un nombre.');
 
         try {
             $page = $this->queryBus->ask(new SearchClinicListings(
                 $query->string('q'),
-                null === $lat ? null : (float) $lat,
-                null === $lng ? null : (float) $lng,
+                $lat,
+                $lng,
                 $query->string('cursor'),
                 $query->int('limit'),
             ));
@@ -56,5 +56,25 @@ final readonly class ClinicListingsProvider implements ProviderInterface
         \assert($page instanceof ClinicListingPage);
 
         return new ClinicListings(array_map(ClinicListingSummaryView::of(...), $page->items), $page->nextCursor);
+    }
+
+    /**
+     * A plain decimal, or absent; anything else (a trailing line break the
+     * operation's pattern lets through included) is refused on its field,
+     * never cast to 0.
+     */
+    private static function coordinate(QueryString $query, string $field, string $message): ?float
+    {
+        $value = $query->string($field);
+
+        if (null === $value) {
+            return null;
+        }
+
+        if (1 !== preg_match('/^-?\d{1,3}(\.\d{1,12})?$/D', $value)) {
+            throw PortalProblemMap::violation($field, $message, $value);
+        }
+
+        return (float) $value;
     }
 }

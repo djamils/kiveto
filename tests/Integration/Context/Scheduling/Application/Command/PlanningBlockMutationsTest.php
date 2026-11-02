@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Context\Scheduling\Application\Command;
 
+use App\Context\Scheduling\Application\Command\CreatePlanningBlock\CreatePlanningBlock;
 use App\Context\Scheduling\Application\Command\DeletePlanningBlock\DeletePlanningBlock;
 use App\Context\Scheduling\Application\Command\UpdatePlanningBlock\UpdatePlanningBlock;
 use App\Context\Scheduling\Domain\Exception\CannotCreateOverlappingPlanningBlock;
@@ -110,7 +111,93 @@ final class PlanningBlockMutationsTest extends KernelTestCase
         self::assertSame('12:00', $this->blocks()->findById(PlanningBlockId::fromString(self::BLOCK))?->timeRange()->endTime());
     }
 
-    private function update(string $staff, string $endTime = '12:00'): UpdatePlanningBlock
+    /**
+     * FU-06: a one-off block on a later Tuesday meets an occurrence of the
+     * weekly block, not its first date.
+     */
+    public function testAOneOffBlockOnALaterOccurrenceOfAWeeklyBlockIsRefused(): void
+    {
+        $this->expectException(CannotCreateOverlappingPlanningBlock::class);
+
+        $this->bus()->dispatch($this->create(self::ROUSSEAU, $this->day(14), '10:00', '11:00', 'NONE'));
+    }
+
+    /**
+     * FU-06: two weekly blocks on the same weekday from different first dates
+     * meet on every later week; on another weekday they never do.
+     */
+    public function testAWeeklyBlockFromAnotherFirstDateIsRefusedOnTheSameWeekdayOnly(): void
+    {
+        $this->bus()->dispatch($this->create(self::ROUSSEAU, $this->day(1), '09:00', '10:00', 'WEEKLY'));
+
+        $this->expectException(CannotCreateOverlappingPlanningBlock::class);
+
+        $this->bus()->dispatch($this->create(self::ROUSSEAU, $this->day(7), '09:00', '10:00', 'WEEKLY'));
+    }
+
+    /**
+     * FU-06: Dr Lambert's weekly block starts a week later; moving Dr
+     * Rousseau's block to him overlaps it from then on.
+     */
+    public function testAStaffChangeOntoAnOverlappingRecurringBlockIsRefused(): void
+    {
+        $this->blocks()->save($this->block(self::OTHER, $this->day(7), '10:00', '11:00', RecurrenceRule::weekly(), self::LAMBERT));
+
+        try {
+            $this->bus()->dispatch($this->update(self::LAMBERT));
+            self::fail('The block would overlap Dr Lambert\'s weekly block.');
+        } catch (CannotCreateOverlappingPlanningBlock) {
+        }
+
+        self::assertSame(self::ROUSSEAU, $this->blocks()->findById(PlanningBlockId::fromString(self::BLOCK))?->staffUserId()->toString());
+    }
+
+    /**
+     * FU-06: two blocks saved overlapping before the check went occurrence by
+     * occurrence: an edit that does not move the block is still possible;
+     * one that moves it must end the overlap.
+     */
+    public function testALegacyOverlapStaysEditableUntilTheBlockMoves(): void
+    {
+        $this->blocks()->save($this->block(self::OTHER, $this->day(7), '11:00', '13:00', RecurrenceRule::weekly()));
+
+        $this->bus()->dispatch($this->update(self::ROUSSEAU, capacityPerHour: 2));
+        $block = $this->blocks()->findById(PlanningBlockId::fromString(self::BLOCK));
+        self::assertSame(2, $block?->capacityPerHour());
+
+        try {
+            $this->bus()->dispatch($this->update(self::ROUSSEAU, endTime: '11:30'));
+            self::fail('The moved block still overlaps the other one.');
+        } catch (CannotCreateOverlappingPlanningBlock) {
+        }
+
+        $this->bus()->dispatch($this->update(self::ROUSSEAU, endTime: '11:00'));
+        $block = $this->blocks()->findById(PlanningBlockId::fromString(self::BLOCK));
+        self::assertSame('11:00', $block?->timeRange()->endTime());
+    }
+
+    private function day(int $days): string
+    {
+        return new \DateTimeImmutable($this->anchor, new \DateTimeZone('UTC'))->modify(\sprintf('+%d days', $days))->format('Y-m-d');
+    }
+
+    private function create(string $staff, string $date, string $start, string $end, string $freq): CreatePlanningBlock
+    {
+        return new CreatePlanningBlock(
+            clinicId: self::CLINIC,
+            staffUserId: $staff,
+            type: 'consultation',
+            date: $date,
+            startTime: $start,
+            endTime: $end,
+            capacityPerHour: 4,
+            recurrenceFreq: $freq,
+            recurrenceUntil: null,
+            note: null,
+        );
+    }
+
+    private function update(string $staff, string $endTime = '12:00', int $capacityPerHour = 4): UpdatePlanningBlock
     {
         return new UpdatePlanningBlock(
             blockId: self::BLOCK,
@@ -120,19 +207,19 @@ final class PlanningBlockMutationsTest extends KernelTestCase
             date: $this->anchor,
             startTime: '08:00',
             endTime: $endTime,
-            capacityPerHour: 4,
+            capacityPerHour: $capacityPerHour,
             recurrenceFreq: 'WEEKLY',
             recurrenceUntil: null,
             note: null,
         );
     }
 
-    private function block(string $id, string $date, string $start, string $end, RecurrenceRule $rule): PlanningBlock
+    private function block(string $id, string $date, string $start, string $end, RecurrenceRule $rule, string $staff = self::ROUSSEAU): PlanningBlock
     {
         return PlanningBlock::create(
             id: PlanningBlockId::fromString($id),
             clinicId: ClinicId::fromString(self::CLINIC),
-            staffUserId: UserId::fromString(self::ROUSSEAU),
+            staffUserId: UserId::fromString($staff),
             type: PlanningBlockType::CONSULTATION,
             timeRange: new TimeRange($date, $start, $end),
             capacityPerHour: 4,

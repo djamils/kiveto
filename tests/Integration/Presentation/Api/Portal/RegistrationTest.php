@@ -146,6 +146,20 @@ final class RegistrationTest extends PortalApiTestCase
         self::assertSame(21, $this->otpSmsCount());
     }
 
+    /** S7-05: a resend to an unknown number spends the network budget too; exhausted, the same 202 and no SMS. */
+    public function testAResendToAnUnknownNumberSpendsTheBudget(): void
+    {
+        $this->clientIp = '192.0.4.10';
+        $this->limiter('limiter.portal_otp_unknown_network')->create('192.0.4.0/24')->consume(19);
+
+        $challengeId = $this->requestCode('+33616100001');
+        self::assertSame(1, $this->otpSmsCount(), 'the last SMS of the network');
+
+        $this->connection()->executeStatement('UPDATE identity_access__otp_challenges SET resend_available_at = ? WHERE phone = ?', ['2020-01-01 00:00:00', '+33616100001']);
+        self::assertSame($challengeId, self::json($this->post('/auth/otp/' . $challengeId . '/resend', ['channel' => 'sms'], ['HTTP_X_DEVICE_ID' => 'device-resend']), 202)['challengeId']);
+        self::assertSame(1, $this->otpSmsCount(), 'same 202, no SMS');
+    }
+
     /** The device hint: 5 an hour, whatever the network. */
     public function testTheDeviceHintLimitsOneDevice(): void
     {

@@ -215,6 +215,11 @@ final class PetFakes implements
         return $this->booklets[$animalId] ?? null;
     }
 
+    public function isCurrentKey(string $storageKey): bool
+    {
+        return \in_array($storageKey, $this->booklets, true);
+    }
+
     public function saveCurrent(string $clinicId, string $animalId, string $storageKey, \DateTimeImmutable $at): void
     {
         $this->calls[]             = 'saveCurrent:' . $clinicId . ':' . $animalId . ':' . $storageKey . ':' . $at->format('c');

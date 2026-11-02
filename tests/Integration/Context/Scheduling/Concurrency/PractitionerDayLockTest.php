@@ -15,11 +15,17 @@ use App\Context\Scheduling\Application\Command\ScheduleAppointment\ScheduleAppoi
 use App\Context\Scheduling\Application\Port\ClinicTimezoneResolverInterface;
 use App\Context\Scheduling\Application\Port\MembershipEligibilityCheckerInterface;
 use App\Context\Scheduling\Application\Service\PlanningBlockGate;
+use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Exception\BlockRefusesAppointmentsException;
 use App\Context\Scheduling\Domain\Exception\CannotDeletePlanningBlockWithAppointments;
 use App\Context\Scheduling\Domain\Exception\SlotTakenException;
+use App\Context\Scheduling\Domain\Service\LockKeys;
 use App\Context\Scheduling\Domain\Service\RecurrenceExpander;
+use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
+use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
+use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
+use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
 use App\Context\Scheduling\Infrastructure\Adapter\DbalAppointmentConflictChecker;
 use App\Context\Scheduling\Infrastructure\Adapter\DbalOccupyingAppointmentsReader;
@@ -33,15 +39,22 @@ use App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository\Doctri
 use App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DoctrinePlanningBlockRepository;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
+use App\Shared\Infrastructure\Bus\Messenger\CommandBus;
 use App\Tests\Shared\Time\FrozenClock;
 use App\Tests\Unit\Context\Scheduling\Support\CapturingEventBus;
 use App\Tests\Unit\Context\Scheduling\Support\InMemoryOnlineBookingSettings;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Exception\HandlerFailedException;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\HandledStamp;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -54,6 +67,8 @@ use Symfony\Component\Uid\Uuid;
  * PHP runs one connection at a time: the second writer first runs into the
  * lock held by the first (lock wait timeout of 1 s), then retries in the
  * same transaction — with the same old snapshot — once the first committed.
+ * A deadlock rolls a writer's whole transaction back: the lock reports it as
+ * a contended slot and the command bus runs the command once more (S4A-05).
  */
 final class PractitionerDayLockTest extends KernelTestCase
 {
@@ -163,22 +178,81 @@ final class PractitionerDayLockTest extends KernelTestCase
         ], $this->committedSlots());
     }
 
-    public function testADeadlockWhileLockingIsRetriedAndNeverReachesTheCaller(): void
+    public function testADeadlockWhileLockingRollsBackAndIsAContendedSlot(): void
     {
-        // Another writer holds (A, 12 March) and many more rows, then asks for (A, 11 March)
-        // while this booking holds it and waits for the 12th: MySQL rolls the lighter one —
-        // this booking — back; the lock reopens the transaction and takes both days again.
+        // S4A-05: another writer holds (A, 12 March) and many more rows, then asks for (A, 11 March)
+        // while this booking holds it and waits for the 12th: MySQL rolls this lighter transaction
+        // back. The lock reopens nothing: the caller learns at once, its transaction is gone.
         $other = $this->otherWriter(
             holds: [[self::VET_B, '2026-04-01'], [self::VET_B, '2026-04-02'], [self::VET_B, '2026-04-03'], [self::VET_B, '2026-04-04'], [self::VET_B, '2026-04-05'], [self::VET_A, '2026-03-12']],
             thenTakes: [self::VET_A, '2026-03-11'],
         );
 
         $this->begin($this->first);
-        $this->schedule($this->first, self::VET_A, '2026-03-11 22:30', 60);
-        $this->first->commit();
+
+        try {
+            $this->schedule($this->first, self::VET_A, '2026-03-11 22:30', 60);
+            self::fail('The deadlock should reach the caller.');
+        } catch (SlotTakenException $e) {
+            self::assertSame(SlotTakenException::CONTENDED, $e->reason);
+            self::assertInstanceOf(DeadlockException::class, $e->getPrevious());
+        }
+
+        // No raw START TRANSACTION: DBAL still counts the one transaction its caller began
+        self::assertSame(1, $this->first->getTransactionNestingLevel());
+        $this->first->rollBack();
 
         self::assertSame("ready\ndone\n", $this->finish($other));
+        self::assertSame([], $this->committedSlots());
+    }
+
+    public function testTheCommandBusRunsADeadlockedBookingOnceMore(): void
+    {
+        // S4A-05: the same deadlock through the bus, which owns the transaction: the whole
+        // command runs again once the other writer committed, and the booking is made
+        $other = $this->otherWriter(
+            holds: [[self::VET_B, '2026-04-01'], [self::VET_B, '2026-04-02'], [self::VET_B, '2026-04-03'], [self::VET_B, '2026-04-04'], [self::VET_B, '2026-04-05'], [self::VET_A, '2026-03-12']],
+            thenTakes: [self::VET_A, '2026-03-11'],
+        );
+
+        $bus = $this->transactionalBus($this->first, fn (): string => $this->schedule($this->first, self::VET_A, '2026-03-11 22:30', 60));
+        $id  = new CommandBus($bus, $this->registry($this->first))->dispatch(new \stdClass());
+
+        self::assertIsString($id);
+        self::assertCount(2, $bus);
+        self::assertSame("ready\ndone\n", $this->finish($other));
         self::assertSame([self::VET_A . ' 2026-03-11 22:30:00'], $this->committedSlots());
+    }
+
+    public function testBookingsOfOnePractitionerOnDifferentDaysDoNotLockEachOther(): void
+    {
+        // S4A-02: Dr A's only past booking, cancelled, is at 09:15 on 11 March. A booking on the
+        // 11th and one on the 20th check their slot as current reads in turn; the scan of the 20th
+        // starts a day before its slot, so it no longer locks the history up to the 11th and the
+        // booking of the 11th is written without waiting for it (it used to: then a deadlock).
+        $this->begin($this->first);
+        $cancelled = $this->schedule($this->first, self::VET_A, '2026-03-11 09:15', 30);
+        $this->first->executeStatement('UPDATE scheduling__appointments SET status = ? WHERE id = ?', [AppointmentStatus::CANCELLED->value, Uuid::fromString($cancelled)->toBinary()]);
+        $this->first->commit();
+        $this->first->executeStatement('SET SESSION innodb_lock_wait_timeout = 1');
+
+        $this->begin($this->first);
+        $this->begin($this->second);
+        self::assertFalse($this->checkLocked($this->first, '2026-03-11 09:00'));
+        self::assertFalse($this->checkLocked($this->second, '2026-03-20 09:00'));
+
+        // Would time out while the scan of the 20th covered the 11th
+        $this->insert($this->first, '2026-03-11 09:00');
+        $this->first->commit();
+
+        $this->insert($this->second, '2026-03-20 09:00');
+        $this->second->commit();
+
+        self::assertSame([
+            self::VET_A . ' 2026-03-11 09:00:00',
+            self::VET_A . ' 2026-03-11 09:15:00',
+            self::VET_A . ' 2026-03-20 09:00:00',
+        ], $this->committedSlots());
     }
 
     public function testABlockCannotBeDeletedUnderABookingCommittedMeanwhile(): void
@@ -241,6 +315,88 @@ final class PractitionerDayLockTest extends KernelTestCase
             startsAtUtc: self::utc($startsAtUtc),
             durationMinutes: $duration,
         ));
+    }
+
+    /**
+     * The practitioner-day lock, then the overlap and capacity scans of the
+     * slot as current reads — what a booking does before it writes.
+     */
+    private function checkLocked(Connection $connection, string $startsAtUtc): bool
+    {
+        $slot   = new TimeSlot(self::utc($startsAtUtc), 30);
+        $clinic = ClinicId::fromString(self::CLINIC);
+        $vet    = UserId::fromString(self::VET_A);
+
+        new DbalPractitionerDayLock($connection)->lock($clinic, LockKeys::forSlot($vet, $slot->startsAtUtc(), $slot->endsAtUtc(), new \DateTimeZone('Europe/Paris')));
+        new DbalPlanningBlockAppointmentCounter($connection)->countOccupyingInWindowLocked($clinic, $vet, $slot->startsAtUtc()->modify('-1 hour'), $slot->endsAtUtc()->modify('+1 hour'));
+
+        return new DbalAppointmentConflictChecker($connection)->hasOverlapLocked($clinic, $vet, $slot);
+    }
+
+    private function insert(Connection $connection, string $startsAtUtc): void
+    {
+        new DoctrineAppointmentRepository($this->entityManager($connection), new AppointmentMapper())->save(Appointment::schedule(
+            id: AppointmentId::fromString($this->uuids()->generate()),
+            clinicId: ClinicId::fromString(self::CLINIC),
+            practitionerAssignee: new PractitionerAssignee(UserId::fromString(self::VET_A)),
+            timeSlot: new TimeSlot(self::utc($startsAtUtc), 30),
+            reason: null,
+            notes: null,
+            createdAt: self::utc('2026-03-01 08:00'),
+        ));
+    }
+
+    /**
+     * A command bus stack reduced to its transaction: begin, run, commit —
+     * or roll back and report the failure as Messenger does.
+     *
+     * @param \Closure(): mixed $write
+     */
+    private function transactionalBus(Connection $connection, \Closure $write): MessageBusInterface&\Countable
+    {
+        return new class($connection, $write) implements MessageBusInterface, \Countable {
+            public int $runs = 0;
+
+            public function __construct(private readonly Connection $connection, private readonly \Closure $write)
+            {
+            }
+
+            public function dispatch(object $message, array $stamps = []): Envelope
+            {
+                ++$this->runs;
+                $this->connection->beginTransaction();
+
+                try {
+                    $result = ($this->write)();
+                    $this->connection->commit();
+                } catch (\Throwable $e) {
+                    if ($this->connection->isTransactionActive()) {
+                        $this->connection->rollBack();
+                    }
+
+                    throw new HandlerFailedException(Envelope::wrap($message, $stamps), [$e]);
+                }
+
+                return Envelope::wrap($message, $stamps)->with(new HandledStamp($result, 'handler'));
+            }
+
+            /**
+             * @return int<0, max> how many times the command ran
+             */
+            public function count(): int
+            {
+                return max(0, $this->runs);
+            }
+        };
+    }
+
+    private function registry(Connection $connection): ManagerRegistry
+    {
+        $registry = $this->createStub(ManagerRegistry::class);
+        $registry->method('getConnection')->willReturn($connection);
+        $registry->method('getManager')->willReturn($this->entityManager($connection));
+
+        return $registry;
     }
 
     private function reschedule(Connection $connection, string $appointmentId, string $practitioner, string $startsAtUtc): void

@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace App\Tests\Unit\System\IdentityAccess\Application\Command;
 
 use App\Shared\Domain\ValueObject\PhoneNumber;
+use App\System\IdentityAccess\Application\Command\RequestPortalOtp\OtpChallengeIssued;
 use App\System\IdentityAccess\Application\Command\RequestPortalOtp\OtpRequestContext;
 use App\System\IdentityAccess\Application\Command\RequestPortalOtp\RequestPortalOtp;
 use App\System\IdentityAccess\Application\Command\RequestPortalOtp\RequestPortalOtpHandler;
+use App\System\IdentityAccess\Application\Command\ResendPortalOtp\ResendPortalOtp;
+use App\System\IdentityAccess\Application\Command\ResendPortalOtp\ResendPortalOtpHandler;
+use App\System\IdentityAccess\Application\Service\UnknownNumberSmsGate;
 use App\System\IdentityAccess\Domain\User;
 use App\System\IdentityAccess\Domain\ValueObject\UserId;
 use App\Tests\Shared\Time\FrozenClock;
@@ -19,7 +23,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * S7a', D13, AC 261: the unknown-number SMS budget in three layers — the
+ * S7a', D13, AC 261, S7-05: the unknown-number SMS budget (request and resends) in three layers — the
  * client's network, the device hint, the global cap — checked in this
  * order; the first exhausted layer suppresses the SMS and spares the next.
  */
@@ -103,6 +107,48 @@ final class RequestPortalOtpUnknownBudgetTest extends TestCase
     }
 
     /**
+     * S7-05, AC 261 counting: each resend of a sign-in code to an unknown
+     * number spends the layers like the request, in the same order; the
+     * device budget (5 an hour) lets the request and four resends through,
+     * the fifth resend sends nothing — and answers the same.
+     */
+    public function testAResendToAnUnknownNumberSpendsTheBudgetAndIsSuppressedOnceExhausted(): void
+    {
+        $context = new OtpRequestContext('203.0.113.77', 'device-1');
+        $this->request($context);
+        $challengeId = $this->challenges->single()->id()->toString();
+        $at          = new \DateTimeImmutable('2026-11-02 09:00:00');
+
+        for ($resend = 1; $resend <= 5; ++$resend) {
+            $at     = $at->modify('+31 seconds');
+            $issued = $this->resend($challengeId, $context, $at);
+            self::assertSame($challengeId, $issued->challengeId);
+        }
+
+        self::assertSame(array_merge(
+            array_merge(...array_fill(0, 5, ['network:203.0.113.0/24', 'device:device-1', 'global'])),
+            ['network:203.0.113.0/24', 'device:device-1'],
+        ), $this->portal->budgetCalls, 'every send spends network, device, global in order; the refused device spares the global cap');
+        self::assertSame([1, 2, 3, 4, 5], array_map(static fn ($r): int => $r->sendCount, $this->fakes->portalOtps), 'the sixth code is not texted');
+        self::assertSame([6, false], [$this->challenges->single()->sendCount(), $this->challenges->single()->isSmsSuppressed()]);
+        self::assertSame(195, $this->portal->budget);
+    }
+
+    public function testAResendWithoutContextSpendsTheGlobalCapAndAKnownPhoneNothing(): void
+    {
+        $this->request(null);
+        $challengeId          = $this->challenges->single()->id()->toString();
+        $this->portal->budget = 0;
+
+        $this->resend($challengeId, null, new \DateTimeImmutable('2026-11-02 09:00:31'));
+        self::assertSame([['global', 'global'], 1], [$this->portal->budgetCalls, \count($this->fakes->portalOtps)], 'global cap exhausted: suppressed');
+
+        $this->users->save(User::registerPortal(UserId::fromString('01960000-0000-7000-8000-0000000006e1'), PhoneNumber::fromString(self::PHONE), null, new \DateTimeImmutable('2026-11-01')));
+        $this->resend($challengeId, new OtpRequestContext('203.0.113.77'), new \DateTimeImmutable('2026-11-02 09:01:02'));
+        self::assertSame([['global', 'global'], 2], [$this->portal->budgetCalls, \count($this->fakes->portalOtps)], 'known: texted without spending');
+    }
+
+    /**
      * @return iterable<string, array{?string, ?string}>
      */
     public static function provideTheNetworkKeyCases(): iterable
@@ -121,9 +167,16 @@ final class RequestPortalOtpUnknownBudgetTest extends TestCase
         self::assertSame($expected, new OtpRequestContext($ip)->networkKey());
     }
 
+    private function resend(string $challengeId, ?OtpRequestContext $context, \DateTimeImmutable $at): OtpChallengeIssued
+    {
+        $handler = new ResendPortalOtpHandler($this->challenges, $this->users, $this->portal, $this->portal, $this->fakes, new FrozenClock($at), new UnknownNumberSmsGate($this->users, $this->portal, $this->portal));
+
+        return $handler(new ResendPortalOtp($challengeId, 'sms', $context));
+    }
+
     private function request(?OtpRequestContext $context): void
     {
-        $handler = new RequestPortalOtpHandler($this->challenges, $this->users, $this->portal, $this->portal, $this->portal, $this->portal, $this->portal, $this->fakes, $this->fakes, new FrozenClock(new \DateTimeImmutable('2026-11-02 09:00:00')));
+        $handler = new RequestPortalOtpHandler($this->challenges, $this->portal, new UnknownNumberSmsGate($this->users, $this->portal, $this->portal), $this->portal, $this->portal, $this->fakes, $this->fakes, new FrozenClock(new \DateTimeImmutable('2026-11-02 09:00:00')));
 
         $handler(new RequestPortalOtp(self::PHONE, 'login', requestContext: $context));
     }

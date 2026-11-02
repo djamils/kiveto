@@ -118,6 +118,45 @@ final class UpdatePlanningBlockHandlerTest extends TestCase
         ($this->handler)($this->baseCommand(['startTime' => '07:00']));
     }
 
+    /**
+     * FU-06: a block that moves (times, date or staff member) is compared
+     * occurrence by occurrence, with its rule, from the clinic's today, and
+     * without itself.
+     */
+    #[AllowMockObjectsWithoutExpectations]
+    public function testAMovedBlockIsComparedWithItsRuleFromToday(): void
+    {
+        $this->repository->method('findById')->willReturn($this->sampleBlock());
+        $this->timezoneResolver->method('resolveTimezone')->willReturn(new \DateTimeZone('Europe/Paris'));
+        $this->overlapChecker->expects(self::once())->method('hasOverlap')
+            ->with(
+                self::callback(static fn (ClinicId $id): bool => '22222222-2222-2222-2222-222222222222' === $id->toString()),
+                self::callback(static fn (UserId $id): bool => self::OTHER === $id->toString()),
+                self::callback(static fn (TimeRange $range): bool => $range->equals(new TimeRange('2026-04-21', '08:00', '12:00'))),
+                self::callback(static fn (RecurrenceRule $rule): bool => RecurrenceRule::WEEKLY === $rule->freq()),
+                '2026-04-01',
+                self::callback(static fn (?PlanningBlockId $id): bool => '11111111-1111-1111-1111-111111111111' === $id?->toString()),
+            )
+            ->willReturn(false)
+        ;
+
+        ($this->handler)($this->baseCommand(['staffUserId' => self::OTHER]));
+    }
+
+    /**
+     * FU-06: two blocks that overlapped before the occurrence-by-occurrence
+     * check stay editable as long as the edit does not move the block.
+     */
+    #[AllowMockObjectsWithoutExpectations]
+    public function testAnEditThatDoesNotMoveTheBlockKeepsALegacyOverlap(): void
+    {
+        $this->setupHappyPath(overlap: true);
+        $this->overlapChecker->expects(self::never())->method('hasOverlap');
+        $this->repository->expects(self::once())->method('save');
+
+        ($this->handler)($this->baseCommand(['capacityPerHour' => 2, 'type' => 'surgery']));
+    }
+
     #[AllowMockObjectsWithoutExpectations]
     public function testD1TypeChangeWithAnAppointmentInALaterOccurrenceThrows(): void
     {
@@ -183,7 +222,11 @@ final class UpdatePlanningBlockHandlerTest extends TestCase
             ($this->handler)($this->baseCommand(['staffUserId' => self::OTHER]));
             self::fail('The original practitioner\'s appointment would lose its block.');
         } catch (CannotShrinkPlanningBlockBelowExistingAppointments) {
-            self::assertSame(self::STAFF . '|2026-04-21 06:00|9999-12-31 00:00|current', $this->appointments->reads[0]);
+            // FU-01: current under the lock (60 days ahead), plain beyond it
+            self::assertSame([
+                self::STAFF . '|2026-04-21 06:00|2026-05-31 10:00|current',
+                self::STAFF . '|2026-05-31 10:00|9999-12-31 00:00|snapshot',
+            ], $this->appointments->reads);
         }
     }
 
@@ -197,7 +240,10 @@ final class UpdatePlanningBlockHandlerTest extends TestCase
         ($this->handler)($this->baseCommand(['staffUserId' => self::OTHER]));
 
         // The capacity is checked on the new practitioner's appointments
-        self::assertSame(self::OTHER . '|2026-04-21 06:00|9999-12-31 00:00|current', $this->appointments->reads[1]);
+        self::assertSame([
+            self::OTHER . '|2026-04-21 06:00|2026-05-31 10:00|current',
+            self::OTHER . '|2026-05-31 10:00|9999-12-31 00:00|snapshot',
+        ], \array_slice($this->appointments->reads, 2));
     }
 
     #[AllowMockObjectsWithoutExpectations]

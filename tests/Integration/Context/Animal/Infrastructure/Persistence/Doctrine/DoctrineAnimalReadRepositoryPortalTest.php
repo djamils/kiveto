@@ -201,14 +201,14 @@ final class DoctrineAnimalReadRepositoryPortalTest extends KernelTestCase
         self::assertSame([], $this->latest([]));
     }
 
-    public function testARecentPetOfTheOwnerIsFoundByNameRegardlessOfCase(): void
+    public function testARecentPetOfTheOwnerIsFoundByItsIdAndNameRegardlessOfCase(): void
     {
         $since = new \DateTimeImmutable('2026-04-12 06:00:00', new \DateTimeZone('UTC'));
         $cat   = ['species' => Species::CAT, 'createdAt' => new \DateTimeImmutable('2026-04-13 05:00:00')];
 
         $pixel = $this->pet('0192e000-0000-7000-8000-000000000101', 'Pixel ', $cat);
         $this->own($pixel, self::CLIENT_A, OwnershipRole::PRIMARY);
-        // Older than the window, another species, archived, a secondary owner's, another clinic's
+        // Older than the window, another species, archived, a secondary owner's, another clinic's, dead, sold
         $old = $this->pet('0192e000-0000-7000-8000-000000000102', 'Pixel', ['species' => Species::CAT, 'createdAt' => new \DateTimeImmutable('2026-04-12 05:59:59')]);
         $this->own($old, self::CLIENT_B, OwnershipRole::PRIMARY);
         $dog = $this->pet('0192e000-0000-7000-8000-000000000103', 'Pixel', ['species' => Species::DOG, 'createdAt' => new \DateTimeImmutable('2026-04-13 05:00:00')]);
@@ -220,13 +220,23 @@ final class DoctrineAnimalReadRepositoryPortalTest extends KernelTestCase
         $this->own($secondary, self::CLIENT_B, OwnershipRole::SECONDARY);
         $elsewhere = $this->pet('0192e000-0000-7000-8000-000000000106', 'Pixel', $cat, self::OTHER_CLINIC);
         $this->own($elsewhere, self::CLIENT_B, OwnershipRole::PRIMARY);
+        $dead = $this->pet('0192e000-0000-7000-8000-000000000107', 'Pixel', [...$cat, 'lifeStatus' => LifeStatus::DECEASED]);
+        $this->own($dead, self::CLIENT_B, OwnershipRole::PRIMARY);
+        $sold = $this->pet('0192e000-0000-7000-8000-000000000108', 'Pixel', [...$cat, 'transferStatus' => TransferStatus::SOLD]);
+        $this->own($sold, self::CLIENT_B, OwnershipRole::PRIMARY);
         $this->flush();
 
         $clinic = ClinicId::fromString(self::CLINIC_ID);
+        $find   = fn (string $animalId, string $clientId, string $name = 'pixel'): ?string => $this->repository()->findRecentPetOfOwner($clinic, $animalId, $clientId, $name, 'cat', $since);
 
-        self::assertSame('0192e000-0000-7000-8000-000000000101', $this->repository()->findRecentPetOfOwner($clinic, self::CLIENT_A, 'PIXEL', 'cat', $since));
-        self::assertNull($this->repository()->findRecentPetOfOwner($clinic, self::CLIENT_A, 'Pixou', 'cat', $since));
-        self::assertNull($this->repository()->findRecentPetOfOwner($clinic, self::CLIENT_B, 'pixel', 'cat', $since));
+        self::assertSame('0192e000-0000-7000-8000-000000000101', $this->repository()->findRecentPetOfOwner($clinic, '0192e000-0000-7000-8000-000000000101', self::CLIENT_A, 'PIXEL', 'cat', $since));
+        self::assertNull($find('0192e000-0000-7000-8000-000000000101', self::CLIENT_A, 'Pixou'));
+        self::assertNull($find('0192e000-0000-7000-8000-000000000101', self::CLIENT_B));
+        self::assertNull($find('not-a-uuid', self::CLIENT_A));
+
+        foreach (['102', '103', '104', '105', '106', '107', '108'] as $suffix) {
+            self::assertNull($find('0192e000-0000-7000-8000-000000000' . $suffix, self::CLIENT_B), $suffix);
+        }
     }
 
     /**

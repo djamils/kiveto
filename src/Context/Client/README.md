@@ -424,7 +424,7 @@ Lus par le Portal à travers son port.
 
 #### ListClientsByMobilePhone
 
-`(phone)` → `list<MobileClientMatch{clinicId, clientId, firstName, lastName, animalNames[]}>`, **toutes cliniques confondues** (suggestions de rattachement du Portal, S7b) : téléphone de type `phone`, libellé `mobile`, valeur E.164 exacte ; clients archivés exclus ; cliniques non actives (suspendues, fermées) exclues via le port `ClinicStatusInterface` (adapter `Infrastructure/Adapter/Clinic/QueryBusClinicStatus`, `GetClinic` du contexte Clinic — jamais de jointure sur ses tables) ; noms des animaux actifs dont le client est propriétaire principal via `ClientAnimalNamesInterface` (adapter `QueryBusClientAnimalNames`, `ListAnimalSummariesPerClientIds`). Par clinique puis du plus ancien dossier au plus récent. L'appelant n'expose au propriétaire que la clinique.
+`(phone)` → `list<MobileClientMatch{clinicId, clientId, firstName, lastName, animalNames[]}>`, **toutes cliniques confondues** (suggestions de rattachement du Portal, S7b) : téléphone de type `phone`, libellé `mobile`, valeur E.164 exacte ; clients archivés exclus ; cliniques non actives (suspendues, fermées, ou dont le groupe n'est pas actif) exclues via le port `ClinicStatusInterface` (adapter `Infrastructure/Adapter/Clinic/QueryBusClinicStatus`, `GetClinic` puis `GetClinicGroup` du contexte Clinic — jamais de jointure sur ses tables) ; noms des animaux actifs dont le client est propriétaire principal via `ClientAnimalNamesInterface` (adapter `QueryBusClientAnimalNames`, `ListAnimalSummariesPerClientIds`). Par clinique puis du plus ancien dossier au plus récent. L'appelant n'expose au propriétaire que la clinique.
 
 #### SearchCompanyRegistry
 

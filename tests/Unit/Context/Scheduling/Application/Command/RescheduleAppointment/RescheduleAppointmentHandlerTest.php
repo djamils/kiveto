@@ -85,7 +85,7 @@ final class RescheduleAppointmentHandlerTest extends TestCase
     {
         $appointment = $this->createFutureAppointment();
 
-        $this->repository->method('findById')->willReturn($appointment);
+        $this->givenStored($appointment);
         $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:00:00'));
         $this->eligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
         $this->conflictChecker->method('hasOverlapLocked')->willReturn(false);
@@ -149,7 +149,7 @@ final class RescheduleAppointmentHandlerTest extends TestCase
     {
         $appointment = $this->createFutureAppointment();
 
-        $this->repository->method('findById')->willReturn($appointment);
+        $this->givenStored($appointment);
         $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:00:00'));
         $this->eligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
         $this->conflictChecker->method('hasOverlapLocked')->willReturn(false);
@@ -177,7 +177,7 @@ final class RescheduleAppointmentHandlerTest extends TestCase
         $this->expectExceptionMessage('overlapping');
 
         $appointment = $this->createFutureAppointment();
-        $this->repository->method('findById')->willReturn($appointment);
+        $this->givenStored($appointment);
         $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:00:00'));
         $this->eligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
         $this->conflictChecker->method('hasOverlapLocked')->willReturn(true);
@@ -198,7 +198,7 @@ final class RescheduleAppointmentHandlerTest extends TestCase
         $this->expectExceptionMessage('not eligible');
 
         $appointment = $this->createFutureAppointment();
-        $this->repository->method('findById')->willReturn($appointment);
+        $this->givenStored($appointment);
         $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:00:00'));
         $this->eligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(false);
 
@@ -219,7 +219,7 @@ final class RescheduleAppointmentHandlerTest extends TestCase
 
         $appointment = $this->createFutureAppointment();
         $appointment->cancel(CancellationActor::CLINIC);
-        $this->repository->method('findById')->willReturn($appointment);
+        $this->givenStored($appointment);
         $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:00:00'));
         $this->eligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
         $this->conflictChecker->method('hasOverlapLocked')->willReturn(false);
@@ -241,7 +241,7 @@ final class RescheduleAppointmentHandlerTest extends TestCase
 
         $appointment = $this->createFutureAppointment();
         $appointment->markNoShow();
-        $this->repository->method('findById')->willReturn($appointment);
+        $this->givenStored($appointment);
         $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:00:00'));
         $this->eligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
         $this->conflictChecker->method('hasOverlapLocked')->willReturn(false);
@@ -262,7 +262,7 @@ final class RescheduleAppointmentHandlerTest extends TestCase
         $pulled      = $appointment->pullDomainEvents();
         unset($pulled);
 
-        $this->repository->method('findById')->willReturn($appointment);
+        $this->givenStored($appointment);
         $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:00:00'));
         $this->eligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
         $this->conflictChecker->method('hasOverlapLocked')->willReturn(false);
@@ -287,7 +287,7 @@ final class RescheduleAppointmentHandlerTest extends TestCase
         $this->expectExceptionMessage('Rendez-vous introuvable.');
 
         $appointment = $this->createFutureAppointment();
-        $this->repository->method('findById')->willReturn($appointment);
+        $this->givenStored($appointment);
         $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:00:00'));
 
         ($this->handler)(new RescheduleAppointment(
@@ -305,7 +305,7 @@ final class RescheduleAppointmentHandlerTest extends TestCase
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('Rendez-vous introuvable.');
 
-        $this->repository->method('findById')->willReturn(null);
+        $this->givenStored(null);
 
         ($this->handler)(new RescheduleAppointment(
             clinicId: self::CLINIC_ID,
@@ -325,7 +325,7 @@ final class RescheduleAppointmentHandlerTest extends TestCase
     {
         $appointment = $this->createPendingAppointment();
 
-        $this->repository->method('findById')->willReturn($appointment);
+        $this->givenStored($appointment);
         $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:00:00'));
         $this->eligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
         $this->conflictChecker->method('hasOverlapLocked')->willReturn(false);
@@ -352,7 +352,7 @@ final class RescheduleAppointmentHandlerTest extends TestCase
     {
         $appointment = $this->createPendingAppointment();
 
-        $this->repository->method('findById')->willReturn($appointment);
+        $this->givenStored($appointment);
         $this->repository->expects(self::never())->method('save');
         $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-09 12:30:00'));
         $this->eligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
@@ -370,9 +370,104 @@ final class RescheduleAppointmentHandlerTest extends TestCase
         ));
     }
 
-    private function givenAMoveTo(PlanningBlockReadModel $block): void
+    /**
+     * S4A-04: the row is read again `FOR UPDATE` once the days are locked;
+     * cancelled meanwhile, the move is refused before any check of the slot.
+     */
+    #[AllowMockObjectsWithoutExpectations]
+    public function testAnAppointmentCancelledMeanwhileIsNotMoved(): void
+    {
+        $current = $this->createFutureAppointment();
+        $current->cancel(CancellationActor::CLINIC);
+
+        $this->repository->method('findById')->willReturn($this->createFutureAppointment());
+        $this->repository->method('findByIdForUpdate')->willReturn($current);
+        $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:00:00'));
+        $this->eligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
+        $this->conflictChecker->expects(self::never())->method('hasOverlapLocked');
+        $this->repository->expects(self::never())->method('save');
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Cannot reschedule a terminated appointment.');
+
+        $this->moveTo('2026-04-12 14:00:00');
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testAnAppointmentGoneMeanwhileIsReportedAsMissing(): void
     {
         $this->repository->method('findById')->willReturn($this->createFutureAppointment());
+        $this->repository->method('findByIdForUpdate')->willReturn(null);
+        $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:00:00'));
+        $this->eligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Rendez-vous introuvable.');
+
+        $this->moveTo('2026-04-12 14:00:00');
+    }
+
+    /**
+     * S4A-04: moved by someone else meanwhile, the days it occupies now are
+     * locked too, and the move applies to the current row.
+     */
+    #[AllowMockObjectsWithoutExpectations]
+    public function testAnAppointmentMovedMeanwhileLocksTheDaysItOccupiesNow(): void
+    {
+        $current = $this->createFutureAppointment();
+        $current->reschedule(new TimeSlot(new \DateTimeImmutable('2026-04-15 09:00:00'), 30));
+        $current->changePractitionerAssignee(new PractitionerAssignee(UserId::fromString(self::OTHER_PRACT)));
+        $_ = $current->pullDomainEvents();
+
+        $this->repository->method('findById')->willReturn($this->createFutureAppointment());
+        $this->repository->method('findByIdForUpdate')->willReturn($current);
+        $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:00:00'));
+        $this->eligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
+        $this->conflictChecker->method('hasOverlapLocked')->willReturn(false);
+        $this->repository->expects(self::once())->method('save')->with($current);
+
+        $this->moveTo('2026-04-12 14:00:00');
+
+        self::assertSame([
+            self::PRACTITIONER . '|2026-04-11', self::PRACTITIONER . '|2026-04-12',
+            self::PRACTITIONER . '|2026-04-12', self::OTHER_PRACT . '|2026-04-15',
+        ], $this->dayLock->locked);
+        self::assertSame('2026-04-12 14:00', $current->timeSlot()->startsAtUtc()->format('Y-m-d H:i'));
+        self::assertSame(self::PRACTITIONER, $current->practitionerAssignee()->userId()->toString());
+    }
+
+    /**
+     * S4A-03: a pending request moved so close that its new expiry
+     * (newStart − 2 h) is already past would expire at once: refused.
+     */
+    #[AllowMockObjectsWithoutExpectations]
+    public function testAPendingRequestWhoseNewExpiryIsAlreadyPastIsRefused(): void
+    {
+        $appointment = $this->createPendingAppointment();
+
+        $this->givenStored($appointment);
+        $this->repository->expects(self::never())->method('save');
+        $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 14:00:00'));
+        $this->eligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
+        $this->conflictChecker->method('hasOverlapLocked')->willReturn(false);
+        $this->settings->method('forClinic')->willReturn(OnlineBookingSettings::defaults(ClinicId::fromString(self::CLINIC_ID)));
+
+        $this->expectException(AppointmentNotModifiableException::class);
+        $this->expectExceptionMessage('Ce créneau est trop proche pour une demande à confirmer : confirmez-la d’abord.');
+
+        // Expires at 13:30, half an hour ago
+        $this->moveTo('2026-04-10 15:30:00');
+    }
+
+    private function givenStored(?Appointment $appointment): void
+    {
+        $this->repository->method('findById')->willReturn($appointment);
+        $this->repository->method('findByIdForUpdate')->willReturn($appointment);
+    }
+
+    private function givenAMoveTo(PlanningBlockReadModel $block): void
+    {
+        $this->givenStored($this->createFutureAppointment());
         $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:00:00'));
         $this->eligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
         $this->conflictChecker->method('hasOverlapLocked')->willReturn(false);

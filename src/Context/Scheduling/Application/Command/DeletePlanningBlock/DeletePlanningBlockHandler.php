@@ -7,6 +7,7 @@ namespace App\Context\Scheduling\Application\Command\DeletePlanningBlock;
 use App\Context\Scheduling\Application\Port\ClinicTimezoneResolverInterface;
 use App\Context\Scheduling\Application\Port\OccupyingAppointmentsReaderInterface;
 use App\Context\Scheduling\Application\Port\PractitionerDayLockInterface;
+use App\Context\Scheduling\Application\Service\BlockAppointments;
 use App\Context\Scheduling\Domain\Exception\CannotDeletePlanningBlockWithAppointments;
 use App\Context\Scheduling\Domain\Exception\PlanningBlockNotFoundException;
 use App\Context\Scheduling\Domain\Repository\PlanningBlockRepositoryInterface;
@@ -49,13 +50,7 @@ final readonly class DeletePlanningBlockHandler
 
         // Every future occurrence counts, not only the first one: no appointment may lose its block
         $occurrences = new PlanningBlockOccurrences($block->timeRange(), $block->recurrenceRule(), $tz, $today);
-        $held        = $occurrences->held($this->appointmentsReader->occupyingBetween(
-            $clinicId,
-            $block->staffUserId(),
-            $occurrences->fromUtc(),
-            $occurrences->toUtc(),
-            currentRead: true,
-        ));
+        $held        = $occurrences->held(BlockAppointments::read($this->appointmentsReader, $clinicId, $block->staffUserId(), $occurrences));
 
         if ([] !== $held) {
             throw new CannotDeletePlanningBlockWithAppointments(

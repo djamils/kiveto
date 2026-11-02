@@ -38,13 +38,34 @@ interface OutboundMessageRepositoryInterface
 
     /**
      * Messages of the owner-account purposes (MessagePurpose::isPortalAccountMessage())
-     * to one of these addresses whose content is not purged yet, whatever
-     * their status (QUEUED ones included: the caller cancels them or leaves
-     * them to their dispatch).
+     * of that Portal account — or, older ones without account, to one of
+     * these addresses — whose content is not purged yet, whatever their
+     * status (QUEUED ones included: the caller cancels them or leaves them
+     * to their dispatch).
      *
-     * @param non-empty-list<string> $addresses
+     * @param list<string> $addresses
      *
      * @return list<OutboundMessageId>
      */
-    public function findPortalAccountMessagesTo(array $addresses): array;
+    public function findPortalAccountMessages(string $accountId, array $addresses): array;
+
+    /**
+     * The message re-read under a row lock held until the caller's
+     * transaction ends: what a concurrent dispatch committed is seen, and it
+     * cannot change the row before this one is saved.
+     *
+     * @throws OutboundMessageNotFoundException when there is no such message
+     */
+    public function getForUpdate(OutboundMessageId $id): OutboundMessage;
+
+    /**
+     * In a short transaction of its own, under the row lock: claims the
+     * message for its hand-over (OutboundMessage::claimForDispatch()) and
+     * returns it, or null when it is no longer QUEUED (sent, failed,
+     * cancelled). Once claimed, an account deletion masks it but no longer
+     * cancels it.
+     *
+     * @throws OutboundMessageNotFoundException when there is no such message
+     */
+    public function claimForDispatch(OutboundMessageId $id, \DateTimeImmutable $at): ?OutboundMessage;
 }

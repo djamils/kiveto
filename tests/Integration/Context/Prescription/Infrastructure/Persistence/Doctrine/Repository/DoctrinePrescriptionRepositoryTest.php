@@ -367,6 +367,8 @@ final class DoctrinePrescriptionRepositoryTest extends KernelTestCase
         self::assertSame('ISSUED', $first->status);
         self::assertSame('2027-08-22', $first->validUntil?->format('Y-m-d'));
         self::assertTrue($first->renewableByOwner);
+        self::assertSame('Meloxidyl', $first->firstMedication);
+        self::assertSame('Meloxidyl', $byId[$controlled->id()->toString()]->firstMedication, 'its first line');
 
         self::assertSame('ISSUED', $byId[$controlled->id()->toString()]->status);
         self::assertFalse($byId[$controlled->id()->toString()]->renewableByOwner);
@@ -520,6 +522,26 @@ final class DoctrinePrescriptionRepositoryTest extends KernelTestCase
         self::assertSame(3, $upTo['total']);
     }
 
+    public function testTheListFiltersOnTheAnimal(): void
+    {
+        $animal = $this->uuids->generate();
+        $mine   = $this->draft(consultationId: $this->uuids->generate(), patientName: 'Moka', animalId: $animal);
+        $mine->addLine($this->line('Meloxidyl'), $this->now());
+        $mine->issue(PrescriptionNumber::of(2026, 110), $this->now());
+        $this->prescriptions->save($mine);
+
+        $other = $this->draft(consultationId: $this->uuids->generate(), patientName: 'Rex', animalId: $this->uuids->generate());
+        $other->addLine($this->line('Meloxidyl'), $this->now());
+        $other->issue(PrescriptionNumber::of(2026, 111), $this->now());
+        $this->prescriptions->save($other);
+
+        $byAnimal = $this->read->search($this->clinic(), new SearchPrescriptionsCriteria(statuses: ['ISSUED'], animalId: $animal));
+        self::assertSame(1, $byAnimal['total']);
+        self::assertSame($mine->id()->toString(), $byAnimal['items'][0]->id);
+
+        self::assertSame(0, $this->read->search($this->clinic(), new SearchPrescriptionsCriteria(animalId: 'not-a-uuid'))['total']);
+    }
+
     public function testTheListTellsCurrentFromExpiredOrdonnances(): void
     {
         $old = $this->draft(patientName: 'Ancienne');
@@ -614,6 +636,7 @@ final class DoctrinePrescriptionRepositoryTest extends KernelTestCase
         string $patientName = 'Rex',
         ?string $clinicId = null,
         bool $withOwner = true,
+        ?string $animalId = null,
     ): Prescription {
         return Prescription::draft(
             id: PrescriptionId::fromString($this->uuids->generate()),
@@ -626,7 +649,7 @@ final class DoctrinePrescriptionRepositoryTest extends KernelTestCase
                 'DR',
             ),
             patient: PatientSnapshot::create(
-                animalId: null,
+                animalId: $animalId,
                 name: $patientName,
                 species: 'dog',
                 breed: 'Labrador',

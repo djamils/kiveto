@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\PortalRequest;
 
 use App\Context\ClientPortal\Application\Command\ConfirmClientLink\ConfirmClientLink;
-use App\Context\ClientPortal\Application\Query\GetClinicLinkRequest\GetClinicLinkRequest;
-use App\Context\ClientPortal\Application\Query\ListClinicLinkRequests\ClinicLinkRequest;
 use App\Presentation\Clinic\Security\ClinicPermissionGuard;
 use App\Presentation\Clinic\ViewModel\Client\StaffNameResolver;
 use App\Shared\Application\Bus\CommandBusInterface;
@@ -43,6 +41,6 @@ final class ConfirmClientLinkController extends AbstractClientLinkAnswer
         $confirmed             = $this->commandBus->dispatch(new ConfirmClientLink($clinicId, $userId, $this->clientIds($request), $actorId, $actorName));
         \assert(\is_int($confirmed));
 
-        return $this->back($request, $userId, $confirmed, 'Rattachement confirmé — le compte Portal accède désormais au dossier.', $this->queryBus->ask(new GetClinicLinkRequest($clinicId, $userId)) instanceof ClinicLinkRequest);
+        return $this->back($request, $this->queryBus, $clinicId, $userId, $confirmed, 'Rattachement confirmé — le compte Portal accède désormais au dossier.');
     }
 }

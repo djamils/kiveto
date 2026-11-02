@@ -136,6 +136,10 @@ final readonly class PortalOpenApiFactory implements OpenApiFactoryInterface
                 $responses['401'] = new Response(description: '`unauthorized` ou `token_expired`.');
             }
 
+            if ('api_portal_vaccination_booklet' === $operationId) {
+                $responses['503'] = new Response(description: '`service_unavailable` (`Retry-After`) : le service PDF est indisponible.');
+            }
+
             $paths->addPath(self::PREFIX . $path, new PathItem(get: new Operation(
                 operationId: $operationId,
                 tags: [$tag],

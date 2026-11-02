@@ -6,12 +6,23 @@ namespace App\Context\Scheduling\Domain\ValueObject;
 
 final readonly class TimeSlot
 {
+    /**
+     * Longest slot: a day. The locked overlap and capacity scans rely on it
+     * to bound their range from below (an appointment that ends after a
+     * given instant started at most this long before it).
+     */
+    public const int MAX_DURATION_MINUTES = 24 * 60;
+
     public function __construct(
         private \DateTimeImmutable $startsAtUtc,
         private int $durationMinutes,
     ) {
         if ($durationMinutes <= 0) {
             throw new \DomainException('Duration must be greater than zero.');
+        }
+
+        if ($durationMinutes > self::MAX_DURATION_MINUTES) {
+            throw new \DomainException(\sprintf('Duration must not exceed %d minutes.', self::MAX_DURATION_MINUTES));
         }
     }
 

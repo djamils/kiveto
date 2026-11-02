@@ -9,6 +9,7 @@ use App\Context\Scheduling\Domain\Booking\BusyInterval;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
+use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\ArrayParameterType;
@@ -37,6 +38,7 @@ final readonly class DbalOccupyingAppointmentsReader implements OccupyingAppoint
             WHERE clinic_id = :clinicId
               AND practitioner_user_id = :practitionerUserId
               AND status IN (:occupying)
+              AND starts_at_utc >= :scanFrom
               AND starts_at_utc < :toUtc
               AND DATE_ADD(starts_at_utc, INTERVAL duration_minutes MINUTE) > :fromUtc
         SQL;
@@ -46,6 +48,8 @@ final readonly class DbalOccupyingAppointmentsReader implements OccupyingAppoint
             'practitionerUserId' => Uuid::fromString($practitionerUserId->toString())->toBinary(),
             'fromUtc'            => $fromUtc->setTimezone($utc)->format('Y-m-d H:i:s'),
             'toUtc'              => $toUtc->setTimezone($utc)->format('Y-m-d H:i:s'),
+            // No slot is longer than a day: the scan, and its locks, stop there instead of covering the whole history
+            'scanFrom' => $fromUtc->setTimezone($utc)->modify(\sprintf('-%d minutes', TimeSlot::MAX_DURATION_MINUTES))->format('Y-m-d H:i:s'),
             // Pending requests hold their slot too
             'occupying' => AppointmentStatus::OCCUPYING_SQL_VALUES,
         ];

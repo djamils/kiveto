@@ -24,6 +24,8 @@ use App\Context\ClientPortal\Application\Query\ListClinicPortalRequests\ClinicPo
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\GetPrescriptionDetails;
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\PrescriptionDetails;
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\PrescriptionLineView;
+use App\Context\Prescription\Application\Query\ListPrescriptionPortalSummaries\ListPrescriptionPortalSummaries;
+use App\Context\Prescription\Application\Query\ListPrescriptionPortalSummaries\PrescriptionPortalSummary;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\PrescriptionListItemView;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\SearchPrescriptions;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\SearchPrescriptionsCriteria;
@@ -58,7 +60,7 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
  * @phpstan-type Ref array{id: string, url: string, sheet: string}
  * @phpstan-type Register array{
  *     rows: list<RequestRow>, total: int, page: int, pp: int,
- *     counts: array<string, int>, kinds: array<string, int>,
+ *     counts: array<string, ?int>, kinds: array<string, int>,
  *     head: array{pending: int, urgent: int, late: int, blank: bool, first: array{submitted: ?Ref, urgent: ?Ref, late: ?Ref}, next: list<Ref>}
  * }
  */
@@ -97,7 +99,7 @@ final readonly class PortalRequestPageBuilder
 
     private const array CONDITION_CLASS = ['improved' => 'et-ok', 'no_improvement' => 'et-am', 'adverse_effects' => 'et-crit'];
 
-    /** Recent issued prescriptions read to find the ones written for a renewal. */
+    /** The pet's issued prescriptions read to find the one written for a renewal. */
     private const int CANDIDATES = 25;
 
     /** A request waiting longer than this is « en retard ». */
@@ -152,31 +154,29 @@ final readonly class PortalRequestPageBuilder
      */
     public function register(string $clinicId, PortalRequestRegisterFilters $filters): array
     {
-        $now        = $this->clock->now();
-        $medication = $this->medicationReader($clinicId);
-        $entries    = [];
-
-        foreach ($this->queue->all($clinicId) as $item) {
-            $entries[] = ['id' => $item->id, 'kind' => $item->kind, 'status' => $item->status, 'at' => $item->submittedAt->getTimestamp(), 'urgent' => 'adverse_effects' === $item->petCondition && 'submitted' === $item->status, 'item' => $item];
-        }
-
-        foreach ([...$this->queue->links($clinicId), ...$this->queue->links($clinicId, true)] as $link) {
-            $entries[] = ['id' => $link->decisionId ?? $link->userId, 'kind' => self::LINK, 'status' => self::linkStatus($link), 'at' => $link->requestedAt->getTimestamp(), 'urgent' => false, 'item' => $link];
-        }
-
-        foreach ([...$this->queue->bookings($clinicId), ...$this->queue->bookings($clinicId, true)] as $booking) {
-            $entries[] = ['id' => $booking->id, 'kind' => self::BOOKING, 'status' => self::bookingStatus($booking), 'at' => $booking->createdAt->getTimestamp(), 'urgent' => false, 'item' => $booking];
-        }
+        $now    = $this->clock->now();
+        $status = $filters->status();
+        $open   = $this->entries($this->queue->pending($clinicId), $this->queue->links($clinicId), $this->queue->bookings($clinicId));
+        // « À traiter » (the search runs on every keystroke) never reads the
+        // answered requests, unless nothing waits: « blank » needs to know
+        // whether anything was ever received.
+        $history = 'submitted' !== $status || [] === $open
+            ? $this->entries($this->queue->history($clinicId), $this->queue->links($clinicId, true), $this->queue->bookings($clinicId, true))
+            : null;
+        $entries    = [...$open, ...$history ?? []];
+        $medication = $this->medicationReader($clinicId, $entries);
 
         usort($entries, static fn (array $a, array $b): int => self::order($a) <=> self::order($b) ?: ('submitted' === $a['status'] ? strcmp($a['id'], $b['id']) : strcmp($b['id'], $a['id'])));
 
-        $counts  = ['submitted' => 0, 'done' => 0, 'rejected' => 0, PortalRequestRegisterFilters::ALL => \count($entries)];
+        $counts = null === $history
+            ? ['submitted' => 0, 'done' => null, 'rejected' => null, PortalRequestRegisterFilters::ALL => null]
+            : ['submitted' => 0, 'done' => 0, 'rejected' => 0, PortalRequestRegisterFilters::ALL => \count($entries)];
         $kinds   = array_fill_keys(self::KINDS, 0);
         $pending = [];
 
         foreach ($entries as $entry) {
-            if (isset($counts[$entry['status']])) {
-                ++$counts[$entry['status']];
+            if (\array_key_exists($entry['status'], $counts)) {
+                $counts[$entry['status']] = ($counts[$entry['status']] ?? 0) + 1;
             }
 
             if ('submitted' === $entry['status']) {
@@ -187,7 +187,6 @@ final readonly class PortalRequestPageBuilder
 
         $urgent = array_values(array_filter($pending, static fn (array $e): bool => $e['urgent']));
         $late   = array_values(array_filter($pending, fn (array $e): bool => $this->minutesSince($e['at'], $now) >= self::LATE_MINUTES));
-        $status = $filters->status();
         $needle = self::folded($filters->q);
         $listed = array_values(array_filter($entries, fn (array $e): bool => (null === $status || $e['status'] === $status)
             && ('' === $filters->type || $e['kind'] === $filters->type)
@@ -504,6 +503,7 @@ final readonly class PortalRequestPageBuilder
             statuses: ['ISSUED'],
             issuedFrom: $submitted,
             perPage: self::CANDIDATES,
+            animalId: $request->petId,
         )));
         \assert($page instanceof PrescriptionListItemView);
 
@@ -511,12 +511,6 @@ final readonly class PortalRequestPageBuilder
 
         foreach ($page->items as $row) {
             if (null === $row->issuedAt || $row->issuedAt <= $submitted) {
-                continue;
-            }
-
-            $details = $this->queryBus->ask(new GetPrescriptionDetails($clinicId, $row->id));
-
-            if (!$details instanceof PrescriptionDetails || $details->patientAnimalId !== $request->petId) {
                 continue;
             }
 
@@ -674,25 +668,69 @@ final readonly class PortalRequestPageBuilder
     }
 
     /**
-     * The first medicine of a prescription, read once per request.
+     * The first medicine of the renewals' prescriptions, read in one go the
+     * first time one is needed (a search, a renewal on the page).
+     *
+     * @param list<Entry> $entries
      *
      * @return \Closure(?string): ?string
      */
-    private function medicationReader(string $clinicId): \Closure
+    private function medicationReader(string $clinicId, array $entries): \Closure
     {
-        $known = [];
+        $known = null;
 
-        return function (?string $prescriptionId) use ($clinicId, &$known): ?string {
+        return function (?string $prescriptionId) use ($clinicId, $entries, &$known): ?string {
             if (null === $prescriptionId) {
                 return null;
             }
 
-            if (!\array_key_exists($prescriptionId, $known)) {
-                $known[$prescriptionId] = $this->medication($clinicId, $prescriptionId);
+            if (null === $known) {
+                $known = [];
+                $ids   = [];
+
+                foreach ($entries as $entry) {
+                    if ($entry['item'] instanceof ClinicPortalRequest && null !== $entry['item']->prescriptionId) {
+                        $ids[] = $entry['item']->prescriptionId;
+                    }
+                }
+
+                $summaries = $this->queryBus->ask(new ListPrescriptionPortalSummaries($clinicId, array_values(array_unique($ids))));
+                \assert(\is_array($summaries));
+
+                foreach ($summaries as $summary) {
+                    \assert($summary instanceof PrescriptionPortalSummary);
+                    $known[$summary->id] = $summary->firstMedication;
+                }
             }
 
-            return $known[$prescriptionId];
+            return $known[$prescriptionId] ?? null;
         };
+    }
+
+    /**
+     * @param list<ClinicPortalRequest>  $requests
+     * @param list<ClinicLinkRequest>    $links
+     * @param list<ClinicBookingRequest> $bookings
+     *
+     * @return list<Entry>
+     */
+    private function entries(array $requests, array $links, array $bookings): array
+    {
+        $entries = [];
+
+        foreach ($requests as $item) {
+            $entries[] = ['id' => $item->id, 'kind' => $item->kind, 'status' => $item->status, 'at' => $item->submittedAt->getTimestamp(), 'urgent' => 'adverse_effects' === $item->petCondition && 'submitted' === $item->status, 'item' => $item];
+        }
+
+        foreach ($links as $link) {
+            $entries[] = ['id' => $link->decisionId ?? $link->userId, 'kind' => self::LINK, 'status' => self::linkStatus($link), 'at' => $link->requestedAt->getTimestamp(), 'urgent' => false, 'item' => $link];
+        }
+
+        foreach ($bookings as $booking) {
+            $entries[] = ['id' => $booking->id, 'kind' => self::BOOKING, 'status' => self::bookingStatus($booking), 'at' => $booking->createdAt->getTimestamp(), 'urgent' => false, 'item' => $booking];
+        }
+
+        return $entries;
     }
 
     /**

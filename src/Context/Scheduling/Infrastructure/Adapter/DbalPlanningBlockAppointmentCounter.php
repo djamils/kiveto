@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace App\Context\Scheduling\Infrastructure\Adapter;
 
 use App\Context\Scheduling\Application\Port\PlanningBlockAppointmentCounterInterface;
+use App\Context\Scheduling\Domain\Exception\SlotTakenException;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
+use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
+use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\DeadlockException;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class DbalPlanningBlockAppointmentCounter implements PlanningBlockAppointmentCounterInterface
@@ -53,6 +57,7 @@ final readonly class DbalPlanningBlockAppointmentCounter implements PlanningBloc
             WHERE clinic_id = :clinicId
               AND practitioner_user_id = :staffUserId
               AND status IN (:occupying)
+              AND starts_at_utc >= :scanFrom
               AND starts_at_utc < :windowEndUtc
               AND DATE_ADD(starts_at_utc, INTERVAL duration_minutes MINUTE) > :windowStartUtc
         SQL;
@@ -62,6 +67,8 @@ final readonly class DbalPlanningBlockAppointmentCounter implements PlanningBloc
             'staffUserId'    => Uuid::fromString($staffUserId->toString())->toBinary(),
             'windowStartUtc' => $windowStartUtc->format('Y-m-d H:i:s'),
             'windowEndUtc'   => $windowEndUtc->format('Y-m-d H:i:s'),
+            // No slot is longer than a day: the scan, and its locks, stop there instead of covering the whole history
+            'scanFrom' => $windowStartUtc->modify(\sprintf('-%d minutes', TimeSlot::MAX_DURATION_MINUTES))->format('Y-m-d H:i:s'),
             // Pending requests count towards the capacity too
             'occupying' => AppointmentStatus::OCCUPYING_SQL_VALUES,
         ];
@@ -77,12 +84,17 @@ final readonly class DbalPlanningBlockAppointmentCounter implements PlanningBloc
             $sql .= ' FOR SHARE';
         }
 
-        $result = $this->connection->fetchAssociative($sql, $params, ['occupying' => ArrayParameterType::STRING]);
+        try {
+            $result = $this->connection->fetchAssociative($sql, $params, ['occupying' => ArrayParameterType::STRING]);
+        } catch (DeadlockException $deadlock) {
+            // The transaction is rolled back: the command bus runs the command again
+            throw SlotTakenException::contended($deadlock);
+        }
 
         if (false === $result) {
             return 0;
         }
 
-        return \App\Shared\Infrastructure\Persistence\RowAccessor::int($result, 'cnt');
+        return RowAccessor::int($result, 'cnt');
     }
 }

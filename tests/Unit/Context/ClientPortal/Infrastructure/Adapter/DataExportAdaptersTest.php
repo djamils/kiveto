@@ -81,5 +81,6 @@ final class DataExportAdaptersTest extends TestCase
             $notice->purpose, $notice->channel, $notice->recipientAddress, $notice->recipientName, $notice->clinicId, $notice->clientId, $notice->subjectType, $notice->subjectId, $notice->idempotencyKey,
         ]);
         self::assertSame(['ownerFirstName' => 'Sophie', 'expiresAtLabel' => '04/11/2026 à 11:02'], $notice->parameters);
+        self::assertSame('user-1', $notice->accountId, 'masked with its account');
     }
 }

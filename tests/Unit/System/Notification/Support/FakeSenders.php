@@ -23,8 +23,15 @@ final class FakeSenders implements EmailSenderInterface, SmsSenderInterface
 
     public ?\Throwable $failure = null;
 
+    /** Runs while the provider « holds » the message (a concurrent writer). */
+    public ?\Closure $during = null;
+
     public function send(OutgoingEmail|OutgoingSms $message): string
     {
+        if (null !== $this->during) {
+            ($this->during)();
+        }
+
         if (null !== $this->failure) {
             throw $this->failure;
         }

@@ -8,6 +8,7 @@ use App\Context\Scheduling\Application\EventSubscriber\NotifyPractitionerOnAppoi
 use App\Context\Scheduling\Domain\Event\AppointmentCancelled;
 use App\Context\Scheduling\Domain\Event\AppointmentConfirmed;
 use App\Context\Scheduling\Domain\Event\AppointmentDeclined;
+use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeChanged;
 use App\Context\Scheduling\Domain\Event\AppointmentRequested;
 use App\Context\Scheduling\Domain\Event\AppointmentScheduled;
 use App\Tests\Unit\Context\Scheduling\Support\Appointments;
@@ -52,6 +53,17 @@ final class NotifyPractitionerOnAppointmentScheduledTest extends TestCase
         self::assertSame(['a-1'], $jobs->pendingBookingNotices);
         self::assertSame(['a-1', 'a-2', 'a-3'], $jobs->pendingBookingWithdrawals);
         self::assertSame([], $jobs->newAppointmentNotices);
+    }
+
+    /** S4A-07: the worker moves the entry of a request still pending */
+    public function testAChangeOfPractitionerQueuesTheMoveOfThePendingEntry(): void
+    {
+        $jobs = new CapturingJobs();
+
+        new NotifyPractitionerOnAppointmentScheduled($jobs)->onPractitionerChanged(new AppointmentPractitionerAssigneeChanged('a-1', Appointments::CLINIC, Appointments::ROUSSEAU, Appointments::LAMBERT));
+
+        self::assertSame(['a-1'], $jobs->pendingBookingMoves);
+        self::assertSame([], $jobs->pendingBookingNotices);
     }
 
     private static function scheduled(string $id, ?string $actor): AppointmentScheduled

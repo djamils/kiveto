@@ -12,26 +12,21 @@ use App\System\IdentityAccess\Application\Port\MobilePhonePolicyInterface;
 use App\System\IdentityAccess\Application\Port\NotificationRequesterInterface;
 use App\System\IdentityAccess\Application\Port\OtpCodeGeneratorInterface;
 use App\System\IdentityAccess\Application\Port\OtpCodeHasherInterface;
-use App\System\IdentityAccess\Application\Port\PendingPortalInvitationsInterface;
 use App\System\IdentityAccess\Application\Port\PortalOtpRequest;
-use App\System\IdentityAccess\Application\Port\UnknownNumberSmsBudgetInterface;
+use App\System\IdentityAccess\Application\Service\UnknownNumberSmsGate;
 use App\System\IdentityAccess\Domain\Otp\OtpChallenge;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeId;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeRepositoryInterface;
 use App\System\IdentityAccess\Domain\Otp\OtpPurpose;
-use App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface;
-use App\System\IdentityAccess\Domain\ValueObject\UserStatus;
-use App\System\IdentityAccess\Domain\ValueObject\UserType;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
  * A sign-in code goes to a phone of the Portal's coverage only. To a phone
  * with neither an active owner account nor a pending invitation (a phone a
- * clinic chose counts as known), it spends the budget of unknown numbers,
- * in three layers checked in order (S7a'): the client's network (/24, /64),
- * the device hint when the request carries one, then the global cap. A
- * refused layer stops there (the next ones are not spent): the challenge
- * exists (same answer) but no SMS leaves, now or on a resend. An invitation
+ * clinic chose counts as known), it spends the budget of unknown numbers
+ * (UnknownNumberSmsGate: network, device hint, global cap, in this order).
+ * Refused: the challenge exists (same answer) but no SMS leaves, now or on
+ * a resend. An invitation
  * code goes to the phone a clinic chose and never spends that budget.
  */
 #[AsMessageHandler]
@@ -41,10 +36,8 @@ final readonly class RequestPortalOtpHandler
 
     public function __construct(
         private OtpChallengeRepositoryInterface $challenges,
-        private UserRepositoryInterface $users,
         private MobilePhonePolicyInterface $mobilePolicy,
-        private UnknownNumberSmsBudgetInterface $unknownNumberBudget,
-        private PendingPortalInvitationsInterface $pendingInvitations,
+        private UnknownNumberSmsGate $unknownNumbers,
         private OtpCodeGeneratorInterface $codes,
         private OtpCodeHasherInterface $codeHasher,
         private NotificationRequesterInterface $notifications,
@@ -69,7 +62,7 @@ final readonly class RequestPortalOtpHandler
                 throw new PhoneNotSupportedException();
             }
 
-            $suppressed = !$this->isKnown($phone) && !$this->spendUnknownNumberBudget($command->requestContext);
+            $suppressed = !$this->unknownNumbers->allows($phone, $command->requestContext);
         }
 
         $code      = $this->codes->generate();
@@ -96,29 +89,5 @@ final readonly class RequestPortalOtpHandler
         }
 
         return new OtpChallengeIssued($challenge->id()->toString(), $challenge->expiresAt(), $challenge->resendAvailableAt());
-    }
-
-    /** False as soon as one layer is exhausted. */
-    private function spendUnknownNumberBudget(?OtpRequestContext $context): bool
-    {
-        $network = $context?->networkKey();
-
-        if (null !== $network && !$this->unknownNumberBudget->consumeNetwork($network)) {
-            return false;
-        }
-
-        $device = $context?->deviceId;
-
-        if (null !== $device && !$this->unknownNumberBudget->consumeDevice($device)) {
-            return false;
-        }
-
-        return $this->unknownNumberBudget->consumeGlobal();
-    }
-
-    private function isKnown(PhoneNumber $phone): bool
-    {
-        return UserStatus::ACTIVE === $this->users->findByPhoneAndType($phone, UserType::PORTAL)?->status()
-            || [] !== $this->pendingInvitations->listForPhone($phone);
     }
 }

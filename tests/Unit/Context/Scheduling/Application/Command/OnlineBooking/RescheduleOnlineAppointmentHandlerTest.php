@@ -233,6 +233,74 @@ final class RescheduleOnlineAppointmentHandlerTest extends TestCase
         $this->world->reschedule()(self::command(W::paris('2026-04-16 10:00')));
     }
 
+    /**
+     * S4B-02: the clinic moved the booking to the very slot asked while this
+     * move waited for the lock: on the current row it is the same slot, so
+     * nothing more is done (no save, no event, no bell).
+     */
+    public function testAMoveMadeMeanwhileToTheSameSlotChangesNothingMore(): void
+    {
+        $this->world->existing('2026-04-15 07:00');
+        $this->meanwhile(fn () => $this->world->existing('2026-04-16 08:00', practitioner: W::LAMBERT));
+
+        self::assertSame(W::BOOKED, $this->world->reschedule()(self::command(W::paris('2026-04-16 10:00'), W::LAMBERT)));
+
+        self::assertSame([], $this->world->events->events);
+        self::assertSame([], $this->world->bell->onlineChanges);
+        // The days the current row occupies are locked too
+        self::assertSame([W::ROUSSEAU . '|2026-04-15', W::LAMBERT . '|2026-04-16', W::LAMBERT . '|2026-04-16'], $this->world->recordingLock->locked);
+    }
+
+    /**
+     * S4B-02: moved by the clinic into the cancellation window while this
+     * move waited for the lock: the window is checked again on the current row.
+     */
+    public function testTheCancellationWindowIsCheckedAgainOnTheCurrentRow(): void
+    {
+        $this->world->existing('2026-04-15 07:00');
+        $this->meanwhile(fn () => $this->world->existing('2026-04-14 02:00'));
+
+        try {
+            $this->world->reschedule()(self::command(W::paris('2026-04-16 10:00')));
+            self::fail('The window of the current row is closed.');
+        } catch (CancellationWindowClosedException $e) {
+            self::assertSame('2026-04-13T02:00:00+00:00', $e->cancellableUntil?->format('c'));
+        }
+
+        self::assertSame('2026-04-14T02:00:00+00:00', $this->world->stored(W::BOOKED)->timeSlot()->startsAtUtc()->format('c'));
+        self::assertSame([], $this->world->bell->onlineChanges);
+    }
+
+    /**
+     * Runs $change the first time the lock is taken, as a writer that
+     * committed while this command waited for it.
+     */
+    private function meanwhile(\Closure $change): void
+    {
+        $this->world->dayLock = new class($this->world->recordingLock, $change) implements PractitionerDayLockInterface {
+            private bool $done = false;
+
+            public function __construct(private readonly PractitionerDayLockInterface $inner, private readonly \Closure $change)
+            {
+            }
+
+            public function lock(ClinicId $clinicId, array $keys): void
+            {
+                $this->inner->lock($clinicId, $keys);
+
+                if (!$this->done) {
+                    $this->done = true;
+                    ($this->change)();
+                }
+            }
+
+            public function purgeBefore(string $localDate): int
+            {
+                return 0;
+            }
+        };
+    }
+
     private static function command(\DateTimeImmutable $startsAt, string $practitionerId = W::ROUSSEAU): RescheduleOnlineAppointment
     {
         return new RescheduleOnlineAppointment(W::CLINIC, W::BOOKED, $practitionerId, $startsAt);

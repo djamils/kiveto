@@ -16,7 +16,8 @@ use App\Shared\Domain\Time\ClockInterface;
 /**
  * Re-reads a clinic from Clinic and rewrites its projection (created on the
  * first read, with an id of its own). When the normalised address changed,
- * its geocoding is queued on `async_external` in the same transaction
+ * or still has no coordinates (an earlier geocoding failed), its geocoding
+ * is queued on `async_external` in the same transaction
  * (implicit outbox): it only runs once the change is committed.
  */
 final readonly class ClinicListingRefresher

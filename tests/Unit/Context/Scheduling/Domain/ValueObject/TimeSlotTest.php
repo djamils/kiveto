@@ -41,6 +41,17 @@ final class TimeSlotTest extends TestCase
         new TimeSlot(new \DateTimeImmutable('2026-02-01 09:00:00'), -10);
     }
 
+    public function testASlotLastsADayAtMost(): void
+    {
+        // The locked scans start one maximum duration before the slot
+        self::assertSame(1440, new TimeSlot(new \DateTimeImmutable('2026-03-11 08:00:00'), 1440)->durationMinutes());
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Duration must not exceed 1440 minutes.');
+
+        new TimeSlot(new \DateTimeImmutable('2026-03-11 08:00:00'), 1441);
+    }
+
     public function testOverlapsDetectionWhenOverlapping(): void
     {
         $slot1 = new TimeSlot(new \DateTimeImmutable('2026-02-01 09:00:00'), 30);

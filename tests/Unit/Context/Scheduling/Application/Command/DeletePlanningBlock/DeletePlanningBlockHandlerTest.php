@@ -141,6 +141,35 @@ final class DeletePlanningBlockHandlerTest extends TestCase
     }
 
     /**
+     * FU-01: the lock covers 60 days of an open-ended block; a locked read
+     * further ahead would wait on writers of days it does not cover.
+     */
+    #[AllowMockObjectsWithoutExpectations]
+    public function testAnOpenEndedBlockIsReadUnderTheLockUpToItsHorizonAndPlainlyBeyond(): void
+    {
+        $this->repository->method('findById')->willReturn($this->sampleBlock(RecurrenceRule::weekly()));
+        $this->timezoneResolver->method('resolveTimezone')->willReturn(new \DateTimeZone('Europe/Paris'));
+
+        ($this->handler)(new DeletePlanningBlock('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222'));
+
+        self::assertSame([
+            self::STAFF . '|2026-04-21 06:00|2026-05-31 10:00|current',
+            self::STAFF . '|2026-05-31 10:00|9999-12-31 00:00|snapshot',
+        ], $this->appointments->reads);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testABoundedBlockIsReadUnderTheLockOnly(): void
+    {
+        $this->repository->method('findById')->willReturn($this->sampleBlock(RecurrenceRule::weekly('2026-09-30')));
+        $this->timezoneResolver->method('resolveTimezone')->willReturn(new \DateTimeZone('Europe/Paris'));
+
+        ($this->handler)(new DeletePlanningBlock('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222'));
+
+        self::assertSame([self::STAFF . '|2026-04-21 06:00|2026-09-30 10:00|current'], $this->appointments->reads);
+    }
+
+    /**
      * @return iterable<string, array{RecurrenceRule, string, string}>
      */
     public static function provideAnAppointmentOutsideTheFutureOccurrencesLetsTheBlockGoCases(): iterable

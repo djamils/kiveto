@@ -114,6 +114,7 @@ final readonly class BookOnlineAppointmentHandler
             $command->ownerId,
             $command->animalId,
             $command->bookingMotifId,
+            $command->practitionerUserId,
             $timeSlot->startsAtUtc(),
             $now->sub(new \DateInterval(self::RETRY_WINDOW)),
         );

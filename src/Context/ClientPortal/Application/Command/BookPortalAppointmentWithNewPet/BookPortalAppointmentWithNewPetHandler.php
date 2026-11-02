@@ -7,6 +7,7 @@ namespace App\Context\ClientPortal\Application\Command\BookPortalAppointmentWith
 use App\Context\ClientPortal\Application\Port\OnlineBookingInterface;
 use App\Context\ClientPortal\Application\Port\PetRegistrationInterface;
 use App\Context\ClientPortal\Application\Service\OwnerPets;
+use App\Context\ClientPortal\Domain\Booking\BookedPetMarkerRepositoryInterface;
 use App\Context\ClientPortal\Domain\Exception\ClinicNotLinkedException;
 use App\Context\ClientPortal\Domain\Exception\InvalidNewPetException;
 use App\Shared\Domain\Time\ClockInterface;
@@ -16,9 +17,12 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * S4g, D1: the animal is registered for the client of the account's
  * earliest confirmed link in the clinic, then booked, both inside this
  * command's transaction — a refused booking (`slot_taken`…) leaves no
- * animal. A retry within 24 h reuses the animal registered by the first
- * attempt (same owner, name regardless of case, species). The appointment
- * remembers the animal, archived if the request is declined or expires.
+ * animal. A retry of the same request (same account and Idempotency-Key)
+ * within 24 h reuses the animal its first attempt registered, found by the
+ * request's marker, while it is still active, alive, not transferred, of
+ * that owner, same name and species (S4B-01): an animal the clinic created
+ * is never reused, so never archived. The appointment remembers the animal
+ * this request registered, archived if the request is declined or expires.
  *
  * Refusals: `InvalidNewPetException`, `ClinicNotLinkedException`, then
  * Scheduling's.
@@ -36,6 +40,7 @@ final readonly class BookPortalAppointmentWithNewPetHandler
         private OwnerPets $pets,
         private PetRegistrationInterface $registration,
         private OnlineBookingInterface $booking,
+        private BookedPetMarkerRepositoryInterface $markers,
         private ClockInterface $clock,
     ) {
     }
@@ -54,9 +59,19 @@ final readonly class BookPortalAppointmentWithNewPetHandler
 
         // Oldest confirmed link first
         $ownerId = $this->pets->clientIds($command->userId, $command->clinicId)[0] ?? throw new ClinicNotLinkedException($command->clinicId);
-        $since   = $this->clock->now()->sub(new \DateInterval(self::REUSE_WINDOW));
-        $petId   = $this->registration->recentPetOf($command->clinicId, $ownerId, $name, $command->petSpecies, $since)
-            ?? $this->registration->register($command->clinicId, $ownerId, $name, $command->petSpecies);
+        $now     = $this->clock->now();
+        $since   = $now->sub(new \DateInterval(self::REUSE_WINDOW));
+        $marker  = null === $command->requestKey ? null : hash('sha256', $command->userId . "\n" . $command->requestKey);
+        $known   = null === $marker ? null : $this->markers->animalFor($marker, $since);
+        $petId   = null === $known ? null : $this->registration->recentPetOf($command->clinicId, $known, $ownerId, $name, $command->petSpecies, $since);
+
+        if (null === $petId) {
+            $petId = $this->registration->register($command->clinicId, $ownerId, $name, $command->petSpecies);
+
+            if (null !== $marker) {
+                $this->markers->remember($marker, $petId, $now, $since);
+            }
+        }
 
         return $this->booking->book(
             $command->clinicId,

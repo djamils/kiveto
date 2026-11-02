@@ -87,6 +87,7 @@ final class DbalDocumentReadRepositoryTest extends KernelTestCase
             'awaiting_link',
             $now,
             $now,
+            $now,
         );
         $em->persist($document);
         $em->flush();
@@ -94,7 +95,7 @@ final class DbalDocumentReadRepositoryTest extends KernelTestCase
 
         $found = $em->find(PublishedDocumentEntity::class, Uuid::fromString(self::DOCUMENT2));
         self::assertInstanceOf(PublishedDocumentEntity::class, $found);
-        self::assertSame(['report', ['pet-1'], 'awaiting_link'], [$found->type, $found->petIds, $found->status]);
+        self::assertSame(['report', ['pet-1'], 'awaiting_link', '2026-10-31'], [$found->type, $found->petIds, $found->status, $found->sharedAt->format('Y-m-d')]);
     }
 
     public function testAJsonListOfStringsIsReadDefensively(): void

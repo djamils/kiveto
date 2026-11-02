@@ -32,6 +32,7 @@ final class MaskPortalRecipientHandlerTest extends TestCase
 {
     private const string PHONE = '+33612340501';
     private const string EMAIL = 'owner@example.com';
+    private const string USER  = '01960000-0000-7000-8000-0000000007a1';
 
     public function testKivetoMessagesToTheOwnerAreMaskedOnce(): void
     {
@@ -47,7 +48,7 @@ final class MaskPortalRecipientHandlerTest extends TestCase
         $bus     = new CapturingMessageBus();
         $handler = $this->handler($messages, $bus, new CapturingBuses());
 
-        self::assertSame(2, $handler(new MaskPortalRecipient(self::PHONE, self::EMAIL)));
+        self::assertSame(2, $handler(new MaskPortalRecipient(self::USER, self::PHONE, self::EMAIL)));
         self::assertSame([null, null], [$otp->recipient(), $notice->recipient()]);
         self::assertSame([DeliveryStatus::SENT, DeliveryStatus::SENT], [$otp->status(), $notice->status()], 'a message handed over keeps its status');
         self::assertNotNull($notice->contentPurgedAt());
@@ -56,7 +57,7 @@ final class MaskPortalRecipientHandlerTest extends TestCase
         self::assertInstanceOf(DeleteMessageFiles::class, $job);
         self::assertSame(['notification/attachments/export/notice.pdf'], $job->storageKeys);
 
-        self::assertSame(0, $handler(new MaskPortalRecipient(self::PHONE)), 'nothing twice');
+        self::assertSame(0, $handler(new MaskPortalRecipient(self::USER, self::PHONE)), 'nothing twice');
         self::assertCount(1, $bus->dispatched);
     }
 
@@ -82,7 +83,7 @@ final class MaskPortalRecipientHandlerTest extends TestCase
         $events  = new CapturingBuses();
         $handler = $this->handler($messages, $bus, $events);
 
-        self::assertSame(3, $handler(new MaskPortalRecipient(self::PHONE, self::EMAIL)));
+        self::assertSame(4, $handler(new MaskPortalRecipient(self::USER, self::PHONE, self::EMAIL)), 'three cancelled, the notice flagged');
 
         foreach ([$code, $declined, $export] as $cancelled) {
             self::assertSame(DeliveryStatus::CANCELLED, $cancelled->status());
@@ -99,10 +100,43 @@ final class MaskPortalRecipientHandlerTest extends TestCase
         self::assertSame([DeliveryStatus::QUEUED, self::EMAIL], [$security->status(), $security->recipient()?->address], 'the security notice still goes out');
         self::assertSame([DeliveryStatus::QUEUED, self::PHONE], [$clinic->status(), $clinic->recipient()?->address], 'the clinic\'s message is untouched');
 
-        // Handed over later, the security notice is masked by a retry of the erasure.
+        self::assertSame(0, $handler(new MaskPortalRecipient(self::USER, self::PHONE, self::EMAIL)), 'a retried erasure flags the notice once');
+
+        // FU-05: handed over later, the security notice is masked with its outcome, no new erasure needed.
         $security->markSent('provider-notice', new \DateTimeImmutable('2026-11-01 15:01:00'));
-        self::assertSame(1, $handler(new MaskPortalRecipient(self::PHONE, self::EMAIL)));
         self::assertSame([DeliveryStatus::SENT, null], [$security->status(), $security->recipient()]);
+        self::assertSame(0, $handler(new MaskPortalRecipient(self::USER, self::PHONE, self::EMAIL)), 'nothing left');
+    }
+
+    /**
+     * FU-05 / S5-03: the account's messages to addresses it no longer has
+     * (a verification code to an abandoned address, the notice to the
+     * previous one) are found by account; another account's are not.
+     */
+    public function testTheAccountMessagesToEarlierAddressesAreMasked(): void
+    {
+        $messages    = new InMemoryMessages();
+        $abandoned   = $this->message('01960000-0000-7000-8000-000000000c01', MessagePurpose::PORTAL_EMAIL_VERIFICATION, Channel::EMAIL, 'abandoned@example.com', sent: true, account: self::USER);
+        $previous    = $this->message('01960000-0000-7000-8000-000000000c02', MessagePurpose::PORTAL_EMAIL_CHANGED_NOTICE, Channel::EMAIL, 'previous@example.com', sent: true, account: self::USER);
+        $someoneElse = $this->message('01960000-0000-7000-8000-000000000c03', MessagePurpose::PORTAL_EMAIL_VERIFICATION, Channel::EMAIL, 'other@example.com', sent: true, account: '01960000-0000-7000-8000-0000000007a2');
+        foreach ([$abandoned, $previous, $someoneElse] as $message) {
+            $messages->save($message);
+        }
+
+        self::assertSame(2, $this->handler($messages, new CapturingMessageBus(), new CapturingBuses())(new MaskPortalRecipient(self::USER)));
+        self::assertSame([null, null, 'other@example.com'], [$abandoned->recipient(), $previous->recipient(), $someoneElse->recipient()?->address]);
+    }
+
+    /** FU-02: a queued message its dispatch already claimed may be with the provider: masked, not cancelled. */
+    public function testAQueuedMessageClaimedByItsDispatchIsMaskedNotCancelled(): void
+    {
+        $messages = new InMemoryMessages();
+        $code     = $this->message('01960000-0000-7000-8000-000000000d01', MessagePurpose::PORTAL_OTP, Channel::SMS, self::PHONE, sent: false);
+        self::assertTrue($code->claimForDispatch(new \DateTimeImmutable('2026-11-01 14:59:59')));
+        $messages->save($code);
+
+        self::assertSame(1, $this->handler($messages, new CapturingMessageBus(), new CapturingBuses())(new MaskPortalRecipient(self::USER, self::PHONE)));
+        self::assertSame([DeliveryStatus::QUEUED, null], [$code->status(), $code->recipient()]);
     }
 
     public function testThePortalAccountPurposesAreKivetosOwnMessagesToTheOwner(): void
@@ -120,7 +154,7 @@ final class MaskPortalRecipientHandlerTest extends TestCase
         return new MaskPortalRecipientHandler($messages, $bus, new FrozenClock(new \DateTimeImmutable('2026-11-01 15:00:00')), $events->publisher());
     }
 
-    private function message(string $id, MessagePurpose $purpose, Channel $channel, string $address, bool $sent, bool $file = false): OutboundMessage
+    private function message(string $id, MessagePurpose $purpose, Channel $channel, string $address, bool $sent, bool $file = false, ?string $account = null): OutboundMessage
     {
         $at      = new \DateTimeImmutable('2026-10-30 10:00:00');
         $content = Channel::SMS === $channel
@@ -141,6 +175,7 @@ final class MaskPortalRecipientHandlerTest extends TestCase
             $content,
             $files,
             $at,
+            $account,
         );
 
         if ($sent) {

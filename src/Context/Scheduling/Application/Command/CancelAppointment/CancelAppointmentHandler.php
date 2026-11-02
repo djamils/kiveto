@@ -8,6 +8,7 @@ use App\Context\Scheduling\Application\Service\PendingAppointmentLoader;
 use App\Context\Scheduling\Domain\Exception\AppointmentAlreadyHandledException;
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
+use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
 use App\Context\Scheduling\Domain\ValueObject\CancellationActor;
 use App\Context\Scheduling\Domain\ValueObject\CancellationReason;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
@@ -19,8 +20,9 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * A clinic cancel of a pending request is a decline (domain rule): like a
  * « Refuser » click, it takes the practitioner-day lock and reads the row
  * `FOR UPDATE`, so it races a confirmation, a decline or the expiry with
- * exactly one winner — a request handled meanwhile is refused with « Ce RDV
- * a déjà été traité. ».
+ * exactly one winner — a request confirmed or withdrawn meanwhile is refused
+ * with « Ce RDV a déjà été traité. »; one declined or expired meanwhile is
+ * left as is (nothing more to do).
  */
 #[AsMessageHandler]
 final readonly class CancelAppointmentHandler
@@ -35,7 +37,7 @@ final readonly class CancelAppointmentHandler
 
     /**
      * @throws \InvalidArgumentException          when the appointment does not exist in the clinic
-     * @throws AppointmentAlreadyHandledException when the clinic cancels a request handled meanwhile
+     * @throws AppointmentAlreadyHandledException when the clinic cancels a request confirmed or withdrawn meanwhile
      */
     public function __invoke(CancelAppointment $command): void
     {
@@ -51,7 +53,12 @@ final readonly class CancelAppointmentHandler
         if ($appointment->status()->isPending()) {
             $appointment = $this->loader->lockAndReload($appointment) ?? throw $this->missing($command->appointmentId);
 
-            // Confirmed, declined or expired meanwhile: the clinic's decline lost the race
+            // Declined or expired meanwhile: what the clinic wanted is done, nothing to tell
+            if (CancellationActor::CLINIC === $actor && AppointmentStatus::DECLINED === $appointment->status()) {
+                return;
+            }
+
+            // Confirmed or withdrawn meanwhile: the clinic's decline lost the race
             if (CancellationActor::CLINIC === $actor && !$appointment->status()->isPending()) {
                 throw new AppointmentAlreadyHandledException();
             }

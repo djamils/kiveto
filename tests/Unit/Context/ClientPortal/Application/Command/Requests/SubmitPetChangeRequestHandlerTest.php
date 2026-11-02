@@ -42,6 +42,7 @@ final class SubmitPetChangeRequestHandlerTest extends TestCase
             'title'     => 'Demande de modification — Moka',
             'detail'    => 'Sophie Martin · Poids',
         ]], $world->fakes->bells);
+        self::assertSame(['pet-changes:' . P::CLINIC . ':' . P::PET], $world->locks->keys, 'serialised per pet before the cap');
     }
 
     /**

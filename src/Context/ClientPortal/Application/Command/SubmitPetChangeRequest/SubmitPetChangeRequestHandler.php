@@ -7,6 +7,7 @@ namespace App\Context\ClientPortal\Application\Command\SubmitPetChangeRequest;
 use App\Context\ClientPortal\Application\Port\AnimalWeightsInterface;
 use App\Context\ClientPortal\Application\Port\ClientDirectoryInterface;
 use App\Context\ClientPortal\Application\Port\ClinicProfileInterface;
+use App\Context\ClientPortal\Application\Port\PortalLockInterface;
 use App\Context\ClientPortal\Application\Port\PortalPet;
 use App\Context\ClientPortal\Application\Port\PortalRequestBellInterface;
 use App\Context\ClientPortal\Application\Port\PrescriberDirectoryInterface;
@@ -49,6 +50,7 @@ final readonly class SubmitPetChangeRequestHandler
         private PortalRequestBellInterface $bell,
         private UuidGeneratorInterface $uuids,
         private ClockInterface $clock,
+        private PortalLockInterface $locks,
     ) {
     }
 
@@ -60,6 +62,9 @@ final readonly class SubmitPetChangeRequestHandler
         $today = $now->setTimezone(new \DateTimeZone($this->clinics->clinicOf($command->clinicId)->timeZone));
 
         $change = ProposedChange::of($field, $command->proposedValue, $command->measuredOn, $command->note, $today);
+
+        // Serialised per pet: two concurrent submits never both pass the cap
+        $this->locks->lockPetChanges($command->clinicId, $pet->id);
 
         if ($this->requests->countSubmitted($command->clinicId, $pet->id, $field) >= self::MAX_OPEN_PER_FIELD) {
             throw new PortalRequestRateLimitedException(null);

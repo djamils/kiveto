@@ -17,7 +17,9 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * « RDV en ligne à confirmer · Milo » — « Sophie Dubois · jeudi 22/10 à
  * 9h30 », to the appointment's practitioner as it is when the worker runs.
  * A request confirmed, declined or withdrawn in between is not announced.
- * One entry per appointment (idempotency key), withdrawn once it is handled.
+ * One entry per appointment (idempotency key), withdrawn once it is handled;
+ * moved to another practitioner, the unread entry of the former one is
+ * withdrawn before the new one is posted.
  */
 #[AsMessageHandler]
 final readonly class PostPendingBookingNoticeHandler
@@ -42,6 +44,12 @@ final readonly class PostPendingBookingNoticeHandler
             return;
         }
 
+        $key = \sprintf(self::KEY, $command->appointmentId);
+
+        if ($command->replace) {
+            $this->bell->withdraw($key);
+        }
+
         $clinicId = $appointment->clinicId()->toString();
         $startsAt = $appointment->timeSlot()->startsAtUtc()->setTimezone($this->clinics->clinic($clinicId)->timeZone);
         $ownerId  = $appointment->ownerId();
@@ -56,7 +64,7 @@ final readonly class PostPendingBookingNoticeHandler
             localDate: $startsAt->format('Y-m-d'),
             title: 'RDV en ligne à confirmer' . (null !== $animal ? ' · ' . $animal : ''),
             detail: implode(' · ', array_filter([$owner, AppointmentLabels::slot($startsAt)])),
-            idempotencyKey: \sprintf(self::KEY, $command->appointmentId),
+            idempotencyKey: $key,
         );
     }
 }

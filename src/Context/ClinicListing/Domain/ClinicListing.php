@@ -66,8 +66,9 @@ final class ClinicListing
 
     /**
      * Takes what Clinic now says of the clinic. Returns true when the address
-     * changed (normalised) and must be geocoded again; an address removed
-     * drops the coordinates at once.
+     * must be geocoded (again): it changed (normalised), or it has no
+     * coordinates yet (an earlier geocoding failed or could not place it).
+     * An address removed drops the coordinates at once.
      */
     public function refresh(ListingProfile $profile, \DateTimeImmutable $now): bool
     {
@@ -77,7 +78,7 @@ final class ClinicListing
         $this->refreshedAt = $now;
 
         if ($hash === $this->addressHash) {
-            return false;
+            return null !== $hash && null === $this->coordinates;
         }
 
         $this->addressHash = $hash;

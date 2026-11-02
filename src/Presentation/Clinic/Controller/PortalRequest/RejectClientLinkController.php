@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\PortalRequest;
 
 use App\Context\ClientPortal\Application\Command\RejectClientLink\RejectClientLink;
-use App\Context\ClientPortal\Application\Query\GetClinicLinkRequest\GetClinicLinkRequest;
-use App\Context\ClientPortal\Application\Query\ListClinicLinkRequests\ClinicLinkRequest;
 use App\Presentation\Clinic\Security\ClinicPermissionGuard;
 use App\Presentation\Clinic\ViewModel\Client\StaffNameResolver;
 use App\Shared\Application\Bus\CommandBusInterface;
@@ -43,6 +41,6 @@ final class RejectClientLinkController extends AbstractClientLinkAnswer
         $rejected              = $this->commandBus->dispatch(new RejectClientLink($clinicId, $userId, $this->clientIds($request), $actorId, $actorName));
         \assert(\is_int($rejected));
 
-        return $this->back($request, $userId, $rejected, 'Rattachement refusé — la clinique ne sera plus proposée à ce compte Portal.', $this->queryBus->ask(new GetClinicLinkRequest($clinicId, $userId)) instanceof ClinicLinkRequest);
+        return $this->back($request, $this->queryBus, $clinicId, $userId, $rejected, 'Rattachement refusé — la clinique ne sera plus proposée à ce compte Portal.');
     }
 }

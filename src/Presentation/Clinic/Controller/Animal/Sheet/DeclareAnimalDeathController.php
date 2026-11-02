@@ -10,6 +10,7 @@ use App\Context\Animal\Domain\ValueObject\DeathCause;
 use App\Context\Scheduling\Application\Command\CancelAppointment\CancelAppointment;
 use App\Context\Scheduling\Application\Query\ListAppointmentsForAnimal\AnimalAppointmentItem;
 use App\Context\Scheduling\Application\Query\ListAppointmentsForAnimal\ListAppointmentsForAnimal;
+use App\Context\Scheduling\Domain\Exception\AppointmentAlreadyHandledException;
 use App\Context\Scheduling\Domain\ValueObject\CancellationActor;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
@@ -96,11 +97,32 @@ final class DeclareAnimalDeathController extends AbstractAnimalSheetAction
             $upcoming = $appointment->occupiesSlot
                 && new \DateTimeImmutable($appointment->startsAtUtc, new \DateTimeZone('UTC')) >= $now;
 
-            if ($upcoming && $this->attempt(fn () => $this->commandBus->dispatch(new CancelAppointment($appointment->id, $clinicId, notifyClient: false, cancelledBy: CancellationActor::CLINIC->value)))) {
+            if ($upcoming && $this->cancel($clinicId, $appointment->id)) {
                 ++$cancelled;
             }
         }
 
         return $cancelled;
+    }
+
+    /**
+     * A request confirmed between the list and the cancel loses the decline
+     * race (« déjà traité »): it is cancelled once more, on its current
+     * status, so that no appointment of the dead animal stays planned.
+     */
+    private function cancel(string $clinicId, string $appointmentId): bool
+    {
+        $cancel  = fn () => $this->commandBus->dispatch(new CancelAppointment($appointmentId, $clinicId, notifyClient: false, cancelledBy: CancellationActor::CLINIC->value));
+        $handled = false;
+
+        $done = $this->attempt(static function () use ($cancel, &$handled): void {
+            try {
+                $cancel();
+            } catch (AppointmentAlreadyHandledException) {
+                $handled = true;
+            }
+        });
+
+        return $handled ? $this->attempt($cancel) : $done;
     }
 }

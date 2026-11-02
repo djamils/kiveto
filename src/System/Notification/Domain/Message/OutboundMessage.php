@@ -60,6 +60,9 @@ final class OutboundMessage extends AggregateRoot
         private ?\DateTimeImmutable $sentAt,
         private \DateTimeImmutable $statusChangedAt,
         private ?\DateTimeImmutable $contentPurgedAt,
+        private readonly ?string $accountId = null,
+        private ?\DateTimeImmutable $dispatchClaimedAt = null,
+        private bool $erasurePending = false,
     ) {
     }
 
@@ -81,8 +84,9 @@ final class OutboundMessage extends AggregateRoot
         RenderedContent $content,
         array $attachments,
         \DateTimeImmutable $now,
+        ?string $accountId = null,
     ): self {
-        $message = self::create($id, $clinicId, $clientId, $purpose, $channel, $recipient, $sender, $subject, $idempotencyKey, $content, $attachments, $now);
+        $message = self::create($id, $clinicId, $clientId, $purpose, $channel, $recipient, $sender, $subject, $idempotencyKey, $content, $attachments, $now, $accountId);
         $message->recordDomainEvent(new OutboundMessageQueued($id->toString(), $clinicId, $channel->value, $now->format(\DateTimeInterface::ATOM)));
         $message->apply(new StatusChange(DeliveryStatus::QUEUED, $now, self::SOURCE_REQUEST));
 
@@ -109,7 +113,7 @@ final class OutboundMessage extends AggregateRoot
             throw new \InvalidArgumentException('Only a non-critical SMS can be held back by the overage cap.');
         }
 
-        $message = self::create($id, $clinicId, $clientId, $purpose, Channel::SMS, $recipient, $sender, $subject, $idempotencyKey, $content, [], $now);
+        $message = self::create($id, $clinicId, $clientId, $purpose, Channel::SMS, $recipient, $sender, $subject, $idempotencyKey, $content, [], $now, null);
         $message->apply(new StatusChange(DeliveryStatus::BLOCKED_CAP, $now, self::SOURCE_REQUEST, 'Plafond de dépassement SMS atteint'));
 
         return $message;
@@ -161,18 +165,24 @@ final class OutboundMessage extends AggregateRoot
         ?\DateTimeImmutable $sentAt,
         \DateTimeImmutable $statusChangedAt,
         ?\DateTimeImmutable $contentPurgedAt,
+        ?string $accountId = null,
+        ?\DateTimeImmutable $dispatchClaimedAt = null,
+        bool $erasurePending = false,
     ): self {
-        return new self($id, $clinicId, $clientId, $purpose, $channel, $recipient, $sender, $subject, $idempotencyKey, $content, $attachments, $status, $externalMessageId, $history, $complainedAt, $createdAt, $sentAt, $statusChangedAt, $contentPurgedAt);
+        return new self($id, $clinicId, $clientId, $purpose, $channel, $recipient, $sender, $subject, $idempotencyKey, $content, $attachments, $status, $externalMessageId, $history, $complainedAt, $createdAt, $sentAt, $statusChangedAt, $contentPurgedAt, $accountId, $dispatchClaimedAt, $erasurePending);
     }
 
     /**
      * The provider accepted the message: it is SENT and, for an SMS, its
      * segments are now billed. Only a QUEUED message can be handed over;
-     * anything else is a replay and changes nothing.
+     * anything else is a replay and changes nothing — except a message
+     * CANCELLED although the provider had it already: its provider id and
+     * hand-over time are kept (traceability, billing), its status stays.
      */
     public function markSent(string $externalMessageId, \DateTimeImmutable $at): bool
     {
-        if (DeliveryStatus::QUEUED !== $this->status) {
+        $lateForCancelled = DeliveryStatus::CANCELLED === $this->status && null === $this->externalMessageId;
+        if (DeliveryStatus::QUEUED !== $this->status && !$lateForCancelled) {
             return false;
         }
 
@@ -183,7 +193,13 @@ final class OutboundMessage extends AggregateRoot
 
         $this->externalMessageId = $externalMessageId;
         $this->sentAt            = $at;
+
+        if ($lateForCancelled) {
+            return true;
+        }
+
         $this->redactOneTimeLink();
+        $this->eraseIfPending($at);
         $this->apply(new StatusChange(DeliveryStatus::SENT, $at, self::SOURCE_DISPATCH));
 
         return true;
@@ -200,25 +216,74 @@ final class OutboundMessage extends AggregateRoot
         }
 
         $this->redactOneTimeLink();
+        $this->eraseIfPending($at);
         $this->apply(new StatusChange(DeliveryStatus::FAILED, $at, self::SOURCE_DISPATCH, $reason));
 
         return true;
     }
 
     /**
+     * The dispatch is about to hand the message over: from then on it may be
+     * with the provider, so it can no longer be cancelled, only masked. Only
+     * a QUEUED message is claimed; a retried dispatch claims it again.
+     */
+    public function claimForDispatch(\DateTimeImmutable $at): bool
+    {
+        if (DeliveryStatus::QUEUED !== $this->status) {
+            return false;
+        }
+
+        $this->dispatchClaimedAt = $at;
+
+        return true;
+    }
+
+    /**
      * The message is withdrawn before it was handed over (its Portal account
-     * was deleted): CANCELLED, final, never sent. Only a QUEUED message can
-     * be cancelled; a dispatch still on the transport then skips it.
+     * was deleted): CANCELLED, final, never sent. Only a QUEUED message not
+     * claimed by its dispatch can be cancelled; the dispatch then skips it.
      */
     public function cancel(string $reason, \DateTimeImmutable $at): bool
     {
-        if (DeliveryStatus::QUEUED !== $this->status) {
+        if (DeliveryStatus::QUEUED !== $this->status || null !== $this->dispatchClaimedAt) {
             return false;
         }
 
         $this->apply(new StatusChange(DeliveryStatus::CANCELLED, $at, self::SOURCE_ERASURE, $reason));
 
         return true;
+    }
+
+    /**
+     * Its Portal account was deleted (Kiveto's own messages to the owner,
+     * MessagePurpose::isPortalAccountMessage()). Returns whether it changed.
+     *
+     * - QUEUED, not claimed, moot once the account is gone
+     *   (MessagePurpose::isCancelledAtAccountDeletion()): masked and
+     *   CANCELLED, never sent.
+     * - QUEUED and still to be sent (the e-mail change notice, a security
+     *   alert): it keeps its recipient for its dispatch and is masked as
+     *   soon as its hand-over outcome (sent or failed) is recorded.
+     * - Anything else (handed over, failed, or claimed by a dispatch that
+     *   may already be talking to the provider): masked now.
+     */
+    public function eraseForDeletedAccount(string $cancelReason, \DateTimeImmutable $at): bool
+    {
+        if (DeliveryStatus::QUEUED === $this->status && !$this->purpose->isCancelledAtAccountDeletion()) {
+            if ($this->erasurePending) {
+                return false;
+            }
+
+            $this->erasurePending = true;
+
+            return true;
+        }
+
+        $cancel = null === $this->dispatchClaimedAt && DeliveryStatus::QUEUED === $this->status;
+        // Masked first: the cancellation's status event carries no recipient.
+        $purged = $this->purgeContent($at);
+
+        return ($cancel && $this->cancel($cancelReason, $at)) || $purged;
     }
 
     /**
@@ -400,6 +465,23 @@ final class OutboundMessage extends AggregateRoot
         return $this->contentPurgedAt;
     }
 
+    /** The Portal account (user id) the message is about, for Kiveto's own messages to an owner. */
+    public function accountId(): ?string
+    {
+        return $this->accountId;
+    }
+
+    public function dispatchClaimedAt(): ?\DateTimeImmutable
+    {
+        return $this->dispatchClaimedAt;
+    }
+
+    /** Masked as soon as its hand-over outcome is recorded (its account was deleted meanwhile). */
+    public function erasurePending(): bool
+    {
+        return $this->erasurePending;
+    }
+
     /** The SMS segments (0 for an e-mail), kept after the content purge. */
     public function segments(): int
     {
@@ -434,6 +516,7 @@ final class OutboundMessage extends AggregateRoot
         RenderedContent $content,
         array $attachments,
         \DateTimeImmutable $now,
+        ?string $accountId,
     ): self {
         if ((Channel::SMS === $channel) !== $content->isSms()) {
             throw new \InvalidArgumentException(\sprintf('The content does not fit the %s channel.', $channel->value));
@@ -443,7 +526,15 @@ final class OutboundMessage extends AggregateRoot
             throw new \InvalidArgumentException('An SMS carries no attachment.');
         }
 
-        return new self($id, $clinicId, $clientId, $purpose, $channel, $recipient, $sender, $subject, $idempotencyKey, $content, $attachments, DeliveryStatus::QUEUED, null, [], null, $now, null, $now, null);
+        return new self($id, $clinicId, $clientId, $purpose, $channel, $recipient, $sender, $subject, $idempotencyKey, $content, $attachments, DeliveryStatus::QUEUED, null, [], null, $now, null, $now, null, $accountId);
+    }
+
+    private function eraseIfPending(\DateTimeImmutable $at): void
+    {
+        if ($this->erasurePending) {
+            $this->purgeContent($at);
+            $this->erasurePending = false;
+        }
     }
 
     private function redactOneTimeLink(): void

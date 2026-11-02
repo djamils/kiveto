@@ -39,8 +39,9 @@ final class MessengerNotificationJobsTest extends TestCase
         $jobs->postPendingBookingNotice('appointment-5');
         $jobs->withdrawPendingBookingNotice('appointment-6');
         $jobs->declineExpiredPending('appointment-7');
+        $jobs->movePendingBookingNotice('appointment-8');
 
-        [$sync, $reminder, $notice, $withdrawal, $pending, $pendingWithdrawal, $decline] = $bus->sent;
+        [$sync, $reminder, $notice, $withdrawal, $pending, $pendingWithdrawal, $decline, $move] = $bus->sent;
         self::assertInstanceOf(SyncAppointmentNotification::class, $sync->getMessage());
         self::assertSame('appointment-1', $sync->getMessage()->appointmentId);
         self::assertSame(120000, $sync->last(DelayStamp::class)?->getDelay());
@@ -55,7 +56,9 @@ final class MessengerNotificationJobsTest extends TestCase
         self::assertSame('appointment-4', $withdrawal->getMessage()->appointmentId);
 
         self::assertInstanceOf(PostPendingBookingNotice::class, $pending->getMessage());
-        self::assertSame('appointment-5', $pending->getMessage()->appointmentId);
+        self::assertSame(['appointment-5', false], [$pending->getMessage()->appointmentId, $pending->getMessage()->replace]);
+        self::assertInstanceOf(PostPendingBookingNotice::class, $move->getMessage());
+        self::assertSame(['appointment-8', true], [$move->getMessage()->appointmentId, $move->getMessage()->replace]);
         self::assertInstanceOf(WithdrawPendingBookingNotice::class, $pendingWithdrawal->getMessage());
         self::assertSame('appointment-6', $pendingWithdrawal->getMessage()->appointmentId);
         self::assertInstanceOf(DeclineExpiredPendingAppointment::class, $decline->getMessage());

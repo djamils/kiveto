@@ -32,6 +32,20 @@ interface PreVisitQuestionnaireRepositoryInterface
     public function findSubmittedForSubjectForUpdate(RequestSubject $subject, string $subjectId, ?string $clinicId): array;
 
     /**
+     * Records the lock of the questionnaire of the appointment when it is
+     * still open (a no-op otherwise); never touches its answers.
+     */
+    public function recordLock(string $clinicId, string $appointmentId, \DateTimeImmutable $now): void;
+
+    /**
+     * The submitted questionnaires not locked yet, every clinic, oldest
+     * first, at most `limit`.
+     *
+     * @return list<PreVisitQuestionnaire>
+     */
+    public function findUnlocked(int $limit): array;
+
+    /**
      * Every questionnaire an owner account answered, any clinic, oldest first.
      *
      * @return list<PreVisitQuestionnaire>

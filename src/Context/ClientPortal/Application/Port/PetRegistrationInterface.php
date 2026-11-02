@@ -8,12 +8,13 @@ namespace App\Context\ClientPortal\Application\Port;
 interface PetRegistrationInterface
 {
     /**
-     * The active animal of that primary owner with that name
-     * (case-insensitive) and species, created at or after `since`, or null.
+     * That animal (the one this very booking request registered), when it is
+     * still active, alive, not transferred, of that primary owner, with that
+     * name (case-insensitive) and species, created at or after `since`; or null.
      *
      * @param string $species dog|cat|nac|other
      */
-    public function recentPetOf(string $clinicId, string $ownerClientId, string $name, string $species, \DateTimeImmutable $since): ?string;
+    public function recentPetOf(string $clinicId, string $animalId, string $ownerClientId, string $name, string $species, \DateTimeImmutable $since): ?string;
 
     /**
      * A new animal, alive, of that client alone, everything else unknown;

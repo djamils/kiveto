@@ -43,6 +43,7 @@ final class RequestListingBookingHandlerTest extends TestCase
         self::assertSame([['request', W::CLINIC, W::MOTIF, W::VET, '2026-11-05T14:30:00+01:00']], $this->world->booking->calls);
         self::assertSame([W::USER], $this->world->quotaCalls);
         self::assertSame(['user:' . W::USER], $this->world->requests->lockedForUpdate);
+        self::assertSame(['account:' . W::USER], $this->world->locks->keys, 'serialised per account before the count');
         self::assertSame([], $this->world->links->links);
     }
 

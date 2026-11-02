@@ -44,7 +44,7 @@ final class ConsumersTest extends TestCase
 
         new ClientArchivedIntegrationEventConsumer($bus)(new ClientArchivedIntegrationEvent('client-1', 'clinic-1'));
 
-        [$command, $close] = $bus->commands;
+        [$close, $command] = $bus->commands;
         self::assertInstanceOf(RevokeClientPortalAccess::class, $command);
         self::assertSame(['clinic-1', 'client-1'], [$command->clinicId, $command->clientId]);
         // Its open requests are closed (AC 238)

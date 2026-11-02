@@ -16,6 +16,7 @@ use App\System\Notification\Infrastructure\Persistence\Doctrine\Entity\OutboundM
 use App\System\Notification\Infrastructure\Persistence\Doctrine\Mapper\OutboundMessageMapper;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\Exception\RecoverableMessageHandlingException;
 use Symfony\Component\Uid\Uuid;
@@ -110,7 +111,7 @@ final readonly class DoctrineOutboundMessageRepository implements OutboundMessag
         return array_map(static fn (mixed $id): OutboundMessageId => OutboundMessageId::fromString(Uuid::fromBinary(\is_string($id) ? $id : '')->toRfc4122()), $ids);
     }
 
-    public function findPortalAccountMessagesTo(array $addresses): array
+    public function findPortalAccountMessages(string $accountId, array $addresses): array
     {
         $purposes = array_values(array_map(
             static fn (MessagePurpose $purpose): string => $purpose->value,
@@ -119,13 +120,62 @@ final readonly class DoctrineOutboundMessageRepository implements OutboundMessag
 
         $ids = $this->em->getConnection()->fetchFirstColumn(
             'SELECT id FROM notification__outbound_messages'
-            . ' WHERE content_purged_at IS NULL AND recipient_address IN (:addresses) AND purpose IN (:purposes)'
+            . ' WHERE content_purged_at IS NULL AND purpose IN (:purposes)'
+            . ' AND (account_id = :account OR recipient_address IN (:addresses))'
             . ' ORDER BY created_at, id',
-            ['addresses' => $addresses, 'purposes' => $purposes],
+            // An empty IN () is invalid SQL: '' matches no address.
+            ['account' => Uuid::fromString($accountId)->toBinary(), 'addresses' => [] === $addresses ? [''] : $addresses, 'purposes' => $purposes],
             ['addresses' => ArrayParameterType::STRING, 'purposes' => ArrayParameterType::STRING],
         );
 
         return array_map(static fn (mixed $id): OutboundMessageId => OutboundMessageId::fromString(Uuid::fromBinary(\is_string($id) ? $id : '')->toRfc4122()), $ids);
+    }
+
+    public function getForUpdate(OutboundMessageId $id): OutboundMessage
+    {
+        return $this->mapper->toDomain($this->lockedEntity($id));
+    }
+
+    public function claimForDispatch(OutboundMessageId $id, \DateTimeImmutable $at): ?OutboundMessage
+    {
+        // Not wrapInTransaction(): a failure there closes the entity manager.
+        $connection = $this->em->getConnection();
+        $connection->beginTransaction();
+
+        try {
+            $entity  = $this->lockedEntity($id);
+            $message = $this->mapper->toDomain($entity);
+
+            if ($message->claimForDispatch($at)) {
+                $this->mapper->toEntity($message, $entity);
+                $this->em->flush();
+            } else {
+                $message = null;
+            }
+
+            $connection->commit();
+
+            return $message;
+        } catch (\Throwable $e) {
+            $connection->rollBack();
+
+            throw $e;
+        }
+    }
+
+    /**
+     * SELECT … FOR UPDATE: a locking read sees the latest committed row
+     * (not the transaction's snapshot), and an already loaded entity is
+     * refreshed with it — its version included, so the flush that follows
+     * never fails on a stale version.
+     */
+    private function lockedEntity(OutboundMessageId $id): OutboundMessageEntity
+    {
+        $entity = $this->em->find(OutboundMessageEntity::class, Uuid::fromString($id->toString()))
+            ?? throw new OutboundMessageNotFoundException($id->toString());
+        $this->em->refresh($entity, LockMode::PESSIMISTIC_WRITE);
+
+        return $entity;
     }
 
     /**

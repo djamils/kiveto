@@ -37,12 +37,15 @@ final class BookingRequestAdaptersTest extends TestCase
         $booking->confirmNewClient('clinic-1', 'rdv-1', 'client-1', 'pet-1');
         $booking->decline('clinic-1', 'rdv-1');
         $booking->withdrawPending('clinic-1', 'rdv-1');
+        $booking->confirmNewClient('clinic-1', 'rdv-1', 'client-1', 'pet-1', silent: true);
 
-        [$book, $confirm, $decline, $withdraw] = $bus->commands;
+        [$book, $confirm, $decline, $withdraw, $silent] = $bus->commands;
         self::assertInstanceOf(BookOnlineAppointment::class, $book);
         self::assertSame(['clinic-1', 'motif-1', 'vet-1', null, null, null, true], [$book->clinicId, $book->bookingMotifId, $book->practitionerUserId, $book->ownerId, $book->animalId, $book->createdPetId, $book->newClient]);
         self::assertInstanceOf(ConfirmNewClientAppointment::class, $confirm);
-        self::assertSame(['rdv-1', 'clinic-1', 'client-1', 'pet-1'], [$confirm->appointmentId, $confirm->clinicId, $confirm->ownerId, $confirm->animalId]);
+        self::assertSame(['rdv-1', 'clinic-1', 'client-1', 'pet-1', false], [$confirm->appointmentId, $confirm->clinicId, $confirm->ownerId, $confirm->animalId, $confirm->silent]);
+        self::assertInstanceOf(ConfirmNewClientAppointment::class, $silent);
+        self::assertTrue($silent->silent);
         self::assertInstanceOf(DeclineAppointment::class, $decline);
         self::assertSame(['rdv-1', 'clinic-1'], [$decline->appointmentId, $decline->clinicId]);
         self::assertInstanceOf(WithdrawPendingOnlineAppointment::class, $withdraw);
@@ -73,6 +76,12 @@ final class BookingRequestAdaptersTest extends TestCase
         self::assertInstanceOf(CreateClient::class, $command);
         self::assertSame(['clinic-1', 'Sophie', 'Martin', [], 'staff', 'vet-1', []], [$command->clinicId, $command->firstName, $command->lastName, $command->animals, $command->actorType, $command->actorId, $command->channelsByConsentKind]);
         self::assertSame([['phone', 'mobile', '+33612345678', true]], array_map(static fn ($m): array => [$m->type, $m->label, $m->value, $m->isPrimary], $command->contactMethods));
+
+        // Confirmed by Scheduling (agenda, check-in…): the system opens the file
+        new CommandBusClientRegistration($bus)->register('clinic-1', 'Sophie', 'Martin', '+33612345678', null);
+        $system = $bus->commands[1];
+        self::assertInstanceOf(CreateClient::class, $system);
+        self::assertSame(['system', null], [$system->actorType, $system->actorId]);
     }
 
     public function testAListingResolvesItsClinicServerSide(): void

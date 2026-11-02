@@ -83,6 +83,6 @@ final class DataExportQueriesTest extends TestCase
             $export->markFailed($at);
         }
 
-        $this->exports->save($export);
+        $this->exports->add($export);
     }
 }

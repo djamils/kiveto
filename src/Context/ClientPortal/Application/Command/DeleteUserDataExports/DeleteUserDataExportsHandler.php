@@ -11,7 +11,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 /**
  * Idempotent: a retry finds nothing left. An archive stored by a build
  * still running at that moment is deleted when its outcome is recorded
- * (RecordDataExportHandler finds no export).
+ * (RecordDataExportHandler, waiting on the row lock, then finds no export).
  */
 #[AsMessageHandler]
 final readonly class DeleteUserDataExportsHandler
@@ -24,7 +24,7 @@ final readonly class DeleteUserDataExportsHandler
 
     public function __invoke(DeleteUserDataExports $command): void
     {
-        foreach ($this->exports->findByUser($command->userId) as $export) {
+        foreach ($this->exports->findByUserForUpdate($command->userId) as $export) {
             $this->storage->delete($export->storageKey());
             $this->exports->remove($export);
         }

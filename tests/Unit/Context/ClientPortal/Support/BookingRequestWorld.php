@@ -56,6 +56,7 @@ final class BookingRequestWorld implements ClinicListingsInterface, ListingBooki
     public InMemoryOwnerProfiles $profiles;
     public FakeOnlineBooking $booking;
     public SettableClock $clock;
+    public RecordingPortalLock $locks;
 
     /** @var array<string, ListingForBooking> */
     public array $listings = [];
@@ -87,6 +88,7 @@ final class BookingRequestWorld implements ClinicListingsInterface, ListingBooki
         $this->profiles = new InMemoryOwnerProfiles();
         $this->booking  = new FakeOnlineBooking();
         $this->clock    = new SettableClock(self::utc(self::NOW));
+        $this->locks    = new RecordingPortalLock();
         $this->account  = new OwnerAccount(self::USER, self::PHONE, null, false);
 
         $this->listings[self::LISTING]      = new ListingForBooking(self::LISTING, self::CLINIC, true);
@@ -125,7 +127,7 @@ final class BookingRequestWorld implements ClinicListingsInterface, ListingBooki
 
     public function requestHandler(): RequestListingBookingHandler
     {
-        return new RequestListingBookingHandler($this, $this->links, $this->requests, $this, $this->booking, $this, $this->profiles, $this, $this->fakes, $this->clock);
+        return new RequestListingBookingHandler($this, $this->links, $this->requests, $this, $this->booking, $this, $this->profiles, $this, $this->fakes, $this->clock, $this->locks);
     }
 
     public function confirmHandler(): ConfirmBookingRequestHandler
@@ -191,16 +193,16 @@ final class BookingRequestWorld implements ClinicListingsInterface, ListingBooki
             {
             }
 
-            public function register(string $clinicId, string $firstName, string $lastName, string $mobilePhone, string $actorUserId): string
+            public function register(string $clinicId, string $firstName, string $lastName, string $mobilePhone, ?string $actorUserId): string
             {
-                $this->world->registeredClients[] = [$clinicId, $firstName, $lastName, $mobilePhone, $actorUserId];
+                $this->world->registeredClients[] = [$clinicId, $firstName, $lastName, $mobilePhone, $actorUserId ?? 'system'];
 
                 return BookingRequestWorld::NEW_FILE;
             }
         };
     }
 
-    public function recentPetOf(string $clinicId, string $ownerClientId, string $name, string $species, \DateTimeImmutable $since): ?string
+    public function recentPetOf(string $clinicId, string $animalId, string $ownerClientId, string $name, string $species, \DateTimeImmutable $since): ?string
     {
         return null;
     }

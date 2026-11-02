@@ -20,6 +20,7 @@ use App\System\IdentityAccess\Application\Port\PendingPortalInvitation;
 use App\System\IdentityAccess\Application\Port\PortalOtpRequest;
 use App\System\IdentityAccess\Application\Query\GetOtpChallengePhone\GetOtpChallengePhone;
 use App\System\IdentityAccess\Application\Query\GetOtpChallengePhone\GetOtpChallengePhoneHandler;
+use App\System\IdentityAccess\Application\Service\UnknownNumberSmsGate;
 use App\System\IdentityAccess\Domain\Exception\OtpChallengeNotFoundException;
 use App\System\IdentityAccess\Domain\Exception\OtpRateLimitedException;
 use App\System\IdentityAccess\Domain\Otp\OnboardingPurpose;
@@ -332,14 +333,14 @@ final class PortalOtpUseCasesTest extends TestCase
 
     private function request(string $phone, OtpPurpose $purpose = OtpPurpose::LOGIN, ?string $invitationRef = null): OtpChallengeIssued
     {
-        $handler = new RequestPortalOtpHandler($this->challenges, $this->users, $this->portal, $this->portal, $this->portal, $this->portal, $this->portal, $this->fakes, $this->fakes, new FrozenClock($this->now));
+        $handler = new RequestPortalOtpHandler($this->challenges, $this->portal, new UnknownNumberSmsGate($this->users, $this->portal, $this->portal), $this->portal, $this->portal, $this->fakes, $this->fakes, new FrozenClock($this->now));
 
         return $handler(new RequestPortalOtp($phone, $purpose->value, $invitationRef));
     }
 
     private function resend(string $challengeId, \DateTimeImmutable $at): OtpChallengeIssued
     {
-        return (new ResendPortalOtpHandler($this->challenges, $this->users, $this->portal, $this->portal, $this->fakes, new FrozenClock($at)))(new ResendPortalOtp($challengeId, 'sms'));
+        return (new ResendPortalOtpHandler($this->challenges, $this->users, $this->portal, $this->portal, $this->fakes, new FrozenClock($at), new UnknownNumberSmsGate($this->users, $this->portal, $this->portal)))(new ResendPortalOtp($challengeId, 'sms'));
     }
 
     private function verify(string $challengeId, string $code, string $after = '+1 minute'): LoginOtpOutcome

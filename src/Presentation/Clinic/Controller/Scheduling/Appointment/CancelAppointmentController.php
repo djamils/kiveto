@@ -6,7 +6,10 @@ namespace App\Presentation\Clinic\Controller\Scheduling\Appointment;
 
 use App\Context\Scheduling\Application\Command\CancelAppointment\CancelAppointment;
 use App\Context\Scheduling\Application\Query\GetAppointmentClinicId\GetAppointmentClinicId;
+use App\Context\Scheduling\Application\Query\GetAppointmentDetails\AppointmentDetails;
+use App\Context\Scheduling\Application\Query\GetAppointmentDetails\GetAppointmentDetails;
 use App\Context\Scheduling\Domain\ValueObject\CancellationActor;
+use App\Presentation\Clinic\Security\ClinicPermissionGuard;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
@@ -18,6 +21,10 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
+/**
+ * « Annuler » on the agenda. A pending online request cancelled here is
+ * declined, so it needs `manage_appointments` like « Refuser » (S4A-01).
+ */
 #[Route(
     '/scheduling/appointments/{appointmentId}/cancel',
     name: 'clinic_scheduling_appointment_cancel',
@@ -30,6 +37,7 @@ final class CancelAppointmentController extends AbstractController
         private readonly QueryBusInterface $queryBus,
         private readonly CurrentClinicContextInterface $currentClinicContext,
         private readonly CsrfTokenManagerInterface $csrfTokenManager,
+        private readonly ClinicPermissionGuard $permissions,
     ) {
     }
 
@@ -50,6 +58,14 @@ final class CancelAppointmentController extends AbstractController
         $clinicId = $this->queryBus->ask(new GetAppointmentClinicId($appointmentId));
         if (null === $clinicId || $clinicId !== $currentClinicId->toString()) {
             throw $this->createNotFoundException();
+        }
+
+        $details = $this->queryBus->ask(new GetAppointmentDetails($appointmentId));
+        if ($details instanceof AppointmentDetails && $details->isPending && !$this->permissions->has(ClinicPermissionGuard::MANAGE_APPOINTMENTS)) {
+            return new JsonResponse(
+                ['success' => false, 'errors' => ['global' => ['Vous n’avez pas le droit de traiter les demandes de rendez-vous.']], 'errorCode' => 'FORBIDDEN'],
+                Response::HTTP_FORBIDDEN,
+            );
         }
 
         try {

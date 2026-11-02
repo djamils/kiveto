@@ -9,6 +9,7 @@ use App\Context\ClientPortal\Domain\Document\PublicationStatus;
 use App\Context\ClientPortal\Domain\Document\PublishedDocument;
 use App\Context\ClientPortal\Domain\Document\PublishedDocumentId;
 use App\Context\ClientPortal\Domain\Document\PublishedDocumentRepositoryInterface;
+use App\Context\ClientPortal\Domain\Link\ClientLinkStatus;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\Connection;
 
@@ -20,11 +21,19 @@ final readonly class DbalPublishedDocumentRepository implements PublishedDocumen
 {
     public const string TABLE = 'client_portal__published_documents';
 
+    private const string LINKS = 'client_portal__client_links';
+
     private const string COLUMNS = 'id, clinic_id, client_id, type, source_ref, consultation_id, patient_id, pet_ids, title, issued_at,'
-        . ' practitioner_name, storage_key, file_version, pending_file_version, render_attempts, status, published_at, updated_at';
+        . ' practitioner_name, storage_key, file_version, pending_file_version, render_attempts, status, published_at, updated_at, shared_at';
 
     private const string VALUES = ':id, :clinic, :client, :type, :source, :consultation, :patient, :pets, :title, :issued,'
-        . ' :practitioner, :storage, :version, :pending, :attempts, :status, :published, :updated';
+        . ' :practitioner, :storage, :version, :pending, :attempts, :status, :published, :updated, :shared';
+
+    /** Updated by save(), `status` last so that every guard reads the stored status. */
+    private const array UPDATED_COLUMNS = [
+        'client_id', 'consultation_id', 'patient_id', 'pet_ids', 'title', 'issued_at', 'practitioner_name', 'storage_key',
+        'file_version', 'pending_file_version', 'render_attempts', 'updated_at', 'shared_at', 'status',
+    ];
 
     public function __construct(private Connection $connection)
     {
@@ -32,14 +41,16 @@ final readonly class DbalPublishedDocumentRepository implements PublishedDocumen
 
     public function save(PublishedDocument $document): void
     {
+        // A withdrawn row is terminal: a writer that loaded it before the
+        // withdrawal committed never brings it back (every column keeps its
+        // value, `status` being assigned last as MySQL assigns left to right).
         $this->connection->executeStatement(
             'INSERT INTO ' . self::TABLE . ' (' . self::COLUMNS . ') VALUES (' . self::VALUES . ')'
-            . ' AS new ON DUPLICATE KEY UPDATE client_id = new.client_id, consultation_id = new.consultation_id,'
-            . ' patient_id = new.patient_id, pet_ids = new.pet_ids, title = new.title, issued_at = new.issued_at,'
-            . ' practitioner_name = new.practitioner_name, storage_key = new.storage_key, file_version = new.file_version,'
-            . ' pending_file_version = new.pending_file_version, render_attempts = new.render_attempts, status = new.status,'
-            . ' updated_at = new.updated_at',
-            self::parameters($document),
+            . ' AS new ON DUPLICATE KEY UPDATE ' . implode(', ', array_map(
+                static fn (string $column): string => $column . ' = IF(' . self::TABLE . '.status = :withdrawn, ' . self::TABLE . '.' . $column . ', new.' . $column . ')',
+                self::UPDATED_COLUMNS,
+            )),
+            [...self::parameters($document), 'withdrawn' => PublicationStatus::WITHDRAWN->value],
         );
     }
 
@@ -71,27 +82,49 @@ final readonly class DbalPublishedDocumentRepository implements PublishedDocumen
         return false === $row ? null : self::hydrate($row);
     }
 
-    public function findAwaitingLink(string $clinicId, string $clientId, int $limit): array
+    public function isServedKey(string $storageKey): bool
+    {
+        return false !== $this->connection->fetchOne(
+            'SELECT 1 FROM ' . self::TABLE . ' WHERE storage_key = :key LIMIT 1',
+            ['key' => $storageKey],
+        );
+    }
+
+    public function findAwaitingLinkForUpdate(string $clinicId, string $clientId, int $limit): array
     {
         return $this->list(
-            'clinic_id = :clinic AND client_id = :client AND status = :status ORDER BY published_at ASC, id ASC LIMIT ' . $limit,
+            'clinic_id = :clinic AND client_id = :client AND status = :status ORDER BY published_at ASC, id ASC LIMIT ' . $limit . ' FOR UPDATE',
             ['clinic' => SqlValues::binary($clinicId), 'client' => SqlValues::binary($clientId), 'status' => PublicationStatus::AWAITING_LINK->value],
         );
     }
 
-    public function findStalePendingFiles(\DateTimeImmutable $updatedBefore, int $limit): array
+    public function findStalePendingFilesForUpdate(\DateTimeImmutable $updatedBefore, int $limit): array
     {
         return $this->list(
             'status = :status AND updated_at < :before AND render_attempts < ' . PublishedDocument::MAX_RENDER_ATTEMPTS
-            . ' ORDER BY updated_at ASC, id ASC LIMIT ' . $limit,
+            . ' ORDER BY updated_at ASC, id ASC LIMIT ' . $limit . ' FOR UPDATE SKIP LOCKED',
             ['status' => PublicationStatus::PENDING_FILE->value, 'before' => SqlValues::utc($updatedBefore)],
         );
     }
 
-    public function findByPatient(string $clinicId, string $patientId): array
+    public function findStaleReleasableForUpdate(\DateTimeImmutable $updatedBefore, int $limit): array
     {
         return $this->list(
-            'clinic_id = :clinic AND patient_id = :patient ORDER BY id ASC',
+            'status = :status AND updated_at < :before AND EXISTS (SELECT 1 FROM ' . self::LINKS . ' l'
+            . ' WHERE l.clinic_id = ' . self::TABLE . '.clinic_id AND l.client_id = ' . self::TABLE . '.client_id AND l.status = :confirmed)'
+            . ' ORDER BY updated_at ASC, id ASC LIMIT ' . $limit . ' FOR UPDATE SKIP LOCKED',
+            [
+                'status'    => PublicationStatus::AWAITING_LINK->value,
+                'before'    => SqlValues::utc($updatedBefore),
+                'confirmed' => ClientLinkStatus::CONFIRMED->value,
+            ],
+        );
+    }
+
+    public function findByPatientForUpdate(string $clinicId, string $patientId): array
+    {
+        return $this->list(
+            'clinic_id = :clinic AND patient_id = :patient ORDER BY id ASC FOR UPDATE',
             ['clinic' => SqlValues::binary($clinicId), 'patient' => SqlValues::binary($patientId)],
         );
     }
@@ -133,6 +166,7 @@ final readonly class DbalPublishedDocumentRepository implements PublishedDocumen
             'status'       => $document->status()->value,
             'published'    => SqlValues::utc($document->publishedAt()),
             'updated'      => SqlValues::utc($document->updatedAt()),
+            'shared'       => SqlValues::utc($document->sharedAt()),
         ];
     }
 
@@ -160,6 +194,7 @@ final readonly class DbalPublishedDocumentRepository implements PublishedDocumen
             status: PublicationStatus::from(RowAccessor::string($row, 'status')),
             publishedAt: SqlValues::date(RowAccessor::string($row, 'published_at')),
             updatedAt: SqlValues::date(RowAccessor::string($row, 'updated_at')),
+            sharedAt: SqlValues::date(RowAccessor::string($row, 'shared_at')),
         );
     }
 }

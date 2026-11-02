@@ -39,8 +39,11 @@ interface OnlineBookingInterface
      */
     public function requestNewClientSlot(string $clinicId, string $motifId, string $practitionerId, \DateTimeImmutable $startsAt): string;
 
-    /** The new client's request confirmed for the client file and animal staff chose. */
-    public function confirmNewClient(string $clinicId, string $appointmentId, string $ownerId, string $animalId): void;
+    /**
+     * The new client's request confirmed for that client file and animal;
+     * `silent` when the client is on site (no message, whatever its expiry).
+     */
+    public function confirmNewClient(string $clinicId, string $appointmentId, string $ownerId, string $animalId, bool $silent = false): void;
 
     /** The clinic declines a pending request (the slot is freed). */
     public function decline(string $clinicId, string $appointmentId): void;

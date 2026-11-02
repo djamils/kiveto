@@ -48,7 +48,8 @@ final class PortalRequestRegisterTest extends PortalRequestTestCase
         self::assertSame(25, $this->json('/portal-requests/search?pp=7')['pp']);
 
         // The counters follow the queue, not the page.
-        self::assertSame(['submitted' => 26, 'done' => 0, 'rejected' => 0, 'tout' => 26], $second['counts']);
+        self::assertSame(['submitted' => 26, 'done' => null, 'rejected' => null, 'tout' => null], $second['counts']);
+        self::assertSame(['submitted' => 26, 'done' => 0, 'rejected' => 0, 'tout' => 26], $this->json('/portal-requests/search?statut=tout')['counts']);
         self::assertSame(26, self::arr($second['head'])['pending']);
         self::assertCount(4, self::arr(self::arr($second['head'])['next']));
     }
@@ -185,14 +186,21 @@ final class PortalRequestRegisterTest extends PortalRequestTestCase
 
         $this->post('/portal-requests/rattachements/' . $account . '/confirm', ['_token' => $token, 'client_ids' => [$family]]);
         self::assertResponseIsSuccessful();
-        self::assertSame(['success' => true, 'message' => 'Rattachement confirmé — le compte Portal accède désormais au dossier.', 'pending' => true], $this->answered());
+        self::assertSame(['success' => true, 'message' => 'Rattachement confirmé — le compte Portal accède désormais au dossier.', 'pending' => true, 'decision' => null], $this->answered());
 
         $this->post('/portal-requests/rattachements/' . $account . '/reject', ['_token' => $token, 'client_ids' => [self::CLIENT]]);
-        self::assertSame(['success' => true, 'message' => 'Rattachement refusé — la clinique ne sera plus proposée à ce compte Portal.', 'pending' => false], $this->answered());
+        $answer   = $this->answered();
+        $decision = self::arr($answer['decision']);
+        self::assertSame(['success' => true, 'message' => 'Rattachement refusé — la clinique ne sera plus proposée à ce compte Portal.', 'pending' => false], \array_slice($answer, 0, 3, true));
+        // REG-02: the sheet moves to the recorded rejection, which a reload opens
+        self::assertIsString($decision['id']);
+        self::assertSame(['/portal-requests/rattachements/decisions/' . $decision['id'], '/portal-requests/rattachements/decisions/' . $decision['id'] . '/sheet'], [$decision['url'], $decision['sheet']]);
+        $sheet = $this->sheet('/portal-requests/rattachements/decisions/' . $decision['id']);
+        self::assertSame(['rejected', $decision['id']], [$sheet['status'], $sheet['id']]);
 
         $this->post('/portal-requests/rattachements/' . $account . '/reject', ['_token' => $token, 'client_ids' => [self::CLIENT]]);
         self::assertResponseStatusCodeSame(409);
-        self::assertSame(['success' => false, 'message' => 'Demande déjà traitée.', 'pending' => false], $this->answered());
+        self::assertSame(['success' => false, 'message' => 'Demande déjà traitée.', 'pending' => false, 'decision' => null], $this->answered());
         self::assertSame([], $this->searchedIds('type=client_link'));
     }
 

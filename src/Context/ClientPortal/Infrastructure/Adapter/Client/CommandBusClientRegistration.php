@@ -16,14 +16,14 @@ final readonly class CommandBusClientRegistration implements ClientRegistrationI
     {
     }
 
-    public function register(string $clinicId, string $firstName, string $lastName, string $mobilePhone, string $actorUserId): string
+    public function register(string $clinicId, string $firstName, string $lastName, string $mobilePhone, ?string $actorUserId): string
     {
         $clientId = $this->commandBus->dispatch(new CreateClient(
             clinicId: $clinicId,
             firstName: $firstName,
             lastName: $lastName,
             contactMethods: [new ContactMethodDto(type: 'phone', label: 'mobile', value: $mobilePhone, isPrimary: true)],
-            actorType: 'staff',
+            actorType: null === $actorUserId ? 'system' : 'staff',
             actorId: $actorUserId,
         ));
         \assert(\is_string($clientId));
