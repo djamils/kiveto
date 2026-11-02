@@ -2944,10 +2944,13 @@ components:
             - string
             - 'null'
         email:
-          description: 'Unverified, possibly null.'
+          description: 'Possibly null; see emailVerified.'
           type:
             - string
             - 'null'
+        emailVerified:
+          description: 'The owner proved the e-mail; a verified e-mail is a second sign-in factor.'
+          type: boolean
         maskedPhone:
           type: string
         address:
@@ -3943,10 +3946,13 @@ components:
             - string
             - 'null'
         email:
-          description: 'Unverified, possibly null.'
+          description: 'Possibly null; see emailVerified.'
           type:
             - string
             - 'null'
+        emailVerified:
+          description: 'The owner proved the e-mail; a verified e-mail is a second sign-in factor.'
+          type: boolean
         maskedPhone:
           type: string
         address:
@@ -4304,10 +4310,13 @@ components:
             - string
             - 'null'
         email:
-          description: 'Unverified, possibly null.'
+          description: 'Possibly null; see emailVerified.'
           type:
             - string
             - 'null'
+        emailVerified:
+          description: 'The owner proved the e-mail; a verified e-mail is a second sign-in factor.'
+          type: boolean
         maskedPhone:
           type: string
         address:
@@ -4537,6 +4546,11 @@ components:
                 properties:
                   name: { type: string }
                   city: { type: [string, 'null'] }
+        registrationTokenExpiresAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
     OwnerRequestList:
       type: object
       properties:
