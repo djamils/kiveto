@@ -15,7 +15,7 @@ working on the repo behaves consistently across sessions and machines.
 
 - **Stack:** Symfony 7 + Doctrine ORM + Tailwind CSS v4 + Stimulus + Twig.
 - **Architecture:** DDD monolith organised by Bounded Contexts under
-  `src/<BC>/{Domain,Application,Infrastructure}`. Presentation lives under
+  `src/{Context,System}/<BC>/{Domain,Application,Infrastructure}`. Presentation lives under
   `src/Presentation/<App>/`.
 - **Bounded Contexts:** under `src/Context/` — Admission, Animal, Billing,
   Catalog, Client, ClientPortal, Clinic, ClinicListing, Consultation, Inventory, Patient,
@@ -35,11 +35,17 @@ default behaviour. They are intentionally short and absolute.
 
 ### 1. `make ci` must be green before every commit
 
-`make ci` chains `php-cs-fixer.dry-run → phpcs → phpstan → tailwind-build →
-test`. Run it before every commit. If it fails, fix the failures rather
-than committing yellow. Tests run with `failOnDeprecation`,
-`failOnNotice`, `failOnWarning` and PHPStan at `level: max` — warnings are
-failures.
+`make ci` chains `php-cs-fixer.dry-run → phpcs → phpstan → openapi-check →
+tailwind-build → test`. Run it before every commit. If it fails, fix the
+failures rather than committing yellow. PHPStan runs at `level: max`, and
+tests run with `failOnDeprecation`, `failOnNotice` and `failOnWarning`, so
+PHPUnit deprecations, notices and warnings are failures. PHPCS warnings
+are the exception: `phpcs.xml` sets `ignore_warnings_on_exit`, so they are
+printed but do not fail the gate (only PHPCS errors do).
+
+`make ci` only runs when you run it: there is no remote CI pipeline and no
+git hook in this repo yet. Nothing else will catch a commit you did not
+check.
 
 ### 2. Frontend assets are rebuilt with `make assets`
 
@@ -53,6 +59,11 @@ immediately on reload.
 Every BC except the Presentation layer must stay at 100% line coverage.
 When you modify code in a BC, also add the tests that cover it. A change
 that drops a BC's coverage below 100% is rejected.
+
+This is a quality policy, not an automated threshold: `make ci` does not
+measure coverage (`make test` runs with `XDEBUG_MODE=off`). Before
+proposing a commit, run `make test-coverage` and check the BCs you touched
+in the HTML report (`coverage/`).
 
 ### 4. Git flow — GitHub Flow with no `staging` branch
 
@@ -98,6 +109,12 @@ Cross-BC communication happens **only** through:
 Never `use` another BC's Domain or Infrastructure entities directly. If
 you need data from another BC, route it through a port.
 
+The rule applies to every BC, but the automated checks in
+`tests/Unit/Architecture/` cover only ClientPortal, ClinicListing and the
+Portal API, Notification, ElectronicInvoicing, and the appointment status
+literals outside Scheduling (see `CONTRIBUTING.md` §6). Elsewhere, nothing
+fails if you break it: check your imports yourself.
+
 ### 7. Demo fixtures cover UI variations
 
 Fixture data must exercise the UI thresholds and states a user will encounter
@@ -128,7 +145,8 @@ dev-story`. Skip steps for small changes — use `/bmad-quick-spec` then
 |-----------------------------------------|---------------------------------------|
 | Full git flow / commit conventions      | `CONTRIBUTING.md`                     |
 | BMAD skills available                   | `_bmad/bmm/` and `_bmad-output/`       |
-| What a BC does                          | `src/<BC>/README.md`                  |
+| What a BC does                          | `src/{Context,System}/<BC>/README.md` |
+| Portal API contract                     | `openapi/portal.v1.yaml`, `openapi/portal-api-v1.md` |
 | UI Kit components and roadmap           | `_bmad-output/ui-kit-roadmap.md`      |
 | Current project context                 | `_bmad-output/project-context.md`     |
 | Past implementation notes (legacy)      | `docs/legacy/` (untracked, on disk)   |
@@ -146,8 +164,9 @@ dev-story`. Skip steps for small changes — use `/bmad-quick-spec` then
 - Don't `use` another BC's internals — route through Application ports.
 - Don't write code comments in French.
 - Don't add fallbacks/feature flags/abstractions that aren't asked for.
-- Don't skip pre-commit hooks (`--no-verify`) or sign-off (`--no-gpg-sign`)
-  unless the user explicitly tells you to.
+- Don't skip git hooks (`--no-verify`) or signing (`--no-gpg-sign`) unless
+  the user explicitly tells you to. No hook is installed today; the rule
+  holds for any hook added later.
 - Don't create new documentation files (`*.md`) unless explicitly asked.
 - Don't put multiple routes/actions in a single controller — one
   `__invoke()` per controller, no exceptions.
