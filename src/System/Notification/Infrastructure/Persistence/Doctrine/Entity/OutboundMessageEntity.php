@@ -18,6 +18,7 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(name: 'idx_notif_clinic_sent', columns: ['clinic_id', 'channel', 'sent_at'])]
 #[ORM\Index(name: 'idx_notif_clinic_status', columns: ['clinic_id', 'channel', 'status'])]
 #[ORM\Index(name: 'idx_notif_purge', columns: ['content_purged_at', 'created_at'])]
+#[ORM\Index(name: 'idx_notif_account', columns: ['account_id'])]
 class OutboundMessageEntity
 {
     #[ORM\Id]
@@ -93,6 +94,16 @@ class OutboundMessageEntity
 
     #[ORM\Column(name: 'content_purged_at', type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $contentPurgedAt = null;
+
+    /** The Portal account (user id) of Kiveto's own messages to an owner. */
+    #[ORM\Column(name: 'account_id', type: UuidType::NAME, nullable: true)]
+    private ?Uuid $accountId = null;
+
+    #[ORM\Column(name: 'dispatch_claimed_at', type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $dispatchClaimedAt = null;
+
+    #[ORM\Column(name: 'erasure_pending', type: 'boolean', options: ['default' => false])]
+    private bool $erasurePending = false;
 
     /** Optimistic lock: a concurrent change fails the flush and the message is retried. */
     #[ORM\Version]
@@ -356,5 +367,35 @@ class OutboundMessageEntity
     public function getVersion(): int
     {
         return $this->version;
+    }
+
+    public function getAccountId(): ?Uuid
+    {
+        return $this->accountId;
+    }
+
+    public function setAccountId(?Uuid $accountId): void
+    {
+        $this->accountId = $accountId;
+    }
+
+    public function getDispatchClaimedAt(): ?\DateTimeImmutable
+    {
+        return $this->dispatchClaimedAt;
+    }
+
+    public function setDispatchClaimedAt(?\DateTimeImmutable $dispatchClaimedAt): void
+    {
+        $this->dispatchClaimedAt = $dispatchClaimedAt;
+    }
+
+    public function isErasurePending(): bool
+    {
+        return $this->erasurePending;
+    }
+
+    public function setErasurePending(bool $erasurePending): void
+    {
+        $this->erasurePending = $erasurePending;
     }
 }

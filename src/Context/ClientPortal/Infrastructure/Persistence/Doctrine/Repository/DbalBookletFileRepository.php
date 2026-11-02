@@ -26,6 +26,14 @@ final readonly class DbalBookletFileRepository implements BookletFileRepositoryI
         return \is_string($key) ? $key : null;
     }
 
+    public function isCurrentKey(string $storageKey): bool
+    {
+        return false !== $this->connection->fetchOne(
+            'SELECT 1 FROM ' . self::TABLE . ' WHERE storage_key = :key LIMIT 1',
+            ['key' => $storageKey],
+        );
+    }
+
     public function saveCurrent(string $clinicId, string $animalId, string $storageKey, \DateTimeImmutable $at): void
     {
         $this->connection->executeStatement(

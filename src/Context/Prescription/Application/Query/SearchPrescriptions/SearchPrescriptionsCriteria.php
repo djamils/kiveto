@@ -25,6 +25,7 @@ final readonly class SearchPrescriptionsCriteria
      * @param list<string> $statuses
      * @param ?string      $prescriberId user id of the practitioner who signed, null for anyone
      * @param ?string      $validity     one of the VALIDITY_* constants, null to ignore validity
+     * @param ?string      $animalId     the animal the ordonnance was written for, null for any
      */
     public function __construct(
         public ?string $term = null,
@@ -38,6 +39,7 @@ final readonly class SearchPrescriptionsCriteria
         public bool $sortDescending = true,
         public int $page = 1,
         public int $perPage = 25,
+        public ?string $animalId = null,
     ) {
     }
 

@@ -43,7 +43,7 @@ final readonly class DbalPreVisitQuestionnaireRepository implements PreVisitQues
             'INSERT INTO ' . self::TABLE . ' (id, clinic_id, client_id, user_id, appointment_id, version, answers, status, submitted_at, updated_at, locked_at, closed_at, closed_reason)'
             . ' VALUES (:id, :clinic, :client, :user, :appointment, :version, :answers, :status, :submitted, :updated, :locked, :closed, :reason)'
             . ' AS new ON DUPLICATE KEY UPDATE user_id = new.user_id, version = new.version, answers = new.answers, status = new.status,'
-            . ' updated_at = new.updated_at, locked_at = new.locked_at, closed_at = new.closed_at, closed_reason = new.closed_reason',
+            . ' updated_at = new.updated_at, locked_at = COALESCE(' . self::TABLE . '.locked_at, new.locked_at), closed_at = new.closed_at, closed_reason = new.closed_reason',
             [
                 'id'          => SqlValues::binary($questionnaire->id()->toString()),
                 'clinic'      => SqlValues::binary($questionnaire->clinicId()),
@@ -103,6 +103,32 @@ final readonly class DbalPreVisitQuestionnaireRepository implements PreVisitQues
         return array_map(self::hydrate(...), $this->connection->fetchAllAssociative(
             'SELECT * FROM ' . self::TABLE . ' WHERE ' . $filter[0] . ' ORDER BY submitted_at, id FOR UPDATE',
             $filter[1],
+        ));
+    }
+
+    public function recordLock(string $clinicId, string $appointmentId, \DateTimeImmutable $now): void
+    {
+        if (!Uuid::isValid($appointmentId)) {
+            return;
+        }
+
+        $this->connection->executeStatement(
+            'UPDATE ' . self::TABLE . ' SET locked_at = :now'
+            . ' WHERE clinic_id = :clinic AND appointment_id = :appointment AND status = :submitted AND locked_at IS NULL',
+            [
+                'now'         => SqlValues::utc($now),
+                'clinic'      => SqlValues::binary($clinicId),
+                'appointment' => SqlValues::binary($appointmentId),
+                'submitted'   => RequestStatus::SUBMITTED->value,
+            ],
+        );
+    }
+
+    public function findUnlocked(int $limit): array
+    {
+        return array_map(self::hydrate(...), $this->connection->fetchAllAssociative(
+            'SELECT * FROM ' . self::TABLE . ' WHERE status = :submitted AND locked_at IS NULL ORDER BY submitted_at, id LIMIT ' . max(1, $limit),
+            ['submitted' => RequestStatus::SUBMITTED->value],
         ));
     }
 

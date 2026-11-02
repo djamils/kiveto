@@ -81,10 +81,37 @@ final class PendingBookingNoticeHandlersTest extends TestCase
         self::assertSame(['online-booking-pending:' . Appointments::ID], $this->bell->withdrawn);
     }
 
-    private function post(): void
+    /**
+     * S4A-07: a request moved to another practitioner leaves the former
+     * one's bell (still unread) and reaches the new one, in that order.
+     */
+    public function testARequestMovedToAnotherPractitionerMovesItsEntry(): void
+    {
+        $this->appointments->save(Appointments::pending(practitioner: Appointments::LAMBERT));
+
+        $this->post(replace: true);
+
+        self::assertSame([
+            'withdraw online-booking-pending:' . Appointments::ID,
+            'post ' . Appointments::LAMBERT,
+        ], $this->bell->calls);
+    }
+
+    public function testAPlannedAppointmentMovedToAnotherPractitionerHasNoEntryToMove(): void
+    {
+        $confirmed = Appointments::pending(practitioner: Appointments::LAMBERT);
+        $confirmed->confirm();
+        $this->appointments->save($confirmed);
+
+        $this->post(replace: true);
+
+        self::assertSame([], $this->bell->calls);
+    }
+
+    private function post(bool $replace = false): void
     {
         new PostPendingBookingNoticeHandler($this->appointments, new FakeClinicDirectory(), new FakeClientContacts(), $this->animals, $this->bell)(
-            new PostPendingBookingNotice(Appointments::ID),
+            new PostPendingBookingNotice(Appointments::ID, $replace),
         );
     }
 }

@@ -37,7 +37,7 @@ final readonly class RequestDataExportHandler
         $this->quota->consume($command->userId);
 
         $export = DataExport::request(DataExportId::fromString($this->uuidGenerator->generate()), $command->userId, $this->clock->now());
-        $this->exports->save($export);
+        $this->exports->add($export);
         $this->jobs->queueBuild($export->id()->toString());
 
         return $export->id()->toString();

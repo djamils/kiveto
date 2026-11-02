@@ -11,6 +11,7 @@ use App\System\IdentityAccess\Application\Command\ResendPortalOtp\ResendPortalOt
 use App\System\IdentityAccess\Application\Command\StartPortalEmailChange\StartPortalEmailChange;
 use App\System\IdentityAccess\Application\Command\StartPortalEmailChange\StartPortalEmailChangeHandler;
 use App\System\IdentityAccess\Application\Port\PortalOtpRequest;
+use App\System\IdentityAccess\Application\Service\UnknownNumberSmsGate;
 use App\System\IdentityAccess\Domain\Exception\OtpRateLimitedException;
 use App\System\IdentityAccess\Domain\Otp\OtpChallenge;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeId;
@@ -132,7 +133,7 @@ final class ResendPortalOtpHandlerTest extends PortalActionOtpTestCase
 
     private function resend(string $challengeId, string $channel, string $after = '+35 seconds'): OtpChallengeIssued
     {
-        $handler = new ResendPortalOtpHandler($this->challenges, $this->users, $this->portal, $this->portal, $this->fakes, $this->clock($after));
+        $handler = new ResendPortalOtpHandler($this->challenges, $this->users, $this->portal, $this->portal, $this->fakes, $this->clock($after), new UnknownNumberSmsGate($this->users, $this->portal, $this->portal));
 
         return $handler(new ResendPortalOtp($challengeId, $channel));
     }

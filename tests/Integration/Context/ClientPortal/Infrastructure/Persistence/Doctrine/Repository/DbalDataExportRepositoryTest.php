@@ -26,26 +26,55 @@ final class DbalDataExportRepositoryTest extends KernelTestCase
     {
         $exports = $this->exports();
         $export  = DataExport::request(DataExportId::fromString(self::E1), self::USER, new \DateTimeImmutable('2026-11-02 11:00', new \DateTimeZone('Europe/Paris')));
-        $exports->save($export);
+        $exports->add($export);
 
-        $found = $exports->findById(self::E1);
+        $found = $exports->findByIdForUpdate(self::E1);
         self::assertNotNull($found);
         self::assertSame([self::E1, self::USER, DataExportStatus::PENDING, '2026-11-02 10:00', 'UTC', null, null, null], [
             $found->id()->toString(), $found->userId(), $found->status(), $found->requestedAt()->format('Y-m-d H:i'), $found->requestedAt()->getTimezone()->getName(), $found->readyAt(), $found->expiresAt(), $found->failedAt(),
         ]);
 
         $found->markReady(new \DateTimeImmutable('2026-11-02 10:05', new \DateTimeZone('UTC')));
-        $exports->save($found);
+        $exports->update($found);
         $ready = $exports->findById(self::E1);
         self::assertSame([DataExportStatus::READY, '2026-11-02 10:05', '2026-11-04 10:05', null], [$ready?->status(), $ready?->readyAt()?->format('Y-m-d H:i'), $ready?->expiresAt()?->format('Y-m-d H:i'), $ready?->failedAt()]);
 
         $failed = DataExport::request(DataExportId::fromString(self::E2), self::USER, new \DateTimeImmutable('2026-11-02 12:00', new \DateTimeZone('UTC')));
         $failed->markFailed(new \DateTimeImmutable('2026-11-02 12:01', new \DateTimeZone('UTC')));
-        $exports->save($failed);
+        $exports->add($failed);
         self::assertSame([DataExportStatus::FAILED, '2026-11-02 12:01'], [$exports->findById(self::E2)?->status(), $exports->findById(self::E2)?->failedAt()?->format('Y-m-d H:i')]);
 
         self::assertNull($exports->findById(self::E3));
         self::assertNull($exports->findById('not-a-uuid'));
+        self::assertNull($exports->findByIdForUpdate(self::E3));
+    }
+
+    public function testAnUpdateNeverBringsBackARemovedExport(): void
+    {
+        $exports = $this->exports();
+        $export  = DataExport::request(DataExportId::fromString(self::E1), self::USER, new \DateTimeImmutable('2026-11-02 10:00', new \DateTimeZone('UTC')));
+        $exports->add($export);
+        $exports->remove($export);
+
+        $export->markReady(new \DateTimeImmutable('2026-11-02 10:05', new \DateTimeZone('UTC')));
+        $exports->update($export);
+
+        self::assertNull($exports->findById(self::E1));
+    }
+
+    public function testTheExportsStuckPending(): void
+    {
+        $exports = $this->exports();
+        $at      = static fn (string $time): \DateTimeImmutable => new \DateTimeImmutable($time, new \DateTimeZone('UTC'));
+        $exports->add(DataExport::request(DataExportId::fromString(self::E1), self::USER, $at('2026-11-02 03:00')));
+        $exports->add(DataExport::request(DataExportId::fromString(self::E2), self::USER2, $at('2026-11-02 02:00')));
+        $exports->add(DataExport::request(DataExportId::fromString(self::E3), self::USER, $at('2026-11-02 05:00')));
+        $this->ready(self::E4, self::USER, '2026-10-30 08:00');
+
+        $ids = static fn (array $list): array => array_map(static fn (mixed $e): string => $e instanceof DataExport ? $e->id()->toString() : '', $list);
+        self::assertSame([self::E2, self::E1], $ids($exports->findPendingRequestedBeforeForUpdate($at('2026-11-02 04:00'), 10)));
+        self::assertSame([self::E2], $ids($exports->findPendingRequestedBeforeForUpdate($at('2026-11-02 04:00'), 1)));
+        self::assertSame([], $exports->findPendingRequestedBeforeForUpdate($at('2026-11-02 02:00'), 10), 'strictly before');
     }
 
     public function testTheExportsOfAUserTheExpiredOnesAndTheRemoval(): void
@@ -54,14 +83,15 @@ final class DbalDataExportRepositoryTest extends KernelTestCase
         $this->ready(self::E1, self::USER, '2026-10-30 08:00');
         $this->ready(self::E2, self::USER, '2026-10-31 08:00');
         $this->ready(self::E3, self::USER2, '2026-10-29 08:00');
-        $exports->save(DataExport::request(DataExportId::fromString(self::E4), self::USER, new \DateTimeImmutable('2026-11-02 08:00', new \DateTimeZone('UTC'))));
+        $exports->add(DataExport::request(DataExportId::fromString(self::E4), self::USER, new \DateTimeImmutable('2026-11-02 08:00', new \DateTimeZone('UTC'))));
 
         $ids = static fn (array $list): array => array_map(static fn (mixed $e): string => $e instanceof DataExport ? $e->id()->toString() : '', $list);
         self::assertSame([self::E4, self::E2, self::E1], $ids($exports->findByUser(self::USER)));
+        self::assertSame([self::E4, self::E2, self::E1], $ids($exports->findByUserForUpdate(self::USER)));
 
         $now = new \DateTimeImmutable('2026-10-30 08:00', new \DateTimeZone('UTC'));
-        self::assertSame([self::E3, self::E1], $ids($exports->findReadyExpiredAt($now, 10)));
-        self::assertSame([self::E3], $ids($exports->findReadyExpiredAt($now, 1)));
+        self::assertSame([self::E3, self::E1], $ids($exports->findReadyExpiredForUpdate($now, 10)));
+        self::assertSame([self::E3], $ids($exports->findReadyExpiredForUpdate($now, 1)));
 
         $first = $exports->findById(self::E1);
         self::assertNotNull($first);
@@ -89,7 +119,7 @@ final class DbalDataExportRepositoryTest extends KernelTestCase
         $at     = new \DateTimeImmutable($expiresAt, new \DateTimeZone('UTC'));
         $export = DataExport::request(DataExportId::fromString($id), $userId, $at);
         $export->markReady($at->modify('-48 hours'));
-        $this->exports()->save($export);
+        $this->exports()->add($export);
     }
 
     private function exports(): DataExportRepositoryInterface

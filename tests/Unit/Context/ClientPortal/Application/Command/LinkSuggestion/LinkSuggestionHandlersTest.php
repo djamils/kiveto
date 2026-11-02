@@ -32,6 +32,7 @@ use App\Context\ClientPortal\Domain\Link\LinkDecision;
 use App\Tests\Unit\Context\ClientPortal\Support\ClientPortalWorld as W;
 use App\Tests\Unit\Context\ClientPortal\Support\InMemoryLinkDecisions;
 use App\Tests\Unit\Context\ClientPortal\Support\LinkFakes;
+use App\Tests\Unit\Context\ClientPortal\Support\RecordingPortalLock;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -186,7 +187,7 @@ final class LinkSuggestionHandlersTest extends TestCase
         };
         $this->link(W::CLINIC2, self::CLIENT3, ClientLinkStatus::CONFIRMED);
         $saves   = $this->world->links->saves;
-        $handler = new AcceptLinkSuggestionHandler(new LinkSuggestions($this->fakes, $this->world->fakes, $blind, $this->world->fakes, $this->fakes), $blind, $this->fakes, $this->fakes, $this->fakes, $this->world->fakes, $this->world->clock);
+        $handler = new AcceptLinkSuggestionHandler(new LinkSuggestions($this->fakes, $this->world->fakes, $blind, $this->world->fakes, $this->fakes), $blind, $this->fakes, $this->fakes, $this->fakes, $this->world->fakes, $this->world->clock, new RecordingPortalLock());
 
         self::assertSame('pending', $handler(new AcceptLinkSuggestion(self::USER, 's:' . self::USER . ':' . W::CLINIC2)));
         self::assertSame($saves, $this->world->links->saves);
@@ -297,7 +298,12 @@ final class LinkSuggestionHandlersTest extends TestCase
 
     private function accept(string $id): string
     {
-        return new AcceptLinkSuggestionHandler($this->service(), $this->world->links, $this->fakes, $this->fakes, $this->fakes, $this->world->fakes, $this->world->clock)(new AcceptLinkSuggestion(self::USER, $id));
+        $locks  = new RecordingPortalLock();
+        $status = new AcceptLinkSuggestionHandler($this->service(), $this->world->links, $this->fakes, $this->fakes, $this->fakes, $this->world->fakes, $this->world->clock, $locks)(new AcceptLinkSuggestion(self::USER, $id));
+        // Serialised per account: a double accept never inserts the same links twice
+        self::assertSame(['account:' . self::USER], $locks->keys);
+
+        return $status;
     }
 
     private function service(): LinkSuggestions

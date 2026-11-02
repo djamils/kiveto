@@ -19,7 +19,6 @@ use App\System\Notification\Application\Service\AttachmentFilename;
 use App\System\Notification\Domain\Exception\OutboundMessageNotFoundException;
 use App\System\Notification\Domain\Message\Attachment;
 use App\System\Notification\Domain\Message\Channel;
-use App\System\Notification\Domain\Message\DeliveryStatus;
 use App\System\Notification\Domain\Message\OutboundMessage;
 use App\System\Notification\Domain\Message\OutboundMessageId;
 use App\System\Notification\Domain\Message\OutboundMessageRepositoryInterface;
@@ -36,9 +35,15 @@ use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
  * Hands one queued message to the e-mail or SMS transport, outside any
  * database transaction, and records the outcome through a short command.
  *
- * - Only a QUEUED message is sent: a replayed dispatch does nothing, and a
+ * - Only a QUEUED message is sent, and it is claimed first
+ *   (OutboundMessageRepositoryInterface::claimForDispatch(), a short
+ *   transaction under the row lock): a replayed dispatch does nothing, a
  *   message CANCELLED while its dispatch waited on the transport (its Portal
- *   account was deleted) is never handed over.
+ *   account was deleted) is never handed over, and an account deletion that
+ *   comes after the claim no longer cancels the message — the provider may
+ *   have it — but masks it, its outcome still recorded with the provider id.
+ * - A claimed message masked by such a deletion before a retry is not sent
+ *   again: FAILED « Compte Portal supprimé avant l'envoi ».
  * - An invitation or a password reset whose link has expired while it waited
  *   (retries, outage) is not sent: FAILED « Lien expiré avant l'envoi ».
  * - Attachments and the inline clinic logo are read from the file storage
@@ -63,6 +68,7 @@ final readonly class DispatchOutboundMessageHandler
 {
     public const string ATTACHMENT_MISSING = 'Pièce jointe introuvable : %s';
     public const string LINK_EXPIRED       = "Lien expiré avant l'envoi";
+    public const string ERASED             = "Compte Portal supprimé avant l'envoi";
 
     /** Where an outcome that could not be recorded right away waits for its retries. */
     public const string OUTCOME_TRANSPORT = 'async';
@@ -87,26 +93,29 @@ final readonly class DispatchOutboundMessageHandler
     public function __invoke(DispatchOutboundMessage $command): void
     {
         try {
-            $message = $this->messages->get(OutboundMessageId::fromString($command->messageId));
+            $message = $this->messages->claimForDispatch(OutboundMessageId::fromString($command->messageId), $this->clock->now());
         } catch (OutboundMessageNotFoundException) {
             $this->logger->warning('Notification not dispatched: no such message.', ['messageId' => $command->messageId]);
 
             return;
         }
 
-        if (DeliveryStatus::CANCELLED === $message->status()) {
-            $this->logger->info('Notification not dispatched: cancelled before hand-over.', ['messageId' => $command->messageId]);
+        if (null === $message) {
+            $this->logger->info('Notification not dispatched: no longer queued (sent, failed or cancelled before hand-over).', ['messageId' => $command->messageId]);
 
-            return;
-        }
-
-        if (DeliveryStatus::QUEUED !== $message->status()) {
             return;
         }
 
         if ($message->linkExpired($this->clock->now())) {
             $this->logger->warning('Notification not sent: its one-time link expired while it waited.', ['messageId' => $command->messageId, 'purpose' => $message->purpose()->value]);
             $this->record($command->messageId, null, self::LINK_EXPIRED);
+
+            return;
+        }
+
+        if (null !== $message->contentPurgedAt()) {
+            $this->logger->info('Notification not sent: its account was deleted while it waited for a retry.', ['messageId' => $command->messageId]);
+            $this->record($command->messageId, null, self::ERASED);
 
             return;
         }

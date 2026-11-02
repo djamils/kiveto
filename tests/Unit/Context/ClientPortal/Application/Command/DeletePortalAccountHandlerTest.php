@@ -85,8 +85,8 @@ final class DeletePortalAccountHandlerTest extends TestCase
         self::assertSame(['Compte', 'supprimé', null, W::TERMS], [$profile?->firstName(), $profile?->lastName(), $profile?->address(), $profile?->termsVersion()]);
 
         self::assertSame([
-            'purge', 'step', 'mask:' . W::PHONE . ':sophie@example.com',
-            'purge', 'step', 'mask:' . W::PHONE . ':sophie@example.com', 'anonymise',
+            'purge', 'step', 'mask:' . self::USER . ':' . W::PHONE . ':sophie@example.com',
+            'purge', 'step', 'mask:' . self::USER . ':' . W::PHONE . ':sophie@example.com', 'anonymise',
         ], $this->calls->getArrayCopy());
         self::assertSame([[DeleteUserDataExports::class, self::USER], [DeleteUserDataExports::class, self::USER]], $this->dispatched());
     }
@@ -144,9 +144,9 @@ final class DeletePortalAccountHandlerTest extends TestCase
             {
             }
 
-            public function mask(string $phone, ?string $email): void
+            public function mask(string $userId, string $phone, ?string $email): void
             {
-                $this->calls->append('mask:' . $phone . ':' . $email);
+                $this->calls->append('mask:' . $userId . ':' . $phone . ':' . $email);
 
                 if ($this->failures['left'] > 0) {
                     $this->failures->offsetSet('left', $this->failures['left'] - 1);

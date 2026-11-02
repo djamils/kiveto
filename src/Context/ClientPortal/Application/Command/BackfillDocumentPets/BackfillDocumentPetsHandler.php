@@ -19,7 +19,7 @@ final readonly class BackfillDocumentPetsHandler
 
     public function __invoke(BackfillDocumentPets $command): void
     {
-        foreach ($this->documents->findByPatient($command->clinicId, $command->patientId) as $document) {
+        foreach ($this->documents->findByPatientForUpdate($command->clinicId, $command->patientId) as $document) {
             if ([] === $document->petIds()) {
                 $document->assignPets([$command->animalId], $this->clock->now());
                 $this->documents->save($document);

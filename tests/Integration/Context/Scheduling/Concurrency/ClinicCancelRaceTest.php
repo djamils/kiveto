@@ -23,6 +23,7 @@ use App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository\Doctri
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Tests\Shared\Time\FrozenClock;
 use App\Tests\Unit\Context\Scheduling\Support\CapturingEventBus;
+use App\Tests\Unit\Context\Scheduling\Support\FakeNewClientConfirmation;
 use App\Tests\Unit\Context\Scheduling\Support\ParisTimezone;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
@@ -165,6 +166,7 @@ final class ClinicCancelRaceTest extends KernelTestCase
             appointments: $repository,
             clock: new FrozenClock(self::utc(self::NOW)),
             domainEventPublisher: new DomainEventPublisher($events),
+            newClients: new FakeNewClientConfirmation(),
         )(new ConfirmAppointment(self::APPOINTMENT, self::CLINIC));
 
         return $events;

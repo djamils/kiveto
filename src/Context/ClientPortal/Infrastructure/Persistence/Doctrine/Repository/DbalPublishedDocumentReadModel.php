@@ -136,8 +136,8 @@ final readonly class DbalPublishedDocumentReadModel implements PublishedDocument
 
     public function reportSharedAt(string $clinicId, string $consultationId): ?\DateTimeImmutable
     {
-        $updatedAt = $this->connection->fetchOne(
-            'SELECT d.updated_at FROM ' . self::DOCUMENTS . ' d'
+        $sharedAt = $this->connection->fetchOne(
+            'SELECT d.shared_at FROM ' . self::DOCUMENTS . ' d'
             . ' WHERE d.clinic_id = :clinic AND d.type = :type AND d.source_ref = :source AND d.status <> :withdrawn',
             [
                 'clinic'    => SqlValues::binary($clinicId),
@@ -147,28 +147,29 @@ final readonly class DbalPublishedDocumentReadModel implements PublishedDocument
             ],
         );
 
-        return \is_string($updatedAt) ? SqlValues::date($updatedAt) : null;
+        return \is_string($sharedAt) ? SqlValues::date($sharedAt) : null;
     }
 
     public function unreadPerClinic(string $userId): array
     {
         $rows = $this->connection->fetchAllAssociative(
-            'SELECT d.clinic_id, COUNT(*) AS unread FROM ' . self::DOCUMENTS . ' d'
+            'SELECT d.clinic_id, d.id, d.type, d.source_ref, d.title, d.pet_ids, d.issued_at, d.file_version, d.storage_key,'
+            . ' d.practitioner_name, d.consultation_id, 1 AS unread FROM ' . self::DOCUMENTS . ' d'
             . ' JOIN ' . self::LINKS . " l ON l.clinic_id = d.clinic_id AND l.client_id = d.client_id AND l.user_id = :user AND l.status = '"
             . ClientLinkStatus::CONFIRMED->value . "'"
             . ' LEFT JOIN ' . self::READS . ' r ON r.document_id = d.id AND r.user_id = :user'
             . ' WHERE r.document_id IS NULL AND ' . self::LISTABLE
-            . ' GROUP BY d.clinic_id',
+            . ' ORDER BY d.clinic_id, d.issued_at DESC, d.id DESC',
             ['user' => SqlValues::binary($userId)],
         );
 
-        $counts = [];
+        $unread = [];
 
         foreach ($rows as $row) {
-            $counts[RowAccessor::uuid($row, 'clinic_id')] = RowAccessor::int($row, 'unread');
+            $unread[RowAccessor::uuid($row, 'clinic_id')][] = self::hydrate($row);
         }
 
-        return $counts;
+        return $unread;
     }
 
     /**

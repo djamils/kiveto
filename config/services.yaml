@@ -378,6 +378,10 @@ services:
     App\Context\ClientPortal\Domain\Link\LinkDecisionRepositoryInterface:
         class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalLinkDecisionRepository
 
+    # The animal a « new pet » booking registered, by request marker (S4B-01)
+    App\Context\ClientPortal\Domain\Booking\BookedPetMarkerRepositoryInterface:
+        class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalBookedPetMarkerRepository
+
     App\Context\ClientPortal\Domain\Profile\OwnerProfileRepositoryInterface:
         class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalOwnerProfileRepository
 
@@ -545,6 +549,9 @@ services:
     # Consumed by the Portal API before a change or renewal submit (limiter.portal_requests)
     App\Context\ClientPortal\Application\Port\PortalRequestQuotaInterface:
         class: App\Context\ClientPortal\Infrastructure\RateLimit\RateLimiterPortalRequestQuota
+
+    App\Context\ClientPortal\Application\Port\PortalLockInterface:
+        class: App\Context\ClientPortal\Infrastructure\Lock\DbalPortalLock
 
     # ============================================================================
     # BOUNDED CONTEXT: TRANSLATION
@@ -946,6 +953,10 @@ services:
     # The animal registered for a declined or expired Portal booking (S4g)
     App\Context\Scheduling\Application\Port\BookedPetArchiverInterface:
         class: App\Context\Scheduling\Infrastructure\Adapter\Animal\CommandBusBookedPetArchiver
+
+    # A new client's request confirmed from the agenda, a check-in, a consultation or a completion (S7-01)
+    App\Context\Scheduling\Application\Port\NewClientConfirmationInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\ClientPortal\CommandBusNewClientConfirmation
 
     # ============================================================================
     # BOUNDED CONTEXT: PATIENT

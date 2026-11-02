@@ -8,7 +8,7 @@ use App\Context\ClientPortal\Domain\Export\DataExportRepositoryInterface;
 use App\Shared\Domain\Storage\FileStorageInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
-/** Idempotent: an export already expired or removed changes nothing. */
+/** Idempotent: an export already expired or removed (and so locked out) changes nothing. */
 #[AsMessageHandler]
 final readonly class DeleteDataExportFileHandler
 {
@@ -20,13 +20,13 @@ final readonly class DeleteDataExportFileHandler
 
     public function __invoke(DeleteDataExportFile $command): void
     {
-        $export = $this->exports->findById($command->exportId);
+        $export = $this->exports->findByIdForUpdate($command->exportId);
 
         if (null === $export || !$export->expire()) {
             return;
         }
 
         $this->storage->delete($export->storageKey());
-        $this->exports->save($export);
+        $this->exports->update($export);
     }
 }

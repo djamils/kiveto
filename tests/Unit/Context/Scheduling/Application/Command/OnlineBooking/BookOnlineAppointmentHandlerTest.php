@@ -88,6 +88,17 @@ final class BookOnlineAppointmentHandlerTest extends TestCase
         self::assertSame([], $this->world->events->events);
     }
 
+    public function testTheSameRequestWithAnotherPractitionerIsNoRetry(): void
+    {
+        // S4B-03: the owner's booking of that slot with another practitioner is another booking
+        $this->world->existing('2026-04-14 08:00', createdAt: '2026-04-12 07:00', practitioner: W::LAMBERT);
+
+        $id = $this->world->book(self::NEW_ID)(self::command(W::AUTO, W::paris('2026-04-14 10:00')));
+
+        self::assertSame(self::NEW_ID, $id);
+        self::assertSame(W::ROUSSEAU, $this->world->stored($id)->practitionerAssignee()->userId()->toString());
+    }
+
     public function testABookingOlderThan24HoursIsNoRetry(): void
     {
         $this->world->existing('2026-04-14 08:00', createdAt: '2026-04-12 05:59');

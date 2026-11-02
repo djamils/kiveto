@@ -66,6 +66,46 @@ final class DbalClinicListingRepositoryTest extends KernelTestCase
         ]);
     }
 
+    /**
+     * S7-03: a refresh that read the listing before the geocoder's answer was
+     * attached does not overwrite the coordinates; an answer for an address
+     * changed since is not written; the coordinates go with the address.
+     */
+    public function testARefreshNeverOverwritesTheCoordinatesAttachedMeanwhile(): void
+    {
+        $repository = self::listings();
+        $profile    = new ListingProfile('Clinique du Parc', ListingAddress::fromParts('18 rue des Abbesses', '75018', 'Paris'), null, 'Europe/Paris', [], true);
+        $repository->save(ClinicListing::project(ClinicListingId::fromString(self::ID), self::CLINIC, $profile, new \DateTimeImmutable('2026-11-02 09:00:00')));
+
+        $refreshing = $repository->findByClinicId(self::CLINIC);
+        $attaching  = $repository->findByClinicId(self::CLINIC);
+        self::assertNotNull($refreshing);
+        self::assertNotNull($attaching);
+
+        $attaching->attachCoordinates((string) $attaching->addressHash(), ListingCoordinates::fromDegrees(48.884612, 2.338123));
+        $repository->saveCoordinates($attaching);
+        $refreshing->refresh(new ListingProfile('Clinique du Lac', $profile->address(), null, 'Europe/Paris', [], true), new \DateTimeImmutable('2026-11-02 09:01:00'));
+        $repository->save($refreshing);
+
+        $read = $repository->findByClinicId(self::CLINIC);
+        self::assertSame(['Clinique du Lac', 48.884612, 2.338123], [$read?->profile()->name(), $read?->coordinates()?->latitude(), $read?->coordinates()?->longitude()]);
+
+        // An answer for the old address, written after a move: dropped.
+        $stale = $repository->findByClinicId(self::CLINIC);
+        self::assertNotNull($stale);
+        $read?->refresh(new ListingProfile('Clinique du Lac', ListingAddress::fromParts('7 quai Saint-Antoine', '69002', 'Lyon'), null, 'Europe/Paris', [], true), new \DateTimeImmutable('2026-11-02 09:02:00'));
+        \assert(null !== $read);
+        $repository->save($read);
+        $stale->attachCoordinates((string) $stale->addressHash(), ListingCoordinates::fromDegrees(1.0, 1.0));
+        $repository->saveCoordinates($stale);
+        self::assertSame(48.884612, $repository->findByClinicId(self::CLINIC)?->coordinates()?->latitude(), 'the previous coordinates stay until the new ones come');
+
+        // No address any more: the coordinates go.
+        $read->refresh(new ListingProfile('Clinique du Lac', null, null, 'Europe/Paris', [], true), new \DateTimeImmutable('2026-11-02 09:03:00'));
+        $repository->save($read);
+        self::assertNull($repository->findByClinicId(self::CLINIC)?->coordinates());
+    }
+
     public function testTheSettingsDefaultUntilSavedThenFollowEachSave(): void
     {
         $repository = self::settings();

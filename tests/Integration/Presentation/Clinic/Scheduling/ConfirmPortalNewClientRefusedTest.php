@@ -17,9 +17,11 @@ use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Test\Factories;
 
 /**
- * AC 266: a new client's pending request (portal, no owner yet) is never
- * confirmed from the agenda nor the dashboard: staff are sent to « Demandes
- * Portal », where the client file and the animal are chosen; nothing changes.
+ * AC 266: a new client's pending request (portal, no owner yet) that no
+ * pending booking request holds is never confirmed from the agenda nor the
+ * dashboard: staff are sent to « Demandes Portal »; nothing changes. (With
+ * its booking request, the agenda confirms it through ClientPortal, S7-01:
+ * see BookingRequestPipelineTest.).
  */
 final class ConfirmPortalNewClientRefusedTest extends WebTestCase
 {

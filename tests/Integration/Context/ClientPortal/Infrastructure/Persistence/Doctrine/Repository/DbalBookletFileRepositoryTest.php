@@ -33,6 +33,8 @@ final class DbalBookletFileRepositoryTest extends KernelTestCase
 
         $booklets->saveCurrent(self::CLINIC, self::ANIMAL, 'client_portal/booklets/a-2.pdf', $at->modify('+1 hour'));
         self::assertSame('client_portal/booklets/a-2.pdf', $booklets->currentKey(self::CLINIC, self::ANIMAL));
+        self::assertTrue($booklets->isCurrentKey('client_portal/booklets/a-2.pdf'));
+        self::assertFalse($booklets->isCurrentKey('client_portal/booklets/a-1.pdf'), 'replaced');
         self::assertSame('2026-10-29 10:00:00', $connection->fetchOne(
             'SELECT updated_at FROM client_portal__booklet_files WHERE animal_id = :animal',
             ['animal' => Uuid::fromString(self::ANIMAL)->toBinary()],

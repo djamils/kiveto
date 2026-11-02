@@ -74,5 +74,6 @@ final class CommandBusNotificationRequesterTest extends TestCase
             $notice->purpose, $notice->channel, $notice->recipientAddress, $notice->clinicId, $notice->subjectType, $notice->subjectId, $notice->idempotencyKey,
         ]);
         self::assertSame(['maskedNewEmail' => 'n***@example.com', 'changedAtLabel' => '01/11/2026 à 14:05'], $notice->parameters);
+        self::assertSame(['user-3', 'user-3', null], [$verification->accountId, $notice->accountId, $otp->accountId], 'masked with their account, whatever address they went to');
     }
 }

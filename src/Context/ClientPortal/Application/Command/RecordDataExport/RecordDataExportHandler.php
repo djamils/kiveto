@@ -11,6 +11,7 @@ use App\Context\ClientPortal\Application\Port\NotificationRequesterInterface;
 use App\Context\ClientPortal\Application\Port\OwnerAccountsInterface;
 use App\Context\ClientPortal\Domain\Export\DataExport;
 use App\Context\ClientPortal\Domain\Export\DataExportRepositoryInterface;
+use App\Context\ClientPortal\Domain\Export\DataExportStatus;
 use App\Context\ClientPortal\Domain\Profile\OwnerProfileRepositoryInterface;
 use App\Shared\Domain\Storage\FileStorageInterface;
 use App\Shared\Domain\Time\ClockInterface;
@@ -20,7 +21,9 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * Ready: the archive's deletion is queued for 48 hours later and a verified
  * e-mail receives a notice, without link. Failed: the quota is given back.
  * An export no longer pending is left as it is; an archive stored for an
- * export deleted meanwhile (account deletion) is deleted at once.
+ * export deleted meanwhile (account deletion) or already given up (failed
+ * by the nightly sweep) is deleted at once. The row is locked, so account
+ * deletion and the sweep are either fully before or fully after.
  */
 #[AsMessageHandler]
 final readonly class RecordDataExportHandler
@@ -41,7 +44,7 @@ final readonly class RecordDataExportHandler
 
     public function __invoke(RecordDataExport $command): void
     {
-        $export = $this->exports->findById($command->exportId);
+        $export = $this->exports->findByIdForUpdate($command->exportId);
 
         if (null === $export) {
             if ($command->built) {
@@ -53,7 +56,7 @@ final readonly class RecordDataExportHandler
 
         if (!$command->built) {
             if ($export->markFailed($this->clock->now())) {
-                $this->exports->save($export);
+                $this->exports->update($export);
                 $this->quota->refund($export->userId());
             }
 
@@ -61,10 +64,14 @@ final readonly class RecordDataExportHandler
         }
 
         if (!$export->markReady($this->clock->now())) {
+            if (DataExportStatus::FAILED === $export->status()) {
+                $this->storage->delete($export->storageKey());
+            }
+
             return;
         }
 
-        $this->exports->save($export);
+        $this->exports->update($export);
         $this->jobs->deleteFileLater($export->id()->toString());
         $this->notify($export);
     }

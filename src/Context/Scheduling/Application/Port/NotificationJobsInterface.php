@@ -26,6 +26,9 @@ interface NotificationJobsInterface
     /** PostPendingBookingNotice, run by a worker as soon as possible. */
     public function postPendingBookingNotice(string $appointmentId): void;
 
+    /** PostPendingBookingNotice replacing the former practitioner's entry, run by a worker as soon as possible. */
+    public function movePendingBookingNotice(string $appointmentId): void;
+
     /** WithdrawPendingBookingNotice, run by a worker as soon as possible. */
     public function withdrawPendingBookingNotice(string $appointmentId): void;
 

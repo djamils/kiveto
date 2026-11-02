@@ -22,6 +22,7 @@ use App\Context\ClientPortal\Domain\Exception\InvalidNewPetException;
 use App\Context\ClientPortal\Domain\Exception\PetNotBookableException;
 use App\Context\ClientPortal\Domain\Exception\PetNotFoundException;
 use App\Context\ClientPortal\Domain\Link\ClientLinkStatus;
+use App\Tests\Unit\Context\ClientPortal\Support\InMemoryBookedPetMarkers;
 use App\Tests\Unit\Context\ClientPortal\Support\PetWorld as W;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -44,9 +45,12 @@ final class PortalBookingCommandsTest extends TestCase
 
     private ?string $recentPet = null;
 
+    private InMemoryBookedPetMarkers $markers;
+
     protected function setUp(): void
     {
-        $this->world = new W();
+        $this->markers = new InMemoryBookedPetMarkers();
+        $this->world   = new W();
         $this->world->now('2026-10-29 09:00');
         $this->calls = new \ArrayObject();
     }
@@ -97,24 +101,53 @@ final class PortalBookingCommandsTest extends TestCase
         $this->world->link(W::CLIENT2);
         $startsAt = new \DateTimeImmutable('2026-11-05T10:00:00+01:00');
 
-        $id = $this->newPetHandler()(new BookPortalAppointmentWithNewPet(W::USER, W::CLINIC, '  Pixel ', 'cat', self::MOTIF, self::VET, $startsAt));
+        $id = $this->newPetHandler()(new BookPortalAppointmentWithNewPet(W::USER, W::CLINIC, '  Pixel ', 'cat', self::MOTIF, self::VET, $startsAt, 'key-1'));
 
         self::assertSame(self::APPOINTMENT, $id);
         self::assertSame([
-            ['recentPetOf', W::CLINIC, W::CLIENT, 'Pixel', 'cat', '2026-10-28T09:00:00+00:00'],
             ['register', W::CLINIC, W::CLIENT, 'Pixel', 'cat'],
             ['book', W::CLINIC, self::MOTIF, self::VET, $startsAt, W::CLIENT, W::PET3, W::PET3],
         ], $this->calls->getArrayCopy());
+        // The request's marker remembers the animal it registered
+        self::assertSame([self::marker('key-1')], array_keys($this->markers->rows));
+        self::assertSame([W::PET3, '2026-10-29T09:00:00+00:00'], [$this->markers->rows[self::marker('key-1')][0], $this->markers->rows[self::marker('key-1')][1]->format('c')]);
     }
 
-    public function testARetryReusesTheAnimalRegisteredByTheFirstAttempt(): void
+    public function testARetryOfTheSameRequestReusesTheAnimalItRegistered(): void
     {
-        $this->recentPet = W::PET2;
+        // S4B-01: same account, same Idempotency-Key
+        $this->markers->rows[self::marker('key-1')] = [W::PET2, new \DateTimeImmutable('2026-10-29 08:00', new \DateTimeZone('UTC'))];
+        $this->recentPet                            = W::PET2;
 
-        $this->newPetHandler()(new BookPortalAppointmentWithNewPet(W::USER, W::CLINIC, 'pixel', 'cat', self::MOTIF, self::VET, new \DateTimeImmutable('2026-11-05T10:00:00+01:00')));
+        $this->newPetHandler()(new BookPortalAppointmentWithNewPet(W::USER, W::CLINIC, 'pixel', 'cat', self::MOTIF, self::VET, new \DateTimeImmutable('2026-11-05T10:00:00+01:00'), 'key-1'));
 
         self::assertSame(['recentPetOf', 'book'], array_column($this->calls->getArrayCopy(), 0));
+        self::assertSame([W::CLINIC, W::PET2, W::CLIENT, 'pixel', 'cat', '2026-10-28T09:00:00+00:00'], \array_slice($this->calls[0] ?? [], 1));
         self::assertSame([W::PET2, W::PET2], \array_slice($this->calls[1] ?? [], 6));
+    }
+
+    public function testAnAnimalOfTheClientNotRegisteredByThisRequestIsNeverReused(): void
+    {
+        // S4B-01: Rex, created by the clinic (or by another request), would match by name: it is not even looked up
+        $this->markers->rows[self::marker('key-other')] = [W::PET2, new \DateTimeImmutable('2026-10-29 08:00', new \DateTimeZone('UTC'))];
+        $this->recentPet                                = W::PET2;
+
+        $this->newPetHandler()(new BookPortalAppointmentWithNewPet(W::USER, W::CLINIC, 'Rex', 'dog', self::MOTIF, self::VET, new \DateTimeImmutable('2026-11-05T10:00:00+01:00'), 'key-1'));
+        $this->newPetHandler()(new BookPortalAppointmentWithNewPet(W::USER, W::CLINIC, 'Rex', 'dog', self::MOTIF, self::VET, new \DateTimeImmutable('2026-11-05T10:00:00+01:00')));
+
+        self::assertSame(['register', 'book', 'register', 'book'], array_column($this->calls->getArrayCopy(), 0));
+        self::assertSame([W::PET3, W::PET3], \array_slice($this->calls[1] ?? [], 6));
+    }
+
+    public function testTheAnimalOfAnEarlierAttemptNoLongerReusableIsReplaced(): void
+    {
+        // Archived, dead or transferred meanwhile: Animal finds nothing, a new animal is registered and remembered
+        $this->markers->rows[self::marker('key-1')] = [W::PET2, new \DateTimeImmutable('2026-10-29 08:00', new \DateTimeZone('UTC'))];
+
+        $this->newPetHandler()(new BookPortalAppointmentWithNewPet(W::USER, W::CLINIC, 'Pixel', 'cat', self::MOTIF, self::VET, new \DateTimeImmutable('2026-11-05T10:00:00+01:00'), 'key-1'));
+
+        self::assertSame(['recentPetOf', 'register', 'book'], array_column($this->calls->getArrayCopy(), 0));
+        self::assertSame(W::PET3, $this->markers->rows[self::marker('key-1')][0] ?? null);
     }
 
     /**
@@ -204,7 +237,7 @@ final class PortalBookingCommandsTest extends TestCase
 
     private function newPetHandler(): BookPortalAppointmentWithNewPetHandler
     {
-        return new BookPortalAppointmentWithNewPetHandler($this->world->ownerPets(), $this->registration(), $this->booking(), $this->world->documents->clock);
+        return new BookPortalAppointmentWithNewPetHandler($this->world->ownerPets(), $this->registration(), $this->booking(), $this->markers, $this->world->documents->clock);
     }
 
     private function rescheduleHandler(): ReschedulePortalAppointmentHandler
@@ -256,7 +289,7 @@ final class PortalBookingCommandsTest extends TestCase
                 throw new \LogicException('Not a new-client booking.');
             }
 
-            public function confirmNewClient(string $clinicId, string $appointmentId, string $ownerId, string $animalId): void
+            public function confirmNewClient(string $clinicId, string $appointmentId, string $ownerId, string $animalId, bool $silent = false): void
             {
                 throw new \LogicException('Not a new-client booking.');
             }
@@ -281,9 +314,9 @@ final class PortalBookingCommandsTest extends TestCase
             {
             }
 
-            public function recentPetOf(string $clinicId, string $ownerClientId, string $name, string $species, \DateTimeImmutable $since): ?string
+            public function recentPetOf(string $clinicId, string $animalId, string $ownerClientId, string $name, string $species, \DateTimeImmutable $since): ?string
             {
-                $this->calls->append(['recentPetOf', $clinicId, $ownerClientId, $name, $species, $since->format('c')]);
+                $this->calls->append(['recentPetOf', $clinicId, $animalId, $ownerClientId, $name, $species, $since->format('c')]);
 
                 return $this->recentPet;
             }
@@ -295,6 +328,11 @@ final class PortalBookingCommandsTest extends TestCase
                 return W::PET3;
             }
         };
+    }
+
+    private static function marker(string $key): string
+    {
+        return hash('sha256', W::USER . "\n" . $key);
     }
 
     private static function appointment(string $ownerId, ?string $animalId): OwnerAppointment

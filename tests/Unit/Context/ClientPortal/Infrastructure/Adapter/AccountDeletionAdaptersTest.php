@@ -51,11 +51,11 @@ final class AccountDeletionAdaptersTest extends TestCase
     {
         $bus = new AnsweringCommandBus(static fn (): int => 2);
 
-        new CommandBusPortalRecipientMasker($bus)->mask('+33612345678', 's@example.com');
+        new CommandBusPortalRecipientMasker($bus)->mask('user-1', '+33612345678', 's@example.com');
 
         [$mask] = $bus->commands;
         self::assertInstanceOf(MaskPortalRecipient::class, $mask);
-        self::assertSame(['+33612345678', 's@example.com'], [$mask->phone, $mask->email]);
+        self::assertSame(['user-1', '+33612345678', 's@example.com'], [$mask->userId, $mask->phone, $mask->email]);
     }
 
     public function testTheErasureIsQueuedOnTheCommandBus(): void

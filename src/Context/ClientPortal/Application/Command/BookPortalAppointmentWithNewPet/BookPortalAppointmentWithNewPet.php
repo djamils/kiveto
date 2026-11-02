@@ -9,6 +9,8 @@ use App\Shared\Application\Bus\CommandInterface;
 /**
  * The owner books for an animal the clinic does not know yet (D1): it is
  * registered, then booked, in one transaction. Answers the appointment id.
+ * `requestKey` is the request's Idempotency-Key: a retry of that very
+ * request reuses the animal it registered (S4B-01).
  */
 final readonly class BookPortalAppointmentWithNewPet implements CommandInterface
 {
@@ -23,6 +25,7 @@ final readonly class BookPortalAppointmentWithNewPet implements CommandInterface
         public string $motifId,
         public string $practitionerId,
         public \DateTimeImmutable $startsAt,
+        public ?string $requestKey = null,
     ) {
     }
 }

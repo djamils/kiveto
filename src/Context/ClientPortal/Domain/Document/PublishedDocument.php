@@ -37,6 +37,8 @@ final class PublishedDocument extends AggregateRoot
     private PublicationStatus $status;
     private \DateTimeImmutable $publishedAt;
     private \DateTimeImmutable $updatedAt;
+    /** When it was last published or shared again; no other change moves it. */
+    private \DateTimeImmutable $sharedAt;
 
     private function __construct()
     {
@@ -82,6 +84,7 @@ final class PublishedDocument extends AggregateRoot
         $document->status             = $linked ? PublicationStatus::PENDING_FILE : PublicationStatus::AWAITING_LINK;
         $document->publishedAt        = $now;
         $document->updatedAt          = $now;
+        $document->sharedAt           = $now;
 
         $document->recordDomainEvent(new DocumentPublished($id->toString(), $clinicId, $clientId, $type->value));
 
@@ -118,6 +121,7 @@ final class PublishedDocument extends AggregateRoot
         $document->status             = PublicationStatus::WITHDRAWN;
         $document->publishedAt        = $now;
         $document->updatedAt          = $now;
+        $document->sharedAt           = $now;
 
         return $document;
     }
@@ -144,6 +148,7 @@ final class PublishedDocument extends AggregateRoot
         PublicationStatus $status,
         \DateTimeImmutable $publishedAt,
         \DateTimeImmutable $updatedAt,
+        ?\DateTimeImmutable $sharedAt = null,
     ): self {
         $document                     = new self();
         $document->id                 = $id;
@@ -164,6 +169,7 @@ final class PublishedDocument extends AggregateRoot
         $document->status             = $status;
         $document->publishedAt        = $publishedAt;
         $document->updatedAt          = $updatedAt;
+        $document->sharedAt           = $sharedAt ?? $publishedAt;
 
         return $document;
     }
@@ -201,6 +207,7 @@ final class PublishedDocument extends AggregateRoot
         $this->clientId         = $clientId;
         $this->practitionerName = $practitionerName;
         $this->updatedAt        = $now;
+        $this->sharedAt         = $now;
 
         if (!$linked) {
             $this->status             = PublicationStatus::AWAITING_LINK;
@@ -404,6 +411,11 @@ final class PublishedDocument extends AggregateRoot
     public function updatedAt(): \DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    public function sharedAt(): \DateTimeImmutable
+    {
+        return $this->sharedAt;
     }
 
     /**

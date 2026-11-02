@@ -53,6 +53,7 @@ final class PortalProblemMap implements ProblemFactoryInterface
     public const string ACCOUNT_EXISTS          = 'account_exists';
     public const string ALREADY_LINKED          = 'already_linked';
     public const string BOOKING_REQUEST_LIMIT   = 'booking_request_limit';
+    public const string SERVICE_UNAVAILABLE     = 'service_unavailable';
 
     /** The code of every violation built by violation(). */
     private const string VIOLATION_CODE = 'portal_rule';
@@ -92,6 +93,7 @@ final class PortalProblemMap implements ProblemFactoryInterface
         self::ACCOUNT_EXISTS          => [409, 'Un compte Portal existe déjà pour ce numéro : connectez-vous.'],
         self::ALREADY_LINKED          => [422, 'Vous êtes déjà client de cette clinique : prenez rendez-vous depuis son espace.'],
         self::BOOKING_REQUEST_LIMIT   => [422, 'Vous avez déjà des demandes de rendez-vous en attente : attendez la réponse des cliniques.'],
+        self::SERVICE_UNAVAILABLE     => [503, 'Service momentanément indisponible : réessayez dans quelques minutes.'],
         self::IDEMPOTENCY_KEY_MISSING => [400, 'En-tête Idempotency-Key manquant ou invalide.'],
         self::IDEMPOTENCY_KEY_REUSED  => [422, 'Cette clé Idempotency-Key a déjà servi pour une autre requête.'],
     ];

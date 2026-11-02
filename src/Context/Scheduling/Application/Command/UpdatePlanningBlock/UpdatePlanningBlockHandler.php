@@ -8,6 +8,7 @@ use App\Context\Scheduling\Application\Port\ClinicTimezoneResolverInterface;
 use App\Context\Scheduling\Application\Port\OccupyingAppointmentsReaderInterface;
 use App\Context\Scheduling\Application\Port\PlanningBlockOverlapCheckerInterface;
 use App\Context\Scheduling\Application\Port\PractitionerDayLockInterface;
+use App\Context\Scheduling\Application\Service\BlockAppointments;
 use App\Context\Scheduling\Domain\Booking\BusyInterval;
 use App\Context\Scheduling\Domain\Exception\CannotChangePlanningBlockTypeWithActiveAppointments;
 use App\Context\Scheduling\Domain\Exception\CannotCreateOverlappingPlanningBlock;
@@ -67,17 +68,12 @@ final readonly class UpdatePlanningBlockHandler
             LockKeys::forBlock($staffUserId, $newRange, $newRule, $today),
         ));
 
-        // Same rule as a creation: no two blocks of a staff member overlap
-        $hasOverlap = $this->overlapChecker->hasOverlap(
-            $clinicId,
-            $staffUserId,
-            $command->date,
-            $command->startTime,
-            $command->endTime,
-            $blockId,
-        );
+        // Same rule as a creation: no two blocks of a staff member overlap. Checked only when the
+        // block moves (staff member, date or times): an update of another field leaves an overlap
+        // that predates the occurrence-by-occurrence check as it is, and stays possible
+        $moved = !$staffUserId->equals($block->staffUserId()) || !$newRange->equals($block->timeRange());
 
-        if ($hasOverlap) {
+        if ($moved && $this->overlapChecker->hasOverlap($clinicId, $staffUserId, $newRange, $newRule, $today, $blockId)) {
             throw new CannotCreateOverlappingPlanningBlock(\sprintf(
                 'Planning block overlaps with an existing block for staff member "%s" on %s.',
                 $command->staffUserId,
@@ -99,13 +95,7 @@ final readonly class UpdatePlanningBlockHandler
         $next    = new PlanningBlockOccurrences($newRange, $newRule, $tz, $today);
 
         // What the block holds now, in every future occurrence: the original practitioner's appointments
-        $held = $current->held($this->appointmentsReader->occupyingBetween(
-            $clinicId,
-            $block->staffUserId(),
-            $current->fromUtc(),
-            $current->toUtc(),
-            currentRead: true,
-        ));
+        $held = $current->held(BlockAppointments::read($this->appointmentsReader, $clinicId, $block->staffUserId(), $current));
 
         // D.1 — type change with active appointments
         if ($newType !== $block->type() && [] !== $held) {
@@ -133,13 +123,7 @@ final readonly class UpdatePlanningBlockHandler
         // D.3 — capacity reduction below the appointments of an occurrence
         $capacityForSlot = BlockCapacity::of($command->capacityPerHour, $newRange->durationMinutes());
         if ($capacityForSlot > 0) {
-            $busiest = $next->busiestOccurrence($this->appointmentsReader->occupyingBetween(
-                $clinicId,
-                $staffUserId,
-                $next->fromUtc(),
-                $next->toUtc(),
-                currentRead: true,
-            ));
+            $busiest = $next->busiestOccurrence(BlockAppointments::read($this->appointmentsReader, $clinicId, $staffUserId, $next));
 
             if ($busiest > $capacityForSlot) {
                 throw new CannotReduceCapacityBelowExistingAppointmentCount(

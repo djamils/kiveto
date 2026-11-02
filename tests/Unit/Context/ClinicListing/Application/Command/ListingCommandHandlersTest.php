@@ -62,6 +62,7 @@ final class ListingCommandHandlersTest extends TestCase
         $handler                             = new RefreshClinicListingHandler($this->refresher());
         $handler(new RefreshClinicListing(self::CLINIC));
         $this->fakes->sent = [];
+        $this->fakes->listings[self::CLINIC]->attachCoordinates((string) $this->fakes->listings[self::CLINIC]->addressHash(), ListingCoordinates::fromDegrees(48.884, 2.338));
 
         $this->fakes->profiles[self::CLINIC] = ClinicListingFakes::profile(name: 'Clinique du Lac', line: '18 RUE DES ABBESSES', active: false);
         $handler(new RefreshClinicListing(self::CLINIC));
@@ -74,6 +75,23 @@ final class ListingCommandHandlersTest extends TestCase
         $this->fakes->profiles[self::CLINIC] = ClinicListingFakes::profile(line: '7 quai Saint-Antoine', city: 'Lyon');
         $handler(new RefreshClinicListing(self::CLINIC));
         self::assertCount(1, $this->fakes->sent);
+    }
+
+    /** S7-03: an address whose geocoding failed earlier (no coordinates) is geocoded again by a refresh or a rebuild. */
+    public function testAnAddressStillWithoutCoordinatesIsGeocodedAgain(): void
+    {
+        $this->fakes->profiles[self::CLINIC] = ClinicListingFakes::profile();
+        $this->refresher()->refresh(self::CLINIC);
+        $hash = (string) $this->fakes->listings[self::CLINIC]->addressHash();
+        $this->fakes->listings[self::CLINIC]->attachCoordinates($hash, null);
+        $this->fakes->sent = [];
+
+        new RefreshClinicListingHandler($this->refresher())(new RefreshClinicListing(self::CLINIC));
+        self::assertCount(1, $this->fakes->sent);
+
+        self::assertSame(1, new RebuildClinicListingsHandler($this->fakes, $this->refresher())(new RebuildClinicListings()));
+        self::assertCount(2, $this->fakes->sent);
+        self::assertSame($hash, $this->fakes->listings[self::CLINIC]->addressHash());
     }
 
     public function testAClinicWithoutAddressOrUnknownToClinicQueuesNothing(): void

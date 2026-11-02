@@ -22,11 +22,11 @@ use App\Shared\Application\Pagination\CursorPage;
  */
 final readonly class PortalRequestQueue
 {
+    /** Answered requests the register reads at most (the oldest beyond are not listed). */
+    public const int MAX_HISTORY = 2000;
+
     /** Pages read at most: beyond, the queue is long enough for any badge. */
     private const int MAX_PAGES = 10;
-
-    /** Pages of history the register reads at most (the oldest answered requests beyond are not listed). */
-    private const int MAX_HISTORY_PAGES = 40;
 
     private const int PAGE_SIZE = 50;
 
@@ -42,19 +42,29 @@ final readonly class PortalRequestQueue
      */
     public function open(string $clinicId): array
     {
-        return $this->read($clinicId, 'submitted', self::MAX_PAGES);
+        return $this->read($clinicId, 'submitted', self::MAX_PAGES, \PHP_INT_MAX);
     }
 
     /**
-     * Every change and renewal request of the clinic, whatever its state
-     * (closed ones aside), newest first: the « Demandes » register filters,
-     * counts and pages them.
+     * Every submitted change and renewal request of the clinic, newest
+     * first, however many: the « Demandes » register lists the whole queue.
      *
      * @return list<ClinicPortalRequest>
      */
-    public function all(string $clinicId): array
+    public function pending(string $clinicId): array
     {
-        return $this->read($clinicId, null, self::MAX_HISTORY_PAGES);
+        return $this->read($clinicId, 'submitted', \PHP_INT_MAX, \PHP_INT_MAX);
+    }
+
+    /**
+     * The answered change and renewal requests of the clinic (closed ones
+     * aside), newest first, at most MAX_HISTORY.
+     *
+     * @return list<ClinicPortalRequest>
+     */
+    public function history(string $clinicId): array
+    {
+        return $this->read($clinicId, null, \PHP_INT_MAX, self::MAX_HISTORY, skipSubmitted: true);
     }
 
     /**
@@ -94,7 +104,7 @@ final readonly class PortalRequestQueue
     /**
      * @return list<ClinicPortalRequest>
      */
-    private function read(string $clinicId, ?string $status, int $maxPages): array
+    private function read(string $clinicId, ?string $status, int $maxPages, int $maxItems, bool $skipSubmitted = false): array
     {
         $requests = [];
         $cursor   = null;
@@ -105,7 +115,16 @@ final readonly class PortalRequestQueue
 
             foreach ($result->items as $item) {
                 \assert($item instanceof ClinicPortalRequest);
+
+                if ($skipSubmitted && 'submitted' === $item->status) {
+                    continue;
+                }
+
                 $requests[] = $item;
+
+                if (\count($requests) >= $maxItems) {
+                    return $requests;
+                }
             }
 
             $cursor = $result->nextCursor;

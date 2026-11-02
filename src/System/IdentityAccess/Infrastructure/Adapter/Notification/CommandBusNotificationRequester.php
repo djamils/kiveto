@@ -15,7 +15,9 @@ use App\System\Notification\Application\Command\RequestNotification\RequestNotif
 
 /**
  * Notification's public command, keyed per token: a replayed request never
- * sends a second e-mail for the same link.
+ * sends a second e-mail for the same link. The e-mail verification codes and
+ * change notices carry their account (accountId): they go to addresses the
+ * account may no longer have when it is deleted, and are masked with it.
  */
 final readonly class CommandBusNotificationRequester implements NotificationRequesterInterface
 {
@@ -125,6 +127,7 @@ final readonly class CommandBusNotificationRequester implements NotificationRequ
                 'code'            => $request->code,
                 'validityMinutes' => $request->validityMinutes,
             ],
+            accountId: $request->userId,
         ));
     }
 
@@ -144,6 +147,7 @@ final readonly class CommandBusNotificationRequester implements NotificationRequ
                 'maskedNewEmail' => $request->maskedNewEmail,
                 'changedAtLabel' => $request->changedAtLabel,
             ],
+            accountId: $request->userId,
         ));
     }
 }

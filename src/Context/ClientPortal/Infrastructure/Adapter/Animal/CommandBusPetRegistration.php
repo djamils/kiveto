@@ -23,9 +23,9 @@ final readonly class CommandBusPetRegistration implements PetRegistrationInterfa
     ) {
     }
 
-    public function recentPetOf(string $clinicId, string $ownerClientId, string $name, string $species, \DateTimeImmutable $since): ?string
+    public function recentPetOf(string $clinicId, string $animalId, string $ownerClientId, string $name, string $species, \DateTimeImmutable $since): ?string
     {
-        $id = $this->queryBus->ask(new FindRecentPetOfOwner($clinicId, $ownerClientId, $name, $species, $since));
+        $id = $this->queryBus->ask(new FindRecentPetOfOwner($clinicId, $animalId, $ownerClientId, $name, $species, $since));
 
         return \is_string($id) ? $id : null;
     }

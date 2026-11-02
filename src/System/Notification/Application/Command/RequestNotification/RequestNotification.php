@@ -30,6 +30,9 @@ use App\Shared\Application\Bus\CommandInterface;
  * - attachments: e-mail only.
  * - fallback: for a non-critical SMS, the e-mail to send instead when the
  *   clinic's overage cap is reached (key « <idempotencyKey>:fallback »).
+ * - accountId: the Portal account (user id) a message to an owner is about
+ *   (Kiveto's own Portal messages): its deletion masks them all, whatever
+ *   address they went to.
  */
 final readonly class RequestNotification implements CommandInterface
 {
@@ -50,6 +53,7 @@ final readonly class RequestNotification implements CommandInterface
         public array $parameters,
         public array $attachments = [],
         public ?EmailFallback $fallback = null,
+        public ?string $accountId = null,
     ) {
     }
 }

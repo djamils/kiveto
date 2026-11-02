@@ -28,7 +28,7 @@ final readonly class AttachListingCoordinatesHandler
             : null;
 
         if ($listing->attachCoordinates($command->addressHash, $coordinates)) {
-            $this->listings->save($listing);
+            $this->listings->saveCoordinates($listing);
         }
     }
 }

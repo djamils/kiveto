@@ -24,6 +24,9 @@ final class CapturingJobs implements NotificationJobsInterface
     public array $pendingBookingNotices = [];
 
     /** @var list<string> */
+    public array $pendingBookingMoves = [];
+
+    /** @var list<string> */
     public array $pendingBookingWithdrawals = [];
 
     /** @var list<string> */
@@ -52,6 +55,11 @@ final class CapturingJobs implements NotificationJobsInterface
     public function postPendingBookingNotice(string $appointmentId): void
     {
         $this->pendingBookingNotices[] = $appointmentId;
+    }
+
+    public function movePendingBookingNotice(string $appointmentId): void
+    {
+        $this->pendingBookingMoves[] = $appointmentId;
     }
 
     public function withdrawPendingBookingNotice(string $appointmentId): void

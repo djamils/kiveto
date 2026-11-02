@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\ClientPortal\Infrastructure\Scheduler;
 
+use App\Context\ClientPortal\Application\Command\LockFrozenQuestionnaires\LockFrozenQuestionnaires;
 use App\Context\ClientPortal\Application\Command\ReconcilePublishedDocuments\ReconcilePublishedDocuments;
 use App\Context\ClientPortal\Application\Command\SweepExpiredDataExports\SweepExpiredDataExports;
 use App\Context\ClientPortal\Infrastructure\Scheduler\ClientPortalScheduleProvider;
@@ -32,7 +33,7 @@ final class ClientPortalScheduleProviderTest extends TestCase
         self::assertNull($schedule->getState());
 
         $messages = $schedule->getRecurringMessages();
-        self::assertCount(2, $messages);
+        self::assertCount(3, $messages);
 
         $trigger = $messages[0]->getTrigger();
         $first   = $trigger->getNextRunDate(new \DateTimeImmutable('2026-10-29 09:00:00'));
@@ -54,5 +55,12 @@ final class ClientPortalScheduleProviderTest extends TestCase
         self::assertLessThanOrEqual(86_400, $sweep->getTimestamp() - $noon->getTimestamp());
         $sweeps = [...$messages[1]->getMessages(new MessageContext('client_portal', $messages[1]->getId(), $messages[1]->getTrigger(), $sweep))];
         self::assertInstanceOf(SweepExpiredDataExports::class, $sweeps[0] ?? null);
+
+        // Every 5 minutes, the questionnaires whose visit started are locked
+        $locks = $messages[2]->getTrigger();
+        $at    = $locks->getNextRunDate(new \DateTimeImmutable('2026-10-29 09:00:00'));
+        self::assertNotNull($at);
+        self::assertSame(300, ($locks->getNextRunDate($at)?->getTimestamp() ?? 0) - $at->getTimestamp());
+        self::assertInstanceOf(LockFrozenQuestionnaires::class, [...$messages[2]->getMessages(new MessageContext('client_portal', $messages[2]->getId(), $locks, $at))][0] ?? null);
     }
 }

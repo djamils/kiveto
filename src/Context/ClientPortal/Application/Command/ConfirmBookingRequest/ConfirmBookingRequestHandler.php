@@ -26,7 +26,9 @@ use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
- * One transaction (S7d): the request read `FOR UPDATE` and still pending;
+ * One transaction (S7d), the one path that confirms a new client's request
+ * (S7-01, « Demandes Portal » or Scheduling's agenda, check-in, consultation
+ * start and completion): the request read `FOR UPDATE` and still pending;
  * the client file (a non-archived file of the clinic whose mobile is the
  * account's phone, or a new file without animals named after the Portal
  * profile, the phone as its mobile — or the file a sibling request was
@@ -34,8 +36,12 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * new pet registered through Animal, S4g); the client link confirmed or
  * reactivated; the appointment given its owner and animal and confirmed in
  * Scheduling (its refusals pass through: already handled, expired); the
- * request `confirmed` by the staff member; the account's other pending
- * requests at the clinic attached to the same file.
+ * request `confirmed` (by the staff member from « Demandes »); the
+ * account's other pending requests at the clinic attached to the same file.
+ *
+ * Found by its appointment (`forAppointment()`, Scheduling's paths): no
+ * request, or one no longer pending, answers false and changes nothing —
+ * Scheduling then applies its own rules to the appointment.
  */
 #[AsMessageHandler]
 final readonly class ConfirmBookingRequestHandler
@@ -59,14 +65,24 @@ final readonly class ConfirmBookingRequestHandler
      * @throws BookingRequestNotFoundException
      * @throws BookingRequestAlreadyResolvedException
      * @throws InvalidBookingChoiceException
+     *
+     * @return bool true once confirmed; false when found by its appointment and not pending (or unknown)
      */
-    public function __invoke(ConfirmBookingRequest $command): void
+    public function __invoke(ConfirmBookingRequest $command): bool
     {
-        $request = $this->requests->findInClinicForUpdate($command->clinicId, $command->requestId)
-            ?? throw new BookingRequestNotFoundException($command->requestId);
+        if (null === $command->requestId) {
+            $request = $this->requests->findByAppointmentForUpdate($command->appointmentId ?? throw new \InvalidArgumentException('A request or an appointment is required.'));
 
-        if (!$request->isPending()) {
-            throw new BookingRequestAlreadyResolvedException($command->requestId);
+            if (null === $request || $request->clinicId() !== $command->clinicId || !$request->isPending()) {
+                return false;
+            }
+        } else {
+            $request = $this->requests->findInClinicForUpdate($command->clinicId, $command->requestId)
+                ?? throw new BookingRequestNotFoundException($command->requestId);
+
+            if (!$request->isPending()) {
+                throw new BookingRequestAlreadyResolvedException($command->requestId);
+            }
         }
 
         $now      = $this->clock->now();
@@ -79,7 +95,7 @@ final readonly class ConfirmBookingRequestHandler
         $this->links->save($link);
         $this->eventPublisher->publish($link);
 
-        $this->booking->confirmNewClient($request->clinicId(), $request->appointmentId(), $clientId, $animalId);
+        $this->booking->confirmNewClient($request->clinicId(), $request->appointmentId(), $clientId, $animalId, $command->silent);
 
         $request->confirm($clientId, $now, $command->actorUserId, $command->actorName);
         $this->requests->save($request);
@@ -90,6 +106,8 @@ final readonly class ConfirmBookingRequestHandler
                 $this->requests->save($sibling);
             }
         }
+
+        return true;
     }
 
     private function client(BookingRequest $request, ConfirmBookingRequest $command): string
@@ -97,25 +115,29 @@ final readonly class ConfirmBookingRequestHandler
         $phone = $request->requesterPhone() ?? throw new \LogicException('A pending request keeps its phone.');
 
         if (ConfirmBookingRequest::EXISTING === $command->clientChoice) {
-            $matches = array_map(
-                static fn (MobileFileMatch $match): string => $match->clientId,
-                array_filter($this->clients->mobileMatches($phone), static fn (MobileFileMatch $match): bool => $match->clinicId === $request->clinicId()),
-            );
-
-            if (null === $command->clientId || !\in_array($command->clientId, $matches, true)) {
+            if (null === $command->clientId || !\in_array($command->clientId, $this->mobileMatches($request, $phone), true)) {
                 throw new InvalidBookingChoiceException(InvalidBookingChoiceException::CLIENT);
             }
 
             return $command->clientId;
         }
 
-        if (ConfirmBookingRequest::NEW !== $command->clientChoice) {
+        if (ConfirmBookingRequest::NEW !== $command->clientChoice && ConfirmBookingRequest::DEFAULT !== $command->clientChoice) {
             throw new \InvalidArgumentException(\sprintf('Unknown client choice "%s".', $command->clientChoice));
         }
 
         // A sibling request was confirmed first: same file, no second client (AC 268)
         if (null !== $request->clientId()) {
             return $request->clientId();
+        }
+
+        // No staff choice: the one file of the clinic carrying the account's phone
+        if (ConfirmBookingRequest::DEFAULT === $command->clientChoice) {
+            $matches = $this->mobileMatches($request, $phone);
+
+            if (1 === \count($matches)) {
+                return $matches[0];
+            }
         }
 
         $profile = $this->profiles->findByUserId($request->userId());
@@ -129,19 +151,32 @@ final readonly class ConfirmBookingRequestHandler
         );
     }
 
+    /**
+     * The non-archived files of the request's clinic whose mobile is that phone.
+     *
+     * @return list<string>
+     */
+    private function mobileMatches(BookingRequest $request, string $phone): array
+    {
+        return array_values(array_map(
+            static fn (MobileFileMatch $match): string => $match->clientId,
+            array_filter($this->clients->mobileMatches($phone), static fn (MobileFileMatch $match): bool => $match->clinicId === $request->clinicId()),
+        ));
+    }
+
     private function animal(BookingRequest $request, ConfirmBookingRequest $command, string $clientId): string
     {
-        if (ConfirmBookingRequest::EXISTING === $command->animalChoice) {
-            $pets = array_map(static fn (PortalPet $pet): string => $pet->id, $this->pets->visiblePets($request->clinicId(), [$clientId]));
+        if (ConfirmBookingRequest::EXISTING === $command->animalChoice || ConfirmBookingRequest::DEFAULT === $command->animalChoice) {
+            $animalId = $command->animalId;
 
-            if (null === $command->animalId || !\in_array($command->animalId, $pets, true)) {
-                throw new InvalidBookingChoiceException(InvalidBookingChoiceException::ANIMAL);
+            if (null !== $animalId && \in_array($animalId, array_map(static fn (PortalPet $pet): string => $pet->id, $this->pets->visiblePets($request->clinicId(), [$clientId])), true)) {
+                return $animalId;
             }
 
-            return $command->animalId;
-        }
-
-        if (ConfirmBookingRequest::NEW !== $command->animalChoice) {
+            if (ConfirmBookingRequest::EXISTING === $command->animalChoice) {
+                throw new InvalidBookingChoiceException(InvalidBookingChoiceException::ANIMAL);
+            }
+        } elseif (ConfirmBookingRequest::NEW !== $command->animalChoice) {
             throw new \InvalidArgumentException(\sprintf('Unknown animal choice "%s".', $command->animalChoice));
         }
 

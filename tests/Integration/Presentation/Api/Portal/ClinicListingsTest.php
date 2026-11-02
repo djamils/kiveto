@@ -151,6 +151,16 @@ final class ClinicListingsTest extends BookingApiTestCase
         }
     }
 
+    /** S7-06: a coordinate that is not a plain decimal is refused on its field, never read as 0. */
+    public function testANonNumericCoordinateIsRefusedOnItsField(): void
+    {
+        foreach (['lat=12%0A&lng=2' => 'lat', 'lat=48.85&lng=2.35%0A' => 'lng'] as $query => $field) {
+            $problem = self::json($this->get('/clinic-listings?' . $query), 422);
+            self::assertSame('validation_failed', $problem['type'], $query);
+            self::assertSame($field, self::firstViolationPath($problem), $query);
+        }
+    }
+
     public function testWithoutQueryTheClinicsComePageAfterPageByName(): void
     {
         $first = self::json($this->get('/clinic-listings?limit=3'), 200);

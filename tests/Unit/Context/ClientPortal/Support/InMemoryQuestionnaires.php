@@ -49,6 +49,21 @@ final class InMemoryQuestionnaires implements PreVisitQuestionnaireRepositoryInt
         }));
     }
 
+    public function recordLock(string $clinicId, string $appointmentId, \DateTimeImmutable $now): void
+    {
+        $questionnaire = $this->findByAppointment($clinicId, $appointmentId);
+
+        if (null !== $questionnaire && $questionnaire->isEditable()) {
+            $questionnaire->lock($now);
+            ++$this->saves;
+        }
+    }
+
+    public function findUnlocked(int $limit): array
+    {
+        return \array_slice(array_values(array_filter($this->questionnaires, static fn (PreVisitQuestionnaire $q): bool => $q->isEditable())), 0, $limit);
+    }
+
     public function findByUser(string $userId): array
     {
         return array_values(array_filter($this->questionnaires, static fn (PreVisitQuestionnaire $q): bool => $q->userId() === $userId));

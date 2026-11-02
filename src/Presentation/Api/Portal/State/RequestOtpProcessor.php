@@ -38,7 +38,7 @@ final readonly class RequestOtpProcessor implements ProcessorInterface
         $this->rateLimits->consumeIp();
 
         try {
-            $issued = $this->commandBus->dispatch(new RequestPortalOtp($data->phone, 'login', requestContext: $this->requestContext()));
+            $issued = $this->commandBus->dispatch(new RequestPortalOtp($data->phone, 'login', requestContext: self::requestContext($this->requests)));
         } catch (PhoneNotSupportedException) {
             throw PortalProblemMap::problem(PortalProblemMap::PHONE_NOT_SUPPORTED);
         }
@@ -48,10 +48,10 @@ final readonly class RequestOtpProcessor implements ProcessorInterface
         return OtpChallengeView::of($issued);
     }
 
-    /** The client IP (behind the trusted proxies) and the `X-Device-Id` hint. */
-    private function requestContext(): OtpRequestContext
+    /** The client IP (behind the trusted proxies) and the `X-Device-Id` hint (also for a resend). */
+    public static function requestContext(RequestStack $requests): OtpRequestContext
     {
-        $request = $this->requests->getMainRequest();
+        $request = $requests->getMainRequest();
         $device  = $request?->headers->get('X-Device-Id');
 
         return new OtpRequestContext($request?->getClientIp(), null === $device ? null : mb_substr($device, 0, self::DEVICE_ID_MAX_LENGTH));

@@ -15,8 +15,8 @@ final readonly class CommandBusPortalRecipientMasker implements PortalRecipientM
     {
     }
 
-    public function mask(string $phone, ?string $email): void
+    public function mask(string $userId, string $phone, ?string $email): void
     {
-        $this->commandBus->dispatch(new MaskPortalRecipient($phone, $email));
+        $this->commandBus->dispatch(new MaskPortalRecipient($userId, $phone, $email));
     }
 }

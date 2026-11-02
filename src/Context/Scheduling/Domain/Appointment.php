@@ -16,6 +16,7 @@ use App\Context\Scheduling\Domain\Event\AppointmentRescheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentScheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentServiceStarted;
 use App\Context\Scheduling\Domain\Exception\AppointmentNotModifiableException;
+use App\Context\Scheduling\Domain\Exception\NewClientRequestException;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentSource;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
@@ -219,21 +220,43 @@ final class Appointment extends AggregateRoot
      * A new owner (set later, corrected or removed) is announced: their
      * client messages are synced again. The animal alone changes nothing the
      * client is told.
+     *
+     * A new client's request gets its owner and animal only through
+     * `assignNewClient()` (ClientPortal's `ConfirmBookingRequest` creates the
+     * client file, the animal and the Portal link first, S7-01).
+     *
+     * @throws NewClientRequestException when an owner or another animal is set on a new client's request
      */
     public function changeOwnerAndAnimal(?string $ownerId, ?string $animalId): void
     {
-        $oldOwnerId     = $this->ownerId;
-        $this->ownerId  = $ownerId;
-        $this->animalId = $animalId;
-
-        if ($oldOwnerId !== $ownerId) {
-            $this->recordDomainEvent(new AppointmentOwnerChanged(
-                appointmentId: $this->id->toString(),
-                clinicId: $this->clinicId->toString(),
-                oldOwnerId: $oldOwnerId,
-                newOwnerId: $ownerId,
-            ));
+        // Left as they are (the edit modal sends them back unchanged): allowed
+        if ($this->isNewClientRequest() && (null !== $ownerId || $animalId !== $this->animalId)) {
+            throw NewClientRequestException::ownerChange();
         }
+
+        $this->setOwnerAndAnimal($ownerId, $animalId);
+    }
+
+    /**
+     * The client file and the animal a new client's request is confirmed
+     * for (the next step is `confirm()`).
+     */
+    public function assignNewClient(string $ownerId, string $animalId): void
+    {
+        if (!$this->isNewClientRequest()) {
+            throw new \LogicException('Only a new client\'s pending request is assigned its client file.');
+        }
+
+        $this->setOwnerAndAnimal($ownerId, $animalId);
+    }
+
+    /**
+     * A new client's request through the directory (slice 7): booked on the
+     * Portal, still pending, no client file yet.
+     */
+    public function isNewClientRequest(): bool
+    {
+        return AppointmentSource::PORTAL === $this->source && $this->status->isPending() && null === $this->ownerId;
     }
 
     /**
@@ -257,9 +280,10 @@ final class Appointment extends AggregateRoot
 
     /**
      * A pending request moved to another time gets a new expiry, computed by
-     * the caller for the new start (OnlineBookingSettings::pendingExpiry).
+     * the caller for the new start (OnlineBookingSettings::pendingExpiry);
+     * it must lie ahead of $now, or the request would expire at once.
      */
-    public function reschedule(TimeSlot $newTimeSlot, ?\DateTimeImmutable $newPendingExpiresAt = null): void
+    public function reschedule(TimeSlot $newTimeSlot, ?\DateTimeImmutable $newPendingExpiresAt = null, ?\DateTimeImmutable $now = null): void
     {
         if ($this->status->isTerminal()) {
             throw new \DomainException('Cannot reschedule a terminated appointment.');
@@ -274,8 +298,8 @@ final class Appointment extends AggregateRoot
                 throw new \InvalidArgumentException('A rescheduled pending appointment needs its new expiry.');
             }
 
-            // Moved too close to the time it was requested: it would expire at once
-            if ($newPendingExpiresAt <= $this->createdAt) {
+            // Moved too close to now (or to the time it was requested): it would expire at once
+            if ($newPendingExpiresAt <= $this->createdAt || (null !== $now && $newPendingExpiresAt <= $now)) {
                 throw new AppointmentNotModifiableException('Ce créneau est trop proche pour une demande à confirmer : confirmez-la d’abord.');
             }
 
@@ -594,5 +618,21 @@ final class Appointment extends AggregateRoot
     public function createdPetId(): ?string
     {
         return $this->createdPetId;
+    }
+
+    private function setOwnerAndAnimal(?string $ownerId, ?string $animalId): void
+    {
+        $oldOwnerId     = $this->ownerId;
+        $this->ownerId  = $ownerId;
+        $this->animalId = $animalId;
+
+        if ($oldOwnerId !== $ownerId) {
+            $this->recordDomainEvent(new AppointmentOwnerChanged(
+                appointmentId: $this->id->toString(),
+                clinicId: $this->clinicId->toString(),
+                oldOwnerId: $oldOwnerId,
+                newOwnerId: $ownerId,
+            ));
+        }
     }
 }

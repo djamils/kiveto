@@ -48,6 +48,7 @@ final class InMemoryAppointments implements AppointmentRepositoryInterface
         string $ownerId,
         string $animalId,
         string $bookingMotifId,
+        string $practitionerUserId,
         \DateTimeImmutable $startsAtUtc,
         \DateTimeImmutable $createdSince,
     ): ?AppointmentId {
@@ -56,6 +57,7 @@ final class InMemoryAppointments implements AppointmentRepositoryInterface
                 && $appointment->ownerId() === $ownerId
                 && $appointment->animalId() === $animalId
                 && $appointment->bookingMotifId() === $bookingMotifId
+                && $appointment->practitionerAssignee()->userId()->toString() === $practitionerUserId
                 && $appointment->timeSlot()->startsAtUtc()->getTimestamp() === $startsAtUtc->getTimestamp();
 
             if ($same && $appointment->createdAt() >= $createdSince && $appointment->status()->occupiesSlot()) {

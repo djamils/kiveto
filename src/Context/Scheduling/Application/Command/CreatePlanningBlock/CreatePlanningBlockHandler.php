@@ -46,13 +46,8 @@ final readonly class CreatePlanningBlockHandler
         $today = $this->clock->now()->setTimezone($this->timezoneResolver->resolveTimezone($clinicId))->format('Y-m-d');
         $this->dayLock->lock($clinicId, LockKeys::forBlock($staffUserId, $timeRange, $rule, $today));
 
-        $hasOverlap = $this->overlapChecker->hasOverlap(
-            $clinicId,
-            $staffUserId,
-            $command->date,
-            $command->startTime,
-            $command->endTime,
-        );
+        // Occurrence by occurrence: a recurring block meets the blocks of every date it occurs on
+        $hasOverlap = $this->overlapChecker->hasOverlap($clinicId, $staffUserId, $timeRange, $rule, $today);
 
         if ($hasOverlap) {
             throw new CannotCreateOverlappingPlanningBlock(\sprintf(

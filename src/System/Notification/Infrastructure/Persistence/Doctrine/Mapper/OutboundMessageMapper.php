@@ -58,16 +58,20 @@ final readonly class OutboundMessageMapper
             sentAt: $entity->getSentAt(),
             statusChangedAt: $entity->getStatusChangedAt(),
             contentPurgedAt: $entity->getContentPurgedAt(),
+            accountId: $entity->getAccountId()?->toRfc4122(),
+            dispatchClaimedAt: $entity->getDispatchClaimedAt(),
+            erasurePending: $entity->isErasurePending(),
         );
     }
 
     public function toEntity(OutboundMessage $message, ?OutboundMessageEntity $entity = null): OutboundMessageEntity
     {
         $entity ??= new OutboundMessageEntity();
-        $sender   = $message->sender();
-        $content  = $message->content();
-        $clinicId = $message->clinicId();
-        $clientId = $message->clientId();
+        $sender    = $message->sender();
+        $content   = $message->content();
+        $clinicId  = $message->clinicId();
+        $clientId  = $message->clientId();
+        $accountId = $message->accountId();
 
         $entity->setId(Uuid::fromString($message->id()->toString()));
         $entity->setClinicId(null !== $clinicId ? Uuid::fromString($clinicId) : null);
@@ -106,6 +110,9 @@ final readonly class OutboundMessageMapper
         $entity->setSentAt(self::utcOrNull($message->sentAt()));
         $entity->setStatusChangedAt(self::utc($message->statusChangedAt()));
         $entity->setContentPurgedAt(self::utcOrNull($message->contentPurgedAt()));
+        $entity->setAccountId(null !== $accountId ? Uuid::fromString($accountId) : null);
+        $entity->setDispatchClaimedAt(self::utcOrNull($message->dispatchClaimedAt()));
+        $entity->setErasurePending($message->erasurePending());
         // The version column is Doctrine's optimistic lock, never copied.
 
         return $entity;

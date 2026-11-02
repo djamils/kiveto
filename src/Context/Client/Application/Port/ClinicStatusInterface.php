@@ -8,8 +8,9 @@ namespace App\Context\Client\Application\Port;
 interface ClinicStatusInterface
 {
     /**
-     * The given clinics whose status is `active`: suspended, closed and
-     * unknown clinics are left out.
+     * The given clinics whose status is `active`, as is their group's when
+     * they have one: suspended, closed and unknown clinics, and those of a
+     * suspended group, are left out.
      *
      * @param list<string> $clinicIds
      *

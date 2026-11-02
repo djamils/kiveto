@@ -26,7 +26,7 @@ final readonly class ReleaseAwaitingDocumentsHandler
         $now = $this->clock->now();
 
         do {
-            $batch = $this->documents->findAwaitingLink($command->clinicId, $command->clientId, self::BATCH);
+            $batch = $this->documents->findAwaitingLinkForUpdate($command->clinicId, $command->clientId, self::BATCH);
 
             foreach ($batch as $document) {
                 $version = $document->linkConfirmed($now);

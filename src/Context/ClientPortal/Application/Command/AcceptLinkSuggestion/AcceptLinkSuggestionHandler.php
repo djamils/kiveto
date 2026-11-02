@@ -6,6 +6,7 @@ namespace App\Context\ClientPortal\Application\Command\AcceptLinkSuggestion;
 
 use App\Context\ClientPortal\Application\Port\LinkRequestBellInterface;
 use App\Context\ClientPortal\Application\Port\MobileFileMatch;
+use App\Context\ClientPortal\Application\Port\PortalLockInterface;
 use App\Context\ClientPortal\Application\Port\PrescriberDirectoryInterface;
 use App\Context\ClientPortal\Application\Port\SuggestionIdSignerInterface;
 use App\Context\ClientPortal\Application\Service\LinkSuggestionCandidate;
@@ -36,11 +37,15 @@ final readonly class AcceptLinkSuggestionHandler
         private LinkRequestBellInterface $bell,
         private UuidGeneratorInterface $uuids,
         private ClockInterface $clock,
+        private PortalLockInterface $locks,
     ) {
     }
 
     public function __invoke(AcceptLinkSuggestion $command): string
     {
+        // Serialised per account: a double accept waits, then sees the links
+        // (no two inserts into the gap of `uniq_client_link`, no deadlock)
+        $this->locks->lockAccount($command->userId);
         $candidate = $this->candidate($command->userId, $command->suggestionId);
 
         if (null === $candidate) {

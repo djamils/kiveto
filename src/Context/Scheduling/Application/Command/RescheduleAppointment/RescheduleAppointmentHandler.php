@@ -9,6 +9,7 @@ use App\Context\Scheduling\Application\Port\ClinicTimezoneResolverInterface;
 use App\Context\Scheduling\Application\Port\MembershipEligibilityCheckerInterface;
 use App\Context\Scheduling\Application\Port\PractitionerDayLockInterface;
 use App\Context\Scheduling\Application\Service\PlanningBlockGate;
+use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Booking\OnlineBookingSettingsRepositoryInterface;
 use App\Context\Scheduling\Domain\Exception\PractitionerNotBookableException;
 use App\Context\Scheduling\Domain\Exception\SlotTakenException;
@@ -17,6 +18,7 @@ use App\Context\Scheduling\Domain\Service\LockKeys;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
+use App\Context\Scheduling\Domain\ValueObject\PractitionerDay;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
 use App\Shared\Application\Event\DomainEventPublisher;
@@ -68,13 +70,25 @@ final readonly class RescheduleAppointmentHandler
 
         $newTimeSlot = new TimeSlot($command->startsAtUtc, $command->durationMinutes);
         $clinicTz    = $this->timezoneResolver->resolveTimezone($clinicId);
-        $oldSlot     = $appointment->timeSlot();
+        $newDays     = LockKeys::forSlot($practitionerUserId, $newTimeSlot->startsAtUtc(), $newTimeSlot->endsAtUtc(), $clinicTz);
 
         // The union of the days left and of the days taken (P1)
-        $this->dayLock->lock($clinicId, LockKeys::merge(
-            LockKeys::forSlot($appointment->practitionerAssignee()->userId(), $oldSlot->startsAtUtc(), $oldSlot->endsAtUtc(), $clinicTz),
-            LockKeys::forSlot($practitionerUserId, $newTimeSlot->startsAtUtc(), $newTimeSlot->endsAtUtc(), $clinicTz),
-        ));
+        $this->dayLock->lock($clinicId, LockKeys::merge($this->daysOf($appointment, $clinicTz), $newDays));
+
+        // Current read: a move, cancel or decline committed meanwhile is seen
+        $locked = $this->appointmentRepository->findByIdForUpdate($appointmentId) ?? throw new \DomainException('Rendez-vous introuvable.');
+
+        // Moved meanwhile: the days it occupies now are locked too
+        if (!$locked->timeSlot()->equals($appointment->timeSlot()) || !$locked->practitionerAssignee()->equals($appointment->practitionerAssignee())) {
+            $this->dayLock->lock($clinicId, LockKeys::merge($this->daysOf($locked, $clinicTz), $newDays));
+        }
+
+        $appointment = $locked;
+
+        // Cancelled or declined meanwhile: refused before any check of the new slot
+        if ($appointment->status()->isTerminal()) {
+            throw new \DomainException('Cannot reschedule a terminated appointment.');
+        }
 
         // Check for overlaps (exclude self), as a current read
         if ($this->conflictChecker->hasOverlapLocked($clinicId, $practitionerUserId, $newTimeSlot, $appointmentId)) {
@@ -91,7 +105,8 @@ final readonly class RescheduleAppointmentHandler
             ? $this->onlineBookingSettings->forClinic($clinicId)->pendingExpiry($appointment->createdAt(), $newTimeSlot->startsAtUtc())
             : null;
 
-        $appointment->reschedule($newTimeSlot, $pendingExpiresAt);
+        // Refused when the new expiry is already past: the request would expire at once
+        $appointment->reschedule($newTimeSlot, $pendingExpiresAt, $this->clock->now());
         $appointment->changePractitionerAssignee($newAssignee);
         $appointment->changeOwnerAndAnimal($command->ownerId, $command->animalId);
 
@@ -102,5 +117,15 @@ final readonly class RescheduleAppointmentHandler
         $this->appointmentRepository->save($appointment);
 
         $this->domainEventPublisher->publish($appointment);
+    }
+
+    /**
+     * @return list<PractitionerDay>
+     */
+    private function daysOf(Appointment $appointment, \DateTimeZone $clinicTz): array
+    {
+        $slot = $appointment->timeSlot();
+
+        return LockKeys::forSlot($appointment->practitionerAssignee()->userId(), $slot->startsAtUtc(), $slot->endsAtUtc(), $clinicTz);
     }
 }

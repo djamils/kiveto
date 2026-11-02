@@ -14,6 +14,7 @@ use App\Presentation\Api\Portal\Support\PortalClinicGuard;
 use App\Presentation\Api\Portal\Support\SignedFileUrls;
 use App\Presentation\Api\Shared\Problem\ApiProblem;
 use App\Shared\Application\Bus\QueryBusInterface;
+use App\Shared\Application\Document\DocumentRenderingFailed;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -23,6 +24,7 @@ use Symfony\Component\Security\Http\Attribute\CurrentUser;
  * Ensures the pet's booklet is rendered (or reuses the cached one) once the
  * caller was shown to see the pet, then redirects to a signed URL valid
  * 5 minutes over the clinic, the animal and the booklet's content hash.
+ * The PDF service being down answers `service_unavailable` (503).
  */
 final readonly class VaccinationBookletController
 {
@@ -51,6 +53,12 @@ final readonly class VaccinationBookletController
             $key = $this->booklets->ensure($clinicId, $petId);
         } catch (PetNotFoundException) {
             return PortalProblemMap::response(PortalProblemMap::NOT_FOUND);
+        } catch (DocumentRenderingFailed) {
+            // The PDF service is down: a retryable problem, not a raw 500
+            $response = PortalProblemMap::response(PortalProblemMap::SERVICE_UNAVAILABLE);
+            $response->headers->set('Retry-After', '60');
+
+            return $response;
         }
 
         $response = new RedirectResponse($this->urls->sign('api_portal_booklet_download', [

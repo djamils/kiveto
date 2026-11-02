@@ -15,58 +15,51 @@ use Doctrine\DBAL\Exception\DeadlockException;
 use PHPUnit\Framework\TestCase;
 
 /**
- * S4a-F13: a deadlock while locking is retried twice, each time in a reopened
- * transaction (MySQL rolled the victim back), then surfaces as a taken slot.
+ * S4A-05: a deadlock while locking is never retried inside the adapter (MySQL
+ * rolled the caller's whole transaction back, earlier writes included): it
+ * surfaces at once as a contended slot, nothing is reopened, and the command
+ * bus runs the whole command again.
  */
 final class DbalPractitionerDayLockRetryTest extends TestCase
 {
     private const string CLINIC = '01960000-0000-7000-8000-0000000c0001';
 
-    public function testADeadlockIsRetriedInAReopenedTransaction(): void
+    public function testTheKeysAreTakenInOrder(): void
     {
         $statements = [];
-        $connection = $this->connection($statements, deadlocks: 2);
+        $connection = $this->connection($statements, deadlocks: 0);
 
         new DbalPractitionerDayLock($connection)->lock(ClinicId::fromString(self::CLINIC), [$this->day('2026-03-12'), $this->day('2026-03-11')]);
 
-        self::assertSame(['INSERT', 'START TRANSACTION', 'INSERT', 'START TRANSACTION', 'INSERT', 'INSERT'], $statements);
+        self::assertSame(['INSERT 2026-03-11', 'INSERT 2026-03-12'], $statements);
     }
 
-    public function testAThirdDeadlockIsASlotTaken(): void
+    public function testADeadlockIsAContendedSlotAndNoTransactionIsReopened(): void
     {
         $statements = [];
-        $connection = $this->connection($statements, deadlocks: 3);
+        $connection = $this->connection($statements, deadlocks: 1);
 
         try {
-            new DbalPractitionerDayLock($connection)->lock(ClinicId::fromString(self::CLINIC), [$this->day('2026-03-11')]);
-            self::fail('The third deadlock should give up.');
+            new DbalPractitionerDayLock($connection)->lock(ClinicId::fromString(self::CLINIC), [$this->day('2026-03-11'), $this->day('2026-03-12')]);
+            self::fail('The deadlock should reach the caller.');
         } catch (SlotTakenException $e) {
             self::assertSame(SlotTakenException::CONTENDED, $e->reason);
             self::assertInstanceOf(DeadlockException::class, $e->getPrevious());
         }
 
-        self::assertSame(['INSERT', 'START TRANSACTION', 'INSERT', 'START TRANSACTION', 'INSERT'], $statements);
-    }
-
-    public function testOutsideATransactionNothingIsReopened(): void
-    {
-        $statements = [];
-        $connection = $this->connection($statements, deadlocks: 1, inTransaction: false);
-
-        new DbalPractitionerDayLock($connection)->lock(ClinicId::fromString(self::CLINIC), [$this->day('2026-03-11')]);
-
-        self::assertSame(['INSERT', 'INSERT'], $statements);
+        // No retry, no raw START TRANSACTION that would desync the caller's nesting level
+        self::assertSame(['INSERT 2026-03-11'], $statements);
     }
 
     /**
      * @param list<string> $statements
      */
-    private function connection(array &$statements, int $deadlocks, bool $inTransaction = true): Connection
+    private function connection(array &$statements, int $deadlocks): Connection
     {
         $connection = $this->createStub(Connection::class);
-        $connection->method('isTransactionActive')->willReturn($inTransaction);
-        $connection->method('executeStatement')->willReturnCallback(static function (string $sql) use (&$statements, &$deadlocks): int {
-            $statements[] = str_starts_with($sql, 'INSERT') ? 'INSERT' : $sql;
+        $connection->method('executeStatement')->willReturnCallback(static function (string $sql, array $params) use (&$statements, &$deadlocks): int {
+            \assert(\is_string($params['day'] ?? null));
+            $statements[] = str_starts_with($sql, 'INSERT') ? 'INSERT ' . $params['day'] : $sql;
             if (str_starts_with($sql, 'INSERT') && $deadlocks > 0) {
                 --$deadlocks;
 

@@ -6,8 +6,10 @@ namespace App\Presentation\Clinic\ViewModel\Agenda;
 
 use App\Context\Scheduling\Application\Query\GetAppointmentClinicId\GetAppointmentClinicId;
 use App\Context\Scheduling\Domain\Exception\AppointmentAlreadyHandledException;
+use App\Context\Scheduling\Domain\Exception\AppointmentNotModifiableException;
 use App\Context\Scheduling\Domain\Exception\NewClientRequestException;
 use App\Context\Scheduling\Domain\Exception\PendingAppointmentExpiredException;
+use App\Context\Scheduling\Domain\Exception\SlotTakenException;
 use App\Presentation\Clinic\Security\ClinicPermissionGuard;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
@@ -20,6 +22,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * What « Confirmer » and « Refuser » of an online request share. The agenda
@@ -27,7 +30,9 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
  * sibling endpoints' `{success: false, errors, errorCode}`); the dashboard
  * posts a form and is sent back with a flash. Both carry the `appointment`
  * token, need `manage_appointments`, and a request the clinic or the expiry
- * handled first answers its French reason, never a 500 (AC 144, 145).
+ * handled first answers its French reason, never a 500 (AC 144, 145,
+ * S4A-06: any other domain refusal is a 409 too; an id that is no UUID is
+ * a 404).
  */
 final readonly class PendingRequestEndpoint
 {
@@ -57,8 +62,8 @@ final readonly class PendingRequestEndpoint
         $clinicId = $this->currentClinicContext->getCurrentClinicId();
         \assert(null !== $clinicId);
 
-        // Multi-tenant guard: another clinic's appointment does not exist here.
-        if ($this->queryBus->ask(new GetAppointmentClinicId($appointmentId)) !== $clinicId->toString()) {
+        // Multi-tenant guard: another clinic's appointment (or no appointment id at all) does not exist here.
+        if (!Uuid::isValid($appointmentId) || $this->queryBus->ask(new GetAppointmentClinicId($appointmentId)) !== $clinicId->toString()) {
             throw new NotFoundHttpException();
         }
 
@@ -73,6 +78,14 @@ final readonly class PendingRequestEndpoint
             return $this->refuse($request, $e->getMessage(), 'NEW_CLIENT_REQUEST', Response::HTTP_CONFLICT, $this->urls->generate('clinic_portal_requests', ['type' => 'booking_request']));
         } catch (\InvalidArgumentException) {
             throw new NotFoundHttpException();
+        } catch (SlotTakenException) {
+            // The practitioner's agenda changed concurrently (lock contended): try again
+            return $this->refuse($request, 'L’agenda est en cours de modification : réessayez dans un instant.', 'APPOINTMENT_CONFLICT', Response::HTTP_CONFLICT);
+        } catch (AppointmentNotModifiableException $e) {
+            return $this->refuse($request, $e->getMessage(), 'APPOINTMENT_CONFLICT', Response::HTTP_CONFLICT);
+        } catch (\DomainException) {
+            // Any other refusal is a conflict, never a 500; its message is not meant for staff
+            return $this->refuse($request, 'Cette demande n’a pas pu être traitée : rechargez la page.', 'APPOINTMENT_CONFLICT', Response::HTTP_CONFLICT);
         }
 
         if (self::wantsJson($request)) {

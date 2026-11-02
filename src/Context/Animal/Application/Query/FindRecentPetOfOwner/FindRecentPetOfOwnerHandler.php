@@ -20,6 +20,7 @@ final readonly class FindRecentPetOfOwnerHandler
     {
         return $this->readRepository->findRecentPetOfOwner(
             ClinicId::fromString($query->clinicId),
+            $query->animalId,
             $query->primaryOwnerClientId,
             $query->name,
             $query->species,

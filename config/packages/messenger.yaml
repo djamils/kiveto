@@ -148,6 +148,8 @@ framework:
             # Client Portal: replaced document files deleted 10 minutes later (DelayStamp), and the reconciliation of the expected files
             App\Context\ClientPortal\Application\Command\DeleteStoredDocumentFile\DeleteStoredDocumentFile: async
             App\Context\ClientPortal\Application\Command\ReconcilePublishedDocuments\ReconcilePublishedDocuments: async
+            # Client Portal questionnaires: the lock of those whose visit started, every 5 minutes
+            App\Context\ClientPortal\Application\Command\LockFrozenQuestionnaires\LockFrozenQuestionnaires: async
             # Client Portal data exports: the archive deleted 48 hours after it is ready (DelayStamp), and the nightly sweep
             App\Context\ClientPortal\Application\Command\DeleteDataExportFile\DeleteDataExportFile: async
             App\Context\ClientPortal\Application\Command\SweepExpiredDataExports\SweepExpiredDataExports: async

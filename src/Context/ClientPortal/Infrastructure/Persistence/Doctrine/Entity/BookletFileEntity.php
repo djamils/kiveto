@@ -14,6 +14,7 @@ use Symfony\Component\Uid\Uuid;
  */
 #[ORM\Entity]
 #[ORM\Table]
+#[ORM\Index(name: 'idx_booklet_file_key', columns: ['storage_key'])]
 class BookletFileEntity
 {
     public function __construct(

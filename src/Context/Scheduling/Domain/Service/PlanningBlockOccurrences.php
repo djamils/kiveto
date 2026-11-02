@@ -13,6 +13,13 @@ use App\Context\Scheduling\Domain\ValueObject\TimeRange;
  * as clinic-local windows: a one-off block's own window; every occurrence
  * of a recurring one from today on, up to its `until` — or with no end at
  * all when it is open-ended. Tells which appointments the block holds. Pure.
+ *
+ * An open-ended block is locked `LockKeys::OPEN_ENDED_BLOCK_DAYS` ahead only
+ * (FU-01): its appointments are read current (`FOR SHARE`) up to
+ * `lockedUntilUtc()`, and by a plain read beyond, which takes no lock — a
+ * locked read there would wait on, and deadlock with, writers of days the
+ * lock does not cover. Known limit: a booking committed beyond the horizon
+ * while the block changes may go unseen.
  */
 final readonly class PlanningBlockOccurrences
 {
@@ -55,6 +62,40 @@ final readonly class PlanningBlockOccurrences
         return null === $until
             ? new \DateTimeImmutable(self::OPEN_ENDED_UNTIL_UTC, new \DateTimeZone('UTC'))
             : $this->at($until, $this->timeRange->endTime());
+    }
+
+    /**
+     * End of the stretch the practitioner-day lock covers (UTC): `toUtc()`,
+     * except for an open-ended block (its last occurrence within the lock
+     * horizon).
+     */
+    public function lockedUntilUtc(): \DateTimeImmutable
+    {
+        if (!$this->rule->isRecurring() || null !== $this->rule->until()) {
+            return $this->toUtc();
+        }
+
+        $horizon = new \DateTimeImmutable($this->todayLocal, new \DateTimeZone('UTC'))
+            ->modify(\sprintf('+%d days', LockKeys::OPEN_ENDED_BLOCK_DAYS))
+            ->format('Y-m-d')
+        ;
+
+        return $this->at($horizon, $this->timeRange->endTime());
+    }
+
+    /**
+     * The appointments of the plain read beyond the lock that the locked
+     * read has not returned already (those starting before its end).
+     *
+     * @param list<BusyInterval> $appointments read from `lockedUntilUtc()` to `toUtc()`
+     *
+     * @return list<BusyInterval>
+     */
+    public function beyondLock(array $appointments): array
+    {
+        $lockedUntil = $this->lockedUntilUtc();
+
+        return array_values(array_filter($appointments, static fn (BusyInterval $appointment): bool => $appointment->start >= $lockedUntil));
     }
 
     /**

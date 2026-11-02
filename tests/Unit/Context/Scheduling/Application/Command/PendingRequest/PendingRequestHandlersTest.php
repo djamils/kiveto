@@ -28,6 +28,7 @@ use App\Shared\Application\Event\DomainEventPublisher;
 use App\Tests\Unit\Context\Scheduling\Support\Appointments;
 use App\Tests\Unit\Context\Scheduling\Support\CapturingEventBus;
 use App\Tests\Unit\Context\Scheduling\Support\CapturingJobs;
+use App\Tests\Unit\Context\Scheduling\Support\FakeNewClientConfirmation;
 use App\Tests\Unit\Context\Scheduling\Support\InMemoryAppointments;
 use App\Tests\Unit\Context\Scheduling\Support\MovableClock;
 use App\Tests\Unit\Context\Scheduling\Support\ParisTimezone;
@@ -47,9 +48,11 @@ final class PendingRequestHandlersTest extends TestCase
     private RecordingDayLock $dayLock;
     private CapturingEventBus $events;
     private MovableClock $clock;
+    private FakeNewClientConfirmation $newClients;
 
     protected function setUp(): void
     {
+        $this->newClients   = new FakeNewClientConfirmation();
         $this->appointments = new InMemoryAppointments();
         $this->dayLock      = new RecordingDayLock();
         $this->events       = new CapturingEventBus();
@@ -190,8 +193,26 @@ final class PendingRequestHandlersTest extends TestCase
         self::assertSame([], $this->events->events);
     }
 
-    /** S7d, AC 266: the agenda's « Confirmer » refuses a new client's request; nothing changes. */
-    public function testANewClientsRequestIsConfirmedFromDemandesPortalOnly(): void
+    /** S7-01: the agenda's « Confirmer » of a new client's request goes through ClientPortal, before any lock here. */
+    public function testTheAgendaConfirmsANewClientsRequestThroughClientPortal(): void
+    {
+        $this->appointments->save(Appointments::pending(ownerId: null));
+        $this->newClients->onConfirm = function (string $clinicId, string $appointmentId, bool $silent): void {
+            // ClientPortal locks its request, then dispatches ConfirmNewClientAppointment
+            self::assertSame([], $this->dayLock->locked);
+            $this->confirmNewClient($clinicId, $silent);
+        };
+
+        $this->confirm();
+
+        self::assertSame([[Appointments::CLINIC, Appointments::ID, Appointments::ANIMAL, false]], $this->newClients->calls);
+        $appointment = $this->appointments->findById(AppointmentId::fromString(Appointments::ID));
+        self::assertSame([AppointmentStatus::PLANNED, false, 'client-new'], [$appointment?->status(), $appointment?->confirmedSilently(), $appointment?->ownerId()]);
+        self::assertSame([AppointmentOwnerChanged::class, AppointmentConfirmed::class], array_map(static fn (object $e): string => $e::class, $this->events->events));
+    }
+
+    /** S7d, AC 266: without a pending booking request, the agenda still refuses a new client's request; nothing changes. */
+    public function testANewClientsRequestWithoutBookingRequestIsRefused(): void
     {
         $this->appointments->save(Appointments::pending(ownerId: null));
 
@@ -202,8 +223,36 @@ final class PendingRequestHandlersTest extends TestCase
             self::assertSame('À traiter dans Demandes Portal.', $e->getMessage());
         }
 
+        self::assertCount(1, $this->newClients->calls);
         self::assertSame(AppointmentStatus::PENDING_CLINIC_CONFIRMATION, $this->appointments->findById(AppointmentId::fromString(Appointments::ID))?->status());
         self::assertSame([], $this->events->events);
+    }
+
+    public function testAKnownClientsRequestOrAnotherClinicsNeverReachesClientPortal(): void
+    {
+        $this->appointments->save(Appointments::pending(ownerId: null));
+
+        try {
+            $this->confirm(self::OTHER_CLINIC);
+            self::fail('Another clinic\'s appointment is missing.');
+        } catch (\InvalidArgumentException) {
+        }
+
+        $this->appointments->save(Appointments::pending());
+        $this->confirm();
+
+        self::assertSame([], $this->newClients->calls);
+    }
+
+    public function testANewClientOnSiteIsConfirmedSilentlyEvenPastItsExpiry(): void
+    {
+        $this->appointments->save(Appointments::pending(ownerId: null));
+        $this->clock->at('2026-10-16 08:00');
+
+        $this->confirmNewClient(silent: true);
+
+        $appointment = $this->appointments->findById(AppointmentId::fromString(Appointments::ID));
+        self::assertSame([AppointmentStatus::PLANNED, true, 'client-new', 'pet-new'], [$appointment?->status(), $appointment?->confirmedSilently(), $appointment?->ownerId(), $appointment?->animalId()]);
     }
 
     public function testStaffConfirmANewClientsRequestForTheFileAndAnimalTheyChose(): void
@@ -242,16 +291,16 @@ final class PendingRequestHandlersTest extends TestCase
         $this->confirmNewClient(self::OTHER_CLINIC);
     }
 
-    private function confirmNewClient(string $clinicId = Appointments::CLINIC): void
+    private function confirmNewClient(string $clinicId = Appointments::CLINIC, bool $silent = false): void
     {
         new ConfirmNewClientAppointmentHandler($this->loader(), $this->appointments, $this->clock, new DomainEventPublisher($this->events))(
-            new ConfirmNewClientAppointment(Appointments::ID, $clinicId, 'client-new', 'pet-new'),
+            new ConfirmNewClientAppointment(Appointments::ID, $clinicId, 'client-new', 'pet-new', $silent),
         );
     }
 
     private function confirm(string $clinicId = Appointments::CLINIC): void
     {
-        new ConfirmAppointmentHandler($this->loader(), $this->appointments, $this->clock, new DomainEventPublisher($this->events))(
+        new ConfirmAppointmentHandler($this->loader(), $this->appointments, $this->clock, new DomainEventPublisher($this->events), $this->newClients)(
             new ConfirmAppointment(Appointments::ID, $clinicId),
         );
     }

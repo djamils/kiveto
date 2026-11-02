@@ -175,11 +175,13 @@ final class DbalPublishedDocumentReadModelTest extends KernelTestCase
 
     public function testTheUnreadListableDocumentsPerClinic(): void
     {
-        $counts = $this->model->unreadPerClinic(self::USER);
+        $unread = $this->model->unreadPerClinic(self::USER);
+        $counts = array_map(\count(...), $unread);
         ksort($counts);
 
         self::assertSame([self::CLINIC => 3, self::CLINIC2 => 1], $counts);
-        self::assertSame([self::CLINIC => 4], $this->model->unreadPerClinic(self::USER2));
+        self::assertTrue($unread[self::CLINIC][0]->unread);
+        self::assertSame([self::CLINIC => 4], array_map(\count(...), $this->model->unreadPerClinic(self::USER2)));
         self::assertSame([], $this->model->unreadPerClinic(self::id('99')));
     }
 
@@ -279,6 +281,7 @@ final class DbalPublishedDocumentReadModelTest extends KernelTestCase
             0,
             $status,
             new \DateTimeImmutable('2026-10-01 08:00', $utc),
+            new \DateTimeImmutable('2026-10-29 08:00', $utc),
             new \DateTimeImmutable('2026-10-28 08:00', $utc),
         );
     }

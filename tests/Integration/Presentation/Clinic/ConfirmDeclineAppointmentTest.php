@@ -7,8 +7,13 @@ namespace App\Tests\Integration\Presentation\Clinic;
 use App\Context\Clinic\Application\Query\Staff\ListPermissionsForUserInClinic\ListPermissionsForUserInClinic;
 use App\Context\Clinic\Application\Query\Staff\ListPermissionsForUserInClinic\ListPermissionsForUserInClinicHandler;
 use App\Context\Clinic\Domain\Staff\Repository\ClinicMembershipRepositoryInterface;
+use App\Context\Scheduling\Application\Command\ConfirmAppointment\ConfirmAppointment;
+use App\Context\Scheduling\Application\Command\ConfirmAppointment\ConfirmAppointmentHandler;
+use App\Context\Scheduling\Application\Command\DeclineAppointment\DeclineAppointment;
+use App\Context\Scheduling\Application\Command\DeclineAppointment\DeclineAppointmentHandler;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\AppointmentItem;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\GetAgendaForClinicDateRange;
+use App\Context\Scheduling\Domain\Exception\SlotTakenException;
 use App\Fixtures\Context\Clinic\Factory\ClinicEntityFactory;
 use App\Fixtures\Context\Clinic\Factory\ClinicMembershipEntityFactory;
 use App\Fixtures\Context\Scheduling\Factory\AppointmentEntityFactory;
@@ -38,6 +43,7 @@ final class ConfirmDeclineAppointmentTest extends WebTestCase
     private const string EXPIRED = '01960000-0000-7000-8000-0000000b6a02';
     private const string FOREIGN = '01960000-0000-7000-8000-0000000b6a03';
     private const string STARTED = '01960000-0000-7000-8000-0000000b6a04';
+    private const string PLANNED = '01960000-0000-7000-8000-0000000b6a05';
     private const string HOST    = 'http://clinic.kiveto.local';
 
     private KernelBrowser $browser;
@@ -148,7 +154,46 @@ final class ConfirmDeclineAppointmentTest extends WebTestCase
         $this->browser->request('POST', self::HOST . '/scheduling/appointments/' . self::PENDING . '/decline', ['_token' => $this->token]);
         self::assertResponseRedirects('/dashboard');
 
+        // S4A-01: « Annuler » a pending request is a decline: refused too
+        $answer = $this->json('cancel', self::PENDING);
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame('FORBIDDEN', $answer['errorCode'] ?? null);
+
         self::assertSame('PENDING_CLINIC_CONFIRMATION', $this->statusOf(self::PENDING));
+
+        // A planned appointment is still cancelled without that permission
+        AppointmentEntityFactory::new()->withId(self::PLANNED)->withClinicId(self::CLINIC)->withPractitionerUserId($this->vetId)
+            ->startingAt($this->now->modify('+1 day 11:00')->setTimezone(new \DateTimeZone('UTC')), 30)->create()
+        ;
+        $this->json('cancel', self::PLANNED);
+        self::assertResponseIsSuccessful();
+        self::assertSame('CANCELLED', $this->statusOf(self::PLANNED));
+    }
+
+    public function testAnyOtherRefusalIsAConflictNeverA500(): void
+    {
+        // S4A-06: the practitioner's agenda contended under the lock
+        self::getContainer()->set(ConfirmAppointmentHandler::class, new class {
+            public function __invoke(ConfirmAppointment $command): never
+            {
+                throw SlotTakenException::contended(new \RuntimeException('Lock wait timeout'));
+            }
+        });
+        self::getContainer()->set(DeclineAppointmentHandler::class, new class {
+            public function __invoke(DeclineAppointment $command): never
+            {
+                throw new \DomainException('Cannot decline.');
+            }
+        });
+        $this->openAgenda();
+
+        $answer = $this->json('confirm', self::PENDING);
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame(['L’agenda est en cours de modification : réessayez dans un instant.', 'APPOINTMENT_CONFLICT'], [$answer['message'] ?? null, $answer['errorCode'] ?? null]);
+
+        $answer = $this->json('decline', self::PENDING);
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('Cette demande n’a pas pu être traitée : rechargez la page.', $answer['message'] ?? null);
     }
 
     public function testAnotherClinicsRequestIsNotFoundAndAForgedTokenIsRefused(): void
@@ -156,6 +201,10 @@ final class ConfirmDeclineAppointmentTest extends WebTestCase
         $this->openAgenda();
 
         $this->json('confirm', self::FOREIGN);
+        self::assertResponseStatusCodeSame(404);
+
+        // S4A-06: no appointment id at all is not found either
+        $this->json('confirm', 'not-a-uuid');
         self::assertResponseStatusCodeSame(404);
 
         $this->browser->request('POST', self::HOST . '/scheduling/appointments/' . self::PENDING . '/confirm', ['_token' => 'forged'], server: ['HTTP_ACCEPT' => 'application/json']);

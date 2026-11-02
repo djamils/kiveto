@@ -457,6 +457,12 @@ export function init() {
   /* ── Weighing, preventive act, owner change and death windows ── */
   function ouvrirForm(id, form, focus) {
     form.reset();
+    // A hidden input set by script keeps its value through reset(): the
+    // Portal author of a weighing is cleared, and the subtitle restored, so
+    // only the « open from Portal » path below marks a weighing as the owner's.
+    const author = form.querySelector('input[name="author"]');
+    if (author) author.value = '';
+    if (form.id === 'wForm') $('wSub').textContent = W_SUB;
     // reset() restores the hidden inputs: the controls follow them.
     form.querySelectorAll('.seg[data-seg]').forEach(seg => {
       const v = form.querySelector(`input[name="${seg.dataset.seg}"]`)?.value ?? '';
@@ -474,6 +480,7 @@ export function init() {
   }, { signal });
 
   const wForm = $('wForm'), pvForm = $('pvForm'), prForm = $('prForm'), dcdForm = $('dcdForm');
+  const W_SUB = $('wSub').textContent;
   masquesLive(wForm, null, signal);
   masquesLive(pvForm, null, signal);
   envoyer('wOk', wForm, () => {
@@ -490,7 +497,7 @@ export function init() {
     if (day && /^\d{4}-\d{2}-\d{2}$/.test(day) && day <= TODAY_ISO) $('f_wday').value = day;
     const author = wForm.querySelector('input[name="author"]');
     if (author) author.value = 'portal';
-    $('wSub').textContent = `${A.nom || $('wSub').textContent} · pesée déclarée par le propriétaire (Portal)`;
+    $('wSub').textContent = `${A.nom || W_SUB} · pesée déclarée par le propriétaire (Portal)`;
   }
   envoyer('pvOk', pvForm, () => {
     if (!lireChamps(pvForm)) { pvForm.querySelector('.ko')?.focus(); return false; }

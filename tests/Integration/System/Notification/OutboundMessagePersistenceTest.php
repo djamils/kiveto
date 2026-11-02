@@ -190,6 +190,60 @@ final class OutboundMessagePersistenceTest extends KernelTestCase
         self::assertSame(7, $messages->sumQueuedSegments($other));
     }
 
+    /**
+     * FU-05: the account, the dispatch claim and the pending erasure come
+     * back; the account's messages are found by account or by address,
+     * never another account's, never a clinic's, never twice once purged.
+     */
+    public function testThePortalAccountMessagesAreFoundByAccountOrAddress(): void
+    {
+        $account  = '01960000-0000-7000-8000-0000000007a1';
+        $messages = $this->messages();
+        $earlier  = Messages::email(id: '01960000-0000-7000-8000-000000000a01', key: 'acct:1', clinicId: null, purpose: MessagePurpose::PORTAL_EMAIL_VERIFICATION, accountId: $account);
+        $byPhone  = Messages::sms(id: '01960000-0000-7000-8000-000000000a02', key: 'acct:2', purpose: MessagePurpose::PORTAL_OTP);
+        $other    = Messages::email(id: '01960000-0000-7000-8000-000000000a03', key: 'acct:3', clinicId: null, purpose: MessagePurpose::PORTAL_EMAIL_VERIFICATION, accountId: '01960000-0000-7000-8000-0000000007a2');
+        $clinic   = Messages::sms(id: '01960000-0000-7000-8000-000000000a04', key: 'acct:4');
+        $notice   = Messages::email(id: '01960000-0000-7000-8000-000000000a05', key: 'acct:5', clinicId: null, purpose: MessagePurpose::PORTAL_EMAIL_CHANGED_NOTICE, accountId: $account);
+        $notice->claimForDispatch(new \DateTimeImmutable('2026-10-16 08:00:05'));
+        $notice->eraseForDeletedAccount('Compte Portal supprimé', new \DateTimeImmutable('2026-10-16 08:00:06'));
+        foreach ([$earlier, $byPhone, $other, $clinic, $notice] as $message) {
+            $messages->save($message);
+        }
+        $this->em()->clear();
+
+        self::assertSame([$earlier->id()->toString(), $notice->id()->toString(), $byPhone->id()->toString()], self::ids($messages->findPortalAccountMessages($account, ['+33612345678'])));
+        self::assertSame([$earlier->id()->toString(), $notice->id()->toString()], self::ids($messages->findPortalAccountMessages($account, [])), 'by account alone');
+
+        // A locking read needs the caller's transaction (the command bus opens it).
+        $loaded = $this->em()->wrapInTransaction(static fn (): OutboundMessage => $messages->getForUpdate($notice->id()));
+        self::assertSame([$account, '2026-10-16 08:00:05', true], [$loaded->accountId(), $loaded->dispatchClaimedAt()?->format('Y-m-d H:i:s'), $loaded->erasurePending()]);
+        self::assertNull($messages->get($byPhone->id())->accountId());
+
+        $loaded->markSent('provider-notice', new \DateTimeImmutable('2026-10-16 08:01:00'));
+        $messages->save($loaded);
+        self::assertSame([$earlier->id()->toString()], self::ids($messages->findPortalAccountMessages($account, [])), 'masked with its outcome');
+    }
+
+    /** FU-02: only a QUEUED message is claimed, in its own short transaction. */
+    public function testOnlyAQueuedMessageIsClaimedForDispatch(): void
+    {
+        $messages = $this->messages();
+        $queued   = Messages::sms();
+        $sent     = Messages::email();
+        $sent->markSent('provider-1', new \DateTimeImmutable('2026-10-16 08:01:00'));
+        $messages->save($queued);
+        $messages->save($sent);
+
+        $claimed = $messages->claimForDispatch($queued->id(), new \DateTimeImmutable('2026-10-21 09:31:00'));
+        self::assertSame('2026-10-21 09:31:00', $claimed?->dispatchClaimedAt()?->format('Y-m-d H:i:s'));
+        $this->em()->clear();
+        self::assertNotNull($messages->get($queued->id())->dispatchClaimedAt(), 'stored');
+        self::assertNull($messages->claimForDispatch($sent->id(), new \DateTimeImmutable('2026-10-21 09:31:00')));
+
+        $this->expectException(OutboundMessageNotFoundException::class);
+        $messages->claimForDispatch(OutboundMessageId::fromString('01960000-0000-7000-8000-0000000000aa'), new \DateTimeImmutable());
+    }
+
     public function testAnUnmatchedDeliveryEventIsKept(): void
     {
         $event = new UnmatchedDeliveryEventEntity(Uuid::fromString('01960000-0000-7000-8000-0000000000ee'), 'SMS', 'sms-9', ['event' => 'delivered'], new \DateTimeImmutable('2026-10-16 08:00:00'));
@@ -202,6 +256,16 @@ final class OutboundMessagePersistenceTest extends KernelTestCase
         self::assertSame('01960000-0000-7000-8000-0000000000ee', $loaded->getId()->toRfc4122());
         self::assertSame(['SMS', 'sms-9', ['event' => 'delivered']], [$loaded->getChannel(), $loaded->getExternalId(), $loaded->getPayload()]);
         self::assertSame('2026-10-16 08:00:00', $loaded->getReceivedAt()->format('Y-m-d H:i:s'));
+    }
+
+    /**
+     * @param list<OutboundMessageId> $found
+     *
+     * @return list<string>
+     */
+    private static function ids(array $found): array
+    {
+        return array_map(static fn (OutboundMessageId $id): string => $id->toString(), $found);
     }
 
     private function messages(): OutboundMessageRepositoryInterface

@@ -11,6 +11,7 @@ use App\System\IdentityAccess\Application\Port\NotificationRequesterInterface;
 use App\System\IdentityAccess\Application\Port\OtpCodeGeneratorInterface;
 use App\System\IdentityAccess\Application\Port\OtpCodeHasherInterface;
 use App\System\IdentityAccess\Application\Port\PortalOtpRequest;
+use App\System\IdentityAccess\Application\Service\UnknownNumberSmsGate;
 use App\System\IdentityAccess\Domain\Exception\OtpChallengeNotFoundException;
 use App\System\IdentityAccess\Domain\Otp\OtpChallenge;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeId;
@@ -25,7 +26,10 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * The previous code stops working. A challenge created beyond the budget of
- * unknown numbers never sends anything, so a resend cannot bypass it.
+ * unknown numbers never sends anything, so a resend cannot bypass it; a
+ * sign-in code resent by SMS to an unknown number spends that budget again
+ * (network, device hint, global cap, in this order) and, refused, sends
+ * nothing — the answer is the same.
  *
  * A verified e-mail is a second sign-in factor (D6): `email` sends a login
  * code to the verified address of the phone's active owner account. Any
@@ -44,6 +48,7 @@ final readonly class ResendPortalOtpHandler
         private OtpCodeHasherInterface $codeHasher,
         private NotificationRequesterInterface $notifications,
         private ClockInterface $clock,
+        private UnknownNumberSmsGate $unknownNumbers,
     ) {
     }
 
@@ -86,11 +91,24 @@ final readonly class ResendPortalOtpHandler
 
         if (null !== $email) {
             $this->notifications->requestPortalOtpByEmail($request, $email);
-        } elseif (!$challenge->isSmsSuppressed()) {
+        } elseif ($this->maySendSms($challenge, $command)) {
             $this->notifications->requestPortalOtp($request);
         }
 
         return new OtpChallengeIssued($challenge->id()->toString(), $challenge->expiresAt(), $challenge->resendAvailableAt());
+    }
+
+    /**
+     * A sign-in code resent to an unknown number spends its budget like the
+     * request did (UnknownNumberSmsGate); one created beyond it is never sent.
+     */
+    private function maySendSms(OtpChallenge $challenge, ResendPortalOtp $command): bool
+    {
+        if ($challenge->isSmsSuppressed()) {
+            return false;
+        }
+
+        return OtpPurpose::LOGIN !== $challenge->purpose() || $this->unknownNumbers->allows($challenge->phone(), $command->requestContext);
     }
 
     /** The address a login code may be resent to: never for an action code. */

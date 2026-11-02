@@ -26,7 +26,7 @@ use Symfony\Component\Validator\Constraints as Assert;
             openapi: new Operation(
                 tags: ['Rendez-vous'],
                 summary: 'Réserve un créneau en ligne pour un animal que la clinique ne connaît pas encore.',
-                description: 'Crée l\'animal du propriétaire (sexe et stérilisation inconnus) dans la même transaction que le rendez-vous : en cas de `slot_taken`, aucun animal ne reste. Un animal actif de même nom et espèce créé dans les 24 h est réutilisé. Archivé automatiquement si la demande est refusée ou expire avant tout acte clinique.',
+                description: 'Crée l\'animal du propriétaire (sexe et stérilisation inconnus) dans la même transaction que le rendez-vous : en cas de `slot_taken`, aucun animal ne reste. Seule une nouvelle tentative de la même requête (même Idempotency-Key) réutilise l\'animal qu\'elle a créé ; un animal créé par la clinique n\'est jamais réutilisé. Archivé automatiquement si la demande est refusée ou expire avant tout acte clinique.',
                 responses: [
                     '201' => new Response(description: 'Le rendez-vous pris.'),
                     '400' => new Response(description: '`idempotency_key_missing`.'),

@@ -24,7 +24,7 @@ final class DbalPublishedDocumentReportSharedAtTest extends KernelTestCase
     private const string INVOICE = '01960000-0000-7000-8000-0000000ea203';
     private const string NEVER   = '01960000-0000-7000-8000-0000000ea204';
 
-    public function testTheLastShareOfALiveReportIsItsLastUpdate(): void
+    public function testTheLastShareOfALiveReportIsItsShareNotItsLastUpdate(): void
     {
         $this->save('01960000-0000-7000-8000-0000000ea301', DocumentType::REPORT, self::SHARED, PublicationStatus::AVAILABLE, '2026-10-31 09:30');
         $this->save('01960000-0000-7000-8000-0000000ea302', DocumentType::REPORT, self::GONE, PublicationStatus::WITHDRAWN, '2026-10-31 09:30');
@@ -48,7 +48,7 @@ final class DbalPublishedDocumentReportSharedAtTest extends KernelTestCase
         return $connection;
     }
 
-    private function save(string $id, DocumentType $type, string $source, PublicationStatus $status, string $updatedAt): void
+    private function save(string $id, DocumentType $type, string $source, PublicationStatus $status, string $sharedAt): void
     {
         $utc = new \DateTimeZone('UTC');
         new DbalPublishedDocumentRepository($this->connection())->save(PublishedDocument::reconstitute(
@@ -69,7 +69,9 @@ final class DbalPublishedDocumentReportSharedAtTest extends KernelTestCase
             0,
             $status,
             new \DateTimeImmutable('2026-10-30 12:05', $utc),
-            new \DateTimeImmutable($updatedAt, $utc),
+            // A later update (a file attached, pets assigned) is not a share
+            new \DateTimeImmutable('2026-11-01 10:00', $utc),
+            new \DateTimeImmutable($sharedAt, $utc),
         ));
     }
 }

@@ -13,13 +13,16 @@ use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeChanged;
 use App\Context\Scheduling\Domain\Event\AppointmentRescheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentScheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentServiceStarted;
+use App\Context\Scheduling\Domain\Exception\NewClientRequestException;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
+use App\Context\Scheduling\Domain\ValueObject\AppointmentSource;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
 use App\Context\Scheduling\Domain\ValueObject\CancellationActor;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
+use App\Tests\Unit\Context\Scheduling\Support\Appointments;
 use PHPUnit\Framework\TestCase;
 
 final class AppointmentTest extends TestCase
@@ -97,6 +100,37 @@ final class AppointmentTest extends TestCase
         self::assertCount(1, $events);
         self::assertInstanceOf(AppointmentOwnerChanged::class, $events[0]);
         self::assertSame(['oldOwnerId' => null, 'newOwnerId' => 'owner-2'], array_intersect_key($events[0]->payload(), ['oldOwnerId' => 0, 'newOwnerId' => 0]));
+    }
+
+    public function testANewClientsRequestGetsItsClientOnlyThroughItsConfirmation(): void
+    {
+        // S7-01: the agenda's edit cannot set the client or the animal of a new client's request
+        $appointment = Appointments::pending(ownerId: null);
+        $appointment->changeOwnerAndAnimal(null, Appointments::ANIMAL);
+        self::assertTrue($appointment->isNewClientRequest());
+
+        foreach ([['owner-2', null], [null, 'animal-2']] as [$ownerId, $animalId]) {
+            try {
+                $appointment->changeOwnerAndAnimal($ownerId, $animalId);
+                self::fail('A new client\'s request keeps no owner set from the agenda.');
+            } catch (NewClientRequestException $e) {
+                self::assertSame('Demande d’un nouveau client : le client et l’animal se choisissent dans « Demandes Portal ».', $e->getMessage());
+            }
+        }
+
+        $appointment->assignNewClient('owner-2', 'animal-2');
+        self::assertSame(['owner-2', 'animal-2', false], [$appointment->ownerId(), $appointment->animalId(), $appointment->isNewClientRequest()]);
+        self::assertInstanceOf(AppointmentOwnerChanged::class, $appointment->recordedDomainEvents()[0] ?? null);
+
+        $this->expectException(\LogicException::class);
+        $appointment->assignNewClient('owner-3', 'animal-3');
+    }
+
+    public function testOnlyAPendingPortalBookingWithoutOwnerIsANewClientsRequest(): void
+    {
+        self::assertFalse(Appointments::pending()->isNewClientRequest());
+        self::assertFalse(Appointments::pending(source: AppointmentSource::CLINIC, ownerId: null)->isNewClientRequest());
+        self::assertFalse($this->createSampleAppointment()->isNewClientRequest());
     }
 
     public function testRescheduleWithSameTimeSlotDoesNothing(): void

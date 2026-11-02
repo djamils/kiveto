@@ -64,6 +64,8 @@ final readonly class CommandBusNotificationRequester implements NotificationRequ
                 'ownerFirstName' => $message->recipientFirstName,
                 'expiresAtLabel' => $message->expiresAtLabel,
             ],
+            // Masked with its account at deletion, even sent to an earlier address.
+            accountId: $message->userId,
         ));
     }
 

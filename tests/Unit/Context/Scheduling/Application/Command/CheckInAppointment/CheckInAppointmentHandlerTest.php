@@ -15,6 +15,7 @@ use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Tests\Unit\Context\Scheduling\Support\Appointments;
 use App\Tests\Unit\Context\Scheduling\Support\CapturingEventBus;
+use App\Tests\Unit\Context\Scheduling\Support\FakeNewClientConfirmation;
 use App\Tests\Unit\Context\Scheduling\Support\InMemoryAppointments;
 use App\Tests\Unit\Context\Scheduling\Support\ParisTimezone;
 use App\Tests\Unit\Context\Scheduling\Support\RecordingDayLock;
@@ -83,7 +84,7 @@ final class CheckInAppointmentHandlerTest extends TestCase
     {
         $loader = new PendingAppointmentLoader($this->appointments, new ParisTimezone(), $this->dayLock);
 
-        new CheckInAppointmentHandler(new SilentPendingConfirmation($this->appointments, $loader), $this->appointments, new DomainEventPublisher($this->events))(
+        new CheckInAppointmentHandler(new SilentPendingConfirmation($this->appointments, $loader, new FakeNewClientConfirmation()), $this->appointments, new DomainEventPublisher($this->events))(
             new CheckInAppointment($clinicId, Appointments::ID, self::ADMISSION),
         );
     }

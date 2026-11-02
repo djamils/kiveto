@@ -85,7 +85,7 @@ Portal **profile** (name, postal address, accepted terms of use).
 | `AcceptPortalInvitationWithCode(token, challengeId, code, termsVersion)` | command | Link flow. `AcceptOutcome{result, userId}`; `invitation_invalid` (unknown or replaced token), `invitation_expired`, `invitation_already_used` (revoked, or accepted by another account), the OTP results, `account_disabled`. |
 | `AcceptPortalInvitationWithGrant(invitationId, onboardingToken, termsVersion)` | command | Phone flow. Same outcome; `onboarding_invalid` / `invitation_invalid` per invariant 5. |
 | `CompletePortalRegistration(registrationToken, firstName, lastName, ?email, termsVersion)` | command | Organic arrival (S7a), one transaction: terms check (`TermsOutdatedException`, nothing written) → IdentityAccess `RegisterPortalUser` through `PortalIdentityInterface::registerPortalUser` (grant, per-phone mutex; an active account of the phone → IdentityAccess's `PortalAccountExistsException` goes through) → `OwnerProfile::register`. `RegistrationOutcome{result, userId}`: `registered`, `replayed` (same grant again while it lives: the account it created, nothing written), `onboarding_invalid`, `account_disabled`. |
-| `RevokeClientPortalAccess(clinicId, clientId)` | command | Invariant 7 (dispatched by the `ClientArchived` consumer). |
+| `RevokeClientPortalAccess(clinicId, clientId)` | command | Invariant 7 (dispatched by the `ClientArchived` consumer); closes the client's requests still open (`link_revoked`). |
 | `GetPortalInvitationByToken(token)` | query | `PortalInvitationDetails` (clinic name and city, e-mail, phone, active pet names, expiry); `InvitationInvalidException` / `InvitationExpiredException` / `InvitationAlreadyUsedException`. |
 | `ListPendingInvitationsForPhone(phone)` | query | Pending, unexpired invitations of a phone (`invitationId`, clinic name, city) — IdentityAccess's pending-invitation port. |
 | `GetClientPortalStatus(clinicId, clientId)` | query | The sheet state: a confirmed link → `active`; else the pending invitation → `invited` / `expired`, unless it predates the access withdrawal → `revoked`; else `not_invited`. |
@@ -120,14 +120,23 @@ context: the Portal reads the sources live through query-bus ports.
   `client_portal/documents/<id>-v<n>.pdf`, then `AttachPublishedDocumentFile`
   swaps the version (reads forgotten from v2, previous file deleted 10 minutes
   later by `DeleteStoredDocumentFile`, which refuses keys outside
-  `client_portal/`). A failure is counted by `RecordDocumentRenderFailure`.
+  `client_portal/`) and keeps a key served again by then (a booklet back to an
+  earlier content, a document's current file). A failure is counted by
+  `RecordDocumentRenderFailure`.
+- **Concurrency.** Every write loads its rows `FOR UPDATE` (batches of the
+  repair `SKIP LOCKED`), and `save()` never changes a `withdrawn` row back:
+  withdrawn is terminal. « Partagé le » reads `shared_at`, moved only by a
+  publication or a re-share.
 - **Repair.** `ReconcilePublishedDocuments` (schedule `client_portal`, every 5
-  minutes) asks again for files expected for more than 10 minutes;
+  minutes) asks again for files expected for more than 10 minutes, and
+  releases the documents still `awaiting_link` for more than 10 minutes whose
+  client has a confirmed link (a publication that raced the confirmation);
   `app:client-portal:import-documents [--since=Y-m-d]` publishes the invoices and
   prescriptions of the last 24 months at go-live (never reports).
 - **Live states.** The invoice payment status and the prescription state
   (`renewable` = issued, no controlled substance) are read per page; a row whose
-  source is no longer listable is left out with a warning.
+  source is no longer listable is left out with a warning. The file route and
+  the unread badge apply the same check (`ListableSources`).
 
 | Command / Query | Bus | What it does |
 |---|---|---|
@@ -226,7 +235,7 @@ client files or of the pets it sees.
 | Command | What it does |
 |---|---|
 | `BookPortalAppointment(userId, clinicId, petId, motifId, practitionerId, startsAt)` | Books the pet; `PetNotFoundException` (not seen: unknown, sold, given, another client's), `PetNotBookableException` (deceased, missing). |
-| `BookPortalAppointmentWithNewPet(userId, clinicId, petName, petSpecies, motifId, practitionerId, startsAt)` | D1, S4g: registers the animal (port `PetRegistrationInterface`, Animal `CreateAnimal`: sex and reproductive status `unknown`, registry `none`, alive, not transferred) for the client of the oldest confirmed link, then books it with `createdPetId`, in the command's transaction (a refused booking leaves no animal). An active animal of that client with the same name (any case) and species created in the last 24 h is reused. `InvalidNewPetException` (`name`: blank or over 80 characters; `species` ∉ `dog|cat|nac|other`), `ClinicNotLinkedException`. |
+| `BookPortalAppointmentWithNewPet(userId, clinicId, petName, petSpecies, motifId, practitionerId, startsAt, ?requestKey)` | D1, S4g: registers the animal (port `PetRegistrationInterface`, Animal `CreateAnimal`: sex and reproductive status `unknown`, registry `none`, alive, not transferred) for the client of the oldest confirmed link, then books it with `createdPetId`, in the command's transaction (a refused booking leaves no animal). Only a retry of **the same request** reuses an animal (S4B-01): `requestKey` (the Idempotency-Key) gives a marker `sha256(userId, key)`, kept 24 h in `client_portal__booked_pet_markers` (`BookedPetMarkerRepositoryInterface`), naming the animal that request registered; it is reused while still active, alive, not transferred, of that client, same name (any case) and species, created in the last 24 h (Animal `FindRecentPetOfOwner(…, animalId, …)`). An animal the clinic created is never reused, so never archived on a decline. A new key registers a new animal. `InvalidNewPetException` (`name`: blank or over 80 characters; `species` ∉ `dog|cat|nac|other`), `ClinicNotLinkedException`. |
 | `ReschedulePortalAppointment(userId, clinicId, appointmentId, practitionerId, startsAt)` | `AppointmentNotFoundException` when not the account's. |
 | `CancelPortalAppointment(userId, clinicId, appointmentId, reason?)` | `AppointmentNotFoundException` when not the account's. |
 
@@ -267,7 +276,11 @@ past its 48 h already reads `expired`).
   `client_portal`, 03:23 Europe/Paris) for a lost message, and
   `DeleteUserDataExports(userId)` at account deletion (every export and its
   archive; an archive stored by a build still running is deleted when its
-  outcome finds no export).
+  outcome finds no export). The sweep also gives up the exports `pending` for
+  more than 6 hours (`failed`, quota refunded once, archive deleted; a late
+  archive is deleted when its outcome finds the export failed). Transitions
+  are plain `UPDATE`s of a row locked `FOR UPDATE`: a removed export stays
+  removed.
 
 | Command / Query | Bus | What it does |
 |---|---|---|
@@ -344,11 +357,13 @@ confirms it (`RequestAccountDeletion`).
      the extension point of slices 6 and 7 (requests closed, booking requests
      declined); each must be idempotent;
   5. `DeleteUserDataExports` (exports and archives);
-  6. Notification `MaskPortalRecipient(phone, email)`: Kiveto's own messages
-     to the owner (codes and account notices) lose recipient and bodies; those
-     still queued (codes, export notice, booking decline) are cancelled and
-     never sent — only an e-mail change security notice still goes out; the
-     clinics' messages, the Portal invitation included, stay;
+  6. Notification `MaskPortalRecipient(userId, phone, email)`: Kiveto's own
+     messages to the owner (codes and account notices) — of that account,
+     earlier e-mail addresses included, or to that phone or e-mail — lose
+     recipient and bodies; those still queued (codes, export notice, booking
+     decline) are cancelled and never sent — only an e-mail change security
+     notice still goes out, masked once handed over; the clinics' messages,
+     the Portal invitation included, stay;
   7. `OwnerProfile::anonymise()` (« Compte supprimé », address erased; the
      terms acceptance stays);
   8. IdentityAccess `AnonymisePortalUser` (phone, e-mail and their
@@ -407,7 +422,7 @@ be linked; the clinic decides.
 | Command / Query | Bus | What it does |
 |---|---|---|
 | `ListLinkSuggestions(userId)` | query | `list<LinkSuggestion{id, clinicName, city, matchedOn}>`, by clinic name. |
-| `AcceptLinkSuggestion(userId, suggestionId)` | command | `pending`; `LinkSuggestionNotFoundException`. |
+| `AcceptLinkSuggestion(userId, suggestionId)` | command | `pending`; `LinkSuggestionNotFoundException`. Serialised on the account's Portal lock (a double accept never races on `uniq_client_link`). |
 | `ConfirmClientLink(clinicId, userId, clientIds, actorUserId, actorName)` | command | How many pending links were confirmed (`ClientLinkConfirmed` each); the decision recorded. |
 | `RejectClientLink(clinicId, userId, clientIds, actorUserId, actorName)` | command | How many pending links were revoked (`link_rejected`); the decision recorded. |
 | `ListClinicLinkRequests(clinicId, decided = false)` | query | `list<ClinicLinkRequest>`: pending, oldest first; or (`decided`) one per decision, latest first (500 at most), with `decisionId`, `outcome`, `decidedAt`, `decidedByName`. |
@@ -431,8 +446,8 @@ follows the request through `GET /me/booking-requests` (account-scoped).
   listed and active (port `ClinicListingsInterface`, ClinicListing
   `GetClinicListing`; `ListingNotFoundException`, 404); no confirmed link to
   the clinic (`AlreadyLinkedException`, 422 `already_linked`); at most 1
-  pending request per clinic and 3 in all, counted under `FOR UPDATE`
-  (`BookingRequestLimitException`, 422 `booking_request_limit`);
+  pending request per clinic and 3 in all, counted under the account's
+  Portal lock (`BookingRequestLimitException`, 422 `booking_request_limit`);
   `limiter.portal_listing_booking` (10 per account per 24 h, port
   `ListingBookingQuotaInterface`; 429 `rate_limited`); the listing's
   `onlineBooking` (`ListingBookingNotOpenException`) and Scheduling's
@@ -451,6 +466,19 @@ follows the request through `GET /me/booking-requests` (account-scoped).
   set, then confirmed); the account's other pending requests at the clinic
   attached to the same file. `InvalidBookingChoiceException` for a file or
   animal staff were not offered.
+- **The one confirmation (S7-01):** every confirmation of a new client's
+  appointment goes through this command. Scheduling's agenda « Confirmer »,
+  check-in, consultation start and completion dispatch
+  `ConfirmBookingRequest::forAppointment(clinicId, appointmentId,
+  ?animalId, silent)` (Scheduling port `NewClientConfirmationInterface`):
+  the request found by its appointment, choices `default` — the file a
+  sibling was confirmed for, else the one non-archived file of the clinic
+  carrying the account's phone (exactly one), else a new file opened by the
+  system; the appointment's animal when it is that client's, else the new
+  pet; `silent` for the client on site (no message, whatever the expiry).
+  No request, or one no longer pending, answers false and changes nothing.
+  The request is `confirmed` without staff name; the link exists, so the
+  account's next request at that clinic is `already_linked`.
 - **Decline** (`DeclineBookingRequest`): Scheduling `DeclineAppointment`,
   then `PORTAL_BOOKING_DECLINED`.
 - **Who answered** (S6-F3): a staff confirm or decline stores
@@ -476,7 +504,7 @@ follows the request through `GET /me/booking-requests` (account-scoped).
 | Command / Query | Bus | What it does |
 |---|---|---|
 | `RequestListingBooking(userId, listingId, petName, petSpecies, motifId, practitionerId, startsAt)` | command | The request id. |
-| `ConfirmBookingRequest(clinicId, requestId, clientChoice existing\|new, ?clientId, animalChoice existing\|new, ?animalId, actorUserId, actorName)` | command | See above. |
+| `ConfirmBookingRequest(clinicId, ?requestId, clientChoice existing\|new\|default, ?clientId, animalChoice existing\|new\|default, ?animalId, ?actorUserId, ?actorName, ?appointmentId, silent)` | command | See above; `forAppointment()` for Scheduling. Answers true once confirmed. |
 | `DeclineBookingRequest(clinicId, requestId, actorUserId, actorName)` | command | `BookingRequestNotFoundException`, `BookingRequestAlreadyResolvedException`. |
 | `SyncBookingRequestFromAppointment(appointmentId, outcome, ?ownerId)` | command | Consumers only. |
 | `ListOwnerBookingRequests(userId, ?cursor, ?limit)` | query | `CursorPage<OwnerBookingRequest>`, newest first, cursor `(created_at, id)`. |
@@ -509,8 +537,12 @@ client file reached at submit, the account, its subject, `submittedAt` and
   pets it sees, neither cancelled nor declined (else not found); editable
   while it holds its slot, has not started and no consultation began from it
   (Consultation `ListAppointmentsWithConsultation`). A write on a frozen
-  appointment records `lockedAt` and answers `LOCKED`: a reschedule never
-  reopens it.
+  appointment records `lockedAt` and answers `LOCKED`; so does reading it
+  once its visit started or was consulted, and `LockFrozenQuestionnaires`
+  (schedule `client_portal`, every 5 minutes) for the ones nobody looks at:
+  a reschedule never reopens it. A first answer takes no `FOR UPDATE` on the
+  missing row (gap lock, deadlock between two first answers): the unique
+  key decides, the last answer wins.
 - **Pet change** (`PetChangeRequest`): `ProposedChange::of` validates and
   normalises per field — `name` 1–60, `weight` 0.05–150 kg (comma or dot) →
   `{weightGrams, measuredOn ≤ today}`, `sterilization` `neutered|intact`,
@@ -518,7 +550,8 @@ client file reached at submit, the account, its subject, `submittedAt` and
   pet must be one the account sees and alive (`PetNotEligibleException` for
   a deceased, missing or archived pet of its clients). The pet's value at
   submit is snapshotted (weight in grams). At most 3 open per pet and field
-  (`PortalRequestRateLimitedException`).
+  (`PortalRequestRateLimitedException`), counted under the pet's Portal
+  lock (`PortalLockInterface`, rows of `client_portal__locks`).
 - **Renewal** (`PrescriptionRenewalRequest`, whole prescription): a listed
   prescription of the account (a cancelled one of the account →
   `not_renewable`, else not found), renewable by its owner (issued, no
@@ -578,8 +611,9 @@ client file reached at submit, the account, its subject, `submittedAt` and
 
 ## Consumers
 
-- `ClientArchivedIntegrationEventConsumer` (Client) → `RevokeClientPortalAccess`,
-  `ClosePortalRequestsForSubject` (`client_archived`).
+- `ClientArchivedIntegrationEventConsumer` (Client) → `ClosePortalRequestsForSubject`
+  (`client_archived`), then `RevokeClientPortalAccess` (a request submitted in
+  between is closed with `link_revoked`).
 - `PrescriptionCancelledIntegrationEventConsumer` also closes the open renewal
   (`prescription_cancelled`); Scheduling `PendingAppointmentCancelled` /
   `PendingAppointmentDeclined` close the questionnaire.

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Context\ClientPortal\Pipeline;
 
+use App\Context\Client\Application\Command\CreateClient\ContactMethodDto;
+use App\Context\Client\Application\Command\CreateClient\CreateClient;
 use App\Context\ClientPortal\Application\Command\ConfirmBookingRequest\ConfirmBookingRequest;
 use App\Context\ClientPortal\Application\Command\DeclineBookingRequest\DeclineBookingRequest;
 use App\Context\ClientPortal\Application\Command\DeletePortalAccount\DeletePortalAccount;
@@ -13,6 +15,7 @@ use App\Context\ClientPortal\Domain\Booking\BookingRequestId;
 use App\Context\ClientPortal\Domain\Booking\BookingRequestRepositoryInterface;
 use App\Context\ClientPortal\Domain\Booking\BookingRequestStatus;
 use App\Context\ClientPortal\Domain\Booking\DeclineReason;
+use App\Context\ClientPortal\Domain\Exception\AlreadyLinkedException;
 use App\Context\ClientPortal\Domain\Profile\OwnerProfile;
 use App\Context\ClientPortal\Domain\Profile\OwnerProfileRepositoryInterface;
 use App\Context\ClinicListing\Domain\ClinicListing;
@@ -24,6 +27,9 @@ use App\Context\ClinicListing\Domain\Repository\ClinicListingRepositoryInterface
 use App\Context\ClinicListing\Domain\Repository\ListingSettingsRepositoryInterface;
 use App\Context\Scheduling\Application\Command\BookOnlineAppointment\BookOnlineAppointment;
 use App\Context\Scheduling\Application\Command\CancelAppointment\CancelAppointment;
+use App\Context\Scheduling\Application\Command\CheckInAppointment\CheckInAppointment;
+use App\Context\Scheduling\Application\Command\ConfirmAppointment\ConfirmAppointment;
+use App\Context\Scheduling\Application\Command\ConfirmPendingAppointmentSilently\ConfirmPendingAppointmentSilently;
 use App\Context\Scheduling\Application\Command\DeclineExpiredPendingAppointment\DeclineExpiredPendingAppointment;
 use App\Context\Scheduling\Application\Port\ClinicOpeningHours;
 use App\Context\Scheduling\Application\Port\ClinicOpeningHoursInterface;
@@ -141,6 +147,64 @@ final class BookingRequestPipelineTest extends KernelTestCase
         self::assertSame([], $this->declineMessages());
     }
 
+    public function testACheckInConfirmsTheRequestWithItsFileItsAnimalAndTheLink(): void
+    {
+        // S7-01: the client is on site before anyone answered « Demandes »
+        $id      = $this->request('2026-04-15T10:00:00+02:00');
+        $sibling = $this->secondRequestAtTheClinic();
+
+        $this->bus->dispatch(new CheckInAppointment(self::CLINIC, $this->stored($id)->appointmentId(), Uuid::v7()->toRfc4122()));
+        MessengerDrain::drain(self::getContainer(), ['async']);
+
+        $request  = $this->stored($id);
+        $clientId = $request->clientId();
+        self::assertNotNull($clientId);
+        self::assertSame([BookingRequestStatus::CONFIRMED, null], [$request->status(), $request->resolvedByName()]);
+        self::assertSame(['COMPLETED', $clientId, $this->petNamed('Pixel')], $this->appointmentOf($id));
+        self::assertSame(['confirmed'], $this->linkStatuses());
+        // The pending sibling follows the same file: confirming it from the agenda opens no second client
+        self::assertSame($clientId, $this->stored($sibling)->clientId());
+        $this->bus->dispatch(new ConfirmAppointment($this->stored($sibling)->appointmentId(), self::CLINIC));
+        self::assertSame([BookingRequestStatus::CONFIRMED, $clientId], [$this->stored($sibling)->status(), $this->stored($sibling)->clientId()]);
+        self::assertSame(1, $this->connection->fetchOne('SELECT COUNT(*) FROM client__clients WHERE clinic_id = ?', [Uuid::fromString(self::CLINIC)->toBinary()]));
+        self::assertSame([], $this->declineMessages());
+
+        // A new request afterwards: the account is linked to that file now
+        $this->expectException(AlreadyLinkedException::class);
+        $this->request('2026-04-15T11:30:00+02:00');
+    }
+
+    public function testTheAgendaConfirmsTheRequestWithItsFileItsAnimalAndTheLink(): void
+    {
+        $id = $this->request('2026-04-15T10:00:00+02:00');
+
+        $this->bus->dispatch(new ConfirmAppointment($this->stored($id)->appointmentId(), self::CLINIC));
+        MessengerDrain::drain(self::getContainer(), ['async']);
+
+        $clientId = $this->stored($id)->clientId();
+        self::assertNotNull($clientId);
+        self::assertSame(BookingRequestStatus::CONFIRMED, $this->stored($id)->status());
+        self::assertSame(['PLANNED', $clientId, $this->petNamed('Pixel')], $this->appointmentOf($id));
+        self::assertSame(['confirmed'], $this->linkStatuses());
+    }
+
+    public function testAConsultationStartedTakesTheOneFileCarryingThePhone(): void
+    {
+        // The clinic already knows Sophie by her mobile: that file, no second one
+        $existing = $this->bus->dispatch(new CreateClient(self::CLINIC, 'Sophie', 'Martin', [new ContactMethodDto(type: 'phone', label: 'mobile', value: self::PHONE, isPrimary: true)]));
+        \assert(\is_string($existing));
+        $id = $this->request('2026-04-15T10:00:00+02:00');
+
+        $this->bus->dispatch(new ConfirmPendingAppointmentSilently($this->stored($id)->appointmentId(), self::CLINIC));
+        MessengerDrain::drain(self::getContainer(), ['async']);
+
+        self::assertSame([BookingRequestStatus::CONFIRMED, $existing], [$this->stored($id)->status(), $this->stored($id)->clientId()]);
+        self::assertSame(['PLANNED', $existing, $this->petNamed('Pixel')], $this->appointmentOf($id));
+        self::assertSame(1, $this->connection->fetchOne('SELECT confirmed_silently FROM scheduling__appointments WHERE id = ?', [Uuid::fromString($this->stored($id)->appointmentId())->toBinary()]));
+        self::assertSame(1, $this->connection->fetchOne('SELECT COUNT(*) FROM client__clients WHERE clinic_id = ?', [Uuid::fromString(self::CLINIC)->toBinary()]));
+        self::assertSame(['confirmed'], $this->linkStatuses());
+    }
+
     public function testADeclineSendsOneSmsEvenWhenItsEventIsDeliveredTwice(): void
     {
         // AC 81
@@ -231,6 +295,31 @@ final class BookingRequestPipelineTest extends KernelTestCase
         ));
 
         return $id;
+    }
+
+    /**
+     * @return list<mixed> status, owner, animal of the request's appointment
+     */
+    private function appointmentOf(string $requestId): array
+    {
+        $row = $this->connection->fetchNumeric('SELECT status, owner_id, animal_id FROM scheduling__appointments WHERE id = ?', [Uuid::fromString($this->stored($requestId)->appointmentId())->toBinary()]) ?: [];
+
+        return array_map(static fn (mixed $value): mixed => \is_string($value) && 16 === \strlen($value) ? Uuid::fromBinary($value)->toRfc4122() : $value, $row);
+    }
+
+    private function petNamed(string $name): ?string
+    {
+        $id = $this->connection->fetchOne('SELECT id FROM animal__animals WHERE clinic_id = ? AND name = ?', [Uuid::fromString(self::CLINIC)->toBinary(), $name]);
+
+        return \is_string($id) ? Uuid::fromBinary($id)->toRfc4122() : null;
+    }
+
+    /**
+     * @return list<mixed>
+     */
+    private function linkStatuses(): array
+    {
+        return $this->connection->fetchFirstColumn('SELECT status FROM client_portal__client_links WHERE user_id = ?', [Uuid::fromString($this->userId)->toBinary()]);
     }
 
     /** A command routed to `async`, queued then handled by the worker. */

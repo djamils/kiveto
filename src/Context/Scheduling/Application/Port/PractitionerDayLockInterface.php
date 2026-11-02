@@ -15,15 +15,16 @@ use App\Context\Scheduling\Domain\ValueObject\PractitionerDay;
  * checks; the lock is held until the surrounding transaction ends. Once it is
  * held, reads must be current (`…Locked` port methods, `FOR SHARE`).
  *
- * Take it before any other write of the transaction: a deadlock rolls the
- * whole transaction back before the retry.
+ * Take it before any other write of the transaction. A deadlock rolls the
+ * whole transaction back: it is reported as `SlotTakenException::contended`
+ * and the command bus runs the whole command once more.
  */
 interface PractitionerDayLockInterface
 {
     /**
      * @param list<PractitionerDay> $keys sorted and deduplicated here
      *
-     * @throws SlotTakenException when the lock still deadlocks after two retries
+     * @throws SlotTakenException (contended) when the lock deadlocks: the transaction is rolled back
      */
     public function lock(ClinicId $clinicId, array $keys): void;
 

@@ -260,7 +260,9 @@ final readonly class DbalPrescriptionReadRepository implements PrescriptionReadR
 
         $rows = $this->connection->fetchAllAssociative(
             \sprintf(
-                'SELECT BIN_TO_UUID(p.id) AS id, p.status, p.valid_until, %s AS controlled_count
+                'SELECT BIN_TO_UUID(p.id) AS id, p.status, p.valid_until, %s AS controlled_count,
+                        (SELECT fl.label FROM prescription__prescription_lines fl
+                         WHERE fl.prescription_id = p.id ORDER BY fl.position ASC LIMIT 1) AS first_medication
                  FROM prescription__prescriptions p
                  WHERE p.clinic_id = :clinicId
                    AND p.id IN (:ids)
@@ -287,6 +289,7 @@ final readonly class DbalPrescriptionReadRepository implements PrescriptionReadR
                         PrescriptionStatus::from($status),
                         0 < RowAccessor::int($row, 'controlled_count'),
                     ),
+                    firstMedication: RowAccessor::nullableString($row, 'first_medication'),
                 );
             },
             $rows,
@@ -367,6 +370,12 @@ final readonly class DbalPrescriptionReadRepository implements PrescriptionReadR
         if (null !== $criteria->prescriberId) {
             $where[]                = 'p.prescriber_user_id = :prescriberId';
             $params['prescriberId'] = Uuid::fromString($criteria->prescriberId)->toBinary();
+        }
+
+        if (null !== $criteria->animalId) {
+            // A malformed id matches no ordonnance
+            $where[]            = 'p.patient_animal_id = :animalId';
+            $params['animalId'] = Uuid::isValid($criteria->animalId) ? Uuid::fromString($criteria->animalId)->toBinary() : '';
         }
 
         // Expiry is decided against the clock, as everywhere on the read side.

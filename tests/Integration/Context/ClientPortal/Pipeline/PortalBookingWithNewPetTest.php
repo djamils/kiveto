@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Context\ClientPortal\Pipeline;
 
+use App\Context\Animal\Application\Command\CreateAnimal\CreateAnimal;
 use App\Context\ClientPortal\Application\Command\BookPortalAppointment\BookPortalAppointment;
 use App\Context\ClientPortal\Application\Command\BookPortalAppointmentWithNewPet\BookPortalAppointmentWithNewPet;
 use App\Context\ClientPortal\Domain\Link\ClientLink;
@@ -44,7 +45,8 @@ use Symfony\Component\Uid\Uuid;
 /**
  * AC 46, AC 151 and AC 154 through the real command bus: the new pet is
  * created and booked in one transaction (a refused booking leaves no
- * animal), a retry reuses it, and a declined request archives it unless it
+ * animal), a retry of the same request reuses it (never an animal the
+ * clinic created, S4B-01), and a declined request archives it unless it
  * has another appointment. The clinic's opening hours, the practitioner's
  * eligibility and blocks are doubles; everything else is real.
  */
@@ -117,9 +119,9 @@ final class PortalBookingWithNewPetTest extends KernelTestCase
         $links->save(ClientLink::confirm(ClientLinkId::fromString(Uuid::v7()->toRfc4122()), self::USER, self::CLINIC, self::CLIENT, new \DateTimeImmutable('2026-01-10 10:00')));
     }
 
-    public function testANewPetIsRegisteredAndBookedThenReusedByARetry(): void
+    public function testANewPetIsRegisteredAndBookedThenReusedByARetryOfTheSameRequest(): void
     {
-        $id = $this->withNewPet(self::AUTO, '2026-04-14T10:00:00+02:00', 'Pixel');
+        $id = $this->withNewPet(self::AUTO, '2026-04-14T10:00:00+02:00', 'Pixel', 'key-1');
 
         $appointment = $this->appointment($id);
         self::assertSame(AppointmentStatus::PLANNED, $appointment->status());
@@ -127,14 +129,60 @@ final class PortalBookingWithNewPetTest extends KernelTestCase
         self::assertSame($appointment->animalId(), $appointment->createdPetId());
         self::assertSame([['Pixel', 'cat', 'unknown', 'unknown', 'none', 'alive', 'none', 'active']], $this->animalsOfTheClient());
 
-        // The same request again (lost response, new key): the same appointment, the same animal
-        self::assertSame($id, $this->withNewPet(self::AUTO, '2026-04-14T10:00:00+02:00', 'pixel'));
-        // Another slot within 24 h: the animal is reused
-        $other = $this->withNewPet(self::AUTO, '2026-04-14T11:00:00+02:00', 'PIXEL');
+        // The same request again (its response lost, same Idempotency-Key): the same appointment, the same animal
+        self::assertSame($id, $this->withNewPet(self::AUTO, '2026-04-14T10:00:00+02:00', 'Pixel', 'key-1'));
+        self::assertCount(1, $this->animalsOfTheClient());
+
+        // S4B-01: another request (another key) registers its own animal, never reusing one by its name
+        $other = $this->withNewPet(self::AUTO, '2026-04-14T11:00:00+02:00', 'PIXEL', 'key-2');
 
         self::assertNotSame($id, $other);
-        self::assertSame($appointment->animalId(), $this->appointment($other)->animalId());
-        self::assertCount(1, $this->animalsOfTheClient());
+        self::assertNotSame($appointment->animalId(), $this->appointment($other)->animalId());
+        self::assertCount(2, $this->animalsOfTheClient());
+    }
+
+    public function testAnAnimalTheClinicCreatedIsNeverReusedNorArchived(): void
+    {
+        // S4B-01: Rex, registered by the clinic this morning for the same client
+        $rex = $this->bus->dispatch(new CreateAnimal(
+            clinicId: self::CLINIC,
+            name: 'Rex',
+            species: 'cat',
+            sex: 'male',
+            reproductiveStatus: 'intact',
+            isMixedBreed: false,
+            breedName: null,
+            birthDate: null,
+            color: null,
+            photoUrl: null,
+            microchipNumber: null,
+            tattooNumber: null,
+            passportNumber: null,
+            registryType: 'none',
+            registryNumber: null,
+            registryReference: null,
+            lifeStatus: 'alive',
+            deceasedAt: null,
+            missingSince: null,
+            transferStatus: 'none',
+            soldAt: null,
+            givenAt: null,
+            auxiliaryContactFirstName: null,
+            auxiliaryContactLastName: null,
+            auxiliaryContactPhoneNumber: null,
+            primaryOwnerClientId: self::CLIENT,
+            secondaryOwnerClientIds: [],
+        ));
+        \assert(\is_string($rex));
+
+        $id      = $this->withNewPet(self::MANUAL, '2026-04-15T10:00:00+02:00', 'rex', 'key-1');
+        $created = $this->appointment($id)->createdPetId();
+        self::assertNotSame($rex, $created);
+        self::assertSame($created, $this->appointment($id)->animalId());
+
+        $this->bus->dispatch(new DeclineAppointment($id, self::CLINIC));
+
+        self::assertSame([[$rex, 'active'], [$created, 'archived']], $this->statusesOf([$rex, (string) $created]));
     }
 
     public function testATakenSlotLeavesNoAnimal(): void
@@ -185,9 +233,9 @@ final class PortalBookingWithNewPetTest extends KernelTestCase
         self::assertSame('active', $this->animalsOfTheClient()[0][7]);
     }
 
-    private function withNewPet(string $motifId, string $startsAt, string $name): string
+    private function withNewPet(string $motifId, string $startsAt, string $name, ?string $key = null): string
     {
-        $id = $this->bus->dispatch(new BookPortalAppointmentWithNewPet(self::USER, self::CLINIC, $name, 'cat', $motifId, self::VET, new \DateTimeImmutable($startsAt)));
+        $id = $this->bus->dispatch(new BookPortalAppointmentWithNewPet(self::USER, self::CLINIC, $name, 'cat', $motifId, self::VET, new \DateTimeImmutable($startsAt), $key));
         \assert(\is_string($id));
 
         return $id;
@@ -199,6 +247,19 @@ final class PortalBookingWithNewPetTest extends KernelTestCase
         \assert($appointments instanceof AppointmentRepositoryInterface);
 
         return $appointments->findById(AppointmentId::fromString($id)) ?? throw new \LogicException('Unknown appointment.');
+    }
+
+    /**
+     * @param list<string> $ids
+     *
+     * @return list<list<string>> id, status
+     */
+    private function statusesOf(array $ids): array
+    {
+        return array_map(
+            fn (string $id): array => [$id, \is_string($status = $this->connection->fetchOne('SELECT status FROM animal__animals WHERE id = ?', [Uuid::fromString($id)->toBinary()])) ? $status : ''],
+            $ids,
+        );
     }
 
     /**

@@ -85,6 +85,14 @@ final class ClinicListingFakes implements ClinicListingRepositoryInterface, List
         $this->settings[$item->clinicId()] = $item;
     }
 
+    public function saveCoordinates(ClinicListing $listing): void
+    {
+        if (($this->listings[$listing->clinicId()] ?? null)?->addressHash() === $listing->addressHash()) {
+            $this->listings[$listing->clinicId()] = $listing;
+            ++$this->saves;
+        }
+    }
+
     public function findByClinicId(string $clinicId): ?ClinicListing
     {
         return $this->listings[$clinicId] ?? null;

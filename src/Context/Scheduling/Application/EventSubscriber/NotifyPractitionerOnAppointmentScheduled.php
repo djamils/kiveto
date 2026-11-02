@@ -8,6 +8,7 @@ use App\Context\Scheduling\Application\Port\NotificationJobsInterface;
 use App\Context\Scheduling\Domain\Event\AppointmentCancelled;
 use App\Context\Scheduling\Domain\Event\AppointmentConfirmed;
 use App\Context\Scheduling\Domain\Event\AppointmentDeclined;
+use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeChanged;
 use App\Context\Scheduling\Domain\Event\AppointmentRequested;
 use App\Context\Scheduling\Domain\Event\AppointmentScheduled;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -17,7 +18,8 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * someone else queues the « Nouveau RDV » entry, a cancellation queues its
  * withdrawal. An online request queues « RDV en ligne à confirmer »
  * instead, withdrawn once confirmed, declined or withdrawn; a confirmation
- * posts no « Nouveau RDV » (the practitioner already knew). All only queue a
+ * posts no « Nouveau RDV » (the practitioner already knew); a request moved
+ * to another practitioner moves its entry. All only queue a
  * job on `async`, in the transaction of the change; the worker reads what
  * the entry needs.
  */
@@ -63,5 +65,15 @@ final readonly class NotifyPractitionerOnAppointmentScheduled
     public function onDeclined(AppointmentDeclined $event): void
     {
         $this->jobs->withdrawPendingBookingNotice($event->appointmentId());
+    }
+
+    /**
+     * Queued for every change of practitioner: the worker posts only for a
+     * request still pending.
+     */
+    #[AsMessageHandler(bus: 'messenger.bus.event')]
+    public function onPractitionerChanged(AppointmentPractitionerAssigneeChanged $event): void
+    {
+        $this->jobs->movePendingBookingNotice($event->appointmentId());
     }
 }

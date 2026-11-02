@@ -50,16 +50,17 @@ interface PublishedDocumentReadModelInterface
     public function versionKey(string $clinicId, string $documentId, int $version): ?string;
 
     /**
-     * When the report of a consultation was last shared (the row's last
-     * update), or null when never shared or withdrawn. Clinic side: no
-     * account scope.
+     * When the report of a consultation was last shared (its publication
+     * or latest re-share, never a later file or pet update), or null when
+     * never shared or withdrawn. Clinic side: no account scope.
      */
     public function reportSharedAt(string $clinicId, string $consultationId): ?\DateTimeImmutable;
 
     /**
-     * Listable documents the account has not opened, per clinic.
+     * Listable documents the account has not opened, per clinic (before the
+     * live state check of their sources).
      *
-     * @return array<string, int>
+     * @return array<string, list<ListedDocument>>
      */
     public function unreadPerClinic(string $userId): array;
 }

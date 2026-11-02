@@ -139,6 +139,7 @@ final readonly class RequestNotificationHandler
             $this->renderer->render($purpose, $channel, $parameters, $profile),
             Channel::EMAIL === $channel ? self::attachments($command->attachments) : [],
             $now,
+            $command->accountId,
         );
 
         $this->messages->save($message);

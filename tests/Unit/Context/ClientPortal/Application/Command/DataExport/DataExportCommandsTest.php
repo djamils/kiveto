@@ -179,7 +179,7 @@ final class DataExportCommandsTest extends TestCase
         self::assertSame(['client_portal/exports/' . $delayed . '.zip'], $this->files->deleted);
         self::assertSame(DataExportStatus::EXPIRED, $this->exports->findById($delayed)?->status());
 
-        $sweep = new SweepExpiredDataExportsHandler($this->exports, $this->files, $this->clock);
+        $sweep = new SweepExpiredDataExportsHandler($this->exports, $this->files, $this->fakes, $this->clock);
         $sweep(new SweepExpiredDataExports());
         self::assertSame(['client_portal/exports/' . $delayed . '.zip', 'client_portal/exports/' . $lost . '.zip'], $this->files->deleted);
         self::assertSame([DataExportStatus::EXPIRED, DataExportStatus::READY], [$this->exports->findById($lost)?->status(), $this->exports->findById($recent)?->status()]);
@@ -192,11 +192,40 @@ final class DataExportCommandsTest extends TestCase
         self::assertCount(2, $this->files->deleted);
     }
 
+    public function testTheSweepGivesUpTheExportsStuckPendingOnce(): void
+    {
+        $stuck                                                          = $this->pending();
+        $this->files->files['client_portal/exports/' . $stuck . '.zip'] = 'partial';
+        $this->clock->advance('+3 hours');
+        $recent = $this->pending(self::OTHER);
+        $this->clock->advance('+3 hours 1 minute');
+
+        $sweep = new SweepExpiredDataExportsHandler($this->exports, $this->files, $this->fakes, $this->clock);
+        $sweep(new SweepExpiredDataExports());
+
+        self::assertSame(
+            [DataExportStatus::FAILED, '2026-11-02 16:01', DataExportStatus::PENDING],
+            [$this->exports->findById($stuck)?->status(), $this->exports->findById($stuck)?->failedAt()?->format('Y-m-d H:i'), $this->exports->findById($recent)?->status()],
+        );
+        self::assertSame(['client_portal/exports/' . $stuck . '.zip'], $this->files->deleted);
+        self::assertSame([self::USER], $this->fakes->refunds);
+
+        // Its late outcomes: a failure refunds nothing more, an archive is deleted at once.
+        $sweep(new SweepExpiredDataExports());
+        $this->record(new RecordDataExport($stuck, built: false));
+        self::assertSame([self::USER], $this->fakes->refunds, 'refunded once');
+        $this->files->files['client_portal/exports/' . $stuck . '.zip'] = 'ZIP';
+        $this->record(new RecordDataExport($stuck, built: true));
+        self::assertSame(DataExportStatus::FAILED, $this->exports->findById($stuck)?->status());
+        self::assertArrayNotHasKey('client_portal/exports/' . $stuck . '.zip', $this->files->files);
+        self::assertSame([], $this->fakes->deletions, 'no delayed deletion queued');
+    }
+
     public function testAccountDeletionRemovesEveryExportOfTheAccountAndItsArchive(): void
     {
         $ready   = $this->ready('2026-11-02 09:00');
         $pending = $this->pending(self::OTHER);
-        $this->exports->save(DataExport::request(DataExportId::fromString('01960000-0000-7000-8000-0000000e0099'), self::USER, $this->clock->now()));
+        $this->exports->add(DataExport::request(DataExportId::fromString('01960000-0000-7000-8000-0000000e0099'), self::USER, $this->clock->now()));
 
         $handler = new DeleteUserDataExportsHandler($this->exports, $this->files);
         $handler(new DeleteUserDataExports(self::USER));
@@ -224,7 +253,7 @@ final class DataExportCommandsTest extends TestCase
         $id     = $this->portal->generate();
         $export = DataExport::request(DataExportId::fromString($id), self::USER, new \DateTimeImmutable($readyAt, new \DateTimeZone('UTC')));
         $export->markReady(new \DateTimeImmutable($readyAt, new \DateTimeZone('UTC')));
-        $this->exports->save($export);
+        $this->exports->add($export);
         $this->files->files[$export->storageKey()] = 'ZIP';
 
         return $id;

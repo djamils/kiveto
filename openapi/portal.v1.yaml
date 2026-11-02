@@ -221,6 +221,8 @@ paths:
           description: '`not_found`.'
         '401':
           description: '`unauthorized` ou `token_expired`.'
+        '503':
+          description: '`service_unavailable` (`Retry-After`) : le service PDF est indisponible.'
       summary: "Télécharger le carnet de vaccination d'un animal."
       description: "PDF généré à la volée et mis en cache tant que ses données ne changent pas (vaccinations, identité, puce, en-tête de la clinique). « Aucune vaccination enregistrée » quand il n'y en a pas. Servi aussi pour un animal décédé. Redirige vers une URL signée valable 5 minutes."
       parameters:
@@ -2518,7 +2520,7 @@ paths:
                 $ref: '#/components/schemas/ConstraintViolation'
           links: {  }
       summary: 'Réserve un créneau en ligne pour un animal que la clinique ne connaît pas encore.'
-      description: "Crée l'animal du propriétaire (sexe et stérilisation inconnus) dans la même transaction que le rendez-vous : en cas de `slot_taken`, aucun animal ne reste. Un animal actif de même nom et espèce créé dans les 24 h est réutilisé. Archivé automatiquement si la demande est refusée ou expire avant tout acte clinique."
+      description: "Crée l'animal du propriétaire (sexe et stérilisation inconnus) dans la même transaction que le rendez-vous : en cas de `slot_taken`, aucun animal ne reste. Seule une nouvelle tentative de la même requête (même Idempotency-Key) réutilise l'animal qu'elle a créé ; un animal créé par la clinique n'est jamais réutilisé. Archivé automatiquement si la demande est refusée ou expire avant tout acte clinique."
       parameters:
         -
           name: Idempotency-Key

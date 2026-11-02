@@ -88,6 +88,7 @@ final readonly class DoctrineAppointmentRepository implements AppointmentReposit
         string $ownerId,
         string $animalId,
         string $bookingMotifId,
+        string $practitionerUserId,
         \DateTimeImmutable $startsAtUtc,
         \DateTimeImmutable $createdSince,
     ): ?AppointmentId {
@@ -98,6 +99,7 @@ final readonly class DoctrineAppointmentRepository implements AppointmentReposit
                AND owner_id = :ownerId
                AND animal_id = :animalId
                AND booking_motif_id = :motifId
+               AND practitioner_user_id = :practitionerId
                AND starts_at_utc = :startsAt
                AND created_at_utc >= :since
                AND status IN (:occupying)
@@ -105,13 +107,14 @@ final readonly class DoctrineAppointmentRepository implements AppointmentReposit
              LIMIT 1
              FOR SHARE',
             [
-                'clinicId'  => Uuid::fromString($clinicId->toString())->toBinary(),
-                'ownerId'   => Uuid::fromString($ownerId)->toBinary(),
-                'animalId'  => Uuid::fromString($animalId)->toBinary(),
-                'motifId'   => Uuid::fromString($bookingMotifId)->toBinary(),
-                'startsAt'  => $startsAtUtc->setTimezone($utc)->format('Y-m-d H:i:s'),
-                'since'     => $createdSince->setTimezone($utc)->format('Y-m-d H:i:s'),
-                'occupying' => AppointmentStatus::OCCUPYING_SQL_VALUES,
+                'clinicId'       => Uuid::fromString($clinicId->toString())->toBinary(),
+                'ownerId'        => Uuid::fromString($ownerId)->toBinary(),
+                'animalId'       => Uuid::fromString($animalId)->toBinary(),
+                'motifId'        => Uuid::fromString($bookingMotifId)->toBinary(),
+                'practitionerId' => Uuid::fromString($practitionerUserId)->toBinary(),
+                'startsAt'       => $startsAtUtc->setTimezone($utc)->format('Y-m-d H:i:s'),
+                'since'          => $createdSince->setTimezone($utc)->format('Y-m-d H:i:s'),
+                'occupying'      => AppointmentStatus::OCCUPYING_SQL_VALUES,
             ],
             ['occupying' => ArrayParameterType::STRING],
         );

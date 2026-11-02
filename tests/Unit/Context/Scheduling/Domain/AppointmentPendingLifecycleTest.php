@@ -346,6 +346,24 @@ final class AppointmentPendingLifecycleTest extends TestCase
         $appointment->reschedule(new TimeSlot(new \DateTimeImmutable('2026-01-30 13:00:00'), 20), new \DateTimeImmutable('2026-01-30 11:00:00'));
     }
 
+    /** S4A-03: requested long ago, its new expiry is after the request but already past */
+    public function testAPendingRequestCannotBeMovedSoItsNewExpiryIsAlreadyPast(): void
+    {
+        $appointment = $this->request();
+        $expiresAt   = new \DateTimeImmutable('2026-01-31 08:00:00');
+
+        try {
+            $appointment->reschedule(new TimeSlot(new \DateTimeImmutable('2026-01-31 10:00:00'), 20), $expiresAt, new \DateTimeImmutable('2026-01-31 08:00:00'));
+            self::fail('The request would expire at once.');
+        } catch (AppointmentNotModifiableException $e) {
+            self::assertSame('Ce créneau est trop proche pour une demande à confirmer : confirmez-la d’abord.', $e->getMessage());
+        }
+
+        // A minute earlier, it still has a minute to be confirmed
+        $appointment->reschedule(new TimeSlot(new \DateTimeImmutable('2026-01-31 10:00:00'), 20), $expiresAt, new \DateTimeImmutable('2026-01-31 07:59:00'));
+        self::assertSame('2026-01-31 08:00:00', $appointment->pendingExpiresAt()?->format('Y-m-d H:i:s'));
+    }
+
     public function testReschedulingAPendingRequestToTheSameSlotKeepsItsExpiry(): void
     {
         $appointment = $this->request();

@@ -10,8 +10,13 @@ use App\Context\ClientPortal\Domain\Request\PreVisitQuestionnaire;
 use App\Context\ClientPortal\Domain\Request\PreVisitQuestionnaireRepositoryInterface;
 use App\Context\ClientPortal\Domain\Request\RequestStatus;
 use App\Context\ClientPortal\Domain\Request\Symptom;
+use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
+/**
+ * Reading a questionnaire its appointment froze (started, or a consultation
+ * began from it) records its lock, so a later reschedule never reopens it.
+ */
 #[AsMessageHandler]
 final readonly class GetQuestionnaireHandler
 {
@@ -19,6 +24,7 @@ final readonly class GetQuestionnaireHandler
         private QuestionnaireAccess $access,
         private PreVisitQuestionnaireRepositoryInterface $questionnaires,
         private ClinicProfileInterface $clinics,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -30,6 +36,10 @@ final readonly class GetQuestionnaireHandler
 
         $questionnaire = $this->questionnaires->findByAppointment($query->clinicId, $query->appointmentId);
         $editable      = null !== $appointment && $this->access->isOpen($query->clinicId, $appointment, $questionnaire);
+
+        if (!$editable && null !== $appointment && null !== $questionnaire && $questionnaire->isEditable() && $this->access->isFrozen($query->clinicId, $appointment)) {
+            $this->questionnaires->recordLock($query->clinicId, $query->appointmentId, $this->clock->now());
+        }
 
         if (null === $questionnaire) {
             return new PortalQuestionnaire($query->appointmentId, PreVisitQuestionnaire::VERSION, PortalQuestionnaire::NOT_STARTED, null, null, $editable, false);

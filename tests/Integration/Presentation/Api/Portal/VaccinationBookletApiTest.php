@@ -88,6 +88,21 @@ final class VaccinationBookletApiTest extends PetsApiTestCase
         self::assertGreaterThanOrEqual(600, $deletions[0]['delay']);
     }
 
+    public function testThePdfServiceDownAnswersARetryableProblem(): void
+    {
+        $pet             = $this->pet('Rex');
+        $this->pdf->fail = true;
+
+        $response = $this->authGet($this->booklet($pet));
+
+        self::assertSame('service_unavailable', self::problemType($response, 503));
+        self::assertSame('60', $response->headers->get('Retry-After'));
+        self::assertSame([], $this->scheduledDeletions());
+
+        $this->pdf->fail = false;
+        self::assertSame(302, $this->authGet($this->booklet($pet))->getStatusCode(), 'nothing cached by the failure');
+    }
+
     public function testAPetWithoutVaccinationGetsABookletSayingSo(): void
     {
         $pet = $this->pet('Rex');

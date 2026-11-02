@@ -11,6 +11,7 @@ use App\System\IdentityAccess\Application\Command\VerifyPortalActionOtp\VerifyPo
 use App\System\IdentityAccess\Application\Command\VerifyPortalActionOtp\VerifyPortalActionOtpHandler;
 use App\System\IdentityAccess\Application\Exception\PortalAccountUnavailableException;
 use App\System\IdentityAccess\Application\Port\PortalOtpRequest;
+use App\System\IdentityAccess\Application\Service\UnknownNumberSmsGate;
 use App\System\IdentityAccess\Domain\Otp\OtpPurpose;
 use App\System\IdentityAccess\Domain\Otp\OtpSubjectType;
 use App\System\IdentityAccess\Domain\ValueObject\UserStatus;
@@ -55,7 +56,7 @@ final class PortalActionOtpHandlersTest extends PortalActionOtpTestCase
 
     public function testASignInCodeIsNeverAnActionCode(): void
     {
-        $handler = new RequestPortalOtpHandler($this->challenges, $this->users, $this->portal, $this->portal, $this->portal, $this->portal, $this->portal, $this->fakes, $this->fakes, $this->clock());
+        $handler = new RequestPortalOtpHandler($this->challenges, $this->portal, new UnknownNumberSmsGate($this->users, $this->portal, $this->portal), $this->portal, $this->portal, $this->fakes, $this->fakes, $this->clock());
 
         $this->expectExceptionMessage('Action codes are requested by RequestPortalActionOtp, for a user.');
         $handler(new RequestPortalOtp(self::ALICE_PHONE, 'email_change'));

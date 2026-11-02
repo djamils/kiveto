@@ -57,6 +57,11 @@ final readonly class MessengerNotificationJobs implements NotificationJobsInterf
         $this->commandBus->dispatch(new PostPendingBookingNotice($appointmentId));
     }
 
+    public function movePendingBookingNotice(string $appointmentId): void
+    {
+        $this->commandBus->dispatch(new PostPendingBookingNotice($appointmentId, replace: true));
+    }
+
     public function withdrawPendingBookingNotice(string $appointmentId): void
     {
         $this->commandBus->dispatch(new WithdrawPendingBookingNotice($appointmentId));

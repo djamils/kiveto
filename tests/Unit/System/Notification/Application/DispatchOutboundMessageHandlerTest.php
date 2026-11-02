@@ -7,6 +7,8 @@ namespace App\Tests\Unit\System\Notification\Application;
 use App\Shared\Application\ExternalApi\ExternalServiceUnavailable;
 use App\System\Notification\Application\Command\DispatchOutboundMessage\DispatchOutboundMessage;
 use App\System\Notification\Application\Command\DispatchOutboundMessage\DispatchOutboundMessageHandler;
+use App\System\Notification\Application\Command\MaskPortalRecipient\MaskPortalRecipient;
+use App\System\Notification\Application\Command\MaskPortalRecipient\MaskPortalRecipientHandler;
 use App\System\Notification\Application\Command\RecordDispatchOutcome\RecordDispatchOutcome;
 use App\System\Notification\Application\Command\RecordDispatchOutcome\RecordDispatchOutcomeHandler;
 use App\System\Notification\Application\Exception\DeliveryRefusedException;
@@ -124,7 +126,8 @@ final class DispatchOutboundMessageHandlerTest extends TestCase
 
         self::assertSame([], $this->senders->emails);
         self::assertSame([], $this->buses->commands);
-        self::assertStringContainsString('no such message', $this->firstLog());
+        $logs = array_map(static fn (mixed $log): mixed => \is_array($log) ? $log[1] ?? null : null, $this->logger->cleanLogs());
+        self::assertSame(['Notification not dispatched: no longer queued (sent, failed or cancelled before hand-over).', 'Notification not dispatched: no such message.'], $logs);
     }
 
     /** A message cancelled while its dispatch waited on the transport (account deleted) is never handed over. */
@@ -142,6 +145,59 @@ final class DispatchOutboundMessageHandlerTest extends TestCase
         self::assertSame([], $this->buses->commands, 'no outcome recorded');
         self::assertSame(DeliveryStatus::CANCELLED, $message->status());
         self::assertStringContainsString('cancelled before hand-over', $this->firstLog());
+        self::assertNull($message->dispatchClaimedAt(), 'never claimed');
+    }
+
+    /**
+     * FU-02, the other order: the deletion comes once the dispatch claimed
+     * the message (the provider may have it). It is masked, not cancelled,
+     * and the hand-over outcome is recorded with the provider id.
+     */
+    public function testADeletionAfterTheClaimMasksTheMessageAndKeepsItsOutcome(): void
+    {
+        $id = '01960000-0000-7000-8000-000000000501';
+        $this->messages->save(Messages::sms(purpose: MessagePurpose::PORTAL_OTP));
+        $mask                  = new MaskPortalRecipientHandler($this->messages, new CapturingMessageBus(), new FrozenClock(new \DateTimeImmutable('2026-10-16T10:00:01+00:00')), new CapturingBuses()->publisher());
+        $this->senders->during = static fn (): int => $mask(new MaskPortalRecipient('01960000-0000-7000-8000-0000000007a1', '+33612345678'));
+
+        ($this->handler)(new DispatchOutboundMessage($id));
+
+        self::assertCount(1, $this->senders->sms, 'claimed before the deletion: handed over');
+        $message = $this->messages->get(OutboundMessageId::fromString($id));
+        self::assertSame([DeliveryStatus::QUEUED, null], [$message->status(), $message->recipient()], 'masked, not cancelled');
+
+        [$outcome] = $this->buses->commandsOf(RecordDispatchOutcome::class);
+        $unmatched = new InMemoryUnmatchedEvents($this->messages);
+        $publisher = new CapturingBuses()->publisher();
+        new RecordDispatchOutcomeHandler($this->messages, $unmatched, new DeliveryEventReplayer($this->messages, $unmatched, $publisher), $publisher)($outcome);
+
+        self::assertSame([DeliveryStatus::SENT, 'brevo-sms-1', null], [$message->status(), $message->externalMessageId(), $message->recipient()]);
+    }
+
+    /** A claimed message masked by a deletion before its retry is not sent again. */
+    public function testAClaimedMessageErasedBeforeItsRetryIsNotSent(): void
+    {
+        $id = '01960000-0000-7000-8000-000000000501';
+        $this->messages->save(Messages::sms(purpose: MessagePurpose::PORTAL_OTP));
+        $this->senders->failure = ExternalServiceUnavailable::failed('Brevo', 503);
+
+        try {
+            ($this->handler)(new DispatchOutboundMessage($id));
+            self::fail('a temporary failure is retried');
+        } catch (ExternalServiceUnavailable) {
+            // Retried later by Messenger.
+        }
+
+        $message = $this->messages->get(OutboundMessageId::fromString($id));
+        self::assertTrue($message->eraseForDeletedAccount(MaskPortalRecipientHandler::CANCELLED_REASON, new \DateTimeImmutable('2026-10-16 10:00:30')));
+        self::assertSame(DeliveryStatus::QUEUED, $message->status(), 'claimed: masked only');
+        $this->senders->failure = null;
+
+        ($this->handler)(new DispatchOutboundMessage($id));
+
+        self::assertSame([], $this->senders->sms);
+        [$outcome] = $this->buses->commandsOf(RecordDispatchOutcome::class);
+        self::assertSame([null, DispatchOutboundMessageHandler::ERASED], [$outcome->externalId, $outcome->error]);
     }
 
     /**
