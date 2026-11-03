@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Context\ClientPortal\Application\Query\ListOwnerClinics;
 
+use App\Context\ClientPortal\Application\Port\ClinicContact;
+
 final readonly class OwnerClinic
 {
     public const string CONFIRMED = 'confirmed';
@@ -22,6 +24,8 @@ final readonly class OwnerClinic
         public array $petNames,
         /** IANA time zone of the clinic: its clinical instants are shown in it. */
         public string $timeZone,
+        /** The letterhead's phone and address, pending or confirmed alike. */
+        public ClinicContact $contact,
         public string $linkStatus = self::CONFIRMED,
     ) {
     }

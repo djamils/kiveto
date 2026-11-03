@@ -27,8 +27,8 @@ Portal **profile** (name, postal address, accepted terms of use).
   (`OpaqueTokenHasherInterface`); only its sha256 is kept. It travels in the
   URL fragment (`…/invitation#t=<token>`), never in a path.
 - **Cross-context access through ports only**: Client (`GetClientNotificationContact`,
-  `GetClientById`, `IsPortalMobileNumber`), Clinic (`GetClinic` through
-  `ClinicProfileInterface`, `GetStaffPrintedName`), Animal
+  `GetClientById`, `IsPortalMobileNumber`), Clinic (`GetClinic` and
+  `GetClinicSettings` through `ClinicProfileInterface`, `GetStaffPrintedName`), Animal
   (`ListAnimalSummariesPerClientIds`, `ListPortalPets`, `GetAnimalById`,
   `ListLatestPreventiveCare`, `ListAnimalWeightRecords`,
   `ListAnimalPreventiveCare`), Consultation (`GetConsultationPortalSummaries`,
@@ -89,7 +89,7 @@ Portal **profile** (name, postal address, accepted terms of use).
 | `GetPortalInvitationByToken(token)` | query | `PortalInvitationDetails` (clinic name and city, e-mail, phone, active pet names, expiry); `InvitationInvalidException` / `InvitationExpiredException` / `InvitationAlreadyUsedException`. |
 | `ListPendingInvitationsForPhone(phone)` | query | Pending, unexpired invitations of a phone (`invitationId`, clinic name, city) — IdentityAccess's pending-invitation port. |
 | `GetClientPortalStatus(clinicId, clientId)` | query | The sheet state: a confirmed link → `active`; else the pending invitation → `invited` / `expired`, unless it predates the access withdrawal → `revoked`; else `not_invited`. |
-| `ListOwnerClinics(userId)` | query | Confirmed and pending links, one entry per clinic (name, city, IANA time zone, `linkStatus`, earliest confirmed `linkedAt`, pet names of the confirmed files). A confirmed link wins; a pending-only clinic has no `linkedAt` nor pets. Oldest confirmed first, pending last. |
+| `ListOwnerClinics(userId)` | query | Confirmed and pending links, one entry per clinic (name, city, IANA time zone, letterhead phone and address, `linkStatus`, earliest confirmed `linkedAt`, pet names of the confirmed files). A confirmed link wins; a pending-only clinic has no `linkedAt` nor pets. Oldest confirmed first, pending last. |
 | `GetOwnerProfile(userId)` | query | `?OwnerProfileDetails{firstName, lastName, address: ?{line1, line2, postalCode, city, country}, termsVersion, termsAcceptedAt}`. |
 | `HasConfirmedClientLink(userId, clinicId)` | query | The Portal API's tenant guard (false for a missing, pending or revoked link). |
 

@@ -14,8 +14,9 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * one clinic entry, their animals merged. A clinic with a confirmed link is
  * `confirmed`, whatever else is pending there; a clinic with pending links
  * only is `pending`, without link date nor animals (nothing of the clinic's
- * data is shown before it confirms). The oldest confirmed clinic comes
- * first, pending ones last.
+ * data is shown before it confirms). The clinic's own letterhead phone and
+ * address come with every entry. The oldest confirmed clinic comes first,
+ * pending ones last.
  */
 #[AsMessageHandler]
 final readonly class ListOwnerClinicsHandler
@@ -63,6 +64,7 @@ final readonly class ListOwnerClinicsHandler
                 $entry['linkedAt'],
                 $entry['petNames'],
                 $clinic->timeZone,
+                $this->clinics->contactDetailsOf($clinicId),
                 null === $entry['linkedAt'] ? OwnerClinic::PENDING : OwnerClinic::CONFIRMED,
             );
         }

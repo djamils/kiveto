@@ -13,6 +13,7 @@ use App\Presentation\Api\Portal\Resource\Me;
 use App\Presentation\Api\Portal\Security\PortalApiUser;
 use App\Presentation\Api\Portal\Support\ApiDate;
 use App\Presentation\Api\Portal\Support\PortalAccountViews;
+use App\Presentation\Api\Portal\View\ClinicAddressView;
 use App\Presentation\Api\Portal\View\ClinicLinkView;
 use App\Shared\Application\Bus\QueryBusInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -53,6 +54,8 @@ final readonly class MeProvider implements ProviderInterface
                     $clinic->clinicId,
                     $clinic->clinicName,
                     $clinic->city,
+                    $clinic->contact->phone,
+                    ClinicAddressView::of($clinic->contact->address),
                     $clinic->timeZone,
                     $clinic->linkStatus,
                     null === $clinic->linkedAt ? null : ApiDate::format($clinic->linkedAt),

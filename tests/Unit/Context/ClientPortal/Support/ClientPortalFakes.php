@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Context\ClientPortal\Support;
 
 use App\Context\ClientPortal\Application\Port\BookingDeclinedMessage;
 use App\Context\ClientPortal\Application\Port\ClientDirectoryInterface;
+use App\Context\ClientPortal\Application\Port\ClinicContact;
 use App\Context\ClientPortal\Application\Port\ClinicLabel;
 use App\Context\ClientPortal\Application\Port\ClinicProfileInterface;
 use App\Context\ClientPortal\Application\Port\DataExportReadyMessage;
@@ -54,6 +55,9 @@ final class ClientPortalFakes implements ClientDirectoryInterface, ClinicProfile
 
     /** @var array<string, DocumentClinic> by clinic id */
     public array $headers = [];
+
+    /** @var array<string, ClinicContact> by clinic id */
+    public array $clinicContacts = [];
 
     /** @var array<string, list<string>> by "clinic/client" */
     public array $pets = [];
@@ -131,6 +135,11 @@ final class ClientPortalFakes implements ClientDirectoryInterface, ClinicProfile
     public function documentHeaderOf(string $clinicId): ?DocumentClinic
     {
         return $this->headers[$clinicId] ?? null;
+    }
+
+    public function contactDetailsOf(string $clinicId): ClinicContact
+    {
+        return $this->clinicContacts[$clinicId] ?? new ClinicContact(null, null);
     }
 
     public function petNamesOf(string $clinicId, string $clientId): array

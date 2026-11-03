@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\ClientPortal\Application\Query;
 
+use App\Context\ClientPortal\Application\Port\ClinicAddress;
+use App\Context\ClientPortal\Application\Port\ClinicContact;
 use App\Context\ClientPortal\Application\Port\ClinicLabel;
 use App\Context\ClientPortal\Application\Query\GetClientPortalStatus\ClientPortalStatus;
 use App\Context\ClientPortal\Application\Query\GetClientPortalStatus\GetClientPortalStatus;
@@ -74,6 +76,8 @@ final class OwnerQueriesTest extends TestCase
         $world                             = new W();
         $world->fakes->clinics[W::CLINIC]  = new ClinicLabel('Clinique des Lilas', 'Lyon', 'Europe/Paris');
         $world->fakes->clinics[W::CLINIC2] = new ClinicLabel('Clinique du Parc', null);
+        $contact                           = new ClinicContact('+33478380000', new ClinicAddress('4 place Bellecour', '69002', 'Lyon'));
+        $world->fakes->clinicContacts      = [W::CLINIC => $contact];
         $world->fakes->pets                = [W::CLINIC . '/' . W::CLIENT => ['Moka'], W::CLINIC . '/' . W::CLIENT2 => ['Rex'], W::CLINIC2 . '/' . W::CLIENT => ['Nala']];
         $at                                = static fn (string $d): \DateTimeImmutable => new \DateTimeImmutable($d);
         $world->links->save(ClientLink::confirm(ClientLinkId::fromString('01960000-0000-7000-8000-0000000000b1'), self::USER, W::CLINIC, W::CLIENT2, $at('2026-10-20')));
@@ -89,6 +93,8 @@ final class OwnerQueriesTest extends TestCase
             [W::CLINIC, 'Clinique des Lilas', 'Lyon', '2026-10-10', ['Rex', 'Moka'], 'Europe/Paris'],
             [W::CLINIC2, 'Clinique du Parc', null, '2026-10-15', ['Nala'], 'UTC'],
         ], array_map(static fn ($c): array => [$c->clinicId, $c->clinicName, $c->city, $c->linkedAt?->format('Y-m-d'), $c->petNames, $c->timeZone], $clinics));
+        self::assertSame($contact, $clinics[0]->contact, "the clinic's letterhead contact, as the port answers it");
+        self::assertSame([null, null], [$clinics[1]->contact->phone, $clinics[1]->contact->address]);
 
         $links = new HasConfirmedClientLinkHandler($world->links);
         self::assertTrue($links(new HasConfirmedClientLink(self::USER, W::CLINIC2)));

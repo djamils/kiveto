@@ -39,7 +39,7 @@ final class InvitationFlowTest extends PortalApiTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        ClinicEntityFactory::new()->withId(self::CLINIC_A)->withName('Clinique des Lilas')->withLetterhead(new LetterheadEmbeddable(streetLine1: '4 place Bellecour', postalCode: '69002', city: 'Lyon', countryCode: 'FR'))->create();
+        ClinicEntityFactory::new()->withId(self::CLINIC_A)->withName('Clinique des Lilas')->withLetterhead(new LetterheadEmbeddable(streetLine1: '4 place Bellecour', streetLine2: 'Bât. B', postalCode: '69002', city: 'Lyon', countryCode: 'FR', phone: '+33478380000'))->create();
         ClinicEntityFactory::new()->withId(self::CLINIC_B)->withName('Clinique du Port')->withLetterhead(new LetterheadEmbeddable(streetLine1: '1 quai Est', postalCode: '13002', city: 'Marseille', countryCode: 'FR'))->create();
     }
 
@@ -68,6 +68,7 @@ final class InvitationFlowTest extends PortalApiTestCase
         self::assertCount(1, $clinics);
         self::assertIsArray($clinics[0]);
         self::assertSame([self::CLINIC_A, 'Clinique des Lilas', 'confirmed', [], 0], [$clinics[0]['clinicId'], $clinics[0]['name'], $clinics[0]['linkStatus'], $clinics[0]['tags'], $clinics[0]['unreadDocuments']]);
+        self::assertSame(['+33478380000', ['line' => '4 place Bellecour, Bât. B', 'postalCode' => '69002', 'city' => 'Lyon']], [$clinics[0]['phone'], $clinics[0]['address']], "the clinic's letterhead contact");
 
         $retry = self::json($this->post('/invitations/accept', $body), 200);
         self::assertSame($account['id'], self::account($retry)['id']);
@@ -116,6 +117,9 @@ final class InvitationFlowTest extends PortalApiTestCase
         $me = self::json($this->get('/me', ['HTTP_AUTHORIZATION' => 'Bearer ' . self::string($accepted['accessToken'])]), 200);
         self::assertIsArray($me['clinics']);
         self::assertCount(2, $me['clinics'], 'AC 29: one account, two clinics');
+        $port = array_values(array_filter($me['clinics'], static fn (mixed $clinic): bool => \is_array($clinic) && self::CLINIC_B === $clinic['clinicId']));
+        self::assertCount(1, $port);
+        self::assertSame([null, ['line' => '1 quai Est', 'postalCode' => '13002', 'city' => 'Marseille']], [$port[0]['phone'], $port[0]['address']], 'a letterhead without a phone');
 
         self::assertSame('onboarding_invalid', self::problemType($this->post('/invitations/' . $second . '/accept', ['onboardingToken' => $grant, 'termsVersion' => '2026-10-29']), 401), 'the lost-answer retry: sign in again');
     }
