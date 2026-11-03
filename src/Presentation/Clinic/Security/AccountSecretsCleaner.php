@@ -15,16 +15,23 @@ use Symfony\Component\Security\Http\Event\LogoutEvent;
  * must not outlive the visit: the next person signing in on a shared
  * workstation — or the one signing out — leaves no usable link behind. The
  * session survives a sign-in (it is migrated, not emptied), hence this.
+ *
+ * Only the clinic firewall is listened to: the secrets live in the session of
+ * the clinic host, while the stateless Portal API firewall authenticates every
+ * call with its access token — a successful sign-in each time — and a
+ * stateless request must not use the session (a 500 in debug mode).
  */
 final readonly class AccountSecretsCleaner
 {
-    #[AsEventListener(event: LoginSuccessEvent::class)]
+    private const string CLINIC_FIREWALL_DISPATCHER = 'security.event_dispatcher.clinic';
+
+    #[AsEventListener(event: LoginSuccessEvent::class, dispatcher: self::CLINIC_FIREWALL_DISPATCHER)]
     public function onLogin(LoginSuccessEvent $event): void
     {
         self::forget($event->getRequest());
     }
 
-    #[AsEventListener(event: LogoutEvent::class)]
+    #[AsEventListener(event: LogoutEvent::class, dispatcher: self::CLINIC_FIREWALL_DISPATCHER)]
     public function onLogout(LogoutEvent $event): void
     {
         self::forget($event->getRequest());
