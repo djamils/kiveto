@@ -3489,6 +3489,7 @@ components:
         status:
           type: string
           enum:
+            - booked
             - overdue
             - due_soon
             - up_to_date
@@ -4033,6 +4034,7 @@ components:
         status:
           type: string
           enum:
+            - booked
             - overdue
             - due_soon
             - up_to_date

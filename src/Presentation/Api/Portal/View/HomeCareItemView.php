@@ -19,7 +19,7 @@ final readonly class HomeCareItemView
         public string $lastDoneOn,
         #[ApiProperty(schema: ['type' => 'string', 'format' => 'date'])]
         public string $dueOn,
-        #[ApiProperty(schema: ['type' => 'string', 'enum' => ['overdue', 'due_soon', 'up_to_date']])]
+        #[ApiProperty(schema: ['type' => 'string', 'enum' => ['booked', 'overdue', 'due_soon', 'up_to_date']])]
         public string $status,
     ) {
     }
