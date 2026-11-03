@@ -20,6 +20,10 @@ final readonly class ClinicLinkView
         public string $clinicId,
         public string $name,
         public ?string $city,
+        #[ApiProperty(description: "The clinic's phone as its letterhead records it; null when it has none.")]
+        public ?string $phone,
+        #[ApiProperty(description: "The clinic's letterhead address; null when the letterhead has no street line or no city.")]
+        public ?ClinicAddressView $address,
         /** IANA time zone of the clinic, in which its clinical instants are emitted. */
         public string $timezone,
         #[ApiProperty(schema: ['type' => 'string', 'enum' => ['pending', 'confirmed']])]

@@ -3493,6 +3493,18 @@ components:
             - overdue
             - due_soon
             - up_to_date
+    ClinicAddressView:
+      type: object
+      properties:
+        line:
+          description: 'Street lines 1 and 2 of the letterhead, joined by a comma.'
+          type: string
+        postalCode:
+          type:
+            - string
+            - 'null'
+        city:
+          type: string
     ClinicLinkView:
       type: object
       properties:
@@ -3504,6 +3516,18 @@ components:
           type:
             - string
             - 'null'
+        phone:
+          description: "The clinic's phone as its letterhead records it; null when it has none."
+          type:
+            - string
+            - 'null'
+        address:
+          description: "The clinic's letterhead address; null when the letterhead has no street line or no city."
+          anyOf:
+            -
+              $ref: '#/components/schemas/ClinicAddressView'
+            -
+              type: 'null'
         timezone:
           type: string
         linkStatus:

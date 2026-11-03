@@ -12,6 +12,7 @@ use App\Context\Client\Application\Query\GetClientById\PostalAddressDto;
 use App\Context\Client\Application\Query\GetClientNotificationContact\ClientNotificationContact;
 use App\Context\Client\Application\Query\GetClientNotificationContact\GetClientNotificationContact;
 use App\Context\Client\Application\Query\IsPortalMobileNumber\IsPortalMobileNumber;
+use App\Context\ClientPortal\Application\Port\ClinicContact;
 use App\Context\ClientPortal\Infrastructure\Adapter\Animal\QueryBusPetNames;
 use App\Context\ClientPortal\Infrastructure\Adapter\Client\QueryBusClientDirectory;
 use App\Context\ClientPortal\Infrastructure\Adapter\Client\QueryBusMobilePhonePolicy;
@@ -19,6 +20,8 @@ use App\Context\ClientPortal\Infrastructure\Adapter\Clinic\QueryBusClinicProfile
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\LetterheadDto;
+use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\ClinicSettingsView;
+use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\GetClinicSettings;
 use App\Context\Clinic\Domain\ValueObject\ClinicStatus;
 use App\Tests\Support\AnsweringQueryBus;
 use PHPUnit\Framework\TestCase;
@@ -81,6 +84,27 @@ final class QueryBusAdaptersTest extends TestCase
         self::assertSame(['', null, 'UTC'], [$unknown->name, $unknown->city, $unknown->timeZone]);
     }
 
+    public function testTheClinicContactIsReadFromTheLetterhead(): void
+    {
+        $full = ['streetLine1' => ' 4  place Bellecour ', 'streetLine2' => 'Bât. B', 'postalCode' => '69002', 'city' => 'Lyon', 'phone' => '+33478380000'];
+
+        $read = self::contactOf($full);
+        self::assertSame(['+33478380000', '4 place Bellecour, Bât. B', '69002', 'Lyon'], [$read->phone, $read->address?->line, $read->address?->postalCode, $read->address?->city]);
+
+        $blank = self::contactOf(['postalCode' => ' ', 'phone' => ' '] + $full);
+        self::assertSame([null, '4 place Bellecour, Bât. B', null, 'Lyon'], [$blank->phone, $blank->address?->line, $blank->address?->postalCode, $blank->address?->city], 'blank phone and postal code');
+        self::assertSame('Bât. B', self::contactOf(['streetLine1' => null] + $full)->address?->line, 'the second street line alone');
+
+        self::assertNull(self::contactOf(['streetLine1' => ' ', 'streetLine2' => null] + $full)->address, 'no street line');
+        self::assertNull(self::contactOf(['city' => ' '] + $full)->address, 'no city');
+
+        $empty = self::contactOf([]);
+        self::assertSame([null, null], [$empty->phone, $empty->address], 'an empty letterhead');
+
+        $unknown = new QueryBusClinicProfile(new AnsweringQueryBus())->contactDetailsOf('clinic-1');
+        self::assertSame([null, null], [$unknown->phone, $unknown->address]);
+    }
+
     public function testThePetNamesOfTheClientAreRead(): void
     {
         $bus = new AnsweringQueryBus([ListAnimalSummariesPerClientIds::class => ['client-1' => [new AnimalSummary('a1', 'Moka', 'cat'), new AnimalSummary('a2', 'Rex', 'dog')]]]);
@@ -92,5 +116,21 @@ final class QueryBusAdaptersTest extends TestCase
 
         self::assertSame([], new QueryBusPetNames($bus)->petNamesOf('clinic-1', 'client-2'));
         self::assertSame([], new QueryBusPetNames(new AnsweringQueryBus())->petNamesOf('clinic-1', 'client-1'));
+    }
+
+    /**
+     * @param array<string, string|null> $letterhead
+     */
+    private static function contactOf(array $letterhead): ClinicContact
+    {
+        $settings = new ClinicSettingsView('clinic-1', 'Clinique des Lilas', 'lilas', 'active', 'Europe/Paris', 'fr-FR', 'FR', 'EUR', $letterhead, [], [], []);
+        $bus      = new AnsweringQueryBus([GetClinicSettings::class => $settings]);
+        $contact  = new QueryBusClinicProfile($bus)->contactDetailsOf('clinic-1');
+
+        $query = $bus->asked[0];
+        self::assertInstanceOf(GetClinicSettings::class, $query);
+        self::assertSame('clinic-1', $query->clinicId);
+
+        return $contact;
     }
 }
