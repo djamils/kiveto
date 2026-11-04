@@ -198,9 +198,10 @@ nothing automated.
 
 `NOTIFICATION_DELIVERY` picks the delivery adapters: `disabled` (nothing
 leaves, the dispatch records `FAILED` « Envoi désactivé »), `simulator` (dev,
-tests: e-mail really goes through `MAILER_DSN` — Mailpit in dev — and the
-delivery webhook is faked; SMS never leaves the machine; refused in
-production) or `brevo` (real transports and webhooks).
+tests, STAGING, DEMO: e-mail really goes through `MAILER_DSN` — Mailpit in
+dev — and the delivery webhook is faked; SMS never leaves the machine;
+refused when `KIVETO_DEPLOYMENT=production`, whatever `APP_ENV`) or `brevo`
+(real transports and webhooks).
 `DeliverySelector` resolves the e-mail and SMS senders when a message is
 first dispatched, so the production guard (`LogicException`) holds even if
 the variable changes after the build. The simulator schedules
@@ -319,7 +320,9 @@ then configure in Brevo the tunnel URL followed by `/webhook/brevo_mailer`
 shared secret `BREVO_WEBHOOK_TOKEN` (the dev `NOTIFICATION_WEBHOOK_HOST` allows
 `*.trycloudflare.com`). The tunnel hides Brevo's IP: set
 `NOTIFICATION_WEBHOOK_SKIP_IP_CHECK=1` in `.env.local` — it disables the IP
-check only (the secret stays mandatory) and is refused when `APP_ENV=prod`.
+check only (the secret stays mandatory) and is refused on every deployment
+but dev (`KIVETO_DEPLOYMENT`), like the placeholder secret: STAGING and DEMO
+are public too.
 
 ## Templates
 

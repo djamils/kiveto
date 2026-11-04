@@ -11,6 +11,7 @@ use App\System\IdentityAccess\Application\Port\NotificationRequesterInterface;
 use App\System\IdentityAccess\Application\Port\OtpCodeGeneratorInterface;
 use App\System\IdentityAccess\Application\Port\OtpCodeHasherInterface;
 use App\System\IdentityAccess\Application\Port\PortalOtpRequest;
+use App\System\IdentityAccess\Application\Port\PortalTestPhonesInterface;
 use App\System\IdentityAccess\Application\Service\UnknownNumberSmsGate;
 use App\System\IdentityAccess\Domain\Exception\OtpChallengeNotFoundException;
 use App\System\IdentityAccess\Domain\Otp\OtpChallenge;
@@ -37,6 +38,9 @@ use Symfony\Component\Uid\Uuid;
  * of an e-mail verification code (it must reach the address it proves,
  * never the phone) changes nothing: the current code stays valid, and the
  * answer looks like a resend so that it tells nothing about the account.
+ *
+ * A test phone (PortalTestPhonesInterface) gets the fixed code again, on any
+ * channel, and is sent nothing.
  */
 #[AsMessageHandler]
 final readonly class ResendPortalOtpHandler
@@ -49,6 +53,7 @@ final readonly class ResendPortalOtpHandler
         private NotificationRequesterInterface $notifications,
         private ClockInterface $clock,
         private UnknownNumberSmsGate $unknownNumbers,
+        private PortalTestPhonesInterface $testPhones,
     ) {
     }
 
@@ -76,9 +81,14 @@ final readonly class ResendPortalOtpHandler
             );
         }
 
-        $code = $this->codes->generate();
+        $fixedCode = $this->testPhones->fixedCodeFor($challenge->phone(), $challenge->purpose());
+        $code      = $fixedCode ?? $this->codes->generate();
         $challenge->resend($this->codeHasher->hash($code), $channel, $now);
         $this->challenges->save($challenge);
+
+        if (null !== $fixedCode) {
+            return new OtpChallengeIssued($challenge->id()->toString(), $challenge->expiresAt(), $challenge->resendAvailableAt());
+        }
 
         $request = new PortalOtpRequest(
             challengeId: $challenge->id()->toString(),

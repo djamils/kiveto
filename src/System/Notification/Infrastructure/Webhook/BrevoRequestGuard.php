@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\System\Notification\Infrastructure\Webhook;
 
+use App\Shared\Infrastructure\Deployment\Deployment;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestMatcher\IpsRequestMatcher;
@@ -16,9 +17,10 @@ use Symfony\Component\Webhook\Exception\RejectWebhookException;
  * header when present, else as the `token` query parameter.
  *
  * NOTIFICATION_WEBHOOK_SKIP_IP_CHECK=1 (dev tunnel, which hides Brevo's IP)
- * disables the IP check only, and is refused in production. So is the
- * placeholder secret of `.env` (or none): Brevo's ranges are shared by every
- * Brevo customer, so the secret is what tells our account's calls apart.
+ * disables the IP check only, and is refused on every deployment but dev
+ * (KIVETO_DEPLOYMENT): STAGING and DEMO are public too. So is the placeholder
+ * secret of `.env` (or none): Brevo's ranges are shared by every Brevo
+ * customer, so the secret is what tells our account's calls apart.
  */
 final readonly class BrevoRequestGuard
 {
@@ -38,15 +40,15 @@ final readonly class BrevoRequestGuard
         private string $secret,
         #[Autowire(env: 'bool:NOTIFICATION_WEBHOOK_SKIP_IP_CHECK')]
         private bool $skipIpCheck,
-        #[Autowire(param: 'kernel.environment')]
-        string $environment,
+        #[Autowire(env: 'enum:App\Shared\Infrastructure\Deployment\Deployment:KIVETO_DEPLOYMENT')]
+        Deployment $deployment,
     ) {
-        if ($skipIpCheck && 'prod' === $environment) {
-            throw new \LogicException('NOTIFICATION_WEBHOOK_SKIP_IP_CHECK must not be set in production.');
+        if ($skipIpCheck && Deployment::DEV !== $deployment) {
+            throw new \LogicException('NOTIFICATION_WEBHOOK_SKIP_IP_CHECK must only be set in dev.');
         }
 
-        if ('prod' === $environment && \in_array($secret, ['', self::PLACEHOLDER_SECRET], true)) {
-            throw new \LogicException('BREVO_WEBHOOK_TOKEN must be set to a real secret in production.');
+        if (Deployment::DEV !== $deployment && \in_array($secret, ['', self::PLACEHOLDER_SECRET], true)) {
+            throw new \LogicException('BREVO_WEBHOOK_TOKEN must be set to a real secret outside dev.');
         }
 
         $this->brevoIps = new IpsRequestMatcher($allowedIps);

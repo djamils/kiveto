@@ -13,6 +13,7 @@ use App\System\IdentityAccess\Application\Port\NotificationRequesterInterface;
 use App\System\IdentityAccess\Application\Port\OtpCodeGeneratorInterface;
 use App\System\IdentityAccess\Application\Port\OtpCodeHasherInterface;
 use App\System\IdentityAccess\Application\Port\PortalOtpRequest;
+use App\System\IdentityAccess\Application\Port\PortalTestPhonesInterface;
 use App\System\IdentityAccess\Application\Service\UnknownNumberSmsGate;
 use App\System\IdentityAccess\Domain\Otp\OtpChallenge;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeId;
@@ -28,6 +29,8 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * Refused: the challenge exists (same answer) but no SMS leaves, now or on
  * a resend. An invitation
  * code goes to the phone a clinic chose and never spends that budget.
+ * A test phone (PortalTestPhonesInterface) gets the fixed code, spends no
+ * budget and is sent nothing.
  */
 #[AsMessageHandler]
 final readonly class RequestPortalOtpHandler
@@ -43,6 +46,7 @@ final readonly class RequestPortalOtpHandler
         private NotificationRequesterInterface $notifications,
         private UuidGeneratorInterface $uuids,
         private ClockInterface $clock,
+        private PortalTestPhonesInterface $testPhones,
     ) {
     }
 
@@ -56,16 +60,15 @@ final readonly class RequestPortalOtpHandler
             throw new \InvalidArgumentException('Action codes are requested by RequestPortalActionOtp, for a user.');
         }
 
-        $suppressed = false;
-        if (OtpPurpose::LOGIN === $purpose) {
-            if (!$this->mobilePolicy->isPortalMobile($phone->toString())) {
-                throw new PhoneNotSupportedException();
-            }
-
-            $suppressed = !$this->unknownNumbers->allows($phone, $command->requestContext);
+        if (OtpPurpose::LOGIN === $purpose && !$this->mobilePolicy->isPortalMobile($phone->toString())) {
+            throw new PhoneNotSupportedException();
         }
 
-        $code      = $this->codes->generate();
+        $fixedCode  = $this->testPhones->fixedCodeFor($phone, $purpose);
+        $suppressed = OtpPurpose::LOGIN === $purpose && null === $fixedCode
+            && !$this->unknownNumbers->allows($phone, $command->requestContext);
+
+        $code      = $fixedCode ?? $this->codes->generate();
         $challenge = OtpChallenge::start(
             OtpChallengeId::fromString($this->uuids->generate()),
             $phone,
@@ -77,7 +80,7 @@ final readonly class RequestPortalOtpHandler
         );
         $this->challenges->save($challenge);
 
-        if (!$suppressed) {
+        if (!$suppressed && null === $fixedCode) {
             $this->notifications->requestPortalOtp(new PortalOtpRequest(
                 challengeId: $challenge->id()->toString(),
                 phone: $phone->toString(),

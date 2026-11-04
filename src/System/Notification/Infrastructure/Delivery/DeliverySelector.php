@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\System\Notification\Infrastructure\Delivery;
 
+use App\Shared\Infrastructure\Deployment\Deployment;
 use App\System\Notification\Application\Port\EmailSenderInterface;
 use App\System\Notification\Application\Port\SmsSenderInterface;
 use Psr\Container\ContainerInterface;
@@ -12,7 +13,8 @@ use Psr\Log\LoggerInterface;
 /**
  * Picks the delivery adapters named by NOTIFICATION_DELIVERY when a sender
  * is first used — at runtime, so a value set after the image was built is
- * still checked: the local simulator never runs in production.
+ * still checked: the local simulator never runs in production
+ * (KIVETO_DEPLOYMENT: it does on STAGING and DEMO, which run APP_ENV=prod).
  *
  * - disabled: nothing leaves, every message is recorded FAILED « Envoi désactivé »;
  * - simulator: e-mail through MAILER_DSN (Mailpit in dev), SMS kept local,
@@ -30,7 +32,7 @@ final readonly class DeliverySelector
     public function __construct(
         private ContainerInterface $candidates,
         private string $delivery,
-        private string $environment,
+        private Deployment $deployment,
         private string $mailerDsn,
         private string $smsDsn,
         private LoggerInterface $logger,
@@ -68,7 +70,7 @@ final readonly class DeliverySelector
 
     private function adapter(string $channel): object
     {
-        if (self::SIMULATOR === $this->delivery && 'prod' === $this->environment) {
+        if (self::SIMULATOR === $this->delivery && Deployment::PRODUCTION === $this->deployment) {
             throw new \LogicException('The notification delivery simulator cannot run in production.');
         }
 

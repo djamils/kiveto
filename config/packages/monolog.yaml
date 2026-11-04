@@ -4,6 +4,7 @@ monolog:
         - messenger   # Channel for Messenger bus tracing logs
         - external_api # One record per call to an external service (service, duration, status, outcome)
         - dev_sms      # Dev only: every SMS body (DevLoggingSmsSender); declared everywhere, handled in dev only
+        - portal_test_phone # Every fixed code requested for a Portal test phone (PORTAL_TEST_PHONES), written in prod too
 
 # Symfony's own `http_client` channel logs full URLs, query strings included
 # (names, SIRENs): it is excluded from every handler and gets none of its own.
@@ -51,8 +52,15 @@ when@prod:
                 action_level: error
                 handler: nested
                 excluded_http_codes: [404, 405]
-                channels: ["!deprecation", "!http_client"]
+                channels: ["!deprecation", "!http_client", "!portal_test_phone"]
                 buffer_size: 50 # How many messages should be saved? Prevent memory leaks
+            # Not behind fingers_crossed: each use of a test phone is kept, error or not.
+            portal_test_phone:
+                type: stream
+                path: php://stderr
+                level: notice
+                formatter: monolog.formatter.json
+                channels: [portal_test_phone]
             nested:
                 type: stream
                 path: php://stderr

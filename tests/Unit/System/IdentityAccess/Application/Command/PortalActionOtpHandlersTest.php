@@ -56,7 +56,7 @@ final class PortalActionOtpHandlersTest extends PortalActionOtpTestCase
 
     public function testASignInCodeIsNeverAnActionCode(): void
     {
-        $handler = new RequestPortalOtpHandler($this->challenges, $this->portal, new UnknownNumberSmsGate($this->users, $this->portal, $this->portal), $this->portal, $this->portal, $this->fakes, $this->fakes, $this->clock());
+        $handler = new RequestPortalOtpHandler($this->challenges, $this->portal, new UnknownNumberSmsGate($this->users, $this->portal, $this->portal), $this->portal, $this->portal, $this->fakes, $this->fakes, $this->clock(), $this->portal);
 
         $this->expectExceptionMessage('Action codes are requested by RequestPortalActionOtp, for a user.');
         $handler(new RequestPortalOtp(self::ALICE_PHONE, 'email_change'));

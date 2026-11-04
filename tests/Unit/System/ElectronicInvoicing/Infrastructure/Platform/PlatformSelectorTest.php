@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\System\ElectronicInvoicing\Infrastructure\Platform;
 
+use App\Shared\Infrastructure\Deployment\Deployment;
 use App\System\ElectronicInvoicing\Domain\Port\OutboundFlow;
 use App\System\ElectronicInvoicing\Infrastructure\Platform\Disabled\DisabledPlatform;
 use App\System\ElectronicInvoicing\Infrastructure\Platform\PlatformSelector;
@@ -14,25 +15,28 @@ final class PlatformSelectorTest extends TestCase
 {
     public function testTheConfiguredAdapterServesEveryPort(): void
     {
-        $selector = $this->selector('disabled', 'prod');
+        $selector = $this->selector('disabled', Deployment::PRODUCTION);
 
         self::assertNull($selector->code());
         self::assertInstanceOf(DisabledPlatform::class, $selector->submitter());
         self::assertInstanceOf(DisabledPlatform::class, $selector->searcher());
         self::assertInstanceOf(DisabledPlatform::class, $selector->fetcher());
         self::assertInstanceOf(DisabledPlatform::class, $selector->directory());
-        self::assertSame('simulator', $this->selector('simulator', 'dev')->code());
+        self::assertSame('simulator', $this->selector('simulator', Deployment::DEV)->code());
+        // STAGING and DEMO run APP_ENV=prod with the simulator.
+        self::assertSame('simulator', $this->selector('simulator', Deployment::STAGING)->code());
+        self::assertSame('simulator', $this->selector('simulator', Deployment::DEMO)->code());
     }
 
     /**
-     * AC 31: checked when the port is resolved, with the environment of the run.
+     * AC 31: checked when the port is resolved, with the deployment of the run.
      */
     public function testTheSimulatorIsRefusedInProduction(): void
     {
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage('The electronic-invoicing simulator cannot run in production.');
 
-        $this->selector('simulator', 'prod')->submitter();
+        $this->selector('simulator', Deployment::PRODUCTION)->submitter();
     }
 
     public function testAnUnknownPlatformIsRefused(): void
@@ -40,7 +44,7 @@ final class PlatformSelectorTest extends TestCase
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage('Unknown electronic-invoicing platform "acme".');
 
-        $this->selector('acme', 'dev')->code();
+        $this->selector('acme', Deployment::DEV)->code();
     }
 
     public function testTheDisabledPlatformIsNeverReachable(): void
@@ -63,14 +67,14 @@ final class PlatformSelectorTest extends TestCase
         }
     }
 
-    private function selector(string $platform, string $environment): PlatformSelector
+    private function selector(string $platform, Deployment $deployment): PlatformSelector
     {
         $adapter = new DisabledPlatform();
 
         return new PlatformSelector(
             new ServiceLocator(['disabled' => static fn (): DisabledPlatform => $adapter, 'simulator' => static fn (): DisabledPlatform => $adapter]),
             $platform,
-            $environment,
+            $deployment,
         );
     }
 }
