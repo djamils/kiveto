@@ -1,0 +1,7 @@
+# Liveness (/health) and readiness (/health/ready) probes: public, on every
+# host — no `host:` here, unlike the applications' imports. Their names start
+# with `_`, like the profiler's and the webhooks': the host subscribers
+# (RequireClinicSelectionSubscriber) leave internal routes alone.
+health:
+    resource: ../../src/Presentation/Health/Controller/
+    type: attribute

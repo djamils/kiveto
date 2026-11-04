@@ -43,6 +43,16 @@ parameters:
     # every appointment event syncs the client 2 minutes later, once.
     scheduling.notification.sync_delay: 120000
 
+    # Health: the Messenger transports /health/ready reads — every queue a worker
+    # consumes (compose.yaml), and the failure queue. The scheduler transports are
+    # generated in memory and `sync` has no queue: neither is probed.
+    health.messenger_transports:
+        - 'async'
+        - 'async_external'
+        - 'async_external_notification'
+        - 'async_external_batch'
+        - 'failed'
+
     # Notification: Brevo's published webhook source ranges (checked against the
     # client IP as seen through the trusted proxies).
     notification.brevo.webhook_ips:
@@ -85,6 +95,10 @@ services:
 
     App\Presentation\Backoffice\Controller\:
         resource: '../src/Presentation/Backoffice/Controller/'
+        tags: ['controller.service_arguments']
+
+    App\Presentation\Health\Controller\:
+        resource: '../src/Presentation/Health/Controller/'
         tags: ['controller.service_arguments']
 
     App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.clinic:
