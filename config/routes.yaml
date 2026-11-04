@@ -7,6 +7,8 @@
 # To list all registered routes, run the following command:
 #   bin/console debug:router
 
+health:
+    resource: routes/health.yaml
 clinic:
     resource: routes/clinic.yaml
 api:

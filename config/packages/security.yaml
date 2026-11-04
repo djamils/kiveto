@@ -25,6 +25,11 @@ security:
             pattern: ^/webhook/
             security: false
 
+        # Liveness and readiness probes (any host): no session, no user.
+        health:
+            pattern: ^/health(/ready)?$
+            security: false
+
         dev:
             # Ensure dev tools and static assets are always allowed
             pattern: ^/(_profiler|_wdt|assets|build)/
