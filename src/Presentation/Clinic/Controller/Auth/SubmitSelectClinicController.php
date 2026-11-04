@@ -19,7 +19,6 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
-#[Route(path: '', host: 'clinic.kiveto.local')]
 final class SubmitSelectClinicController extends AbstractController
 {
     public function __construct(

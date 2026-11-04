@@ -15,9 +15,8 @@ framework:
 
     trusted_hosts:
         - '^localhost(:\d+)?$'
-        - '^clinic\.kiveto\.local(:\d+)?$'
-        - '^portal\.kiveto\.local(:\d+)?$'
-        - '^backoffice\.kiveto\.local(:\d+)?$'
+        # clinic, portal and backoffice on any Kiveto domain (config/services.yaml).
+        - '^(?:clinic|portal|backoffice)\.(?:%kiveto.domain_pattern%)(:\d+)?$'
         # Host on which Brevo calls the webhooks (hooks.kiveto.app, dev tunnel).
         - '%env(NOTIFICATION_WEBHOOK_HOST)%'
 

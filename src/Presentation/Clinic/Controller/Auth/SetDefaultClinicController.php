@@ -21,7 +21,6 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
  * The star of the clinic switcher: picks the clinic opened at sign-in without
  * leaving the one the member is working in.
  */
-#[Route(path: '', host: 'clinic.kiveto.local')]
 final class SetDefaultClinicController extends AbstractController
 {
     public function __construct(
