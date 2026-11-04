@@ -1,4 +1,7 @@
+# Host: see config/routes/api.yaml.
 portal:
     resource: ../../src/Presentation/Portal/Controller/
     type: attribute
-    host: 'portal.kiveto.local'
+    host: 'portal.{kiveto_domain}'
+    requirements:
+        kiveto_domain: '%kiveto.domain_pattern%'

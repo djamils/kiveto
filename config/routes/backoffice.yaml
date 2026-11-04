@@ -1,4 +1,7 @@
+# Host: see config/routes/api.yaml.
 backoffice:
     resource: ../../src/Presentation/Backoffice/Controller/
     type: attribute
-    host: 'backoffice.kiveto.local'
+    host: 'backoffice.{kiveto_domain}'
+    requirements:
+        kiveto_domain: '%kiveto.domain_pattern%'

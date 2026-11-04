@@ -1,5 +1,8 @@
+# Host: see config/routes/api.yaml.
 clinic:
     resource: ../../src/Presentation/Clinic/Controller/
     type: attribute
-    host: 'clinic.kiveto.local'
+    host: 'clinic.{kiveto_domain}'
+    requirements:
+        kiveto_domain: '%kiveto.domain_pattern%'
     exclude: '../../src/Presentation/Clinic/Controller/Api/**'

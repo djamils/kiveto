@@ -27,7 +27,6 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
-#[Route(path: '', host: 'backoffice.kiveto.local')]
 final class ClinicController extends AbstractController
 {
     private const string CSRF_ID = 'backoffice_clinic';

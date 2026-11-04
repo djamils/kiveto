@@ -7,6 +7,16 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    # Domains a deployment may run on (KIVETO_DOMAIN): dev and tests, STAGING,
+    # DEMO, production. Its hosts are clinic., portal. and backoffice.<domain>.
+    # A static regex alternation, so that one compiled cache serves every
+    # deployment: the requirement of the routes' {kiveto_domain} and the host
+    # patterns of framework.trusted_hosts, of the firewalls and access rules.
+    kiveto.domain_pattern: 'kiveto\.local|staging\.kiveto\.app|demo\.kiveto\.app|kiveto\.app'
+    kiveto.host_pattern.clinic: '^clinic\.(?:%kiveto.domain_pattern%)$'
+    kiveto.host_pattern.portal: '^portal\.(?:%kiveto.domain_pattern%)$'
+    kiveto.host_pattern.backoffice: '^backoffice\.(?:%kiveto.domain_pattern%)$'
+
     app.default_locale: 'en-GB'
     app.backoffice_locale: 'fr-FR'
     app.short_locale_map:
@@ -570,6 +580,8 @@ services:
 
     App\System\Translation\Application\Port\AppScopeResolverInterface:
         class: App\System\Translation\Infrastructure\Resolver\HostnameAppScopeResolver
+        arguments:
+            $domain: '%env(kiveto_domain:KIVETO_DOMAIN)%'
 
     App\System\Translation\Infrastructure\Resolver\DefaultLocaleResolver:
         arguments:

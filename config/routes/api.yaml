@@ -1,15 +1,22 @@
+# Hosts: `<app>.{kiveto_domain}`, the domain of the deployment (KIVETO_DOMAIN,
+# set on the router's context by the Kernel); `kiveto.domain_pattern` lists
+# the domains a deployment may run on.
 api_clinic:
     resource: ../../src/Presentation/Clinic/Controller/Api/Clinic/
     type: attribute
     prefix: /api/clinic
-    host: 'clinic.kiveto.local'
+    host: 'clinic.{kiveto_domain}'
+    requirements:
+        kiveto_domain: '%kiveto.domain_pattern%'
 
 # The only API Platform import: the Portal API, on the portal host.
 api_portal:
     resource: .
     type: api_platform
     prefix: /api/portal/v1
-    host: 'portal.kiveto.local'
+    host: 'portal.{kiveto_domain}'
+    requirements:
+        kiveto_domain: '%kiveto.domain_pattern%'
 
 # The Portal routes that API Platform does not serve: file downloads and
 # calendars (`__invoke` controllers), on the same prefix and host.
@@ -17,4 +24,6 @@ api_portal_controllers:
     resource: ../../src/Presentation/Api/Portal/Controller/
     type: attribute
     prefix: /api/portal/v1
-    host: 'portal.kiveto.local'
+    host: 'portal.{kiveto_domain}'
+    requirements:
+        kiveto_domain: '%kiveto.domain_pattern%'

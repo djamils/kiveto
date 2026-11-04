@@ -18,6 +18,8 @@ security:
         portal_api_user_provider:
             id: App\Presentation\Api\Portal\Security\PortalApiUserProvider
 
+    # Firewalls and rules are bound to the hosts of the deployment's domain
+    # (kiveto.host_pattern.* in config/services.yaml, see KIVETO_DOMAIN).
     firewalls:
         # Brevo delivery webhooks (any host): no session, no user; the request
         # parsers authenticate Brevo (IP ranges + shared secret).
@@ -33,7 +35,7 @@ security:
         clinic:
             lazy: true
             pattern: ^/
-            host: '^clinic\.kiveto\.local$'
+            host: '%kiveto.host_pattern.clinic%'
             provider: clinic_user_provider
             custom_authenticators:
                 - App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticator
@@ -50,7 +52,7 @@ security:
         portal_api:
             stateless: true
             pattern: ^/api/portal/v1
-            host: '^portal\.kiveto\.local$'
+            host: '%kiveto.host_pattern.portal%'
             provider: portal_api_user_provider
             jwt:
                 authenticator: app.portal_api.jwt_authenticator
@@ -58,7 +60,7 @@ security:
         portal:
             lazy: true
             pattern: ^/
-            host: '^portal\.kiveto\.local$'
+            host: '%kiveto.host_pattern.portal%'
             provider: portal_user_provider
             custom_authenticators:
                 - App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticator
@@ -69,7 +71,7 @@ security:
         backoffice:
             lazy: true
             pattern: ^/
-            host: '^backoffice\.kiveto\.local$'
+            host: '%kiveto.host_pattern.backoffice%'
             provider: backoffice_user_provider
             custom_authenticators:
                 - App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticator
@@ -86,28 +88,28 @@ security:
     # Note: Only the *first* matching rule is applied
     access_control:
         # Allow unauthenticated access to the login endpoint to avoid redirect loops
-        - { host: '^clinic\.kiveto\.local$', path: '^/login', roles: PUBLIC_ACCESS }
+        - { host: '%kiveto.host_pattern.clinic%', path: '^/login', roles: PUBLIC_ACCESS }
         # Forgot password, reset link and invitation link (the token-less
         # addresses are where the links redirect once the secret is in the session)
-        - { host: '^clinic\.kiveto\.local$', path: '^/(mot-de-passe-oublie|reinitialiser(/[^/]+)?|invitation(/[^/]+)?)$', roles: PUBLIC_ACCESS }
-        - { host: '^portal\.kiveto\.local$', path: '^/login', roles: PUBLIC_ACCESS }
+        - { host: '%kiveto.host_pattern.clinic%', path: '^/(mot-de-passe-oublie|reinitialiser(/[^/]+)?|invitation(/[^/]+)?)$', roles: PUBLIC_ACCESS }
+        - { host: '%kiveto.host_pattern.portal%', path: '^/login', roles: PUBLIC_ACCESS }
         # Portal API: sign-in, refresh, registration (anchored), invitations,
         # terms and docs are public;
         # `_test/` routes only exist in the test env.
-        - { host: '^portal\.kiveto\.local$', path: '^/api/portal/v1/(auth/otp|auth/refresh|auth/register$|invitations|legal|docs|_test/|files/)', roles: PUBLIC_ACCESS }
+        - { host: '%kiveto.host_pattern.portal%', path: '^/api/portal/v1/(auth/otp|auth/refresh|auth/register$|invitations|legal|docs|_test/|files/)', roles: PUBLIC_ACCESS }
         # Clinic directory: the new-client booking (the only non-GET route)
         # is authenticated, every GET is public.
-        - { host: '^portal\.kiveto\.local$', path: '^/api/portal/v1/clinic-listings/[^/]+/booking/appointments$', roles: IS_AUTHENTICATED_FULLY }
-        - { host: '^portal\.kiveto\.local$', path: '^/api/portal/v1/clinic-listings', methods: [GET], roles: PUBLIC_ACCESS }
-        - { host: '^portal\.kiveto\.local$', path: '^/api/portal/v1', roles: IS_AUTHENTICATED_FULLY }
+        - { host: '%kiveto.host_pattern.portal%', path: '^/api/portal/v1/clinic-listings/[^/]+/booking/appointments$', roles: IS_AUTHENTICATED_FULLY }
+        - { host: '%kiveto.host_pattern.portal%', path: '^/api/portal/v1/clinic-listings', methods: [GET], roles: PUBLIC_ACCESS }
+        - { host: '%kiveto.host_pattern.portal%', path: '^/api/portal/v1', roles: IS_AUTHENTICATED_FULLY }
         # Invitation landing page and app-link files of the owner app.
-        - { host: '^portal\.kiveto\.local$', path: '^/(invitation$|\.well-known/)', roles: PUBLIC_ACCESS }
-        - { host: '^backoffice\.kiveto\.local$', path: '^/login', roles: PUBLIC_ACCESS }
+        - { host: '%kiveto.host_pattern.portal%', path: '^/(invitation$|\.well-known/)', roles: PUBLIC_ACCESS }
+        - { host: '%kiveto.host_pattern.backoffice%', path: '^/login', roles: PUBLIC_ACCESS }
 
         # Protect everything else
-        - { host: '^clinic\.kiveto\.local$', path: '^/', roles: IS_AUTHENTICATED_FULLY }
-        - { host: '^portal\.kiveto\.local$', path: '^/', roles: IS_AUTHENTICATED_FULLY }
-        - { host: '^backoffice\.kiveto\.local$', path: '^/', roles: IS_AUTHENTICATED_FULLY }
+        - { host: '%kiveto.host_pattern.clinic%', path: '^/', roles: IS_AUTHENTICATED_FULLY }
+        - { host: '%kiveto.host_pattern.portal%', path: '^/', roles: IS_AUTHENTICATED_FULLY }
+        - { host: '%kiveto.host_pattern.backoffice%', path: '^/', roles: IS_AUTHENTICATED_FULLY }
 
 when@test:
     security:
