@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\System\Notification\Infrastructure\Delivery;
 
+use App\Shared\Infrastructure\Deployment\Deployment;
 use App\System\Notification\Application\Command\RecordDeliveryEvent\RecordDeliveryEvent;
 use App\System\Notification\Application\Exception\DeliveryRefusedException;
 use App\System\Notification\Application\Port\OutgoingEmail;
@@ -37,7 +38,7 @@ final class DeliveryAdaptersTest extends TestCase
         $email = new FakeSenders();
         $sms   = new FakeSenders();
 
-        $selector = self::selector(['brevo.email' => $email, 'brevo.sms' => $sms], 'brevo', 'prod');
+        $selector = self::selector(['brevo.email' => $email, 'brevo.sms' => $sms], 'brevo', Deployment::PRODUCTION);
 
         self::assertSame($email, $selector->emailSender());
         self::assertSame($sms, $selector->smsSender());
@@ -50,7 +51,7 @@ final class DeliveryAdaptersTest extends TestCase
     public function testBrevoDeliveryOnANullTransportRefusesEveryMessage(): void
     {
         $logger   = new BufferingLogger();
-        $selector = new DeliverySelector(self::candidates(['brevo.email' => new FakeSenders(), 'brevo.sms' => new FakeSenders()]), 'brevo', 'prod', 'null://null', ' NULL://null', $logger);
+        $selector = new DeliverySelector(self::candidates(['brevo.email' => new FakeSenders(), 'brevo.sms' => new FakeSenders()]), 'brevo', Deployment::PRODUCTION, 'null://null', ' NULL://null', $logger);
 
         foreach ([[$selector->emailSender(), self::email(), 'Transport e-mail non configuré', 'MAILER_DSN'], [$selector->smsSender(), new OutgoingSms('Kiveto', '+33612345678', 'x', 'k'), 'Transport SMS non configuré', 'NOTIFIER_SMS_DSN']] as [$sender, $message, $reason, $variable]) {
             try {
@@ -70,7 +71,28 @@ final class DeliveryAdaptersTest extends TestCase
     {
         $email = new FakeSenders();
 
-        self::assertSame($email, new DeliverySelector(self::candidates(['simulator.email' => $email]), 'simulator', 'test', 'null://null', 'null://null', new BufferingLogger())->emailSender());
+        self::assertSame($email, new DeliverySelector(self::candidates(['simulator.email' => $email]), 'simulator', Deployment::STAGING, 'null://null', 'null://null', new BufferingLogger())->emailSender());
+    }
+
+    /**
+     * STAGING and DEMO run APP_ENV=prod: the simulator is keyed on the deployment.
+     */
+    #[DataProvider('provideTheSimulatorRunsOutsideProductionCases')]
+    public function testTheSimulatorRunsOutsideProduction(Deployment $deployment): void
+    {
+        $sms = new FakeSenders();
+
+        self::assertSame($sms, self::selector(['simulator.sms' => $sms], 'simulator', $deployment)->smsSender());
+    }
+
+    /**
+     * @return iterable<string, array{Deployment}>
+     */
+    public static function provideTheSimulatorRunsOutsideProductionCases(): iterable
+    {
+        yield 'dev' => [Deployment::DEV];
+        yield 'staging' => [Deployment::STAGING];
+        yield 'demo' => [Deployment::DEMO];
     }
 
     /**
@@ -78,7 +100,7 @@ final class DeliveryAdaptersTest extends TestCase
      */
     public function testTheSimulatorIsRefusedInProduction(): void
     {
-        $selector = self::selector(['simulator.email' => new FakeSenders()], 'simulator', 'prod');
+        $selector = self::selector(['simulator.email' => new FakeSenders()], 'simulator', Deployment::PRODUCTION);
 
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage('simulator cannot run in production');
@@ -91,7 +113,7 @@ final class DeliveryAdaptersTest extends TestCase
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage('Unknown notification delivery "smtp"');
 
-        self::selector([], 'smtp', 'dev')->smsSender();
+        self::selector([], 'smtp', Deployment::DEV)->smsSender();
     }
 
     public function testDisabledDeliveryRefusesEverything(): void
@@ -180,9 +202,9 @@ final class DeliveryAdaptersTest extends TestCase
      *
      * @param array<string, object> $services
      */
-    private static function selector(array $services, string $delivery, string $environment): DeliverySelector
+    private static function selector(array $services, string $delivery, Deployment $deployment): DeliverySelector
     {
-        return new DeliverySelector(self::candidates($services), $delivery, $environment, 'brevo+api://KEY@default', 'brevo://KEY@default', new BufferingLogger());
+        return new DeliverySelector(self::candidates($services), $delivery, $deployment, 'brevo+api://KEY@default', 'brevo://KEY@default', new BufferingLogger());
     }
 
     private static function email(): OutgoingEmail

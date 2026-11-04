@@ -169,14 +169,14 @@ final class RequestPortalOtpUnknownBudgetTest extends TestCase
 
     private function resend(string $challengeId, ?OtpRequestContext $context, \DateTimeImmutable $at): OtpChallengeIssued
     {
-        $handler = new ResendPortalOtpHandler($this->challenges, $this->users, $this->portal, $this->portal, $this->fakes, new FrozenClock($at), new UnknownNumberSmsGate($this->users, $this->portal, $this->portal));
+        $handler = new ResendPortalOtpHandler($this->challenges, $this->users, $this->portal, $this->portal, $this->fakes, new FrozenClock($at), new UnknownNumberSmsGate($this->users, $this->portal, $this->portal), $this->portal);
 
         return $handler(new ResendPortalOtp($challengeId, 'sms', $context));
     }
 
     private function request(?OtpRequestContext $context): void
     {
-        $handler = new RequestPortalOtpHandler($this->challenges, $this->portal, new UnknownNumberSmsGate($this->users, $this->portal, $this->portal), $this->portal, $this->portal, $this->fakes, $this->fakes, new FrozenClock(new \DateTimeImmutable('2026-11-02 09:00:00')));
+        $handler = new RequestPortalOtpHandler($this->challenges, $this->portal, new UnknownNumberSmsGate($this->users, $this->portal, $this->portal), $this->portal, $this->portal, $this->fakes, $this->fakes, new FrozenClock(new \DateTimeImmutable('2026-11-02 09:00:00')), $this->portal);
 
         $handler(new RequestPortalOtp(self::PHONE, 'login', requestContext: $context));
     }

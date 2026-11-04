@@ -61,7 +61,7 @@ abstract class PortalActionOtpTestCase extends TestCase
 
     protected function actionOtpHandler(): RequestPortalActionOtpHandler
     {
-        return new RequestPortalActionOtpHandler($this->challenges, $this->owners(), $this->portal, $this->portal, $this->fakes, $this->fakes, $this->clock());
+        return new RequestPortalActionOtpHandler($this->challenges, $this->owners(), $this->portal, $this->portal, $this->fakes, $this->fakes, $this->clock(), $this->portal);
     }
 
     protected function verifier(string $after = '+1 minute'): ActionOtpVerifier

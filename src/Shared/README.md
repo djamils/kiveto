@@ -127,7 +127,8 @@ its platform ports are called only from `ExternalApiCommandInterface` handlers
 (`SubmitTransmission` on `async_external`, `SyncPlatformFlows` on
 `async_external_batch`), which dispatch transactional *record* commands; the
 adapter is picked by `ELECTRONIC_INVOICING_PLATFORM` (`disabled` | `simulator`,
-the local simulator standing for the fixture adapter, refused in production);
+the local simulator standing for the fixture adapter, refused when
+`KIVETO_DEPLOYMENT=production` — see `Infrastructure/Deployment/Deployment`);
 its schedule `electronic_invoicing` (and Billing's `billing`) follow the
 scheduled-task rules above.
 

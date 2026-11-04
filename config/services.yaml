@@ -1484,7 +1484,7 @@ services:
         arguments:
             $candidates: '@electronic_invoicing.platform.candidates'
             $platform: '%env(ELECTRONIC_INVOICING_PLATFORM)%'
-            $environment: '%kernel.environment%'
+            $deployment: '%env(enum:App\Shared\Infrastructure\Deployment\Deployment:KIVETO_DEPLOYMENT)%'
 
     App\System\ElectronicInvoicing\Application\Port\ConfiguredPlatformInterface: '@App\System\ElectronicInvoicing\Infrastructure\Platform\PlatformSelector'
 
@@ -1541,7 +1541,8 @@ services:
         class: App\System\Notification\Infrastructure\Persistence\Doctrine\Repository\DbalUnmatchedDeliveryEventRepository
 
     # Delivery adapters, picked by NOTIFICATION_DELIVERY when first used
-    # (disabled | simulator | brevo); the simulator is refused in production then.
+    # (disabled | simulator | brevo); the simulator is refused in production then
+    # (KIVETO_DEPLOYMENT=production, not APP_ENV: STAGING and DEMO run it).
     notification.delivery.candidates:
         class: Symfony\Component\DependencyInjection\ServiceLocator
         tags: ['container.service_locator']
@@ -1557,7 +1558,7 @@ services:
         arguments:
             $candidates: '@notification.delivery.candidates'
             $delivery: '%env(NOTIFICATION_DELIVERY)%'
-            $environment: '%kernel.environment%'
+            $deployment: '%env(enum:App\Shared\Infrastructure\Deployment\Deployment:KIVETO_DEPLOYMENT)%'
             $mailerDsn: '%env(MAILER_DSN)%'
             $smsDsn: '%env(NOTIFIER_SMS_DSN)%'
             $logger: '@monolog.logger.external_api'

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\System\ElectronicInvoicing\Infrastructure\Platform;
 
+use App\Shared\Infrastructure\Deployment\Deployment;
 use App\System\ElectronicInvoicing\Application\Port\ConfiguredPlatformInterface;
 use App\System\ElectronicInvoicing\Domain\Port\DirectoryLookupInterface;
 use App\System\ElectronicInvoicing\Domain\Port\FlowFetcherInterface;
@@ -14,7 +15,8 @@ use Psr\Container\ContainerInterface;
 /**
  * Picks the platform adapter named by ELECTRONIC_INVOICING_PLATFORM when a
  * port is first used — at runtime, so a value set after the image was built
- * is still checked: the local simulator never runs in production.
+ * is still checked: the local simulator never runs in production
+ * (KIVETO_DEPLOYMENT: it does on STAGING and DEMO, which run APP_ENV=prod).
  */
 final readonly class PlatformSelector implements ConfiguredPlatformInterface
 {
@@ -25,7 +27,7 @@ final readonly class PlatformSelector implements ConfiguredPlatformInterface
     public function __construct(
         private ContainerInterface $candidates,
         private string $platform,
-        private string $environment,
+        private Deployment $deployment,
     ) {
     }
 
@@ -80,7 +82,7 @@ final readonly class PlatformSelector implements ConfiguredPlatformInterface
 
     private function guard(): void
     {
-        if (self::SIMULATOR === $this->platform && 'prod' === $this->environment) {
+        if (self::SIMULATOR === $this->platform && Deployment::PRODUCTION === $this->deployment) {
             throw new \LogicException('The electronic-invoicing simulator cannot run in production.');
         }
 

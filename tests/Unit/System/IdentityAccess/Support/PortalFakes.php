@@ -12,15 +12,27 @@ use App\System\IdentityAccess\Application\Port\OtpCodeGeneratorInterface;
 use App\System\IdentityAccess\Application\Port\OtpCodeHasherInterface;
 use App\System\IdentityAccess\Application\Port\PendingPortalInvitation;
 use App\System\IdentityAccess\Application\Port\PendingPortalInvitationsInterface;
+use App\System\IdentityAccess\Application\Port\PortalTestPhonesInterface;
 use App\System\IdentityAccess\Application\Port\UnknownNumberSmsBudgetInterface;
+use App\System\IdentityAccess\Domain\Otp\OtpPurpose;
 
 /**
  * Hand-written doubles of the Portal ports: predictable codes and a readable
  * code digest, plain access tokens, a switchable mobile policy and a
- * countable unknown-number budget (network, device and global layers).
+ * countable unknown-number budget (network, device and global layers),
+ * and test phones answering a fixed code.
  */
-final class PortalFakes implements OtpCodeGeneratorInterface, OtpCodeHasherInterface, AccessTokenIssuerInterface, MobilePhonePolicyInterface, UnknownNumberSmsBudgetInterface, PendingPortalInvitationsInterface
+final class PortalFakes implements OtpCodeGeneratorInterface, OtpCodeHasherInterface, AccessTokenIssuerInterface, MobilePhonePolicyInterface, UnknownNumberSmsBudgetInterface, PendingPortalInvitationsInterface, PortalTestPhonesInterface
 {
+    /** The fixed code of the test phones. */
+    public const string TEST_CODE = '424242';
+
+    /** @var list<string> test phones (E.164); none by default */
+    public array $testPhones = [];
+
+    /** @var list<string> fixed codes handed out: `<phone> <purpose>` */
+    public array $testPhoneRequests = [];
+
     /** @var array<string, list<PendingPortalInvitation>> pending invitations by phone */
     public array $pending = [];
 
@@ -103,6 +115,17 @@ final class PortalFakes implements OtpCodeGeneratorInterface, OtpCodeHasherInter
     public function listForPhone(PhoneNumber $phone): array
     {
         return $this->pending[$phone->toString()] ?? [];
+    }
+
+    public function fixedCodeFor(PhoneNumber $phone, OtpPurpose $purpose): ?string
+    {
+        if (!\in_array($phone->toString(), $this->testPhones, true)) {
+            return null;
+        }
+
+        $this->testPhoneRequests[] = $phone->toString() . ' ' . $purpose->value;
+
+        return self::TEST_CODE;
     }
 
     private function consumeLayer(string $key, int $limit): bool

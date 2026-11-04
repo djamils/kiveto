@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\System\Notification\Infrastructure\Webhook;
 
+use App\Shared\Infrastructure\Deployment\Deployment;
 use App\System\Notification\Infrastructure\Webhook\BrevoRequestGuard;
 use App\Tests\Unit\System\Notification\Support\BrevoPayloads;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -49,57 +50,73 @@ final class BrevoRequestGuardTest extends TestCase
 
     public function testAnUnconfiguredSecretRejectsEverything(): void
     {
-        self::assertRejected(401, BrevoPayloads::request([], bearer: ''), new BrevoRequestGuard(self::IPS, '', false, 'dev'));
+        self::assertRejected(401, BrevoPayloads::request([], bearer: ''), new BrevoRequestGuard(self::IPS, '', false, Deployment::DEV));
     }
 
     public function testTheDevTunnelFlagSkipsOnlyTheIpCheck(): void
     {
-        $guard = new BrevoRequestGuard(self::IPS, BrevoPayloads::SECRET, true, 'dev');
+        $guard = new BrevoRequestGuard(self::IPS, BrevoPayloads::SECRET, true, Deployment::DEV);
 
         $guard->check(BrevoPayloads::request([], ip: '203.0.113.7'));
         self::assertRejected(401, BrevoPayloads::request([], ip: '203.0.113.7', bearer: 'guess'), $guard);
     }
 
-    public function testTheDevTunnelFlagIsRefusedInProduction(): void
+    /**
+     * STAGING and DEMO are public like production: only dev may skip the IP check.
+     */
+    #[DataProvider('provideTheDevTunnelFlagIsRefusedOutsideDevCases')]
+    public function testTheDevTunnelFlagIsRefusedOutsideDev(Deployment $deployment): void
     {
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage('NOTIFICATION_WEBHOOK_SKIP_IP_CHECK must not be set in production.');
+        $this->expectExceptionMessage('NOTIFICATION_WEBHOOK_SKIP_IP_CHECK must only be set in dev.');
 
-        new BrevoRequestGuard(self::IPS, BrevoPayloads::SECRET, true, 'prod');
+        new BrevoRequestGuard(self::IPS, BrevoPayloads::SECRET, true, $deployment);
     }
 
     /**
-     * N2: Brevo's ranges are shared by all its customers — production
-     * refuses to run on the placeholder secret of `.env`, or on none.
+     * @return iterable<string, array{Deployment}>
      */
-    #[DataProvider('provideAPlaceholderSecretIsRefusedInProductionCases')]
-    public function testAPlaceholderSecretIsRefusedInProduction(string $secret): void
+    public static function provideTheDevTunnelFlagIsRefusedOutsideDevCases(): iterable
     {
-        $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage('BREVO_WEBHOOK_TOKEN must be set to a real secret in production.');
-
-        new BrevoRequestGuard(self::IPS, $secret, false, 'prod');
+        yield 'staging' => [Deployment::STAGING];
+        yield 'demo' => [Deployment::DEMO];
+        yield 'production' => [Deployment::PRODUCTION];
     }
 
     /**
-     * @return iterable<string, array{string}>
+     * N2: Brevo's ranges are shared by all its customers — no public
+     * deployment runs on the placeholder secret of `.env`, or on none.
      */
-    public static function provideAPlaceholderSecretIsRefusedInProductionCases(): iterable
+    #[DataProvider('provideAPlaceholderSecretIsRefusedOutsideDevCases')]
+    public function testAPlaceholderSecretIsRefusedOutsideDev(string $secret, Deployment $deployment): void
     {
-        yield 'placeholder' => ['change-me'];
-        yield 'empty' => [''];
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('BREVO_WEBHOOK_TOKEN must be set to a real secret outside dev.');
+
+        new BrevoRequestGuard(self::IPS, $secret, false, $deployment);
+    }
+
+    /**
+     * @return iterable<string, array{string, Deployment}>
+     */
+    public static function provideAPlaceholderSecretIsRefusedOutsideDevCases(): iterable
+    {
+        foreach (self::provideTheDevTunnelFlagIsRefusedOutsideDevCases() as $name => [$deployment]) {
+            yield 'placeholder on ' . $name => ['change-me', $deployment];
+            yield 'empty on ' . $name => ['', $deployment];
+        }
     }
 
     public function testProductionRunsWithTheIpCheck(): void
     {
-        $guard = new BrevoRequestGuard(self::IPS, BrevoPayloads::SECRET, false, 'prod');
+        $guard = new BrevoRequestGuard(self::IPS, BrevoPayloads::SECRET, false, Deployment::PRODUCTION);
 
         self::assertRejected(403, BrevoPayloads::request([], ip: '203.0.113.7'), $guard);
     }
 
     public static function guard(): BrevoRequestGuard
     {
-        return new BrevoRequestGuard(self::IPS, BrevoPayloads::SECRET, false, 'dev');
+        return new BrevoRequestGuard(self::IPS, BrevoPayloads::SECRET, false, Deployment::DEV);
     }
 
     private static function assertRejected(int $status, Request $request, ?BrevoRequestGuard $guard = null): void

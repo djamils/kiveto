@@ -86,7 +86,8 @@ view + strictly increasing `sequence`) through the outbox.
 `ELECTRONIC_INVOICING_PLATFORM` picks the adapter when a port is first used
 (`PlatformSelector`): `disabled` (production default until the real adapter,
 T4 — documents wait, no connection can be opened) or `simulator` (dev, tests,
-demo; refused in production at runtime).
+STAGING, DEMO; refused at runtime when `KIVETO_DEPLOYMENT=production` — not
+keyed on `APP_ENV`, which is `prod` on STAGING and DEMO too).
 
 The **`LocalPlatformSimulator`** implements the four ports without network and
 persists its flows in `electronic_invoicing__simulated_flows`. It validates the

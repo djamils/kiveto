@@ -133,7 +133,7 @@ final class ResendPortalOtpHandlerTest extends PortalActionOtpTestCase
 
     private function resend(string $challengeId, string $channel, string $after = '+35 seconds'): OtpChallengeIssued
     {
-        $handler = new ResendPortalOtpHandler($this->challenges, $this->users, $this->portal, $this->portal, $this->fakes, $this->clock($after), new UnknownNumberSmsGate($this->users, $this->portal, $this->portal));
+        $handler = new ResendPortalOtpHandler($this->challenges, $this->users, $this->portal, $this->portal, $this->fakes, $this->clock($after), new UnknownNumberSmsGate($this->users, $this->portal, $this->portal), $this->portal);
 
         return $handler(new ResendPortalOtp($challengeId, $channel));
     }
