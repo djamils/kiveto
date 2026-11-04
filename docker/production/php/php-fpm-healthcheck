@@ -1,0 +1,17 @@
+#!/bin/sh
+# Healthcheck of the `php` service: GET /health through FastCGI, as Nginx
+# sends it. Healthy when PHP-FPM answers and the kernel serves the liveness
+# route (no database involved).
+set -eu
+
+SCRIPT_NAME=/index.php \
+SCRIPT_FILENAME=/var/www/html/public/index.php \
+DOCUMENT_ROOT=/var/www/html/public \
+REQUEST_METHOD=GET \
+REQUEST_URI=/health \
+QUERY_STRING= \
+SERVER_NAME=localhost \
+SERVER_PORT=9000 \
+HTTP_HOST=localhost \
+REMOTE_ADDR=127.0.0.1 \
+    cgi-fcgi -bind -connect 127.0.0.1:9000 | grep -q '"status":"ok"'

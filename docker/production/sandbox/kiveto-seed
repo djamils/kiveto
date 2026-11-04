@@ -1,0 +1,21 @@
+#!/bin/sh
+# Seeds STAGING or DEMO with the synthetic data of the Foundry stories (dev
+# dependencies, `sandbox` image only), as `make load-fixtures` does in dev,
+# then rebuilds the search index. Run once on an empty, migrated database:
+#
+#   docker compose -p kiveto-staging --project-directory /opt/kiveto/staging \
+#     --env-file .release -f compose.sandbox.yaml --profile seed run --rm seed
+set -eu
+
+case "${KIVETO_DEPLOYMENT:-}" in
+    staging|demo) ;;
+    *)
+        echo "kiveto-seed: STAGING and DEMO only (KIVETO_DEPLOYMENT=${KIVETO_DEPLOYMENT:-unset})." >&2
+        exit 2
+        ;;
+esac
+
+# Foundry is registered in the dev kernel only; the variables of the
+# deployment (.env.runtime) still win over the files of .env.
+APP_ENV=dev APP_DEBUG=0 php -d memory_limit=1G bin/console foundry:load-fixtures --append dev --no-interaction
+php bin/console app:search:reindex --no-interaction

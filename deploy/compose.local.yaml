@@ -1,0 +1,51 @@
+# Workstation check of deploy/compose.production.yaml, never used on AWS: adds
+# a MySQL 8.4, keeps the logs local instead of CloudWatch and publishes the
+# Nginx on 127.0.0.1:8088. From a scratch directory holding .release,
+# .env.runtime (DATABASE_URL=mysql://kiveto:kiveto@mysql:3306/kiveto?serverVersion=8.4.7&charset=utf8mb4)
+# and jwt/:
+#
+#   docker network create kiveto-edge
+#   docker compose -p kiveto-check --project-directory . --env-file .release \
+#     -f <repo>/deploy/compose.production.yaml -f <repo>/deploy/compose.local.yaml up -d --wait
+#   curl -H 'Host: portal.kiveto.local' http://127.0.0.1:8088/health
+
+services:
+  mysql:
+    image: mysql:8.4.7
+    environment:
+      MYSQL_DATABASE: kiveto
+      MYSQL_USER: kiveto
+      MYSQL_PASSWORD: kiveto
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  nginx:
+    ports: ["127.0.0.1:8088:8080"]
+    logging: !override
+      driver: local
+
+  php:
+    depends_on:
+      mysql: { condition: service_healthy }
+    logging: !override
+      driver: local
+
+  messenger:
+    logging: !override
+      driver: local
+
+  external:
+    logging: !override
+      driver: local
+
+  scheduler:
+    logging: !override
+      driver: local
+
+  gotenberg:
+    logging: !override
+      driver: local

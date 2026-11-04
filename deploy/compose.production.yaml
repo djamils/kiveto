@@ -1,0 +1,119 @@
+# Production (kiveto-production-01), project kiveto-production, started by the
+# deploy script (deployment guide, phases 8 and 10) from /opt/kiveto/production:
+#
+#   docker compose -p kiveto-production --project-directory /opt/kiveto/production \
+#     --env-file .release -f releases/<sha>/compose.production.yaml up -d --wait
+#
+# .release      PHP_IMAGE and NGINX_IMAGE (by digest), RELEASE_SHA, WEB_ALIAS
+# .env.runtime  the variables of /kiveto/production/* (Parameter Store), one
+#               KEY=value per line, unquoted (read raw)
+# ./jwt         private.pem and public.pem of this environment, read-only
+#
+# The database is RDS (DATABASE_URL, DATABASE_SSL_CA); Gotenberg runs here.
+# Only the edge Nginx (project kiveto-edge, network kiveto-edge) is published.
+
+x-logging: &logging
+  driver: awslogs
+  options:
+    awslogs-region: eu-west-3
+    awslogs-group: /kiveto/production
+    tag: "{{.Name}}"
+    mode: non-blocking
+    max-buffer-size: 4m
+
+x-php: &php
+  image: ${PHP_IMAGE:?PHP_IMAGE is required}
+  # KEY=value per line, read as is: no quotes, no `$` interpolation, so any
+  # secret is passed unchanged.
+  env_file:
+    - path: .env.runtime
+      format: raw
+  volumes:
+    - ./jwt:/var/www/html/config/jwt:ro
+    - files:/var/www/html/var/storage
+    - share:/var/www/html/var/share
+  logging: *logging
+  restart: unless-stopped
+
+# Workers: the commands of the dev compose.yaml with production limits. A
+# worker stops between two messages: SIGTERM, then 30 s to finish the current one.
+x-worker: &worker
+  <<: *php
+  mem_limit: 256m
+  # The image stops PHP-FPM with SIGQUIT; a worker handles SIGTERM (pcntl).
+  stop_signal: SIGTERM
+  stop_grace_period: 30s
+
+services:
+  nginx:
+    image: ${NGINX_IMAGE:?NGINX_IMAGE is required}
+    networks:
+      default: {}
+      edge:
+        aliases: ["${WEB_ALIAS:-production-web}"]
+    depends_on:
+      php: { condition: service_healthy }
+    healthcheck:
+      # 127.0.0.1: `localhost` may resolve to ::1, where Nginx does not listen.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--header", "Host: localhost", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 6
+    logging: *logging
+    mem_limit: 64m
+    restart: unless-stopped
+
+  php:
+    <<: *php
+    environment:
+      PHP_FPM_MAX_CHILDREN: "10"
+    healthcheck:
+      test: ["CMD", "php-fpm-healthcheck"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 6
+    mem_limit: 1g
+
+  # Integration events, mails (`async`).
+  messenger:
+    <<: *worker
+    command: ["php", "-d", "memory_limit=256M", "bin/console", "messenger:consume", "async",
+              "--time-limit=3600", "--memory-limit=160M"]
+
+  # External services: interactive verifications, then Brevo, then the nightly batch.
+  external:
+    <<: *worker
+    command: ["php", "-d", "memory_limit=256M", "bin/console", "messenger:consume",
+              "async_external", "async_external_notification", "async_external_batch",
+              "--time-limit=3600", "--memory-limit=160M"]
+
+  # Every schedule (ticks locked in the database); 59 min, never a multiple of a period.
+  scheduler:
+    <<: *worker
+    command: ["php", "-d", "memory_limit=256M", "bin/console", "messenger:consume",
+              "scheduler_default", "scheduler_client", "scheduler_electronic_invoicing",
+              "scheduler_billing", "scheduler_notification", "scheduler_clinic",
+              "scheduler_scheduling", "scheduler_inventory", "scheduler_client_portal",
+              "--time-limit=3540", "--memory-limit=160M"]
+
+  # Chromium behind an HTTP API (GOTENBERG_URL=http://gotenberg:3000).
+  gotenberg:
+    image: gotenberg/gotenberg:8.39.0@sha256:13672f317b443c793e972b1bd2155ec62a3e7b6891b411e8196442cc053ee5f5
+    command: ["gotenberg", "--api-timeout=60s"]
+    logging: *logging
+    mem_limit: 1g
+    restart: unless-stopped
+
+networks:
+  edge:
+    external: true
+    name: kiveto-edge
+
+volumes:
+  # var/storage: portal documents, data exports, message attachments (EBS
+  # snapshots and the nightly copy to S3 until an S3 adapter exists).
+  files: {}
+  # var/share: cache pools and sessions, shared by PHP-FPM and the workers.
+  share: {}

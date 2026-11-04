@@ -28,8 +28,10 @@ doctrine:
                 profiling_collect_backtrace: '%kernel.debug%'
                 schema_filter: '~^(?!shared__(idempotency_keys|rate_limiter_cache)$)~'
     orm:
-        auto_generate_proxy_classes: true
-        enable_lazy_ghost_objects: true
+        # PHP's native lazy objects (8.4+): no proxy class to generate, and the
+        # entities may stay final. With the generated lazy ghosts, the prod
+        # cache warmup failed on the final entities.
+        enable_native_lazy_objects: true
         report_fields_where_declared: true
         validate_xml_mapping: true
         naming_strategy: app.orm.naming_strategy.bounded_context_prefix
@@ -188,8 +190,6 @@ when@test:
 when@prod:
     doctrine:
         orm:
-            auto_generate_proxy_classes: false
-            proxy_dir: '%kernel.build_dir%/doctrine/orm/Proxies'
             query_cache_driver:
                 type: pool
                 pool: doctrine.system_cache_pool

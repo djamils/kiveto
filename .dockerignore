@@ -1,0 +1,29 @@
+# Build context of the production images (Dockerfile). The dev images
+# (docker/php-fpm, docker/nginx) copy nothing from it.
+
+# Never in an image: keys, local and dev settings, VCS, tooling state.
+.git
+.env.local
+.env.*.local
+.env.dev
+.env.test
+config/jwt
+.claude
+.idea
+_bmad
+_bmad-output
+docs
+coverage
+
+# Rebuilt inside the image.
+vendor
+var
+public/assets
+public/bundles
+assets/vendor
+
+# Not needed at runtime.
+deploy
+tests
+.php-cs-fixer.cache
+.phpunit.result.cache
