@@ -113,7 +113,10 @@ final class ClinicMembershipEntityFactory extends PersistentProxyObjectFactory
     protected function defaults(): array
     {
         $createdAt = \DateTimeImmutable::createFromMutable(self::faker()->dateTimeBetween('-1 year'));
-        $validFrom = \DateTimeImmutable::createFromMutable(self::faker()->dateTimeBetween('-6 months'));
+        // A fixed past year, not one relative to today: tests freeze the clock
+        // at fixed dates (2026-11-02…), and a membership that starts after
+        // the frozen instant is not effective — no clinic at sign-in.
+        $validFrom = \DateTimeImmutable::createFromMutable(self::faker()->dateTimeBetween('2025-01-01', '2025-12-31'));
 
         return [
             'id'                    => Uuid::v7(),
