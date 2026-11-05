@@ -11,6 +11,7 @@ use App\Context\Client\Application\Query\GetClientById\GetClientById;
 use App\Context\Client\Application\Query\GetClientById\PostalAddressDto;
 use App\Context\Client\Application\Query\GetClientNotificationContact\ClientNotificationContact;
 use App\Context\Client\Application\Query\GetClientNotificationContact\GetClientNotificationContact;
+use App\Context\Client\Application\Query\GetClientsNotificationContacts\GetClientsNotificationContacts;
 use App\Context\Client\Application\Query\IsPortalMobileNumber\IsPortalMobileNumber;
 use App\Context\ClientPortal\Application\Port\ClinicContact;
 use App\Context\ClientPortal\Infrastructure\Adapter\Animal\QueryBusPetNames;
@@ -55,6 +56,26 @@ final class QueryBusAdaptersTest extends TestCase
         $unknown = new QueryBusClientDirectory(new AnsweringQueryBus());
         self::assertNull($unknown->contactOf('clinic-1', 'client-1'));
         self::assertNull($unknown->snapshotOf('clinic-1', 'client-1'));
+    }
+
+    public function testSeveralClientContactsAreReadAtOnce(): void
+    {
+        $sophie = new ClientNotificationContact('client-1', 'Sophie Martin', 'Mme', 'Sophie', 'Martin', 's@example.com', '+33612345678', null, [], false);
+        $paul   = new ClientNotificationContact('client-2', 'Paul Durand', 'M.', 'Paul', 'Durand', null, '+33698765432', null, [], false);
+        $bus    = new AnsweringQueryBus([GetClientsNotificationContacts::class => ['client-1' => $sophie, 'client-2' => $paul]]);
+
+        $contacts = new QueryBusClientDirectory($bus)->contactsOf('clinic-1', ['client-1', 'client-2']);
+
+        self::assertSame(['client-1' => 'Sophie Martin', 'client-2' => 'Paul Durand'], array_map(static fn ($c): string => $c->displayName, $contacts));
+        self::assertSame('sms', $contacts['client-2']->transactionalChannel);
+        self::assertCount(1, $bus->asked, 'one read for every client');
+        $query = $bus->asked[0];
+        self::assertInstanceOf(GetClientsNotificationContacts::class, $query);
+        self::assertSame(['clinic-1', ['client-1', 'client-2']], [$query->clinicId, $query->clientIds]);
+
+        // No client asked, or none known: nothing.
+        self::assertSame([], new QueryBusClientDirectory($bus)->contactsOf('clinic-1', []));
+        self::assertSame([], new QueryBusClientDirectory(new AnsweringQueryBus())->contactsOf('clinic-1', ['client-1']));
     }
 
     public function testThePhoneRuleIsClients(): void

@@ -15,6 +15,17 @@ interface ClientReadRepositoryInterface
     public function findById(ClinicId $clinicId, ClientId $clientId): ?ClientView;
 
     /**
+     * The clinic's files among the given ids, contact methods included, in
+     * two queries whatever their number; the ids of no file of the clinic
+     * are left out.
+     *
+     * @param non-empty-list<string> $clientIds UUID strings
+     *
+     * @return list<ClientView> in no particular order
+     */
+    public function findByIds(ClinicId $clinicId, array $clientIds): array;
+
+    /**
      * @return array{items: list<ClientListItemView>, total: int}
      */
     public function search(ClinicId $clinicId, SearchClientsCriteria $criteria): array;

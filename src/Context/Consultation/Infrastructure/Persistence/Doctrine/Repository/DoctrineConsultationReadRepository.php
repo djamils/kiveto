@@ -13,6 +13,7 @@ use App\Context\Consultation\Application\Query\SearchConsultations\SearchConsult
 use App\Context\Consultation\Domain\ValueObject\AdmissionId;
 use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
+use App\Context\Consultation\Domain\ValueObject\ConsultationStatus;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
@@ -459,6 +460,50 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
         }
 
         return ['items' => $items, 'total' => $total];
+    }
+
+    public function latestClosedForPatients(ClinicId $clinicId, array $patientIds): array
+    {
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT id, patient_id, practitioner_user_id, status, started_at_utc, closed_at_utc, chief_complaint
+             FROM (
+                 SELECT c.id, c.patient_id, c.practitioner_user_id, c.status, c.started_at_utc, c.closed_at_utc, c.chief_complaint,
+                        ROW_NUMBER() OVER (PARTITION BY c.patient_id ORDER BY c.started_at_utc DESC, c.id DESC) AS rank_in_patient
+                 FROM consultation__consultations c
+                 WHERE c.clinic_id = :clinicId AND c.status = :closed AND c.patient_id IN (:patientIds)
+             ) latest
+             WHERE rank_in_patient = 1',
+            [
+                'clinicId'   => Uuid::fromString($clinicId->toString())->toBinary(),
+                'closed'     => ConsultationStatus::CLOSED->value,
+                'patientIds' => array_map(static fn (string $id): string => Uuid::fromString($id)->toBinary(), $patientIds),
+            ],
+            ['patientIds' => ArrayParameterType::BINARY],
+        );
+
+        $motifs = $this->fetchMotifsFor(array_map(
+            /** @param array<string, mixed> $row */
+            static fn (array $row): string => RowAccessor::string($row, 'id'),
+            $rows,
+        ));
+
+        return array_map(
+            /** @param array<string, mixed> $row */
+            static fn (array $row): ConsultationListRow => new ConsultationListRow(
+                consultationId: RowAccessor::uuid($row, 'id'),
+                patientId: RowAccessor::uuid($row, 'patient_id'),
+                practitionerUserId: RowAccessor::uuid($row, 'practitioner_user_id'),
+                status: RowAccessor::string($row, 'status'),
+                startedAtUtc: RowAccessor::string($row, 'started_at_utc'),
+                closedAtUtc: RowAccessor::nullableString($row, 'closed_at_utc'),
+                chiefComplaint: RowAccessor::nullableString($row, 'chief_complaint'),
+                motifs: $motifs[RowAccessor::string($row, 'id')] ?? [],
+                htByTaxCategory: [],
+                ttcByTaxCategory: [],
+                currency: '',
+            ),
+            $rows,
+        );
     }
 
     public function register(ClinicId $clinicId, ConsultationRegisterCriteria $criteria): array

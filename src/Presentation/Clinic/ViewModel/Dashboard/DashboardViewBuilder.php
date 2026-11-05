@@ -8,7 +8,7 @@ use App\Context\Admission\Application\Port\WaitingRoomItemDto;
 use App\Context\Admission\Application\Query\ListActiveAdmissions\ListActiveAdmissions;
 use App\Context\Admission\Application\Query\ListAdmissionsClosedSince\ListAdmissionsClosedSince;
 use App\Context\Animal\Application\Query\GetAnimalById\AnimalView;
-use App\Context\Animal\Application\Query\GetAnimalById\GetAnimalById;
+use App\Context\Animal\Application\Query\ListAnimalsByIds\ListAnimalsByIds;
 use App\Context\Billing\Application\Query\GetBillingStats\BillingStats;
 use App\Context\Billing\Application\Query\GetBillingStats\GetBillingStats;
 use App\Context\Catalog\Application\Query\Catalog\ListCatalog\ArticleListRow;
@@ -299,17 +299,21 @@ final readonly class DashboardViewBuilder
      */
     private function animals(string $clinicId, array $animalIds): array
     {
+        $animalIds = array_values(array_unique(array_filter($animalIds, static fn (?string $id): bool => null !== $id)));
+
+        if ([] === $animalIds) {
+            return [];
+        }
+
+        // Every animal of the day in one read.
+        $views = $this->queryBus->ask(new ListAnimalsByIds($clinicId, $animalIds));
+        \assert(\is_array($views));
+
         $animals = [];
 
-        foreach ($animalIds as $animalId) {
-            if (null === $animalId || isset($animals[$animalId])) {
-                continue;
-            }
-
-            $animal = $this->queryBus->ask(new GetAnimalById($clinicId, $animalId));
-
-            if ($animal instanceof AnimalView) {
-                $animals[$animalId] = $animal;
+        foreach ($views as $view) {
+            if ($view instanceof AnimalView) {
+                $animals[$view->id] = $view;
             }
         }
 

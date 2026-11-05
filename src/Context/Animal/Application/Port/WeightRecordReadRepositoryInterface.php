@@ -16,4 +16,14 @@ interface WeightRecordReadRepositoryInterface
      * @return list<WeightRecordView>
      */
     public function listForAnimal(ClinicId $clinicId, AnimalId $animalId): array;
+
+    /**
+     * The weighings of several animals in one query, by animal id, each list
+     * newest first; an animal never weighed is left out.
+     *
+     * @param non-empty-list<string> $animalIds UUID strings
+     *
+     * @return array<string, list<WeightRecordView>>
+     */
+    public function listForAnimals(ClinicId $clinicId, array $animalIds): array;
 }

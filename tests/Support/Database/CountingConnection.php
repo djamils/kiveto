@@ -16,19 +16,19 @@ final class CountingConnection extends AbstractConnectionMiddleware
 {
     public function prepare(string $sql): Statement
     {
-        return new CountingStatement(parent::prepare($sql));
+        return new CountingStatement(parent::prepare($sql), $sql);
     }
 
     public function query(string $sql): Result
     {
-        QueryCounter::record();
+        QueryCounter::record($sql);
 
         return parent::query($sql);
     }
 
     public function exec(string $sql): int|string
     {
-        QueryCounter::record();
+        QueryCounter::record($sql);
 
         return parent::exec($sql);
     }
