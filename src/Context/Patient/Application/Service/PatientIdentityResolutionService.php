@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Context\Patient\Application\Service;
 
+use App\Context\Patient\Application\Port\AnimalNameProviderInterface;
 use App\Context\Patient\Application\Port\PatientReadRepositoryInterface;
 use App\Context\Patient\Domain\Event\PatientLinkedToAnimalIntegrationEvent;
 use App\Context\Patient\Domain\Event\PatientReconciledIntoIntegrationEvent;
+use App\Context\Patient\Domain\Exception\AnimalNotInClinicException;
 use App\Context\Patient\Domain\Exception\PatientAlreadyExistsForAnimalException;
 use App\Context\Patient\Domain\Repository\PatientRepositoryInterface;
 use App\Context\Patient\Domain\ValueObject\AnimalLink;
@@ -25,6 +27,7 @@ final readonly class PatientIdentityResolutionService
         private DomainEventPublisher $domainEventPublisher,
         private IntegrationEventPublisher $integrationEventPublisher,
         private ClockInterface $clock,
+        private AnimalNameProviderInterface $animals,
     ) {
     }
 
@@ -36,6 +39,8 @@ final readonly class PatientIdentityResolutionService
     ): void {
         $clinicIdVo = ClinicId::fromString($clinicId);
         $patient    = $this->patientRepository->get($clinicIdVo, $patientId);
+
+        $this->assertAnimalOfClinic($animalId, $clinicId);
 
         if ($this->patientReadRepository->existsActiveForAnimal($clinicId, $animalId)) {
             throw new PatientAlreadyExistsForAnimalException($animalId, $clinicId);
@@ -64,6 +69,8 @@ final readonly class PatientIdentityResolutionService
     ): void {
         $clinicIdVo = ClinicId::fromString($clinicId);
         $patient    = $this->patientRepository->get($clinicIdVo, $patientId);
+
+        $this->assertAnimalOfClinic($animalId, $clinicId);
 
         if ($this->patientReadRepository->existsActiveForAnimal($clinicId, $animalId)) {
             throw new PatientAlreadyExistsForAnimalException($animalId, $clinicId);
@@ -119,5 +126,13 @@ final readonly class PatientIdentityResolutionService
             targetPatientId: $targetPatientId->toString(),
             clinicId: $clinicId,
         ));
+    }
+
+    /** Only an animal of the patient's own clinic can be linked to it. */
+    private function assertAnimalOfClinic(string $animalId, string $clinicId): void
+    {
+        if (null === $this->animals->getAnimalName($animalId, $clinicId)) {
+            throw new AnimalNotInClinicException($animalId, $clinicId);
+        }
     }
 }

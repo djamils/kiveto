@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Context\Patient\Application\Service;
 
+use App\Context\Patient\Application\Port\AnimalNameProviderInterface;
 use App\Context\Patient\Application\Port\PatientReadRepositoryInterface;
+use App\Context\Patient\Domain\Exception\AnimalNotInClinicException;
 use App\Context\Patient\Domain\Exception\PatientAlreadyExistsForAnimalException;
 use App\Context\Patient\Domain\Patient;
 use App\Context\Patient\Domain\Repository\PatientRepositoryInterface;
@@ -23,6 +25,7 @@ final readonly class PatientCreationService
         private UuidGeneratorInterface $uuidGenerator,
         private DomainEventPublisher $domainEventPublisher,
         private ClockInterface $clock,
+        private AnimalNameProviderInterface $animals,
     ) {
     }
 
@@ -55,6 +58,10 @@ final readonly class PatientCreationService
         string $animalId,
         string $animalName,
     ): PatientId {
+        if (null === $this->animals->getAnimalName($animalId, $clinicId->toString())) {
+            throw new AnimalNotInClinicException($animalId, $clinicId->toString());
+        }
+
         if ($this->patientReadRepository->existsActiveForAnimal($clinicId->toString(), $animalId)) {
             throw new PatientAlreadyExistsForAnimalException($animalId, $clinicId->toString());
         }
