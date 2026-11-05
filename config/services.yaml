@@ -239,6 +239,16 @@ services:
     App\System\IdentityAccess\Domain\Session\RefreshTokenRepositoryInterface:
         class: App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DbalRefreshTokenRepository
 
+    # Password sign-in of the web firewalls (ContextAuthenticator): Symfony's
+    # login limiter (keys hashed with the kernel secret) over the login_account
+    # and login_ip limiters of config/packages/rate_limiter.yaml.
+    app.login_rate_limiter:
+        class: Symfony\Component\Security\Http\RateLimiter\DefaultLoginRateLimiter
+        arguments:
+            $globalFactory: '@limiter.login_ip'
+            $localFactory: '@limiter.login_account'
+            $secret: '%kernel.secret%'
+
     # ============================================================================
     # PORTAL API — rate limiters (one-time codes, anti SMS-pumping)
     # ============================================================================

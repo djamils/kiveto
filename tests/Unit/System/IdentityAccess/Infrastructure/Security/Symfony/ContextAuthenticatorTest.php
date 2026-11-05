@@ -22,15 +22,20 @@ use App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticat
 use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RateLimiter\RequestRateLimiterInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
+use Symfony\Component\RateLimiter\Storage\InMemoryStorage;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\Exception\CustomUserMessageAuthenticationException;
+use Symfony\Component\Security\Core\Exception\TooManyLoginAttemptsAuthenticationException;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
+use Symfony\Component\Security\Http\RateLimiter\DefaultLoginRateLimiter;
 
 final class ContextAuthenticatorTest extends TestCase
 {
@@ -284,7 +289,8 @@ final class ContextAuthenticatorTest extends TestCase
             $this->handlerFor(UserType::CLINIC),
             $this->urlGenerator(),
             $queryBus,
-            $currentClinicContext
+            $currentClinicContext,
+            $this->loginLimiter(),
         );
 
         $response = $authenticator->onAuthenticationSuccess(
@@ -332,7 +338,8 @@ final class ContextAuthenticatorTest extends TestCase
             $this->handlerFor(UserType::CLINIC),
             $this->urlGenerator(),
             $queryBus,
-            $currentClinicContext
+            $currentClinicContext,
+            $this->loginLimiter(),
         );
 
         $response = $authenticator->onAuthenticationSuccess(
@@ -356,7 +363,8 @@ final class ContextAuthenticatorTest extends TestCase
             $this->handlerFor(UserType::CLINIC),
             $this->urlGenerator(),
             $queryBus,
-            $currentClinicContext
+            $currentClinicContext,
+            $this->loginLimiter(),
         );
 
         $response = $authenticator->onAuthenticationSuccess(
@@ -394,7 +402,7 @@ final class ContextAuthenticatorTest extends TestCase
         $queryBus             = $this->createStub(QueryBusInterface::class);
         $currentClinicContext = $this->createStub(CurrentClinicContextInterface::class);
 
-        $authenticator = new ContextAuthenticator($handler, $this->urlGenerator(), $queryBus, $currentClinicContext);
+        $authenticator = new ContextAuthenticator($handler, $this->urlGenerator(), $queryBus, $currentClinicContext, $this->loginLimiter());
         $request       = Request::create(
             'https://clinic.example/login',
             'POST',
@@ -500,6 +508,56 @@ final class ContextAuthenticatorTest extends TestCase
         self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
     }
 
+    public function testTheAttemptsOfAnAccountAreCountedBeforeThePasswordIsChecked(): void
+    {
+        $authenticator = $this->authenticatorFor(UserType::CLINIC, $this->loginLimiter(attemptsPerAccount: 2));
+
+        foreach (['wrong-1', 'wrong-2'] as $password) {
+            try {
+                $authenticator->authenticate($this->loginRequest('clinic.example', 'user@example.com', $password));
+                self::fail('A wrong password is refused.');
+            } catch (CustomUserMessageAuthenticationException) {
+            }
+        }
+
+        $this->expectException(TooManyLoginAttemptsAuthenticationException::class);
+        $authenticator->authenticate($this->loginRequest('clinic.example', 'user@example.com', 'secret'));
+    }
+
+    public function testEachSignInContextCountsItsOwnAttempts(): void
+    {
+        $limiter = $this->loginLimiter(attemptsPerAccount: 1);
+        $this->authenticatorFor(UserType::CLINIC, $limiter)->authenticate($this->loginRequest('clinic.example', 'user@example.com', 'secret'));
+
+        $passport = $this->authenticatorFor(UserType::BACKOFFICE, $limiter)->authenticate($this->loginRequest('backoffice.example', 'user@example.com', 'secret'));
+
+        self::assertNotNull($passport->getBadge(UserBadge::class));
+    }
+
+    public function testASuccessfulSignInGivesTheAttemptsBack(): void
+    {
+        $authenticator = $this->authenticatorFor(UserType::CLINIC, $this->loginLimiter(attemptsPerAccount: 1));
+        $request       = $this->loginRequest('clinic.example', 'user@example.com', 'secret');
+
+        $authenticator->authenticate($request);
+        $authenticator->onAuthenticationSuccess($request, $this->tokenWithUser(), 'clinic');
+
+        $passport = $authenticator->authenticate($this->loginRequest('clinic.example', 'user@example.com', 'secret'));
+
+        self::assertNotNull($passport->getBadge(UserBadge::class));
+    }
+
+    public function testTooManyAttemptsAnswer429(): void
+    {
+        $response = $this->authenticatorFor(UserType::CLINIC)->onAuthenticationFailure(
+            Request::create('https://clinic.example/login', 'POST'),
+            new TooManyLoginAttemptsAuthenticationException(),
+        );
+
+        self::assertSame(Response::HTTP_TOO_MANY_REQUESTS, $response->getStatusCode());
+        self::assertStringContainsString('TOO_MANY_ATTEMPTS', (string) $response->getContent());
+    }
+
     private function handlerFor(UserType $type): AuthenticateUserHandler
     {
         $user = User::reconstitute(
@@ -529,7 +587,7 @@ final class ContextAuthenticatorTest extends TestCase
         return new AuthenticateUserHandler($repo, $verifier);
     }
 
-    private function authenticatorFor(UserType $type): ContextAuthenticator
+    private function authenticatorFor(UserType $type, ?RequestRateLimiterInterface $loginLimiter = null): ContextAuthenticator
     {
         $queryBus = $this->createStub(QueryBusInterface::class);
         $queryBus->method('ask')->willReturn(ActiveClinicResult::none());
@@ -540,7 +598,32 @@ final class ContextAuthenticatorTest extends TestCase
             $this->handlerFor($type),
             $this->urlGenerator(),
             $queryBus,
-            $currentClinicContext
+            $currentClinicContext,
+            $loginLimiter ?? $this->loginLimiter(),
+        );
+    }
+
+    /**
+     * Symfony's login limiter, as app.login_rate_limiter builds it, in memory.
+     */
+    private function loginLimiter(int $attemptsPerAccount = 1000): RequestRateLimiterInterface
+    {
+        $storage = new InMemoryStorage();
+
+        return new DefaultLoginRateLimiter(
+            new RateLimiterFactory(['id' => 'login_ip', 'policy' => 'sliding_window', 'limit' => 10 * $attemptsPerAccount, 'interval' => '15 minutes'], $storage),
+            new RateLimiterFactory(['id' => 'login_account', 'policy' => 'sliding_window', 'limit' => $attemptsPerAccount, 'interval' => '15 minutes'], $storage),
+            'test-secret',
+        );
+    }
+
+    private function loginRequest(string $host, string $email, string $password): Request
+    {
+        return Request::create(
+            'https://' . $host . '/login',
+            'POST',
+            server: ['HTTP_HOST' => $host],
+            content: json_encode(['email' => $email, 'password' => $password], \JSON_THROW_ON_ERROR),
         );
     }
 

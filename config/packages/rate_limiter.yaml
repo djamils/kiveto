@@ -21,3 +21,16 @@ framework:
             policy: 'sliding_window'
             limit: 3
             interval: '1 hour'
+
+        # Password sign-in (ContextAuthenticator, through app.login_rate_limiter):
+        # per sign-in context, account and IP, and per IP for a password tried
+        # on many accounts. A successful sign-in gives the attempts back.
+        login_account:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '15 minutes'
+
+        login_ip:
+            policy: 'sliding_window'
+            limit: 50
+            interval: '15 minutes'

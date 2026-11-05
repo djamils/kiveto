@@ -133,6 +133,7 @@ function bindLogin() {
     if (!res.ok) {
       charge(b, false);
       if (res.status === 401) refuser('iMdp', 'mdp', 'E-mail ou mot de passe incorrect.', { shake: true });
+      else if (res.status === 429) refuser('iMdp', 'mdp', 'Trop de tentatives de connexion. Réessayez dans quelques minutes.');
       else refuser('iMdp', 'mdp', 'Connexion impossible pour le moment. Réessayez.');
       return;
     }
