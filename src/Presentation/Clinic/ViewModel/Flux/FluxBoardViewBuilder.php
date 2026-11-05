@@ -15,6 +15,7 @@ use App\Context\Animal\Application\Query\ListMedicalAlertsForAnimal\MedicalAlert
 use App\Context\Animal\Application\Query\ListMedicalAlertsForAnimals\ListMedicalAlertsForAnimals;
 use App\Context\Animal\Application\Query\ListWeightRecordsForAnimals\ListWeightRecordsForAnimals;
 use App\Context\Billing\Application\Query\ListOutstandingBalances\ListOutstandingBalances;
+use App\Context\Billing\Application\Query\ListOutstandingInvoicesOfPayers\ListOutstandingInvoicesOfPayers;
 use App\Context\Billing\Application\Query\SearchInvoices\InvoiceListItemView;
 use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoices;
 use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoicesCriteria;
@@ -450,26 +451,30 @@ final readonly class FluxBoardViewBuilder
         \assert(\is_array($all));
 
         $balances = [];
-        $invoices = [];
 
         foreach (array_unique($owners) as $ownerId) {
             $owed = $all[$ownerId] ?? 0;
 
-            if (!\is_int($owed) || $owed <= 0) {
-                continue;
+            if (\is_int($owed) && $owed > 0) {
+                $balances[$ownerId] = $owed;
             }
+        }
 
-            $balances[$ownerId] = $owed;
-            $due                = $this->queryBus->ask(new SearchInvoices($clinicId, new SearchInvoicesCriteria(
-                statuses: ['ISSUED', 'PARTIALLY_PAID'],
-                payerClientId: $ownerId,
-                perPage: 2,
-            )));
-            \assert($due instanceof InvoiceListItemView);
+        if ([] === $balances) {
+            return ['weights' => $weights, 'balances' => [], 'invoices' => []];
+        }
+
+        // Every owing owner's open invoices in one read.
+        $open = $this->queryBus->ask(new ListOutstandingInvoicesOfPayers($clinicId, array_map(strval(...), array_keys($balances))));
+        \assert(\is_array($open));
+        $invoices = [];
+
+        foreach (array_keys($balances) as $ownerId) {
+            $due = $open[$ownerId] ?? [];
 
             // One invoice: « Encaisser maintenant » opens it; several: the register, filtered.
-            if (1 === \count($due->items)) {
-                $invoices[$ownerId] = $due->items[0]->id;
+            if (\is_array($due) && 1 === \count($due) && \is_string($due[0] ?? null)) {
+                $invoices[$ownerId] = $due[0];
             }
         }
 

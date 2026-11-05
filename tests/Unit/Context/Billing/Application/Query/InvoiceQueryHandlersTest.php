@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Context\Billing\Application\Query;
 
 use App\Context\Billing\Application\Port\InvoiceReadRepositoryInterface;
+use App\Context\Billing\Application\Port\OutstandingInvoiceRow;
 use App\Context\Billing\Application\Port\ResolvedTaxDto;
 use App\Context\Billing\Application\Query\FindInvoiceForAdmission\AdmissionInvoiceRow;
 use App\Context\Billing\Application\Query\FindInvoiceForAdmission\FindInvoiceForAdmission;
@@ -17,6 +18,8 @@ use App\Context\Billing\Application\Query\GetInvoiceDetails\GetInvoiceDetailsHan
 use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceDetails;
 use App\Context\Billing\Application\Query\ListOutstandingBalances\ListOutstandingBalances;
 use App\Context\Billing\Application\Query\ListOutstandingBalances\ListOutstandingBalancesHandler;
+use App\Context\Billing\Application\Query\ListOutstandingInvoicesOfPayers\ListOutstandingInvoicesOfPayers;
+use App\Context\Billing\Application\Query\ListOutstandingInvoicesOfPayers\ListOutstandingInvoicesOfPayersHandler;
 use App\Context\Billing\Application\Query\SearchInvoices\InvoiceListItemView;
 use App\Context\Billing\Application\Query\SearchInvoices\InvoiceListRow;
 use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoices;
@@ -158,6 +161,28 @@ final class InvoiceQueryHandlersTest extends TestCase
         $result = (new ListOutstandingBalancesHandler($repository))(new ListOutstandingBalances(self::CLINIC_ID));
 
         self::assertSame(['c1' => 1500], $result);
+    }
+
+    public function testTheOutstandingInvoicesOfSeveralPayersAreReadOnce(): void
+    {
+        $at         = new \DateTimeImmutable('2026-10-01');
+        $repository = $this->createMock(InvoiceReadRepositoryInterface::class);
+        $repository->expects(self::once())->method('outstandingInvoices')->with(
+            self::callback(static fn (ClinicId $id): bool => self::CLINIC_ID === $id->toString()),
+        )->willReturn([
+            new OutstandingInvoiceRow('i1', 'F-1', 'c1', $at, 1500),
+            new OutstandingInvoiceRow('i2', 'F-2', 'c2', $at, 900),
+            new OutstandingInvoiceRow('i3', 'F-3', 'c1', $at, 300),
+            // Another payer, and a counter sale without one: not asked.
+            new OutstandingInvoiceRow('i4', 'F-4', 'c3', $at, 100),
+            new OutstandingInvoiceRow('i5', 'F-5', null, $at, 100),
+        ]);
+
+        $handler = new ListOutstandingInvoicesOfPayersHandler($repository);
+
+        self::assertSame(['c1' => ['i1', 'i3'], 'c2' => ['i2']], $handler(new ListOutstandingInvoicesOfPayers(self::CLINIC_ID, ['c1', 'c2', 'c9'])));
+        // No payer asked: nothing read.
+        self::assertSame([], $handler(new ListOutstandingInvoicesOfPayers(self::CLINIC_ID, [])));
     }
 
     public function testTheCriteriaComputesItsOffset(): void
