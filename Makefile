@@ -196,9 +196,11 @@ clean:
 	@rm -rf ./vendor/ ./var/cache/* ./var/log/*
 	@$(call ok,Clean complete)
 
+# The workers too (profile `workers`): they would otherwise keep the PHP of
+# their first build.
 build:
 	@$(call step,Building Docker images...)
-	$(Q)$(call run,$(DOCKER_COMPOSE) build)
+	$(Q)$(call run,$(DOCKER_COMPOSE) --profile workers build)
 	@$(call ok,Images built)
 
 start-containers:
