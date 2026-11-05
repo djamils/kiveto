@@ -15,11 +15,22 @@ use App\System\Taxation\Application\Query\GetEffectiveRateForUI\GetEffectiveRate
 use App\System\Taxation\Domain\ValueObject\FiscalContext;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
 use App\System\Taxation\Domain\ValueObject\TaxRegimeId;
+use Symfony\Contracts\Service\ResetInterface;
 
-final class QueryBusTaxRateProvider implements TaxRateProviderInterface
+/**
+ * Taxation resolves a rate from the regime, its rates, the category and the
+ * mention templates: each category of a clinic is resolved once for the
+ * request, however many lines and consultations a page totals. The kernel
+ * reset forgets the clinics and the rates between requests (and worker
+ * messages).
+ */
+final class QueryBusTaxRateProvider implements TaxRateProviderInterface, ResetInterface
 {
     /** @var array<string, ClinicDto|null> */
     private array $clinicCache = [];
+
+    /** @var array<string, float|null> by « clinic/category » */
+    private array $rateCache = [];
 
     public function __construct(
         private readonly QueryBusInterface $queryBus,
@@ -27,7 +38,24 @@ final class QueryBusTaxRateProvider implements TaxRateProviderInterface
     ) {
     }
 
+    public function reset(): void
+    {
+        $this->clinicCache = [];
+        $this->rateCache   = [];
+    }
+
     public function effectiveRatePercent(string $taxCategoryCode, string $clinicId): ?float
+    {
+        $key = $clinicId . '/' . $taxCategoryCode;
+
+        if (!\array_key_exists($key, $this->rateCache)) {
+            $this->rateCache[$key] = $this->resolve($taxCategoryCode, $clinicId);
+        }
+
+        return $this->rateCache[$key];
+    }
+
+    private function resolve(string $taxCategoryCode, string $clinicId): ?float
     {
         $clinic = $this->clinic($clinicId);
 
