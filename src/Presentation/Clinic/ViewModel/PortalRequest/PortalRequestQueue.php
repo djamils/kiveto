@@ -13,6 +13,7 @@ use App\Context\ClientPortal\Application\Query\ListClinicPortalRequests\ClinicPo
 use App\Context\ClientPortal\Application\Query\ListClinicPortalRequests\ListClinicPortalRequests;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Pagination\CursorPage;
+use App\Shared\Infrastructure\Bus\Messenger\QueryAnswerCache;
 
 /**
  * The « Demandes Portal » still waiting for an answer, read page after page
@@ -20,6 +21,10 @@ use App\Shared\Application\Pagination\CursorPage;
  * « Rattachement » requests (accounts waiting for a link) and « Nouveau
  * client » requests (first appointments through the directory) included.
  * Questionnaires are never queue items.
+ *
+ * The waiting requests a page reads (the dashboard's tasks) are kept for the
+ * request (QueryAnswerCache: never while a command runs, forgotten once it
+ * ran): the shell's badge then counts them instead of asking again.
  */
 final readonly class PortalRequestQueue
 {
@@ -33,6 +38,7 @@ final readonly class PortalRequestQueue
 
     public function __construct(
         private QueryBusInterface $queryBus,
+        private ?QueryAnswerCache $answers = null,
     ) {
     }
 
@@ -43,7 +49,9 @@ final readonly class PortalRequestQueue
      */
     public function open(string $clinicId): array
     {
-        return $this->read($clinicId, 'submitted', self::MAX_PAGES, \PHP_INT_MAX);
+        $read = fn (): array => $this->read($clinicId, 'submitted', self::MAX_PAGES, \PHP_INT_MAX);
+
+        return null === $this->answers ? $read() : self::portalRequests($this->answers->answer(self::key('open', $clinicId), $read));
     }
 
     /**
@@ -76,7 +84,18 @@ final readonly class PortalRequestQueue
      */
     public function links(string $clinicId, bool $decided = false): array
     {
-        $requests = $this->queryBus->ask(new ListClinicLinkRequests($clinicId, $decided));
+        $read = function () use ($clinicId, $decided): array {
+            $requests = $this->queryBus->ask(new ListClinicLinkRequests($clinicId, $decided));
+            \assert(\is_array($requests));
+
+            return array_values(array_filter($requests, static fn (mixed $request): bool => $request instanceof ClinicLinkRequest));
+        };
+
+        if ($decided || null === $this->answers) {
+            return $read();
+        }
+
+        $requests = $this->answers->answer(self::key('links', $clinicId), $read);
         \assert(\is_array($requests));
 
         return array_values(array_filter($requests, static fn (mixed $request): bool => $request instanceof ClinicLinkRequest));
@@ -90,22 +109,57 @@ final readonly class PortalRequestQueue
      */
     public function bookings(string $clinicId, bool $decided = false): array
     {
-        $requests = $this->queryBus->ask(new ListClinicBookingRequests($clinicId, $decided));
+        $read = function () use ($clinicId, $decided): array {
+            $requests = $this->queryBus->ask(new ListClinicBookingRequests($clinicId, $decided));
+            \assert(\is_array($requests));
+
+            return array_values(array_filter($requests, static fn (mixed $request): bool => $request instanceof ClinicBookingRequest));
+        };
+
+        if ($decided || null === $this->answers) {
+            return $read();
+        }
+
+        $requests = $this->answers->answer(self::key('bookings', $clinicId), $read);
         \assert(\is_array($requests));
 
         return array_values(array_filter($requests, static fn (mixed $request): bool => $request instanceof ClinicBookingRequest));
     }
 
     /**
-     * How many requests wait for an answer, of every type: counted by
-     * ClientPortal, the requests themselves never read (the badge of every
-     * page asks it).
+     * How many requests wait for an answer, of every type (the badge of
+     * every page asks it): the waiting requests the page already read, else
+     * counted by ClientPortal without reading the requests themselves.
      */
     public function count(string $clinicId): int
     {
+        $open     = $this->answers?->kept(self::key('open', $clinicId));
+        $links    = $this->answers?->kept(self::key('links', $clinicId));
+        $bookings = $this->answers?->kept(self::key('bookings', $clinicId));
+
+        // A queue read up to its page cap may hold more than it kept: count that one.
+        if (\is_array($open) && \is_array($links) && \is_array($bookings) && \count($open) < self::MAX_PAGES * self::PAGE_SIZE) {
+            return \count($open) + \count($links) + \count($bookings);
+        }
+
         $count = $this->queryBus->ask(new CountClinicPortalRequests($clinicId));
 
         return \is_int($count) ? $count : 0;
+    }
+
+    private static function key(string $list, string $clinicId): string
+    {
+        return self::class . '/' . $list . '/' . $clinicId;
+    }
+
+    /**
+     * @return list<ClinicPortalRequest>
+     */
+    private static function portalRequests(mixed $requests): array
+    {
+        \assert(\is_array($requests));
+
+        return array_values(array_filter($requests, static fn (mixed $request): bool => $request instanceof ClinicPortalRequest));
     }
 
     /**

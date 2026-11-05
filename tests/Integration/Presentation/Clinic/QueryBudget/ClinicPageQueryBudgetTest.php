@@ -123,7 +123,7 @@ final class ClinicPageQueryBudgetTest extends WebTestCase
      */
     public static function provideThePageStaysWithinItsQueryBudgetCases(): iterable
     {
-        yield 'dashboard' => ['/dashboard', 50, 0];
+        yield 'dashboard' => ['/dashboard', 40, 0];
         yield 'admission queue' => ['/admission/queue', 28, 0];
         yield 'consultation register' => ['/consultations', 29, 0];
         yield 'consultation' => ['/clinic/consultations/{consultation}', 41, 0];

@@ -22,8 +22,8 @@ use App\Context\ClientPortal\Application\Query\ListClinicLinkRequests\LinkReques
 use App\Context\ClientPortal\Application\Query\ListClinicPortalRequests\ClinicPortalRequest;
 use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\ClinicSettingsView;
 use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\GetClinicSettings;
-use App\Context\Clinic\Application\Query\Staff\GetUserMembershipInClinic\GetUserMembershipInClinic;
-use App\Context\Clinic\Application\Query\Staff\GetUserMembershipInClinic\MembershipDetails;
+use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\AccessibleClinic;
+use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\ListClinicsForUser;
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ClinicVeterinarianItem;
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ListClinicVeterinarians;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
@@ -1516,13 +1516,21 @@ final readonly class DashboardViewBuilder
      */
     private function audiences(string $clinicId, ?string $userId): array
     {
-        $membership = null === $userId ? null : $this->queryBus->ask(new GetUserMembershipInClinic($userId, $clinicId));
+        // The member's role here, as the shell's clinic switcher reads it (once for the request).
+        $clinics = null === $userId ? [] : $this->queryBus->ask(new ListClinicsForUser($userId));
+        $role    = null;
 
-        if (!$membership instanceof MembershipDetails) {
+        foreach (\is_array($clinics) ? $clinics : [] as $clinic) {
+            if ($clinic instanceof AccessibleClinic && $clinic->clinicId === $clinicId) {
+                $role = $clinic->memberRole;
+            }
+        }
+
+        if (null === $role) {
             return ['clinique'];
         }
 
-        return match ($membership->role) {
+        return match ($role) {
             ClinicMemberRole::VETERINARY => ['clinique', 'veto'],
             ClinicMemberRole::VETERINARY_ASSISTANT, ClinicMemberRole::RECEPTIONIST => ['clinique', 'asv'],
             ClinicMemberRole::MANAGER => ['clinique', 'asv', 'veto'],

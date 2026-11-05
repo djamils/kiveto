@@ -40,6 +40,15 @@ final class QueryAnswerCache implements ResetInterface
         return $this->answers[$query];
     }
 
+    /**
+     * The answer kept for the query, without asking: null when none is kept,
+     * and always while a command runs.
+     */
+    public function kept(string $query): mixed
+    {
+        return $this->commands > 0 ? null : ($this->answers[$query] ?? null);
+    }
+
     public function commandStarted(): void
     {
         ++$this->commands;

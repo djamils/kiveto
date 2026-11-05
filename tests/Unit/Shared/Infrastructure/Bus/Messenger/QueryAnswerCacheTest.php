@@ -55,6 +55,21 @@ final class QueryAnswerCacheTest extends TestCase
         self::assertSame(5, $cache->answer('q', $this->ask(...)));
     }
 
+    public function testAKeptAnswerIsPeekedWithoutAsking(): void
+    {
+        $cache = new QueryAnswerCache();
+
+        self::assertNull($cache->kept('q'), 'nothing asked yet');
+        $cache->answer('q', $this->ask(...));
+        self::assertSame(1, $cache->kept('q'));
+
+        $cache->commandStarted();
+        self::assertNull($cache->kept('q'), 'never while a command runs');
+        $cache->commandFinished();
+        self::assertNull($cache->kept('q'), 'forgotten once it ran');
+        self::assertSame(1, $this->asked);
+    }
+
     public function testTheResetForgetsEverything(): void
     {
         $cache = new QueryAnswerCache();
