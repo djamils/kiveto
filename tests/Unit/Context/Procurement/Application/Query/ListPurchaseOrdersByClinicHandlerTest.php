@@ -15,8 +15,8 @@ final class ListPurchaseOrdersByClinicHandlerTest extends TestCase
 
     public function testItReturnsPurchaseOrdersForClinic(): void
     {
-        $readRepository = $this->createStub(PurchaseOrderReadRepositoryInterface::class);
-        $readRepository->method('findByClinic')->with(self::CLINIC_UUID)
+        $readRepository = $this->createMock(PurchaseOrderReadRepositoryInterface::class);
+        $readRepository->expects(self::once())->method('findByClinic')->with(self::CLINIC_UUID)
             ->willReturn([['id' => 'po-1', 'status' => 'DRAFT']])
         ;
 

@@ -16,8 +16,8 @@ final class GetSupplierPricingForClinicHandlerTest extends TestCase
 
     public function testItReturnsPricingForClinic(): void
     {
-        $readRepository = $this->createStub(SupplierPricingReadRepositoryInterface::class);
-        $readRepository->method('findByClinic')->with(self::CLINIC_UUID)
+        $readRepository = $this->createMock(SupplierPricingReadRepositoryInterface::class);
+        $readRepository->expects(self::once())->method('findByClinic')->with(self::CLINIC_UUID)
             ->willReturn([['id' => 'pricing-1', 'amountMinor' => 1200]])
         ;
 

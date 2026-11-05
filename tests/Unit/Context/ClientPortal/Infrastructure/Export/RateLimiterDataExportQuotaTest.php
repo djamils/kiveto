@@ -24,7 +24,8 @@ final class RateLimiterDataExportQuotaTest extends TestCase
             self::fail('A second export within 24 hours should have been refused.');
         } catch (DataExportRateLimitedException $e) {
             self::assertGreaterThan(86_000, $e->retryAfterSeconds);
-            self::assertLessThanOrEqual(86_400, $e->retryAfterSeconds);
+            // The rate limiter rounds the wait up to the next second.
+            self::assertLessThanOrEqual(86_401, $e->retryAfterSeconds);
         }
 
         $quota->refund('user-1');

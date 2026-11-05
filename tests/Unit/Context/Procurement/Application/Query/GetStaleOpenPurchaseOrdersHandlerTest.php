@@ -13,8 +13,8 @@ final class GetStaleOpenPurchaseOrdersHandlerTest extends TestCase
 {
     public function testItReturnsStaleOrders(): void
     {
-        $readRepository = $this->createStub(PurchaseOrderReadRepositoryInterface::class);
-        $readRepository->method('findStale')->with(60)
+        $readRepository = $this->createMock(PurchaseOrderReadRepositoryInterface::class);
+        $readRepository->expects(self::once())->method('findStale')->with(60)
             ->willReturn([['id' => 'po-old', 'status' => 'PARTIALLY_RECEIVED']])
         ;
 

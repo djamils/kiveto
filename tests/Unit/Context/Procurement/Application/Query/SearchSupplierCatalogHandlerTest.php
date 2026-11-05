@@ -15,8 +15,8 @@ final class SearchSupplierCatalogHandlerTest extends TestCase
 
     public function testItSearchesCatalog(): void
     {
-        $readRepository = $this->createStub(SupplierCatalogReadRepositoryInterface::class);
-        $readRepository->method('search')->with('amoxicilline', self::SUPPLIER_UUID)
+        $readRepository = $this->createMock(SupplierCatalogReadRepositoryInterface::class);
+        $readRepository->expects(self::once())->method('search')->with('amoxicilline', self::SUPPLIER_UUID)
             ->willReturn([['id' => 'entry-1', 'name' => 'Amoxicilline 500mg']])
         ;
 

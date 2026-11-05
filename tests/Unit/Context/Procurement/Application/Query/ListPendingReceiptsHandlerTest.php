@@ -15,8 +15,8 @@ final class ListPendingReceiptsHandlerTest extends TestCase
 
     public function testItReturnsPendingReceipts(): void
     {
-        $readRepository = $this->createStub(SupplierReceiptReadRepositoryInterface::class);
-        $readRepository->method('findPending')->with(self::CLINIC_UUID)
+        $readRepository = $this->createMock(SupplierReceiptReadRepositoryInterface::class);
+        $readRepository->expects(self::once())->method('findPending')->with(self::CLINIC_UUID)
             ->willReturn([['id' => 'receipt-1', 'status' => 'PENDING_REVIEW']])
         ;
 
