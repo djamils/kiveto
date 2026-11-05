@@ -8,10 +8,14 @@ framework:
     #esi: true
     #fragments: true
 
-    # Reverse proxies whose X-Forwarded-* headers are believed (client IP of the
-    # Brevo webhooks); none by default.
+    # Reverse proxies whose X-Forwarded-* headers are believed: none in dev, the
+    # edge Nginx on every other deployment (.env.prod, TrustedProxiesGuard).
+    # They give the client IP of every rate limit and of the Brevo webhooks,
+    # and the scheme (Secure cookies, CSRF origin, signed URLs). The port is
+    # not believed: behind TLS it follows the scheme (443), and a header the
+    # edge would forget to overwrite cannot set it.
     trusted_proxies: '%env(SYMFONY_TRUSTED_PROXIES)%'
-    trusted_headers: ['x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-port']
+    trusted_headers: ['x-forwarded-for', 'x-forwarded-proto']
 
     trusted_hosts:
         - '^localhost(:\d+)?$'
