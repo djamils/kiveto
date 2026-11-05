@@ -8,6 +8,7 @@ use App\Context\Patient\Application\Port\PatientReadRepositoryInterface;
 use App\Context\Patient\Application\Query\GetPatientAnimalLink\PatientAnimalLinkDto;
 use App\Context\Patient\Domain\ValueObject\PatientStatus;
 use App\Context\Patient\Infrastructure\Persistence\Doctrine\Entity\PatientEntity;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -64,10 +65,36 @@ final readonly class DoctrinePatientReadRepository implements PatientReadReposit
         /** @var array{id: Uuid, animalLinkId: Uuid|null, displayLabelValue: string, observedSpecies: string|null, observedColor: string|null}|null $row */
         $row = $qb->getQuery()->getOneOrNullResult();
 
-        if (null === $row) {
-            return null;
+        return null === $row ? null : self::link($row);
+    }
+
+    public function findAnimalLinks(string $clinicId, array $patientIds): array
+    {
+        $qb = $this->entityManager->createQueryBuilder();
+        $qb->select('p.id', 'p.animalLinkId', 'p.displayLabelValue', 'p.observedSpecies', 'p.observedColor')
+            ->from(PatientEntity::class, 'p')
+            ->where('p.id IN (:ids)')
+            ->andWhere('p.clinicId = :clinicId')
+            ->setParameter('ids', array_map(static fn (string $id): string => Uuid::fromString($id)->toBinary(), $patientIds), ArrayParameterType::BINARY)
+            ->setParameter('clinicId', Uuid::fromString($clinicId), UuidType::NAME)
+        ;
+
+        /** @var list<array{id: Uuid, animalLinkId: Uuid|null, displayLabelValue: string, observedSpecies: string|null, observedColor: string|null}> $rows */
+        $rows  = $qb->getQuery()->getResult();
+        $links = [];
+
+        foreach ($rows as $row) {
+            $links[$row['id']->toString()] = self::link($row);
         }
 
+        return $links;
+    }
+
+    /**
+     * @param array{id: Uuid, animalLinkId: Uuid|null, displayLabelValue: string, observedSpecies: string|null, observedColor: string|null} $row
+     */
+    private static function link(array $row): PatientAnimalLinkDto
+    {
         return new PatientAnimalLinkDto(
             patientId: $row['id']->toString(),
             animalId: $row['animalLinkId']?->toString(),

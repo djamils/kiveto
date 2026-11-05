@@ -8,6 +8,7 @@ use App\Context\ClientPortal\Domain\Profile\OwnerProfile;
 use App\Context\ClientPortal\Domain\Profile\OwnerProfileRepositoryInterface;
 use App\Shared\Domain\ValueObject\PostalAddress;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 
 /**
@@ -76,10 +77,36 @@ final readonly class DbalOwnerProfileRepository implements OwnerProfileRepositor
             ['user' => SqlValues::binary($userId)],
         );
 
-        if (false === $row) {
-            return null;
+        return false === $row ? null : self::profile($row);
+    }
+
+    public function findByUserIds(array $userIds): array
+    {
+        if ([] === $userIds) {
+            return [];
         }
 
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT * FROM ' . self::TABLE . ' WHERE user_id IN (:users)',
+            ['users' => array_map(SqlValues::binary(...), $userIds)],
+            ['users' => ArrayParameterType::BINARY],
+        );
+
+        $profiles = [];
+
+        foreach ($rows as $row) {
+            $profile                      = self::profile($row);
+            $profiles[$profile->userId()] = $profile;
+        }
+
+        return $profiles;
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private static function profile(array $row): OwnerProfile
+    {
         $line1 = RowAccessor::nullableString($row, 'address_line1');
 
         return OwnerProfile::reconstitute(

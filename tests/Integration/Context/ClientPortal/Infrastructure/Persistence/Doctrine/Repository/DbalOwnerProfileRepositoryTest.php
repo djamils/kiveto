@@ -42,6 +42,20 @@ final class DbalOwnerProfileRepositoryTest extends KernelTestCase
         self::assertNull($profiles->findByUserId('01960000-0000-7000-8000-0000000c2e09'));
     }
 
+    public function testSeveralProfilesAreReadAtOnce(): void
+    {
+        $profiles = $this->profiles();
+        $created  = new \DateTimeImmutable('2026-10-29 10:00', new \DateTimeZone('UTC'));
+        $profiles->save(OwnerProfile::createFromClient(self::USER, 'Sophie', 'Martin', null, 'v1', $created));
+        $profiles->save(OwnerProfile::createFromClient(self::USER2, 'Paul', 'Durand', null, 'v1', $created));
+
+        $found = $profiles->findByUserIds([self::USER, self::USER2, '01960000-0000-7000-8000-0000000c2e09']);
+        ksort($found);
+
+        self::assertSame([self::USER => 'Martin', self::USER2 => 'Durand'], array_map(static fn (OwnerProfile $p): string => $p->lastName(), $found));
+        self::assertSame([], $profiles->findByUserIds([]));
+    }
+
     public function testTheOwnersEditRewritesTheNameAndTheAddressOnly(): void
     {
         $profiles = $this->profiles();

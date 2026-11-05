@@ -13,6 +13,7 @@ use App\Context\Client\Application\Query\GetClientNotificationContact\ClientNoti
 use App\Context\Client\Application\Query\GetClientNotificationContact\GetClientNotificationContact;
 use App\Context\Client\Application\Query\GetClientsNotificationContacts\GetClientsNotificationContacts;
 use App\Context\Client\Application\Query\IsPortalMobileNumber\IsPortalMobileNumber;
+use App\Context\Client\Application\Query\ListClientsByIds\ListClientsByIds;
 use App\Context\ClientPortal\Application\Port\ClinicContact;
 use App\Context\ClientPortal\Infrastructure\Adapter\Animal\QueryBusPetNames;
 use App\Context\ClientPortal\Infrastructure\Adapter\Client\QueryBusClientDirectory;
@@ -137,6 +138,37 @@ final class QueryBusAdaptersTest extends TestCase
 
         self::assertSame([], new QueryBusPetNames($bus)->petNamesOf('clinic-1', 'client-2'));
         self::assertSame([], new QueryBusPetNames(new AnsweringQueryBus())->petNamesOf('clinic-1', 'client-1'));
+    }
+
+    public function testThePetNamesOfSeveralClientsAreReadAtOnce(): void
+    {
+        $bus = new AnsweringQueryBus([ListAnimalSummariesPerClientIds::class => [
+            'client-1' => [new AnimalSummary('a1', 'Moka', 'cat')],
+            'client-2' => [new AnimalSummary('a2', 'Rex', 'dog'), new AnimalSummary('a3', 'Uno', 'dog')],
+        ]]);
+
+        self::assertSame(['client-1' => ['Moka'], 'client-2' => ['Rex', 'Uno']], new QueryBusPetNames($bus)->petNamesOfClients('clinic-1', ['client-1', 'client-2', 'client-3']));
+        self::assertCount(1, $bus->asked);
+        self::assertSame([], new QueryBusPetNames($bus)->petNamesOfClients('clinic-1', []));
+        self::assertCount(1, $bus->asked, 'no client, no read');
+    }
+
+    public function testTheSnapshotsOfSeveralClientsAreReadAtOnce(): void
+    {
+        $bus = new AnsweringQueryBus([ListClientsByIds::class => [
+            'client-1' => new ClientView('client-1', 'clinic-1', 'Sophie', 'Martin', 'active', [], new PostalAddressDto('12 rue des Lilas', 'Lyon', 'fr', null, '69003'), 'c', 'u'),
+            'client-2' => new ClientView('client-2', 'clinic-1', 'Paul', 'Durand', 'active', [], null, 'c', 'u'),
+        ]]);
+
+        $snapshots = new QueryBusClientDirectory($bus)->snapshotsOf('clinic-1', ['client-1', 'client-2', 'client-3']);
+
+        self::assertSame(['client-1', 'client-2'], array_keys($snapshots));
+        self::assertSame(['Sophie', 'Martin', 'Lyon'], [$snapshots['client-1']->firstName, $snapshots['client-1']->lastName, $snapshots['client-1']->address?->city]);
+        self::assertNull($snapshots['client-2']->address);
+        self::assertCount(1, $bus->asked);
+
+        self::assertSame([], new QueryBusClientDirectory($bus)->snapshotsOf('clinic-1', []));
+        self::assertSame([], new QueryBusClientDirectory(new AnsweringQueryBus())->snapshotsOf('clinic-1', ['client-1']));
     }
 
     /**

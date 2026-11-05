@@ -11,6 +11,7 @@ use App\Context\Animal\Application\Query\GetAnimalById\AnimalView;
 use App\Context\Animal\Application\Query\ListAnimalsByIds\ListAnimalsByIds;
 use App\Context\Billing\Application\Query\GetBillingStats\BillingStats;
 use App\Context\Billing\Application\Query\GetBillingStats\GetBillingStats;
+use App\Context\Billing\Application\Query\GetCollectedTakings\GetCollectedTakings;
 use App\Context\Catalog\Application\Query\Catalog\ListCatalog\ArticleListRow;
 use App\Context\Catalog\Application\Query\Catalog\ListCatalog\CatalogListCriteria;
 use App\Context\Catalog\Application\Query\Catalog\ListCatalog\CatalogPage;
@@ -21,8 +22,8 @@ use App\Context\ClientPortal\Application\Query\ListClinicLinkRequests\LinkReques
 use App\Context\ClientPortal\Application\Query\ListClinicPortalRequests\ClinicPortalRequest;
 use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\ClinicSettingsView;
 use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\GetClinicSettings;
-use App\Context\Clinic\Application\Query\Staff\GetUserMembershipInClinic\GetUserMembershipInClinic;
-use App\Context\Clinic\Application\Query\Staff\GetUserMembershipInClinic\MembershipDetails;
+use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\AccessibleClinic;
+use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\ListClinicsForUser;
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ClinicVeterinarianItem;
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ListClinicVeterinarians;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
@@ -34,8 +35,8 @@ use App\Context\Inventory\Application\Query\WatchStock\StockWatchKind;
 use App\Context\Inventory\Application\Query\WatchStock\StockWatchRow;
 use App\Context\Inventory\Application\Query\WatchStock\WatchStock;
 use App\Context\Inventory\Domain\StockAlert\ValueObject\StockAlertSeverity;
-use App\Context\Patient\Application\Query\GetPatientAnimalLink\GetPatientAnimalLink;
 use App\Context\Patient\Application\Query\GetPatientAnimalLink\PatientAnimalLinkDto;
+use App\Context\Patient\Application\Query\ListPatientAnimalLinks\ListPatientAnimalLinks;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\AppointmentItem;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\GetAgendaForClinicDateRange;
 use App\Context\Scheduling\Application\Query\GetOnlineBookingSettings\GetOnlineBookingSettings;
@@ -155,13 +156,13 @@ final readonly class DashboardViewBuilder
         \assert($stats instanceof BillingStats);
 
         // The same weekday a week earlier, up to the same time: the takings
-        // compare with it.
-        $lastWeek = $this->queryBus->ask(new GetBillingStats(
+        // compare with it, and only them.
+        $lastWeek = $this->queryBus->ask(new GetCollectedTakings(
             $clinicId,
             $midnight->modify('-7 days')->setTimezone($utc),
             $now->modify('-7 days')->setTimezone($utc),
         ));
-        \assert($lastWeek instanceof BillingStats);
+        \assert(\is_int($lastWeek));
 
         // The stock tasks read the shelves as the stock page and the
         // navigation badge do, so the three never disagree.
@@ -234,15 +235,15 @@ final readonly class DashboardViewBuilder
      */
     private function appointments(string $clinicId, \DateTimeImmutable $now, \DateTimeZone $timeZone): array
     {
-        $items = $this->queryBus->ask(GetAgendaForClinicDateRange::forDay($clinicId, $now, $timeZone));
-        \assert(\is_array($items));
-
+        // Today is within the agenda the online requests read: one read for both.
+        $day          = GetAgendaForClinicDateRange::forDay($clinicId, $now, $timeZone);
+        $utc          = new \DateTimeZone('UTC');
         $appointments = [];
 
-        foreach ($items as $item) {
-            \assert($item instanceof AppointmentItem);
+        foreach ($this->agendaAround($clinicId, $now) as $item) {
+            $start = new \DateTimeImmutable($item->startsAtUtc, $utc);
 
-            if (!$item->isWithdrawn) {
+            if (!$item->isWithdrawn && $start >= $day->fromUtc && $start <= $day->toUtc) {
                 $appointments[] = $item;
             }
         }
@@ -250,6 +251,30 @@ final readonly class DashboardViewBuilder
         usort($appointments, static fn (AppointmentItem $a, AppointmentItem $b): int => $a->startsAtUtc <=> $b->startsAtUtc);
 
         return $appointments;
+    }
+
+    /**
+     * The agenda from yesterday to the online booking horizon: it holds today's
+     * appointments and every online request still pending (one expires before
+     * it starts, at most `horizonDays` ahead). Asked twice by the dashboard,
+     * read once (request-cacheable queries).
+     *
+     * @return list<AppointmentItem>
+     */
+    private function agendaAround(string $clinicId, \DateTimeImmutable $now): array
+    {
+        $booking = $this->queryBus->ask(new GetOnlineBookingSettings($clinicId));
+        \assert($booking instanceof OnlineBookingSettingsView);
+
+        $utc   = new \DateTimeZone('UTC');
+        $items = $this->queryBus->ask(new GetAgendaForClinicDateRange(
+            $clinicId,
+            $now->setTimezone($utc)->modify('-1 day'),
+            $now->setTimezone($utc)->modify(\sprintf('+%d days', $booking->horizonDays + 1)),
+        ));
+        \assert(\is_array($items));
+
+        return array_values(array_filter($items, static fn (mixed $item): bool => $item instanceof AppointmentItem));
     }
 
     /**
@@ -435,6 +460,7 @@ final readonly class DashboardViewBuilder
     }
 
     /**
+     * @param int                          $lastWeek     collected the same weekday a week earlier, up to the same time
      * @param list<AppointmentItem>        $appointments
      * @param list<array{int, int}>|null   $opening
      * @param list<array{int, int, float}> $slots        today's bookable blocks
@@ -445,7 +471,7 @@ final readonly class DashboardViewBuilder
      */
     private function kpis(
         BillingStats $stats,
-        BillingStats $lastWeek,
+        int $lastWeek,
         array $appointments,
         ?array $opening,
         array $slots,
@@ -460,8 +486,8 @@ final readonly class DashboardViewBuilder
         $trend = null;
         $tone  = '';
 
-        if (!$isCalm && $lastWeek->collectedMinorUnits > 0) {
-            $change = (int) round(($stats->collectedMinorUnits - $lastWeek->collectedMinorUnits) * 100 / $lastWeek->collectedMinorUnits);
+        if (!$isCalm && $lastWeek > 0) {
+            $change = (int) round(($stats->collectedMinorUnits - $lastWeek) * 100 / $lastWeek);
             $trend  = ($change >= 0 ? '▲ ' : '▼ ') . abs($change) . ' %';
             $tone   = $change >= 0 ? 'up' : 'warn';
         }
@@ -1094,24 +1120,14 @@ final readonly class DashboardViewBuilder
      */
     private function pendingRequestTasks(string $clinicId, \DateTimeImmutable $now): array
     {
-        $booking = $this->queryBus->ask(new GetOnlineBookingSettings($clinicId));
-        \assert($booking instanceof OnlineBookingSettingsView);
-
-        $utc   = new \DateTimeZone('UTC');
-        $items = $this->queryBus->ask(new GetAgendaForClinicDateRange(
-            $clinicId,
-            $now->setTimezone($utc)->modify('-1 day'),
-            $now->setTimezone($utc)->modify(\sprintf('+%d days', $booking->horizonDays + 1)),
-        ));
-        \assert(\is_array($items));
+        $utc = new \DateTimeZone('UTC');
 
         // A new client's request (no owner yet) is answered in « Demandes Portal »:
         // the agenda's Confirm refuses it, so it is a « Nouveau client » task.
         $pending = array_values(array_filter(
-            $items,
-            static fn (mixed $item): bool => $item instanceof AppointmentItem && $item->isPending && null !== $item->ownerId,
+            $this->agendaAround($clinicId, $now),
+            static fn (AppointmentItem $item): bool => $item->isPending && null !== $item->ownerId,
         ));
-        /* @var list<AppointmentItem> $pending */
         usort($pending, static fn (AppointmentItem $a, AppointmentItem $b): int => [$a->pendingExpiresAtUtc ?? $a->startsAtUtc, $a->startsAtUtc] <=> [$b->pendingExpiresAtUtc ?? $b->startsAtUtc, $b->startsAtUtc]);
 
         $tasks = [];
@@ -1341,9 +1357,14 @@ final readonly class DashboardViewBuilder
         }
 
         $tasks = [];
+        $shown = \array_slice($stale, 0, self::TASKS_PER_SOURCE);
 
-        foreach (\array_slice($stale, 0, self::TASKS_PER_SOURCE) as $item) {
-            $link    = $this->queryBus->ask(new GetPatientAnimalLink($item->patientId, $clinicId));
+        // Every listed patient's name in one read.
+        $links = [] === $shown ? [] : $this->queryBus->ask(new ListPatientAnimalLinks($clinicId, array_map(static fn (ConsultationListItemView $item): string => $item->patientId, $shown)));
+        \assert(\is_array($links));
+
+        foreach ($shown as $item) {
+            $link    = $links[$item->patientId] ?? null;
             $started = new \DateTimeImmutable($item->startedAtUtc)->setTimezone($now->getTimezone());
             $motif   = $item->chiefComplaint ?? ($item->motifs[0] ?? null);
 
@@ -1495,13 +1516,21 @@ final readonly class DashboardViewBuilder
      */
     private function audiences(string $clinicId, ?string $userId): array
     {
-        $membership = null === $userId ? null : $this->queryBus->ask(new GetUserMembershipInClinic($userId, $clinicId));
+        // The member's role here, as the shell's clinic switcher reads it (once for the request).
+        $clinics = null === $userId ? [] : $this->queryBus->ask(new ListClinicsForUser($userId));
+        $role    = null;
 
-        if (!$membership instanceof MembershipDetails) {
+        foreach (\is_array($clinics) ? $clinics : [] as $clinic) {
+            if ($clinic instanceof AccessibleClinic && $clinic->clinicId === $clinicId) {
+                $role = $clinic->memberRole;
+            }
+        }
+
+        if (null === $role) {
             return ['clinique'];
         }
 
-        return match ($membership->role) {
+        return match ($role) {
             ClinicMemberRole::VETERINARY => ['clinique', 'veto'],
             ClinicMemberRole::VETERINARY_ASSISTANT, ClinicMemberRole::RECEPTIONIST => ['clinique', 'asv'],
             ClinicMemberRole::MANAGER => ['clinique', 'asv', 'veto'],

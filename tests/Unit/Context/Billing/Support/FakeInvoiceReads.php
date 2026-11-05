@@ -53,6 +53,11 @@ final class FakeInvoiceReads implements InvoiceReadRepositoryInterface
         throw new \LogicException('Not used.');
     }
 
+    public function collectedBetween(ClinicId $clinicId, \DateTimeImmutable $from, \DateTimeImmutable $to): int
+    {
+        throw new \LogicException('Not used.');
+    }
+
     public function creditNoteDetails(ClinicId $clinicId, CreditNoteId $creditNoteId): CreditNoteDetails
     {
         throw new \LogicException('Not used.');

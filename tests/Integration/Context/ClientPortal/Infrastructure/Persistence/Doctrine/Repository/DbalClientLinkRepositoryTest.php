@@ -63,6 +63,13 @@ final class DbalClientLinkRepositoryTest extends KernelTestCase
         self::assertSame([], $links->findConfirmedByUser(self::USER2), 'pending');
         self::assertFalse($links->hasConfirmed(self::USER2, self::CLINIC));
         self::assertNull($links->findByClient(self::CLINIC, self::CLIENT)[1]->linkedAt());
+
+        // Several clients at once: the clinic's links of each, whatever their status.
+        $other = '01960000-0000-7000-8000-0000000c1d02';
+        $links->save(ClientLink::confirm(ClientLinkId::fromString('01960000-0000-7000-8000-0000000c1a04'), self::USER2, self::CLINIC, $other, new \DateTimeImmutable('2026-10-30 10:00')));
+        self::assertSame([self::L1, self::L3, '01960000-0000-7000-8000-0000000c1a04'], $ids($links->findByClients(self::CLINIC, [self::CLIENT, $other])));
+        self::assertSame([self::L2], $ids($links->findByClients(self::CLINIC2, [self::CLIENT, $other])));
+        self::assertSame([], $links->findByClients(self::CLINIC, []));
     }
 
     public function testPendingLinksByAccountAndByClinic(): void

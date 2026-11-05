@@ -137,6 +137,21 @@ final class ClientPortalFakes implements ClientDirectoryInterface, ClinicProfile
         return $this->snapshots[$clinicId . '/' . $clientId] ?? null;
     }
 
+    public function snapshotsOf(string $clinicId, array $clientIds): array
+    {
+        $snapshots = [];
+
+        foreach ($clientIds as $clientId) {
+            $snapshot = $this->snapshotOf($clinicId, $clientId);
+
+            if (null !== $snapshot) {
+                $snapshots[$clientId] = $snapshot;
+            }
+        }
+
+        return $snapshots;
+    }
+
     public function mobileMatches(string $phone): array
     {
         return $this->mobileMatches[$phone] ?? [];
@@ -160,6 +175,19 @@ final class ClientPortalFakes implements ClientDirectoryInterface, ClinicProfile
     public function petNamesOf(string $clinicId, string $clientId): array
     {
         return $this->pets[$clinicId . '/' . $clientId] ?? [];
+    }
+
+    public function petNamesOfClients(string $clinicId, array $clientIds): array
+    {
+        $names = [];
+
+        foreach ($clientIds as $clientId) {
+            if ([] !== $this->petNamesOf($clinicId, $clientId)) {
+                $names[$clientId] = $this->petNamesOf($clinicId, $clientId);
+            }
+        }
+
+        return $names;
     }
 
     public function isPortalMobile(string $phone): bool

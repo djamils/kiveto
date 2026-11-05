@@ -13,4 +13,14 @@ interface PatientReadRepositoryInterface
     public function getActivePatientIdForAnimal(string $clinicId, string $animalId): ?string;
 
     public function findAnimalLink(string $clinicId, string $patientId): ?PatientAnimalLinkDto;
+
+    /**
+     * The links of several patients of the clinic in one query, by patient
+     * id; an unknown patient, or another clinic's, is left out.
+     *
+     * @param non-empty-list<string> $patientIds UUID strings
+     *
+     * @return array<string, PatientAnimalLinkDto>
+     */
+    public function findAnimalLinks(string $clinicId, array $patientIds): array;
 }

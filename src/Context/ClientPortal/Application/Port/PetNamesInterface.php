@@ -14,4 +14,14 @@ interface PetNamesInterface
      * @return list<string>
      */
     public function petNamesOf(string $clinicId, string $clientId): array;
+
+    /**
+     * The same for several clients in one read, by client id; a client
+     * without such animals is left out.
+     *
+     * @param list<string> $clientIds
+     *
+     * @return array<string, list<string>>
+     */
+    public function petNamesOfClients(string $clinicId, array $clientIds): array;
 }
