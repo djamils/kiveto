@@ -15,6 +15,23 @@ case "${KIVETO_DEPLOYMENT:-}" in
         ;;
 esac
 
+# These hosts are public: every seeded account gets one of two passwords of
+# the deployment (Parameter Store) instead of the trivial ones of the stories
+# (AbstractUserFactory::withPlainPassword). The clinic one is handed to the
+# people a DEMO is shown to, so the back-office one must differ. Checked here
+# too, before anything is written.
+for variable in KIVETO_SEED_PASSWORD KIVETO_SEED_BACKOFFICE_PASSWORD; do
+    eval "value=\${$variable:-}"
+    if [ "${#value}" -lt 16 ]; then
+        echo "kiveto-seed: $variable must hold at least 16 characters (/kiveto/$KIVETO_DEPLOYMENT/$variable)." >&2
+        exit 2
+    fi
+done
+if [ "$KIVETO_SEED_PASSWORD" = "$KIVETO_SEED_BACKOFFICE_PASSWORD" ]; then
+    echo "kiveto-seed: KIVETO_SEED_BACKOFFICE_PASSWORD must differ from KIVETO_SEED_PASSWORD." >&2
+    exit 2
+fi
+
 # Foundry is registered in the dev kernel only; the variables of the
 # deployment (.env.runtime) still win over the files of .env.
 APP_ENV=dev APP_DEBUG=0 php -d memory_limit=1G bin/console foundry:load-fixtures --append dev --no-interaction

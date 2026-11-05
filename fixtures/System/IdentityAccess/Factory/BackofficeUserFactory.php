@@ -15,4 +15,9 @@ final class BackofficeUserFactory extends AbstractUserFactory
     {
         return BackofficeUserEntity::class;
     }
+
+    protected function usesBackofficeSeedPassword(): bool
+    {
+        return true;
+    }
 }
