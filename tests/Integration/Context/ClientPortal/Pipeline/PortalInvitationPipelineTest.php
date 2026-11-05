@@ -163,6 +163,11 @@ final class PortalInvitationPipelineTest extends KernelTestCase
             {
                 return null;
             }
+
+            public function findByUserIds(array $userIds): array
+            {
+                return [];
+            }
         });
 
         try {

@@ -13,4 +13,14 @@ interface OwnerProfileRepositoryInterface
     public function updateIdentity(OwnerProfile $profile): void;
 
     public function findByUserId(string $userId): ?OwnerProfile;
+
+    /**
+     * Several accounts' profiles in one read, by user id; an account without
+     * a profile is left out.
+     *
+     * @param list<string> $userIds
+     *
+     * @return array<string, OwnerProfile>
+     */
+    public function findByUserIds(array $userIds): array;
 }

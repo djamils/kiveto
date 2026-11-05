@@ -9,6 +9,7 @@ use App\Context\Client\Application\Query\GetClientById\GetClientById;
 use App\Context\Client\Application\Query\GetClientNotificationContact\ClientNotificationContact;
 use App\Context\Client\Application\Query\GetClientNotificationContact\GetClientNotificationContact;
 use App\Context\Client\Application\Query\GetClientsNotificationContacts\GetClientsNotificationContacts;
+use App\Context\Client\Application\Query\ListClientsByIds\ListClientsByIds;
 use App\Context\Client\Application\Query\ListClientsByMobilePhone\ListClientsByMobilePhone;
 use App\Context\Client\Application\Query\ListClientsByMobilePhone\MobileClientMatch;
 use App\Context\ClientPortal\Application\Port\ClientDirectoryInterface;
@@ -61,10 +62,41 @@ final readonly class QueryBusClientDirectory implements ClientDirectoryInterface
     {
         $client = $this->queryBus->ask(new GetClientById($clinicId, $clientId));
 
-        if (!$client instanceof ClientView) {
-            return null;
+        return $client instanceof ClientView ? self::snapshot($client) : null;
+    }
+
+    public function snapshotsOf(string $clinicId, array $clientIds): array
+    {
+        if ([] === $clientIds) {
+            return [];
         }
 
+        $clients   = $this->queryBus->ask(new ListClientsByIds($clinicId, $clientIds));
+        $snapshots = [];
+
+        foreach (\is_array($clients) ? $clients : [] as $client) {
+            if ($client instanceof ClientView) {
+                $snapshots[$client->id] = self::snapshot($client);
+            }
+        }
+
+        return $snapshots;
+    }
+
+    public function mobileMatches(string $phone): array
+    {
+        $matches = $this->queryBus->ask(new ListClientsByMobilePhone($phone));
+        \assert(\is_array($matches));
+
+        return array_values(array_map(static function (mixed $match): MobileFileMatch {
+            \assert($match instanceof MobileClientMatch);
+
+            return new MobileFileMatch($match->clinicId, $match->clientId, $match->firstName, $match->lastName, $match->animalNames);
+        }, $matches));
+    }
+
+    private static function snapshot(ClientView $client): PortalClientSnapshot
+    {
         $address = $client->postalAddress;
 
         return new PortalClientSnapshot(
@@ -78,18 +110,6 @@ final readonly class QueryBusClientDirectory implements ClientDirectoryInterface
                 postalCode: $address->postalCode,
             ),
         );
-    }
-
-    public function mobileMatches(string $phone): array
-    {
-        $matches = $this->queryBus->ask(new ListClientsByMobilePhone($phone));
-        \assert(\is_array($matches));
-
-        return array_values(array_map(static function (mixed $match): MobileFileMatch {
-            \assert($match instanceof MobileClientMatch);
-
-            return new MobileFileMatch($match->clinicId, $match->clientId, $match->firstName, $match->lastName, $match->animalNames);
-        }, $matches));
     }
 
     private static function portal(ClientNotificationContact $contact): PortalClientContact

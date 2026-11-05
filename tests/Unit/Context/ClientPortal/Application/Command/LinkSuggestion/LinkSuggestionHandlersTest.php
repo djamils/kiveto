@@ -160,6 +160,11 @@ final class LinkSuggestionHandlersTest extends TestCase
                 return $this->links->findByClient($clinicId, $clientId);
             }
 
+            public function findByClients(string $clinicId, array $clientIds): array
+            {
+                return $this->links->findByClients($clinicId, $clientIds);
+            }
+
             public function findConfirmedByUser(string $userId): array
             {
                 return [];

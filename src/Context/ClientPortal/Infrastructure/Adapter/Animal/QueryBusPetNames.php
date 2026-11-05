@@ -24,17 +24,23 @@ final readonly class QueryBusPetNames implements PetNamesInterface
 
     public function petNamesOf(string $clinicId, string $clientId): array
     {
-        $summaries = $this->queryBus->ask(new ListAnimalSummariesPerClientIds($clinicId, [$clientId], self::LIMIT));
+        return $this->petNamesOfClients($clinicId, [$clientId])[$clientId] ?? [];
+    }
 
-        if (!\is_array($summaries) || !\is_array($summaries[$clientId] ?? null)) {
+    public function petNamesOfClients(string $clinicId, array $clientIds): array
+    {
+        if ([] === $clientIds) {
             return [];
         }
 
-        $names = [];
+        $summaries = $this->queryBus->ask(new ListAnimalSummariesPerClientIds($clinicId, $clientIds, self::LIMIT));
+        $names     = [];
 
-        foreach ($summaries[$clientId] as $summary) {
-            \assert($summary instanceof AnimalSummary);
-            $names[] = $summary->name;
+        foreach (\is_array($summaries) ? $summaries : [] as $clientId => $list) {
+            foreach (\is_array($list) ? $list : [] as $summary) {
+                \assert($summary instanceof AnimalSummary);
+                $names[(string) $clientId][] = $summary->name;
+            }
         }
 
         return $names;

@@ -30,4 +30,9 @@ final class InMemoryOwnerProfiles implements OwnerProfileRepositoryInterface
     {
         return $this->profiles[$userId] ?? null;
     }
+
+    public function findByUserIds(array $userIds): array
+    {
+        return array_intersect_key($this->profiles, array_flip($userIds));
+    }
 }

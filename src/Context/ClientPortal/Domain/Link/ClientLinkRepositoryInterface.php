@@ -19,6 +19,15 @@ interface ClientLinkRepositoryInterface
     public function findByClient(string $clinicId, string $clientId): array;
 
     /**
+     * Every link of several clinic clients in one read, whatever their status.
+     *
+     * @param list<string> $clientIds
+     *
+     * @return list<ClientLink>
+     */
+    public function findByClients(string $clinicId, array $clientIds): array;
+
+    /**
      * The confirmed links of a user, oldest link first.
      *
      * @return list<ClientLink>

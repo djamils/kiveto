@@ -24,6 +24,16 @@ interface ClientDirectoryInterface
     public function snapshotOf(string $clinicId, string $clientId): ?PortalClientSnapshot;
 
     /**
+     * The same for several clients in one read, by client id; a client
+     * unknown to the clinic is left out.
+     *
+     * @param list<string> $clientIds
+     *
+     * @return array<string, PortalClientSnapshot>
+     */
+    public function snapshotsOf(string $clinicId, array $clientIds): array;
+
+    /**
      * Across clinics: the non-archived files of active clinics whose
      * `mobile` phone is exactly this number, by clinic then oldest first.
      *

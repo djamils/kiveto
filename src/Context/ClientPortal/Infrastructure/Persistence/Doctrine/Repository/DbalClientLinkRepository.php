@@ -9,6 +9,7 @@ use App\Context\ClientPortal\Domain\Link\ClientLinkId;
 use App\Context\ClientPortal\Domain\Link\ClientLinkRepositoryInterface;
 use App\Context\ClientPortal\Domain\Link\ClientLinkStatus;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 
 /**
@@ -62,6 +63,19 @@ final readonly class DbalClientLinkRepository implements ClientLinkRepositoryInt
         );
     }
 
+    public function findByClients(string $clinicId, array $clientIds): array
+    {
+        if ([] === $clientIds) {
+            return [];
+        }
+
+        return $this->list(
+            'clinic_id = :clinic AND client_id IN (:clients) ORDER BY id',
+            ['clinic'  => SqlValues::binary($clinicId), 'clients' => array_map(SqlValues::binary(...), $clientIds)],
+            ['clients' => ArrayParameterType::BINARY],
+        );
+    }
+
     public function findConfirmedByUser(string $userId): array
     {
         return $this->list(
@@ -100,15 +114,16 @@ final readonly class DbalClientLinkRepository implements ClientLinkRepositoryInt
     }
 
     /**
-     * @param array<string, string> $parameters
+     * @param array<string, string|list<string>> $parameters
+     * @param array<string, ArrayParameterType>  $types
      *
      * @return list<ClientLink>
      */
-    private function list(string $where, array $parameters): array
+    private function list(string $where, array $parameters, array $types = []): array
     {
         return array_map(
             self::hydrate(...),
-            $this->connection->fetchAllAssociative('SELECT * FROM ' . self::TABLE . ' WHERE ' . $where, $parameters),
+            $this->connection->fetchAllAssociative('SELECT * FROM ' . self::TABLE . ' WHERE ' . $where, $parameters, $types),
         );
     }
 
