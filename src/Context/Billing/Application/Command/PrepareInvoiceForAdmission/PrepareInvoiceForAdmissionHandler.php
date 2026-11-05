@@ -7,6 +7,7 @@ namespace App\Context\Billing\Application\Command\PrepareInvoiceForAdmission;
 use App\Context\Billing\Application\Port\BillableLineDto;
 use App\Context\Billing\Application\Port\ConsultationBillingProviderInterface;
 use App\Context\Billing\Application\Port\PayerDirectoryInterface;
+use App\Context\Billing\Application\Port\VisitDirectoryInterface;
 use App\Context\Billing\Application\Service\InvoiceLineFactory;
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
@@ -42,6 +43,7 @@ final readonly class PrepareInvoiceForAdmissionHandler
         private PayerDirectoryInterface $payerDirectory,
         private UuidGeneratorInterface $uuidGenerator,
         private ClockInterface $clock,
+        private VisitDirectoryInterface $visits,
     ) {
     }
 
@@ -54,6 +56,11 @@ final readonly class PrepareInvoiceForAdmissionHandler
 
         if (null !== $existing && !$existing->status()->isEditable()) {
             return $existing->id()->toString();
+        }
+
+        // A visit of another clinic is not found either: no draft is kept for it.
+        if (null === $existing && null === $this->visits->visitOf($command->clinicId, $command->admissionId)) {
+            throw new \DomainException('Admission not found');
         }
 
         $lines = $this->consultationBilling->billableLinesForAdmission(

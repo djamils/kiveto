@@ -12,6 +12,8 @@ use App\Context\Billing\Application\Port\PayerDirectoryInterface;
 use App\Context\Billing\Application\Port\PayerSnapshotDto;
 use App\Context\Billing\Application\Port\ResolvedTaxDto;
 use App\Context\Billing\Application\Port\TaxResolverInterface;
+use App\Context\Billing\Application\Port\VisitDirectoryInterface;
+use App\Context\Billing\Application\Port\VisitSummary;
 use App\Context\Billing\Application\Service\InvoiceLineFactory;
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
@@ -65,7 +67,29 @@ final class PrepareInvoiceForAdmissionHandlerTest extends TestCase
             $this->payerDirectory,
             $this->uuidGenerator,
             $this->clock,
+            $this->visits(new VisitSummary('Rex', new \DateTimeImmutable('2026-04-10 09:00:00'))),
         );
+    }
+
+    public function testAVisitOfAnotherClinicGetsNoDraft(): void
+    {
+        $handler = new PrepareInvoiceForAdmissionHandler(
+            $this->invoices,
+            $this->consultationBilling,
+            new InvoiceLineFactory($this->taxResolver, $this->uuidGenerator),
+            $this->payerDirectory,
+            $this->uuidGenerator,
+            $this->clock,
+            $this->visits(null),
+        );
+        $this->invoices->expects(self::once())->method('findForAdmission')->willReturn(null);
+        $this->consultationBilling->expects(self::never())->method('billableLinesForAdmission');
+        $this->invoices->expects(self::never())->method('save');
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Admission not found');
+
+        $handler(new PrepareInvoiceForAdmission(self::CLINIC_ID, self::ADMISSION_ID));
     }
 
     public function testItSnapshotsTheVisitIntoADraft(): void
@@ -251,6 +275,14 @@ final class PrepareInvoiceForAdmissionHandlerTest extends TestCase
         self::assertInstanceOf(Invoice::class, $saved);
         self::assertSame('Élevage des Calanques', $saved->payer()->displayName());
         self::assertSame('Mme Claire Rostand', $saved->payer()->attention());
+    }
+
+    private function visits(?VisitSummary $visit): VisitDirectoryInterface
+    {
+        $visits = $this->createStub(VisitDirectoryInterface::class);
+        $visits->method('visitOf')->willReturn($visit);
+
+        return $visits;
     }
 
     private function billableLine(string $label, string $code, string $quantity, int $unitPrice): BillableLineDto

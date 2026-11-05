@@ -61,7 +61,7 @@ final readonly class BillingSheetBuilder
             return null;
         }
 
-        $visit    = $this->visit($invoice->admissionId);
+        $visit    = $this->visit($clinicId, $invoice->admissionId);
         $status   = BillingRegisterViewBuilder::status($invoice->status);
         $at       = ($invoice->issuedAt ?? $invoice->createdAt)->setTimezone($tz);
         $credited = [];
@@ -139,7 +139,7 @@ final readonly class BillingSheetBuilder
             return null;
         }
 
-        $visit = $this->visit($note->admissionId);
+        $visit = $this->visit($clinicId, $note->admissionId);
         $at    = $note->issuedAt->setTimezone($tz);
         $remb  = null !== $note->refundMethod
             ? ['mode' => self::MODES[$note->refundMethod] ?? 'autre', 'l' => $note->refundMethodLabel, 'm' => $note->refundedMinorUnits]
@@ -233,9 +233,9 @@ final readonly class BillingSheetBuilder
      *     animal: array{id: ?string, name: string, species: ?string}
      * }|null
      */
-    private function visit(?string $admissionId): ?array
+    private function visit(string $clinicId, ?string $admissionId): ?array
     {
-        return null !== $admissionId ? ($this->visits->visits([$admissionId])[$admissionId] ?? null) : null;
+        return null !== $admissionId ? ($this->visits->visits($clinicId, [$admissionId])[$admissionId] ?? null) : null;
     }
 
     /**

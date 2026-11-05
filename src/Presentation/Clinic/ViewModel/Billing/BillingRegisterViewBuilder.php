@@ -89,7 +89,7 @@ final readonly class BillingRegisterViewBuilder
     public function rows(string $clinicId, array $items, \DateTimeZone $tz): array
     {
         $admissions = array_values(array_unique(array_filter(array_map(static fn (InvoiceListRow $row): ?string => $row->admissionId, $items))));
-        $visits     = $this->visits->visits($admissions);
+        $visits     = $this->visits->visits($clinicId, $admissions);
         $team       = $this->team($clinicId);
         $now        = $this->clock->now();
         // The payers of the page in one query: who can be sent an invoice, who can be reminded.
