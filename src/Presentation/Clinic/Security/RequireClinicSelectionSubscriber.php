@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Security;
 
+use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\AccessibleClinic;
+use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\ListClinicsForUser;
+use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
+use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
@@ -34,6 +38,7 @@ final readonly class RequireClinicSelectionSubscriber implements EventSubscriber
         private TokenStorageInterface $tokenStorage,
         private CurrentClinicContextInterface $currentClinicContext,
         private UrlGeneratorInterface $urlGenerator,
+        private QueryBusInterface $queryBus,
     ) {
     }
 
@@ -77,8 +82,37 @@ final readonly class RequireClinicSelectionSubscriber implements EventSubscriber
             return;
         }
 
-        if (!$this->currentClinicContext->hasCurrentClinic()) {
+        $clinicId = $this->currentClinicContext->getCurrentClinicId();
+
+        if (null === $clinicId) {
+            $event->setResponse(new RedirectResponse($this->urlGenerator->generate('clinic_select_clinic')));
+
+            return;
+        }
+
+        // A membership disabled, or out of its validity window, since the
+        // clinic was chosen ends the access at the next request: the clinic is
+        // forgotten and the member picks again among those still open to them
+        // (none: « no access »). ListClinicsForUser is cached for the request,
+        // and the shell asks it anyway.
+        $user = $token->getUser();
+
+        if ($user instanceof SecurityUser && !$this->isStillOpenTo($user->id(), $clinicId->toString())) {
+            $this->currentClinicContext->clearCurrentClinic();
             $event->setResponse(new RedirectResponse($this->urlGenerator->generate('clinic_select_clinic')));
         }
+    }
+
+    private function isStillOpenTo(string $userId, string $clinicId): bool
+    {
+        $clinics = $this->queryBus->ask(new ListClinicsForUser($userId));
+
+        foreach (\is_array($clinics) ? $clinics : [] as $clinic) {
+            if ($clinic instanceof AccessibleClinic && $clinic->clinicId === $clinicId) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
