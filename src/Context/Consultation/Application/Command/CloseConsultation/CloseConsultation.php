@@ -10,6 +10,7 @@ final readonly class CloseConsultation implements CommandInterface
 {
     public function __construct(
         public string $consultationId,
+        public string $clinicId,
         public string $closedByUserId,
         public ?string $summary,
     ) {

@@ -484,6 +484,7 @@ final class ConsultationDemoStory extends Story
 
         $this->commandBus->dispatch(new CloseConsultation(
             consultationId: $consultationId,
+            clinicId: $clinicId,
             closedByUserId: $vetUserId,
             summary: 'Vaccination CHPPiL réalisée. Poids stable à 28,8 kg. Aucun signe clinique anormal.',
         ));
@@ -784,6 +785,7 @@ final class ConsultationDemoStory extends Story
 
         $this->commandBus->dispatch(new CloseConsultation(
             consultationId: $consultationId,
+            clinicId: self::LYON,
             closedByUserId: $vetUserId,
             summary: 'Diabète sucré confirmé. Mise en place de l\'insulinothérapie et suivi rapproché.',
         ));
@@ -856,6 +858,7 @@ final class ConsultationDemoStory extends Story
 
         $this->commandBus->dispatch(new CloseConsultation(
             consultationId: $consultationId,
+            clinicId: $clinicId,
             closedByUserId: $vetUserId,
             summary: $summary,
         ));

@@ -10,6 +10,7 @@ final readonly class AddPerformedAct implements CommandInterface
 {
     public function __construct(
         public string $consultationId,
+        public string $clinicId,
         public string $label,
         public float $quantity,
         public string $performedAt, // ISO-8601

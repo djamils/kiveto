@@ -182,7 +182,7 @@ final class ConsultationRegisterStory extends Story
         }
 
         if ($closed) {
-            $this->commandBus->dispatch(new CloseConsultation(consultationId: $consultationId, closedByUserId: $vetUserId, summary: $diagnosis));
+            $this->commandBus->dispatch(new CloseConsultation(consultationId: $consultationId, clinicId: self::PARIS, closedByUserId: $vetUserId, summary: $diagnosis));
         }
 
         // The patient went home either way: an open consultation is then « à clôturer ».

@@ -221,7 +221,7 @@ final class FluxDayStory extends Story
             ));
         }
 
-        $this->commandBus->dispatch(new CloseConsultation($consultationId, $vet, 'Examen sans particularité, soins réalisés.'));
+        $this->commandBus->dispatch(new CloseConsultation($consultationId, $clinicId, $vet, 'Examen sans particularité, soins réalisés.'));
 
         $invoiceId = $this->commandBus->dispatch(new PrepareInvoiceForAdmission($clinicId, $admissionId));
         \assert(\is_string($invoiceId));

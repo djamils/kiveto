@@ -538,7 +538,7 @@ final class ClientSheetStatesStory extends Story
         }
 
         if (!$open) {
-            $this->commandBus->dispatch(new CloseConsultation(consultationId: $consultationId, closedByUserId: $vetUserId, summary: $summary ?? ''));
+            $this->commandBus->dispatch(new CloseConsultation(consultationId: $consultationId, clinicId: self::PARIS, closedByUserId: $vetUserId, summary: $summary ?? ''));
             $this->commandBus->dispatch(new CloseAdmission(clinicId: self::PARIS, admissionId: $admissionId, closureReason: 'released_to_owner'));
 
             if ([] !== $prescribe) {
