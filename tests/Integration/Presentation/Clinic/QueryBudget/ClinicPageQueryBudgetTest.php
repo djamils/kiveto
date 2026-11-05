@@ -126,7 +126,7 @@ final class ClinicPageQueryBudgetTest extends WebTestCase
         yield 'dashboard' => ['/dashboard', 50, 0];
         yield 'admission queue' => ['/admission/queue', 28, 0];
         yield 'consultation register' => ['/consultations', 29, 0];
-        yield 'consultation' => ['/clinic/consultations/{consultation}', 53, 0];
+        yield 'consultation' => ['/clinic/consultations/{consultation}', 41, 0];
         yield 'client directory' => ['/clients', 21, 0];
         yield 'prescriptions' => ['/prescriptions', 20, 0];
         yield 'agenda' => ['/scheduling/agenda', 18, 0];

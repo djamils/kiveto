@@ -29,11 +29,14 @@ final readonly class GetConsultationShareabilityHandler
 
     public function __invoke(GetConsultationShareability $query): ?ConsultationShareability
     {
+        // The consultation's own row is enough: its record is not read again.
         try {
-            $consultation = $this->consultations->findById(ConsultationId::fromString($query->consultationId), ClinicId::fromString($query->clinicId));
-        } catch (\DomainException) {
-            return null;
+            $consultation = $this->consultations->findHeader(ConsultationId::fromString($query->consultationId), ClinicId::fromString($query->clinicId));
         } catch (\InvalidArgumentException) {
+            return null;
+        }
+
+        if (null === $consultation) {
             return null;
         }
 

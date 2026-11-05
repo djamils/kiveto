@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\Consultation\Infrastructure\Persistence\Doctrine\Repository;
 
+use App\Context\Consultation\Application\Port\ConsultationHeader;
 use App\Context\Consultation\Application\Port\ConsultationReadRepositoryInterface;
 use App\Context\Consultation\Application\Query\GetConsultationDetails\ConsultationDetailsDTO;
 use App\Context\Consultation\Application\Query\ListConsultationRegister\ConsultationRegisterCriteria;
@@ -24,6 +25,27 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
     public function __construct(
         private Connection $connection,
     ) {
+    }
+
+    public function findHeader(ConsultationId $consultationId, ClinicId $clinicId): ?ConsultationHeader
+    {
+        $row = $this->connection->fetchAssociative(
+            'SELECT id, patient_id, practitioner_user_id, status, started_at_utc, closed_at_utc
+             FROM consultation__consultations WHERE id = :id AND clinic_id = :clinicId',
+            [
+                'id'       => Uuid::fromString($consultationId->toString())->toBinary(),
+                'clinicId' => Uuid::fromString($clinicId->toString())->toBinary(),
+            ],
+        );
+
+        return false === $row ? null : new ConsultationHeader(
+            consultationId: RowAccessor::uuid($row, 'id'),
+            patientId: RowAccessor::uuid($row, 'patient_id'),
+            practitionerUserId: RowAccessor::uuid($row, 'practitioner_user_id'),
+            status: RowAccessor::string($row, 'status'),
+            startedAtUtc: RowAccessor::string($row, 'started_at_utc'),
+            closedAtUtc: RowAccessor::nullableString($row, 'closed_at_utc'),
+        );
     }
 
     public function findById(ConsultationId $consultationId, ClinicId $clinicId): ConsultationDetailsDTO

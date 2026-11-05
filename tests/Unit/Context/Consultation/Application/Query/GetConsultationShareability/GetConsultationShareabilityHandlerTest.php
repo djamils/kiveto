@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\Consultation\Application\Query\GetConsultationShareability;
 
+use App\Context\Consultation\Application\Port\ConsultationHeader;
 use App\Context\Consultation\Application\Port\ConsultationReadRepositoryInterface;
 use App\Context\Consultation\Application\Port\PatientAnimalOwnership;
 use App\Context\Consultation\Application\Port\PatientAnimalOwnershipInterface;
 use App\Context\Consultation\Application\Port\PractitionerDirectoryInterface;
 use App\Context\Consultation\Application\Port\ReportPractitioner;
-use App\Context\Consultation\Application\Query\GetConsultationDetails\ConsultationDetailsDTO;
 use App\Context\Consultation\Application\Query\GetConsultationShareability\ConsultationShareability;
 use App\Context\Consultation\Application\Query\GetConsultationShareability\GetConsultationShareability;
 use App\Context\Consultation\Application\Query\GetConsultationShareability\GetConsultationShareabilityHandler;
@@ -77,7 +77,7 @@ final class GetConsultationShareabilityHandlerTest extends TestCase
     public function testAnUnknownConsultationAnswersNull(): void
     {
         $reads = $this->createStub(ConsultationReadRepositoryInterface::class);
-        $reads->method('findById')->willThrowException(new \DomainException('Consultation not found.'));
+        $reads->method('findHeader')->willReturn(null);
 
         $handler = new GetConsultationShareabilityHandler($reads, $this->ownerships(new PatientAnimalOwnership(null, null)), $this->practitioners(null));
 
@@ -88,7 +88,7 @@ final class GetConsultationShareabilityHandlerTest extends TestCase
     private function handle(string $status, PatientAnimalOwnership $ownership, ?ReportPractitioner $practitioner = new ReportPractitioner('Claire Lambert', 'DR')): ?ConsultationShareability
     {
         $reads = $this->createStub(ConsultationReadRepositoryInterface::class);
-        $reads->method('findById')->willReturn(self::consultation($status));
+        $reads->method('findHeader')->willReturn(self::consultation($status));
 
         $handler = new GetConsultationShareabilityHandler($reads, $this->ownerships($ownership), $this->practitioners($practitioner));
 
@@ -123,34 +123,15 @@ final class GetConsultationShareabilityHandlerTest extends TestCase
         };
     }
 
-    private static function consultation(string $status): ConsultationDetailsDTO
+    private static function consultation(string $status): ConsultationHeader
     {
-        return new ConsultationDetailsDTO(
+        return new ConsultationHeader(
             consultationId: self::CONSULTATION,
-            clinicId: self::CLINIC,
+            patientId: self::PATIENT,
             practitionerUserId: self::VET,
             status: $status,
-            appointmentId: null,
-            admissionId: '01960000-0000-7000-8000-0000000c0003',
-            patientId: self::PATIENT,
-            chiefComplaint: null,
-            vitals: null,
-            notes: [],
-            acts: [],
-            summary: null,
             startedAtUtc: '2026-10-16 07:30:00',
             closedAtUtc: 'CLOSED' === $status ? '2026-10-16 08:00:00' : null,
-            subjectiveText: null,
-            objectiveObservations: null,
-            teamMemo: null,
-            motifs: [],
-            typedVitals: [],
-            examSystems: [],
-            diagnoses: [],
-            planActions: [],
-            prescriptionLines: [],
-            billingLines: [],
-            totals: ['totalHtMinorUnits' => 0, 'totalTvaMinorUnits' => 0, 'totalTtcMinorUnits' => 0, 'currency' => 'EUR'],
         );
     }
 }
