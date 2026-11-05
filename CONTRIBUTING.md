@@ -161,6 +161,7 @@ make load-fixtures   # seed dev data
 | Goal                                | Command                                  |
 |-------------------------------------|------------------------------------------|
 | Start the stack                     | `make start`                             |
+| Start it with Xdebug step debugging | `XDEBUG_MODE=debug make start`           |
 | Stop the stack                      | `make stop`                              |
 | Rebuild frontend assets             | `make assets`                            |
 | Run all tests                       | `make test`                              |
