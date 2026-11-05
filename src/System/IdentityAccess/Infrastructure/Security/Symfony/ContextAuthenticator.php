@@ -14,7 +14,9 @@ use App\System\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUse
 use App\System\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserQuery;
 use App\System\IdentityAccess\Application\Query\AuthenticateUser\AuthenticationContext;
 use App\System\IdentityAccess\Application\Query\AuthenticateUser\Exception\AuthenticationDeniedException;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RateLimiter\RequestRateLimiterInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -22,11 +24,13 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\Exception\CustomUserMessageAuthenticationException;
+use Symfony\Component\Security\Core\Exception\TooManyLoginAttemptsAuthenticationException;
 use Symfony\Component\Security\Http\Authenticator\AbstractAuthenticator;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
 use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPassport;
 use Symfony\Component\Security\Http\EntryPoint\AuthenticationEntryPointInterface;
+use Symfony\Component\Security\Http\SecurityRequestAttributes;
 
 final class ContextAuthenticator extends AbstractAuthenticator implements AuthenticationEntryPointInterface
 {
@@ -35,6 +39,8 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
         private readonly UrlGeneratorInterface $urlGenerator,
         private readonly QueryBusInterface $queryBus,
         private readonly CurrentClinicContextInterface $currentClinicContext,
+        #[Autowire(service: 'app.login_rate_limiter')]
+        private readonly RequestRateLimiterInterface $loginLimiter,
     ) {
     }
 
@@ -74,6 +80,8 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
                 throw new CustomUserMessageAuthenticationException('Invalid credentials payload.');
             }
 
+            $this->throttle($request, $authContext, $email);
+
             $identity = ($this->handler)(new AuthenticateUserQuery(
                 email: $email,
                 plainPassword: $password,
@@ -95,6 +103,9 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): Response
     {
+        // The attempts of this account and IP are given back, as login_throttling does.
+        $this->loginLimiter->reset($request);
+
         $authContext = $this->resolveContext($request);
         $user        = $token->getUser();
         $userId      = $user instanceof SecurityUser ? $user->id() : '';
@@ -125,12 +136,36 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
     {
+        if ($exception instanceof TooManyLoginAttemptsAuthenticationException) {
+            return new JsonResponse([
+                'error' => [
+                    'code'    => 'TOO_MANY_ATTEMPTS',
+                    'message' => 'Too many sign-in attempts.',
+                ],
+            ], JsonResponse::HTTP_TOO_MANY_REQUESTS);
+        }
+
         return new JsonResponse([
             'error' => [
                 'code'    => 'AUTHENTICATION_FAILED',
                 'message' => 'Authentication failed.',
             ],
         ], JsonResponse::HTTP_UNAUTHORIZED);
+    }
+
+    /**
+     * Counts the attempt before the password is checked. Symfony's
+     * login_throttling cannot: it listens to CheckPassportEvent, which a wrong
+     * password never reaches here (the handler refuses it in authenticate()).
+     * Per sign-in context, account and IP, and per IP (app.login_rate_limiter).
+     */
+    private function throttle(Request $request, AuthenticationContext $context, string $email): void
+    {
+        $request->attributes->set(SecurityRequestAttributes::LAST_USERNAME, $context->value . ':' . trim($email));
+
+        if (!$this->loginLimiter->consume($request)->isAccepted()) {
+            throw new TooManyLoginAttemptsAuthenticationException();
+        }
     }
 
     private function getUrlForSingleClinic(ActiveClinicResult $result): string
