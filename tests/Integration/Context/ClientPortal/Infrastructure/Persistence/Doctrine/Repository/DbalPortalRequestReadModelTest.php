@@ -113,6 +113,14 @@ final class DbalPortalRequestReadModelTest extends KernelTestCase
         self::assertSame([], $this->model->clinicPage(self::CLINIC, ['submitted'], 'questionnaire', null, 10));
     }
 
+    public function testThePetOfEachSubmittedRequestOfTheClinic(): void
+    {
+        // C2, C3, X1 and X2 wait in CLINIC, all on PET; R1 is closed and R4 done.
+        self::assertSame([self::PET, self::PET, self::PET, self::PET], $this->model->submittedPetIdsOf(self::CLINIC));
+        self::assertSame([self::PET], $this->model->submittedPetIdsOf(self::CLINIC2));
+        self::assertSame([], $this->model->submittedPetIdsOf('01960000-0000-7000-8000-0000000a9199'));
+    }
+
     /**
      * @param list<PortalRequestRecord> $records
      *

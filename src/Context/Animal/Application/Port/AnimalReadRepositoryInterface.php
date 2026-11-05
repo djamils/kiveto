@@ -19,6 +19,16 @@ interface AnimalReadRepositoryInterface
     public function findById(ClinicId $clinicId, AnimalId $animalId): ?AnimalView;
 
     /**
+     * The clinic's animals among the given ids, ownerships included, in one
+     * query; the ids of no animal of the clinic are left out.
+     *
+     * @param non-empty-list<string> $animalIds UUID strings
+     *
+     * @return list<AnimalView> in no particular order
+     */
+    public function findByIds(ClinicId $clinicId, array $animalIds): array;
+
+    /**
      * @return array{items: list<AnimalListItemView>, total: int}
      */
     public function search(ClinicId $clinicId, SearchAnimalsCriteria $criteria): array;

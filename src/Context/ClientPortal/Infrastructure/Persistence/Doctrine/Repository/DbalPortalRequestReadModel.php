@@ -9,6 +9,7 @@ use App\Context\ClientPortal\Application\Port\PortalRequestRecord;
 use App\Context\ClientPortal\Application\Port\RequestPosition;
 use App\Context\ClientPortal\Domain\Link\ClientLinkStatus;
 use App\Context\ClientPortal\Domain\Request\PortalRequestKind;
+use App\Context\ClientPortal\Domain\Request\RequestStatus;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
@@ -48,6 +49,18 @@ final readonly class DbalPortalRequestReadModel implements PortalRequestReadMode
             $after,
             $limit,
         );
+    }
+
+    public function submittedPetIdsOf(string $clinicId): array
+    {
+        $where = 'clinic_id = :clinic AND status IN (:statuses)';
+        $rows  = $this->connection->fetchAllAssociative(
+            'SELECT pet_id FROM ' . self::CHANGES . ' WHERE ' . $where . ' UNION ALL SELECT pet_id FROM ' . self::RENEWALS . ' WHERE ' . $where,
+            ['clinic'   => SqlValues::binary($clinicId), 'statuses' => [RequestStatus::SUBMITTED->value]],
+            ['statuses' => ArrayParameterType::STRING],
+        );
+
+        return array_map(static fn (array $row): string => RowAccessor::uuid($row, 'pet_id'), $rows);
     }
 
     /**
