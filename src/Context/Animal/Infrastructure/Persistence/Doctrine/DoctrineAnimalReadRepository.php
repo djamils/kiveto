@@ -14,6 +14,7 @@ use App\Context\Animal\Application\Query\GetAnimalById\OwnershipDto;
 use App\Context\Animal\Application\Query\GetAnimalById\TransferDto;
 use App\Context\Animal\Application\Query\ListAnimalSummariesPerClientIds\AnimalSummary;
 use App\Context\Animal\Application\Query\ListLatestPreventiveCare\LatestPreventiveCareView;
+use App\Context\Animal\Application\Query\ListMedicalAlertsForAnimal\MedicalAlertView;
 use App\Context\Animal\Application\Query\ListPortalPets\PortalPetView;
 use App\Context\Animal\Application\Query\SearchAnimals\AnimalListItemView;
 use App\Context\Animal\Application\Query\SearchAnimals\SearchAnimalsCriteria;
@@ -74,6 +75,36 @@ final readonly class DoctrineAnimalReadRepository implements AnimalReadRepositor
         ;
 
         return array_map($this->mapToAnimalView(...), $entities);
+    }
+
+    public function listMedicalAlerts(ClinicId $clinicId, array $animalIds): array
+    {
+        // The file reads its alerts by animal in key order: the same order here.
+        $rows = $this->entityManager->getConnection()->fetchAllAssociative(
+            'SELECT m.id, m.animal_id, m.kind, m.label, m.note
+             FROM animal__medical_alerts m
+             JOIN animal__animals a ON a.id = m.animal_id
+             WHERE a.clinic_id = :clinicId AND m.animal_id IN (:animalIds)
+             ORDER BY m.animal_id, m.id',
+            [
+                'clinicId'  => Uuid::fromString($clinicId->toString())->toBinary(),
+                'animalIds' => array_map(static fn (string $id): string => Uuid::fromString($id)->toBinary(), $animalIds),
+            ],
+            ['animalIds' => ArrayParameterType::BINARY],
+        );
+
+        $alerts = [];
+
+        foreach ($rows as $row) {
+            $alerts[RowAccessor::uuid($row, 'animal_id')][] = new MedicalAlertView(
+                id: RowAccessor::uuid($row, 'id'),
+                kind: RowAccessor::string($row, 'kind'),
+                label: RowAccessor::string($row, 'label'),
+                note: RowAccessor::nullableString($row, 'note'),
+            );
+        }
+
+        return $alerts;
     }
 
     public function search(ClinicId $clinicId, SearchAnimalsCriteria $criteria): array

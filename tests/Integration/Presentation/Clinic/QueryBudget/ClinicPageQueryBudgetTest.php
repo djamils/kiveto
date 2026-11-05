@@ -94,7 +94,7 @@ final class ClinicPageQueryBudgetTest extends WebTestCase
         $grown = $this->queriesOf($path);
 
         $report = \sprintf(
-            '%s ran %d SQL statements with %d patients and %d with %d (%+d per patient); its budget is %d, and %d per patient.',
+            "%s ran %d SQL statements with %d patients and %d with %d (%+d per patient); its budget is %d, and %d per patient.\nMost run with %d patients:\n%s",
             $path,
             $base,
             self::PATIENTS,
@@ -103,6 +103,8 @@ final class ClinicPageQueryBudgetTest extends WebTestCase
             intdiv($grown - $base, self::PATIENTS),
             $budget,
             $perPatient,
+            2 * self::PATIENTS,
+            self::mostRun(),
         );
 
         // Nothing counted means the middleware is not in the container: a
@@ -113,21 +115,35 @@ final class ClinicPageQueryBudgetTest extends WebTestCase
     }
 
     /**
-     * The shell costs the same whatever the day holds; the dashboard and the
-     * admission queue still read each patient of the day on their own.
+     * No page grows with the day: what a page shows of its patients is read
+     * for all of them at once.
      *
      * @return iterable<string, array{string, int, int}>
      */
     public static function provideThePageStaysWithinItsQueryBudgetCases(): iterable
     {
-        yield 'dashboard' => ['/dashboard', 83, 13];
-        yield 'admission queue' => ['/admission/queue', 44, 6];
+        yield 'dashboard' => ['/dashboard', 53, 0];
+        yield 'admission queue' => ['/admission/queue', 30, 0];
         yield 'consultation register' => ['/consultations', 33, 0];
         yield 'consultation' => ['/clinic/consultations/{consultation}', 59, 0];
         yield 'client directory' => ['/clients', 21, 0];
         yield 'prescriptions' => ['/prescriptions', 26, 0];
         yield 'agenda' => ['/scheduling/agenda', 20, 0];
         yield 'planning' => ['/scheduling/planning', 16, 0];
+    }
+
+    /** The statements the last request ran more than once, the most repeated first. */
+    private static function mostRun(): string
+    {
+        $lines = [];
+
+        foreach (\array_slice(QueryCounter::statements(), 0, 12, true) as $statement => $times) {
+            if ($times > 1) {
+                $lines[] = \sprintf('%4d× %s', $times, mb_substr($statement, 0, 180));
+            }
+        }
+
+        return [] === $lines ? '  (none repeated)' : implode("\n", $lines);
     }
 
     /** The SQL statements the page runs, from the request to the rendered response. */

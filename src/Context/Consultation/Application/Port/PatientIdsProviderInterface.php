@@ -28,4 +28,13 @@ interface PatientIdsProviderInterface
      * @return list<string>
      */
     public function findPatientIdsForAnimals(array $animalIds, string $clinicId): array;
+
+    /**
+     * Same resolution, keeping which animal each patient record stands for.
+     *
+     * @param non-empty-list<string> $animalIds UUID strings
+     *
+     * @return array<string, string> patient id => animal id
+     */
+    public function findAnimalIdsByPatient(array $animalIds, string $clinicId): array;
 }

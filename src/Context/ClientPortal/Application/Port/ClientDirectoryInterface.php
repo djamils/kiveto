@@ -10,6 +10,16 @@ interface ClientDirectoryInterface
     /** How to reach the client; null when the client does not belong to the clinic. */
     public function contactOf(string $clinicId, string $clientId): ?PortalClientContact;
 
+    /**
+     * How to reach several clients, in one read, by client id; a client who
+     * does not belong to the clinic is left out.
+     *
+     * @param list<string> $clientIds
+     *
+     * @return array<string, PortalClientContact>
+     */
+    public function contactsOf(string $clinicId, array $clientIds): array;
+
     /** Identity and postal address of the client; null when unknown to the clinic. */
     public function snapshotOf(string $clinicId, string $clientId): ?PortalClientSnapshot;
 

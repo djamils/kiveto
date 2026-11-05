@@ -9,17 +9,17 @@ use App\Context\Admission\Application\Port\WaitingRoomItemDto;
 use App\Context\Admission\Application\Query\ListActiveAdmissions\ListActiveAdmissions;
 use App\Context\Admission\Application\Query\ListAdmissionsClosedSince\ListAdmissionsClosedSince;
 use App\Context\Animal\Application\Query\GetAnimalById\AnimalView;
-use App\Context\Animal\Application\Query\GetAnimalById\GetAnimalById;
-use App\Context\Animal\Application\Query\ListAnimalWeightRecords\ListAnimalWeightRecords;
+use App\Context\Animal\Application\Query\ListAnimalsByIds\ListAnimalsByIds;
 use App\Context\Animal\Application\Query\ListAnimalWeightRecords\WeightRecordView;
-use App\Context\Animal\Application\Query\ListMedicalAlertsForAnimal\ListMedicalAlertsForAnimal;
 use App\Context\Animal\Application\Query\ListMedicalAlertsForAnimal\MedicalAlertView;
+use App\Context\Animal\Application\Query\ListMedicalAlertsForAnimals\ListMedicalAlertsForAnimals;
+use App\Context\Animal\Application\Query\ListWeightRecordsForAnimals\ListWeightRecordsForAnimals;
 use App\Context\Billing\Application\Query\ListOutstandingBalances\ListOutstandingBalances;
 use App\Context\Billing\Application\Query\SearchInvoices\InvoiceListItemView;
 use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoices;
 use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoicesCriteria;
 use App\Context\Client\Application\Query\GetClientById\ClientView;
-use App\Context\Client\Application\Query\GetClientById\GetClientById;
+use App\Context\Client\Application\Query\ListClientsByIds\ListClientsByIds;
 use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\ClinicSettingsView;
 use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\GetClinicSettings;
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ClinicVeterinarianItem;
@@ -425,22 +425,15 @@ final readonly class FluxBoardViewBuilder
      */
     private function desk(string $clinicId, array $appointments, \DateTimeImmutable $now): array
     {
-        $weights = [];
+        $weights   = [];
+        $animalIds = array_values(array_unique(array_filter(array_map(static fn (AppointmentItem $a): ?string => $a->animalId, $appointments))));
 
-        foreach ($appointments as $appointment) {
-            $animalId = $appointment->animalId;
-
-            if (null === $animalId || isset($weights[$animalId])) {
-                continue;
-            }
-
-            $records = $this->queryBus->ask(new ListAnimalWeightRecords($clinicId, $animalId));
-            \assert(\is_array($records));
-
-            $last = PatientFactsReader::lastWeight(array_values(array_filter(
-                $records,
-                static fn (mixed $record): bool => $record instanceof WeightRecordView,
-            )), $now);
+        // Every booked animal's weighings in one read.
+        $records = [] === $animalIds ? [] : $this->queryBus->ask(new ListWeightRecordsForAnimals($clinicId, $animalIds));
+        \assert(\is_array($records));
+        /** @var array<string, list<WeightRecordView>> $records */
+        foreach ($records as $animalId => $list) {
+            $last = PatientFactsReader::lastWeight($list, $now);
 
             if (null !== $last) {
                 $weights[$animalId] = $last;
@@ -700,17 +693,21 @@ final readonly class FluxBoardViewBuilder
      */
     private function animals(string $clinicId, array $animalIds): array
     {
+        $animalIds = array_values(array_unique(array_filter($animalIds, static fn (?string $id): bool => null !== $id)));
+
+        if ([] === $animalIds) {
+            return [];
+        }
+
+        // Every animal of the board in one read.
+        $views = $this->queryBus->ask(new ListAnimalsByIds($clinicId, $animalIds));
+        \assert(\is_array($views));
+
         $animals = [];
 
-        foreach ($animalIds as $animalId) {
-            if (null === $animalId || isset($animals[$animalId])) {
-                continue;
-            }
-
-            $animal = $this->queryBus->ask(new GetAnimalById($clinicId, $animalId));
-
-            if ($animal instanceof AnimalView) {
-                $animals[$animalId] = $animal;
+        foreach ($views as $view) {
+            if ($view instanceof AnimalView) {
+                $animals[$view->id] = $view;
             }
         }
 
@@ -724,23 +721,23 @@ final readonly class FluxBoardViewBuilder
      */
     private function owners(string $clinicId, array $animals): array
     {
-        $clients = [];
-        $owners  = [];
+        $clientIds = array_values(array_unique(array_filter(array_map(static fn (AnimalView $animal): ?string => $animal->primaryOwnerClientId(), $animals))));
+
+        if ([] === $clientIds) {
+            return [];
+        }
+
+        // Every owner of the board in one read.
+        $clients = $this->queryBus->ask(new ListClientsByIds($clinicId, $clientIds));
+        \assert(\is_array($clients));
+        /** @var array<string, ClientView> $clients */
+        $owners = [];
 
         foreach ($animals as $animalId => $animal) {
-            $clientId = $animal->primaryOwnerClientId();
+            $client = $clients[$animal->primaryOwnerClientId() ?? ''] ?? null;
 
-            if (null === $clientId) {
-                continue;
-            }
-
-            if (!\array_key_exists($clientId, $clients)) {
-                $client             = $this->queryBus->ask(new GetClientById($clinicId, $clientId));
-                $clients[$clientId] = $client instanceof ClientView ? $client : null;
-            }
-
-            if (null !== $clients[$clientId]) {
-                $owners[$animalId] = $clients[$clientId];
+            if (null !== $client) {
+                $owners[$animalId] = $client;
             }
         }
 
@@ -754,19 +751,18 @@ final readonly class FluxBoardViewBuilder
      */
     private function alerts(string $clinicId, array $animals): array
     {
+        if ([] === $animals) {
+            return [];
+        }
+
+        // Every animal's alerts in one read.
+        $views = $this->queryBus->ask(new ListMedicalAlertsForAnimals($clinicId, array_map(strval(...), array_keys($animals))));
+        \assert(\is_array($views));
+        /** @var array<string, list<MedicalAlertView>> $views */
         $alerts = [];
 
         foreach (array_keys($animals) as $animalId) {
-            $views = $this->queryBus->ask(new ListMedicalAlertsForAnimal($clinicId, $animalId));
-            \assert(\is_array($views));
-
-            $labels = [];
-            foreach ($views as $view) {
-                \assert($view instanceof MedicalAlertView);
-                $labels[] = '⚠ ' . $view->label;
-            }
-
-            $alerts[$animalId] = $labels;
+            $alerts[$animalId] = array_map(static fn (MedicalAlertView $view): string => '⚠ ' . $view->label, $views[$animalId] ?? []);
         }
 
         return $alerts;

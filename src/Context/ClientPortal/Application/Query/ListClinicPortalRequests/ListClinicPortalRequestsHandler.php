@@ -7,6 +7,7 @@ namespace App\Context\ClientPortal\Application\Query\ListClinicPortalRequests;
 use App\Context\ClientPortal\Application\Port\ClientDirectoryInterface;
 use App\Context\ClientPortal\Application\Port\ClinicProfileInterface;
 use App\Context\ClientPortal\Application\Port\PetDirectoryInterface;
+use App\Context\ClientPortal\Application\Port\PortalClientContact;
 use App\Context\ClientPortal\Application\Port\PortalRequestReadModelInterface;
 use App\Context\ClientPortal\Application\Port\PortalRequestRecord;
 use App\Context\ClientPortal\Application\Service\RequestCursor;
@@ -64,12 +65,11 @@ final readonly class ListClinicPortalRequestsHandler
 
         $zone    = new \DateTimeZone($this->clinics->clinicOf($query->clinicId)->timeZone);
         $states  = $this->pets->statesOf($query->clinicId, array_values(array_unique(array_map(static fn (PortalRequestRecord $r): string => $r->petId, $rows))));
-        $names   = [];
         $visible = array_filter($rows, static fn (PortalRequestRecord $row): bool => RequestStatus::SUBMITTED->value !== $row->status || null === ($states[$row->petId] ?? null)?->closureState());
-
-        foreach (array_unique(array_map(static fn (PortalRequestRecord $r): string => $r->clientId, $visible)) as $clientId) {
-            $names[$clientId] = $this->clients->contactOf($query->clinicId, $clientId)?->displayName;
-        }
+        $names   = array_map(
+            static fn (PortalClientContact $contact): string => $contact->displayName,
+            $this->clients->contactsOf($query->clinicId, array_values(array_unique(array_map(static fn (PortalRequestRecord $r): string => $r->clientId, $visible)))),
+        );
 
         return new CursorPage(array_values(array_map(static fn (PortalRequestRecord $row): ClinicPortalRequest => new ClinicPortalRequest(
             $row->id,

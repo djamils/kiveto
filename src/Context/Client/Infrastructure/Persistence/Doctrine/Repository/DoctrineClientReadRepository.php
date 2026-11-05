@@ -24,6 +24,7 @@ use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class DoctrineClientReadRepository implements ClientReadRepositoryInterface
@@ -53,57 +54,46 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
             ['clientId' => $clientUuid],
         );
 
-        $contactMethods = array_map(
-            static fn (ContactMethodEntity $cme): ContactMethodDto => new ContactMethodDto(
-                type: $cme->getType()->value,
-                label: $cme->getLabel()->value,
-                value: $cme->getValue(),
-                isPrimary: $cme->isPrimary(),
-            ),
-            $contactMethodEntities,
-        );
+        return $this->view($entity, $contactMethodEntities);
+    }
 
-        $postalAddress = $this->buildPostalAddressDto($entity);
-        $verification  = $this->mapper->taxProfileVerificationToDomain($entity);
-        $isBusiness    = ClientTaxStatus::FRENCH_BUSINESS === $entity->getTaxStatus();
+    public function findByIds(ClinicId $clinicId, array $clientIds): array
+    {
+        $binaryIds = array_map(static fn (string $id): string => Uuid::fromString($id)->toBinary(), $clientIds);
 
-        return new ClientView(
-            id: $entity->getId()->toString(),
-            clinicId: $entity->getClinicId()->toString(),
-            firstName: $entity->getFirstName(),
-            lastName: $entity->getLastName(),
-            status: $entity->getStatus()->value,
-            contactMethods: $contactMethods,
-            postalAddress: $postalAddress,
-            createdAt: $entity->getCreatedAt()->format('c'),
-            updatedAt: $entity->getUpdatedAt()->format('c'),
-            authorizedPerson: $this->buildAuthorizedPersonDto($entity),
-            preferredChannel: $entity->getCommunicationPreferences()['preferredChannel'] ?? null,
-            consents: array_map(
-                static fn (array $consent): ConsentDto => new ConsentDto(
-                    kind: $consent['kind'],
-                    channels: $consent['channels'],
-                    grantedAt: $consent['grantedAt'],
-                ),
-                $entity->getCommunicationPreferences()['consents'] ?? [],
-            ),
-            civility: $entity->getCivility(),
-            taxStatus: $entity->getTaxStatus()->value,
-            legalName: $entity->getLegalName(),
-            siren: $entity->getSiren(),
-            vatNumber: $entity->getVatNumber(),
-            taxCompanyCheck: $verification->company()->outcome()->value,
-            taxRegistryName: $verification->company()->registryName(),
-            taxCompanyCheckedAt: $verification->company()->checkedAt()?->format(\DATE_ATOM),
-            taxVatCheck: $verification->vat()->outcome()->value,
-            taxVatCheckedAt: $verification->vat()->checkedAt()?->format(\DATE_ATOM),
-            taxVerificationPending: $verification->isPending($this->clock->now()),
-            taxWarnings: $isBusiness ? array_map(
-                static fn (TaxProfileWarning $warning): string => $warning->value,
-                $verification->warnings($entity->getLegalName()),
-            ) : [],
-            version: $entity->getVersion(),
-        );
+        /** @var list<ClientEntity> $entities */
+        $entities = $this->em->createQueryBuilder()
+            ->select('c')
+            ->from(ClientEntity::class, 'c')
+            ->where('c.clinicId = :clinicId')
+            ->andWhere('c.id IN (:ids)')
+            ->setParameter('clinicId', Uuid::fromString($clinicId->toString()), UuidType::NAME)
+            ->setParameter('ids', $binaryIds, ArrayParameterType::BINARY)
+            ->getQuery()
+            ->getResult()
+        ;
+
+        if ([] === $entities) {
+            return [];
+        }
+
+        // Every file's contact methods in one query, not one per client.
+        /** @var list<ContactMethodEntity> $methods */
+        $methods = $this->em->createQueryBuilder()
+            ->select('m')
+            ->from(ContactMethodEntity::class, 'm')
+            ->where('m.clientId IN (:ids)')
+            ->setParameter('ids', $binaryIds, ArrayParameterType::BINARY)
+            ->getQuery()
+            ->getResult()
+        ;
+
+        $byClient = [];
+        foreach ($methods as $method) {
+            $byClient[$method->getClientId()->toString()][] = $method;
+        }
+
+        return array_map(fn (ClientEntity $entity): ClientView => $this->view($entity, $byClient[$entity->getId()->toString()] ?? []), $entities);
     }
 
     public function search(ClinicId $clinicId, SearchClientsCriteria $criteria): array
@@ -317,6 +307,64 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
         }
 
         return $result;
+    }
+
+    /**
+     * @param list<ContactMethodEntity> $contactMethodEntities
+     */
+    private function view(ClientEntity $entity, array $contactMethodEntities): ClientView
+    {
+        $contactMethods = array_map(
+            static fn (ContactMethodEntity $cme): ContactMethodDto => new ContactMethodDto(
+                type: $cme->getType()->value,
+                label: $cme->getLabel()->value,
+                value: $cme->getValue(),
+                isPrimary: $cme->isPrimary(),
+            ),
+            $contactMethodEntities,
+        );
+
+        $postalAddress = $this->buildPostalAddressDto($entity);
+        $verification  = $this->mapper->taxProfileVerificationToDomain($entity);
+        $isBusiness    = ClientTaxStatus::FRENCH_BUSINESS === $entity->getTaxStatus();
+
+        return new ClientView(
+            id: $entity->getId()->toString(),
+            clinicId: $entity->getClinicId()->toString(),
+            firstName: $entity->getFirstName(),
+            lastName: $entity->getLastName(),
+            status: $entity->getStatus()->value,
+            contactMethods: $contactMethods,
+            postalAddress: $postalAddress,
+            createdAt: $entity->getCreatedAt()->format('c'),
+            updatedAt: $entity->getUpdatedAt()->format('c'),
+            authorizedPerson: $this->buildAuthorizedPersonDto($entity),
+            preferredChannel: $entity->getCommunicationPreferences()['preferredChannel'] ?? null,
+            consents: array_map(
+                static fn (array $consent): ConsentDto => new ConsentDto(
+                    kind: $consent['kind'],
+                    channels: $consent['channels'],
+                    grantedAt: $consent['grantedAt'],
+                ),
+                $entity->getCommunicationPreferences()['consents'] ?? [],
+            ),
+            civility: $entity->getCivility(),
+            taxStatus: $entity->getTaxStatus()->value,
+            legalName: $entity->getLegalName(),
+            siren: $entity->getSiren(),
+            vatNumber: $entity->getVatNumber(),
+            taxCompanyCheck: $verification->company()->outcome()->value,
+            taxRegistryName: $verification->company()->registryName(),
+            taxCompanyCheckedAt: $verification->company()->checkedAt()?->format(\DATE_ATOM),
+            taxVatCheck: $verification->vat()->outcome()->value,
+            taxVatCheckedAt: $verification->vat()->checkedAt()?->format(\DATE_ATOM),
+            taxVerificationPending: $verification->isPending($this->clock->now()),
+            taxWarnings: $isBusiness ? array_map(
+                static fn (TaxProfileWarning $warning): string => $warning->value,
+                $verification->warnings($entity->getLegalName()),
+            ) : [],
+            version: $entity->getVersion(),
+        );
     }
 
     private function buildAuthorizedPersonDto(ClientEntity $entity): ?AuthorizedPersonDto

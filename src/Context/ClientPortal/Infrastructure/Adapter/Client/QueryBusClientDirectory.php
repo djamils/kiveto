@@ -8,6 +8,7 @@ use App\Context\Client\Application\Query\GetClientById\ClientView;
 use App\Context\Client\Application\Query\GetClientById\GetClientById;
 use App\Context\Client\Application\Query\GetClientNotificationContact\ClientNotificationContact;
 use App\Context\Client\Application\Query\GetClientNotificationContact\GetClientNotificationContact;
+use App\Context\Client\Application\Query\GetClientsNotificationContacts\GetClientsNotificationContacts;
 use App\Context\Client\Application\Query\ListClientsByMobilePhone\ListClientsByMobilePhone;
 use App\Context\Client\Application\Query\ListClientsByMobilePhone\MobileClientMatch;
 use App\Context\ClientPortal\Application\Port\ClientDirectoryInterface;
@@ -35,19 +36,25 @@ final readonly class QueryBusClientDirectory implements ClientDirectoryInterface
     {
         $contact = $this->queryBus->ask(new GetClientNotificationContact($clinicId, $clientId));
 
-        if (!$contact instanceof ClientNotificationContact) {
-            return null;
+        return $contact instanceof ClientNotificationContact ? self::portal($contact) : null;
+    }
+
+    public function contactsOf(string $clinicId, array $clientIds): array
+    {
+        if ([] === $clientIds) {
+            return [];
         }
 
-        return new PortalClientContact(
-            clientId: $contact->clientId,
-            displayName: $contact->displayName,
-            firstName: $contact->firstName,
-            email: $contact->email,
-            mobile: $contact->mobile,
-            archived: $contact->archived,
-            transactionalChannel: $contact->transactionalChannel(),
-        );
+        $contacts = $this->queryBus->ask(new GetClientsNotificationContacts($clinicId, $clientIds));
+        $portal   = [];
+
+        foreach (\is_array($contacts) ? $contacts : [] as $contact) {
+            if ($contact instanceof ClientNotificationContact) {
+                $portal[$contact->clientId] = self::portal($contact);
+            }
+        }
+
+        return $portal;
     }
 
     public function snapshotOf(string $clinicId, string $clientId): ?PortalClientSnapshot
@@ -83,5 +90,18 @@ final readonly class QueryBusClientDirectory implements ClientDirectoryInterface
 
             return new MobileFileMatch($match->clinicId, $match->clientId, $match->firstName, $match->lastName, $match->animalNames);
         }, $matches));
+    }
+
+    private static function portal(ClientNotificationContact $contact): PortalClientContact
+    {
+        return new PortalClientContact(
+            clientId: $contact->clientId,
+            displayName: $contact->displayName,
+            firstName: $contact->firstName,
+            email: $contact->email,
+            mobile: $contact->mobile,
+            archived: $contact->archived,
+            transactionalChannel: $contact->transactionalChannel(),
+        );
     }
 }

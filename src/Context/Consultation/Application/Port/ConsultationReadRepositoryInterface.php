@@ -154,6 +154,17 @@ interface ConsultationReadRepositoryInterface
     public function search(ClinicId $clinicId, SearchConsultationsCriteria $criteria): array;
 
     /**
+     * The latest closed consultation of each patient (`started_at_utc`, then
+     * id, the highest), with its motifs, in two queries whatever the number
+     * of patients; a patient never seen is left out. Amounts are not read.
+     *
+     * @param non-empty-list<string> $patientIds UUID strings
+     *
+     * @return list<ConsultationListRow>
+     */
+    public function latestClosedForPatients(ClinicId $clinicId, array $patientIds): array;
+
+    /**
      * One page of the clinic's register of consultations, plus the
      * unpaginated total.
      *

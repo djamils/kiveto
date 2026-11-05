@@ -70,4 +70,24 @@ final readonly class DbalPatientIdsProvider implements PatientIdsProviderInterfa
             $rows,
         );
     }
+
+    public function findAnimalIdsByPatient(array $animalIds, string $clinicId): array
+    {
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT id, animal_link_id FROM patient__patients WHERE clinic_id = :clinicId AND animal_link_id IN (:animalIds)',
+            [
+                'clinicId'  => Uuid::fromString($clinicId)->toBinary(),
+                'animalIds' => array_map(static fn (string $id): string => Uuid::fromString($id)->toBinary(), $animalIds),
+            ],
+            ['animalIds' => ArrayParameterType::BINARY],
+        );
+
+        $animals = [];
+
+        foreach ($rows as $row) {
+            $animals[RowAccessor::uuid($row, 'id')] = RowAccessor::uuid($row, 'animal_link_id');
+        }
+
+        return $animals;
+    }
 }

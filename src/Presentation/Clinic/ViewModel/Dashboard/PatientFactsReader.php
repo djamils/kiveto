@@ -5,21 +5,22 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\ViewModel\Dashboard;
 
 use App\Context\Animal\Application\Query\GetAnimalById\AnimalView;
-use App\Context\Animal\Application\Query\ListAnimalWeightRecords\ListAnimalWeightRecords;
 use App\Context\Animal\Application\Query\ListAnimalWeightRecords\WeightRecordView;
-use App\Context\Animal\Application\Query\ListMedicalAlertsForAnimal\ListMedicalAlertsForAnimal;
 use App\Context\Animal\Application\Query\ListMedicalAlertsForAnimal\MedicalAlertView;
+use App\Context\Animal\Application\Query\ListMedicalAlertsForAnimals\ListMedicalAlertsForAnimals;
+use App\Context\Animal\Application\Query\ListWeightRecordsForAnimals\ListWeightRecordsForAnimals;
 use App\Context\Client\Application\Query\GetClientById\ClientView;
-use App\Context\Client\Application\Query\GetClientById\GetClientById;
-use App\Context\Consultation\Application\Query\SearchConsultations\ConsultationListItemView;
-use App\Context\Consultation\Application\Query\SearchConsultations\SearchConsultations;
+use App\Context\Client\Application\Query\ListClientsByIds\ListClientsByIds;
+use App\Context\Consultation\Application\Query\ListLastClosedConsultations\LastClosedConsultation;
+use App\Context\Consultation\Application\Query\ListLastClosedConsultations\ListLastClosedConsultations;
 use App\Presentation\Clinic\ViewModel\Shared\SheetText;
 use App\Shared\Application\Bus\QueryBusInterface;
 
 /**
  * Reads, for each identified patient of the dashboard, the facts its quick
  * look shows: the primary owner (Client), the medical alerts and the last
- * weighing (Animal), the last closed consultation (Consultation).
+ * weighing (Animal), the last closed consultation (Consultation). Each fact
+ * is read for all the patients at once, whatever their number.
  */
 final readonly class PatientFactsReader
 {
@@ -36,30 +37,35 @@ final readonly class PatientFactsReader
      */
     public function read(string $clinicId, array $animals, array $practitioners, \DateTimeImmutable $now): array
     {
-        $clients = [];
-        $facts   = [];
+        if ([] === $animals) {
+            return [];
+        }
+
+        $animalIds = array_map(strval(...), array_keys($animals));
+        $ownerIds  = array_values(array_unique(array_filter(array_map(static fn (AnimalView $animal): ?string => $animal->primaryOwnerClientId(), $animals))));
+
+        $clients = $this->queryBus->ask(new ListClientsByIds($clinicId, $ownerIds));
+        $alerts  = $this->queryBus->ask(new ListMedicalAlertsForAnimals($clinicId, $animalIds));
+        $weights = $this->queryBus->ask(new ListWeightRecordsForAnimals($clinicId, $animalIds));
+        $visits  = $this->queryBus->ask(new ListLastClosedConsultations($clinicId, $animalIds));
+        \assert(\is_array($clients) && \is_array($alerts) && \is_array($weights) && \is_array($visits));
+        /** @var array<string, ClientView> $clients */
+        /** @var array<string, list<MedicalAlertView>> $alerts */
+        /** @var array<string, list<WeightRecordView>> $weights */
+        /** @var array<string, LastClosedConsultation> $visits */
+        $facts = [];
 
         foreach ($animals as $animalId => $animal) {
-            $owner   = null;
-            $ownerId = $animal->primaryOwnerClientId();
+            $owner = $clients[$animal->primaryOwnerClientId() ?? ''] ?? null;
 
-            if (null !== $ownerId) {
-                if (!\array_key_exists($ownerId, $clients)) {
-                    $client            = $this->queryBus->ask(new GetClientById($clinicId, $ownerId));
-                    $clients[$ownerId] = $client instanceof ClientView ? $client : null;
-                }
-
-                $owner = $clients[$ownerId];
-            }
-
-            [$lastVisit, $todayConsultationId] = $this->lastVisit($clinicId, $animalId, $practitioners, $now);
+            [$lastVisit, $todayConsultationId] = self::lastVisit($visits[$animalId] ?? null, $practitioners, $now);
 
             $facts[$animalId] = new PatientFacts(
                 owner: null === $owner ? null : self::ownerName($owner),
                 phone: null === $owner ? null : self::phone($owner),
                 age: self::age($animal, $now),
-                vigilance: $this->vigilance($clinicId, $animalId),
-                weight: $this->weight($clinicId, $animalId, $now),
+                vigilance: self::vigilance($alerts[$animalId] ?? []),
+                weight: self::lastWeight($weights[$animalId] ?? [], $now),
                 lastVisit: $lastVisit,
                 todayConsultationId: $todayConsultationId,
             );
@@ -153,18 +159,15 @@ final readonly class PatientFactsReader
     }
 
     /**
+     * @param list<MedicalAlertView> $alerts
+     *
      * @return list<array{label: string, tone: 'a'|'r'}>
      */
-    private function vigilance(string $clinicId, string $animalId): array
+    private static function vigilance(array $alerts): array
     {
-        $alerts = $this->queryBus->ask(new ListMedicalAlertsForAnimal($clinicId, $animalId));
-        \assert(\is_array($alerts));
-
         $out = [];
 
         foreach ($alerts as $alert) {
-            \assert($alert instanceof MedicalAlertView);
-
             $label = 'ALLERGY' === $alert->kind && !str_contains(mb_strtolower($alert->label), 'allerg')
                 ? 'Allergie : ' . $alert->label
                 : $alert->label;
@@ -178,17 +181,6 @@ final readonly class PatientFactsReader
         return $out;
     }
 
-    private function weight(string $clinicId, string $animalId, \DateTimeImmutable $now): ?string
-    {
-        $records = $this->queryBus->ask(new ListAnimalWeightRecords($clinicId, $animalId));
-        \assert(\is_array($records));
-
-        return self::lastWeight(array_values(array_filter(
-            $records,
-            static fn (mixed $record): bool => $record instanceof WeightRecordView,
-        )), $now);
-    }
-
     /**
      * « 12 mars · vaccin · Dr Perrin », and the consultation closed today if
      * the last visit is today's.
@@ -197,21 +189,9 @@ final readonly class PatientFactsReader
      *
      * @return array{string, ?string}
      */
-    private function lastVisit(string $clinicId, string $animalId, array $practitioners, \DateTimeImmutable $now): array
+    private static function lastVisit(?LastClosedConsultation $last, array $practitioners, \DateTimeImmutable $now): array
     {
-        $result = $this->queryBus->ask(new SearchConsultations(
-            $clinicId,
-            restrictToAnimalIds: [$animalId],
-            statuses: ['CLOSED'],
-            sort: 'datetime',
-            direction: 'desc',
-            limit: 1,
-        ));
-        \assert(\is_array($result) && \is_array($result['items'] ?? null));
-
-        $last = $result['items'][0] ?? null;
-
-        if (!$last instanceof ConsultationListItemView) {
+        if (null === $last) {
             return ['Première visite', null];
         }
 

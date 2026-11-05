@@ -8,6 +8,7 @@ use App\Context\Animal\Application\Query\FindByMicrochip\AnimalMicrochipView;
 use App\Context\Animal\Application\Query\GetAnimalById\AnimalView;
 use App\Context\Animal\Application\Query\ListAnimalSummariesPerClientIds\AnimalSummary;
 use App\Context\Animal\Application\Query\ListLatestPreventiveCare\LatestPreventiveCareView;
+use App\Context\Animal\Application\Query\ListMedicalAlertsForAnimal\MedicalAlertView;
 use App\Context\Animal\Application\Query\ListPortalPets\PortalPetView;
 use App\Context\Animal\Application\Query\SearchAnimals\AnimalListItemView;
 use App\Context\Animal\Application\Query\SearchAnimals\SearchAnimalsCriteria;
@@ -27,6 +28,17 @@ interface AnimalReadRepositoryInterface
      * @return list<AnimalView> in no particular order
      */
     public function findByIds(ClinicId $clinicId, array $animalIds): array;
+
+    /**
+     * The medical alerts of the clinic's animals among the given ids, in one
+     * query, by animal id, in the order the animal's file holds them; an
+     * animal without alerts is left out.
+     *
+     * @param non-empty-list<string> $animalIds UUID strings
+     *
+     * @return array<string, list<MedicalAlertView>>
+     */
+    public function listMedicalAlerts(ClinicId $clinicId, array $animalIds): array;
 
     /**
      * @return array{items: list<AnimalListItemView>, total: int}

@@ -117,6 +117,21 @@ final class ClientPortalFakes implements ClientDirectoryInterface, ClinicProfile
         return $this->contacts[$clinicId . '/' . $clientId] ?? null;
     }
 
+    public function contactsOf(string $clinicId, array $clientIds): array
+    {
+        $contacts = [];
+
+        foreach ($clientIds as $clientId) {
+            $contact = $this->contactOf($clinicId, $clientId);
+
+            if (null !== $contact) {
+                $contacts[$clientId] = $contact;
+            }
+        }
+
+        return $contacts;
+    }
+
     public function snapshotOf(string $clinicId, string $clientId): ?PortalClientSnapshot
     {
         return $this->snapshots[$clinicId . '/' . $clientId] ?? null;
