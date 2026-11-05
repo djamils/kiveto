@@ -534,8 +534,10 @@ test-integration:
 		php -d memory_limit=512M bin/phpunit --colors=always --testsuite=integration --order-by=duration --reverse-order
 	@$(call ok,Integration tests passed)
 
+# Xdebug keeps the coverage of every test until the report: the full suite
+# peaked at 602 MB (8440 tests, 2026-11-05), past the 512M of the other targets.
 test-coverage:
 	@$(call step,Running PHPUnit with coverage...)
-	$(Q)$(EXEC_PHP) env XDEBUG_MODE=coverage php -d memory_limit=512M bin/phpunit --colors=always --coverage-html coverage --coverage-filter src/
+	$(Q)$(EXEC_PHP) env XDEBUG_MODE=coverage php -d memory_limit=2G bin/phpunit --colors=always --coverage-html coverage --coverage-filter src/
 	@$(call ok,Coverage generated (coverage/))
 
