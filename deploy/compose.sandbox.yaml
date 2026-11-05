@@ -104,6 +104,9 @@ services:
   # image (dev dependencies), on an empty migrated database. Never started by
   # `up`; SANDBOX_IMAGE is the sandbox target of the same commit:
   #   SANDBOX_IMAGE=<registry>/kiveto/php@sha256:… docker compose … --profile seed run --rm seed
+  # Every seeded account gets KIVETO_SEED_PASSWORD (clinic accounts, the one
+  # handed out with a DEMO) or KIVETO_SEED_BACKOFFICE_PASSWORD (back office),
+  # both from /kiveto/<env>/, 16 characters at least and different.
   seed:
     <<: *php
     image: ${SANDBOX_IMAGE:-${PHP_IMAGE}}
