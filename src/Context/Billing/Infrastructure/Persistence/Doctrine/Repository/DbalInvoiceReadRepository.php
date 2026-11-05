@@ -329,17 +329,7 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
         ?\DateTimeImmutable $overdueIssuedBefore = null,
     ): BillingStats {
         $clinicBinary = Uuid::fromString($clinicId->toString())->toBinary();
-
-        $collectedRaw = $this->connection->fetchOne(
-            'SELECT COALESCE(SUM(p.amount_minor_units), 0)
-             FROM billing__payments p
-             WHERE p.clinic_id = :clinicId AND p.received_at >= :from AND p.received_at <= :to',
-            [
-                'clinicId' => $clinicBinary,
-                'from'     => $from->format('Y-m-d H:i:s'),
-                'to'       => $to->format('Y-m-d H:i:s'),
-            ],
-        );
+        $collected    = $this->collectedBetween($clinicId, $from, $to);
 
         $issuedRaw = $this->connection->fetchOne(
             'SELECT COUNT(*) FROM billing__invoices i
@@ -374,7 +364,7 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
         }
 
         return new BillingStats(
-            collectedMinorUnits: is_numeric($collectedRaw) ? (int) $collectedRaw : 0,
+            collectedMinorUnits: $collected,
             outstandingMinorUnits: $due,
             issuedCount: is_numeric($issuedRaw) ? (int) $issuedRaw : 0,
             outstandingCount: $count,
@@ -382,6 +372,22 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
             overdueCount: $overdueCount,
             overdueMinorUnits: $overdue,
         );
+    }
+
+    public function collectedBetween(ClinicId $clinicId, \DateTimeImmutable $from, \DateTimeImmutable $to): int
+    {
+        $collected = $this->connection->fetchOne(
+            'SELECT COALESCE(SUM(p.amount_minor_units), 0)
+             FROM billing__payments p
+             WHERE p.clinic_id = :clinicId AND p.received_at >= :from AND p.received_at <= :to',
+            [
+                'clinicId' => Uuid::fromString($clinicId->toString())->toBinary(),
+                'from'     => $from->format('Y-m-d H:i:s'),
+                'to'       => $to->format('Y-m-d H:i:s'),
+            ],
+        );
+
+        return is_numeric($collected) ? (int) $collected : 0;
     }
 
     public function outstandingByPayer(ClinicId $clinicId): array

@@ -13,6 +13,8 @@ use App\Context\Billing\Application\Query\FindInvoiceForAdmission\FindInvoiceFor
 use App\Context\Billing\Application\Query\GetBillingStats\BillingStats;
 use App\Context\Billing\Application\Query\GetBillingStats\GetBillingStats;
 use App\Context\Billing\Application\Query\GetBillingStats\GetBillingStatsHandler;
+use App\Context\Billing\Application\Query\GetCollectedTakings\GetCollectedTakings;
+use App\Context\Billing\Application\Query\GetCollectedTakings\GetCollectedTakingsHandler;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\GetInvoiceDetails;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\GetInvoiceDetailsHandler;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceDetails;
@@ -161,6 +163,20 @@ final class InvoiceQueryHandlersTest extends TestCase
         $result = (new ListOutstandingBalancesHandler($repository))(new ListOutstandingBalances(self::CLINIC_ID));
 
         self::assertSame(['c1' => 1500], $result);
+    }
+
+    public function testTheTakingsOfAPeriodAreAskedInTheClinicScope(): void
+    {
+        $from       = new \DateTimeImmutable('2026-10-26 23:00:00');
+        $to         = new \DateTimeImmutable('2026-10-27 10:00:00');
+        $repository = $this->createMock(InvoiceReadRepositoryInterface::class);
+        $repository->expects(self::once())->method('collectedBetween')->with(
+            self::callback(static fn (ClinicId $id): bool => self::CLINIC_ID === $id->toString()),
+            $from,
+            $to,
+        )->willReturn(12500);
+
+        self::assertSame(12500, new GetCollectedTakingsHandler($repository)(new GetCollectedTakings(self::CLINIC_ID, $from, $to)));
     }
 
     public function testTheOutstandingInvoicesOfSeveralPayersAreReadOnce(): void

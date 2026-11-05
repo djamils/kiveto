@@ -44,6 +44,12 @@ interface InvoiceReadRepositoryInterface
     ): BillingStats;
 
     /**
+     * What was collected over the period, in minor units: the `stats` figure
+     * alone, in one statement.
+     */
+    public function collectedBetween(ClinicId $clinicId, \DateTimeImmutable $from, \DateTimeImmutable $to): int;
+
+    /**
      * @throws \DomainException when the credit note is unknown to this clinic
      */
     public function creditNoteDetails(ClinicId $clinicId, CreditNoteId $creditNoteId): CreditNoteDetails;
