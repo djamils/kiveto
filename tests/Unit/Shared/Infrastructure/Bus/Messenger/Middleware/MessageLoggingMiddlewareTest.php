@@ -197,18 +197,28 @@ final class MessageLoggingMiddlewareTest extends TestCase
 
     public function testResolvesMessageTypeForQuery(): void
     {
-        $loggedMessages = [];
-        $logger         = $this->createLogger($loggedMessages);
-        $middleware     = new MessageLoggingMiddleware($logger);
-
         $query = new class implements QueryInterface {
         };
         $envelope = new Envelope($query);
-        $stack    = $this->createTestStack($envelope);
 
-        $middleware->handle($envelope, $stack);
+        // A query that succeeds is not logged: only its failure is.
+        $successes = [];
+        new MessageLoggingMiddleware($this->createLogger($successes))->handle($envelope, $this->createTestStack($envelope));
+        self::assertCount(0, $successes);
 
-        self::assertSame('query', $loggedMessages[0]['context']['messageType']);
+        $loggedMessages = [];
+        $middleware     = new MessageLoggingMiddleware($this->createLogger($loggedMessages));
+
+        try {
+            $middleware->handle($envelope, $this->createTestStack($envelope, new \RuntimeException('Query failed')));
+            self::fail('The failure goes through.');
+        } catch (\RuntimeException) {
+        }
+
+        self::assertCount(1, $loggedMessages);
+        self::assertSame(['error', 'Message processing failed', 'query', 'Query failed'], [
+            $loggedMessages[0]['level'], $loggedMessages[0]['message'], $loggedMessages[0]['context']['messageType'], $loggedMessages[0]['context']['exceptionMessage'],
+        ]);
     }
 
     public function testResolvesMessageTypeForDomainEvent(): void

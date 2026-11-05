@@ -116,20 +116,21 @@ final class ClinicPageQueryBudgetTest extends WebTestCase
 
     /**
      * No page grows with the day: what a page shows of its patients is read
-     * for all of them at once.
+     * for all of them at once, and the reference data the shell and the page
+     * both read (RequestCacheableQueryInterface) once for the request.
      *
      * @return iterable<string, array{string, int, int}>
      */
     public static function provideThePageStaysWithinItsQueryBudgetCases(): iterable
     {
-        yield 'dashboard' => ['/dashboard', 53, 0];
-        yield 'admission queue' => ['/admission/queue', 30, 0];
-        yield 'consultation register' => ['/consultations', 33, 0];
-        yield 'consultation' => ['/clinic/consultations/{consultation}', 59, 0];
+        yield 'dashboard' => ['/dashboard', 50, 0];
+        yield 'admission queue' => ['/admission/queue', 28, 0];
+        yield 'consultation register' => ['/consultations', 29, 0];
+        yield 'consultation' => ['/clinic/consultations/{consultation}', 53, 0];
         yield 'client directory' => ['/clients', 21, 0];
-        yield 'prescriptions' => ['/prescriptions', 26, 0];
-        yield 'agenda' => ['/scheduling/agenda', 20, 0];
-        yield 'planning' => ['/scheduling/planning', 16, 0];
+        yield 'prescriptions' => ['/prescriptions', 20, 0];
+        yield 'agenda' => ['/scheduling/agenda', 18, 0];
+        yield 'planning' => ['/scheduling/planning', 14, 0];
     }
 
     /** The statements the last request ran more than once, the most repeated first. */

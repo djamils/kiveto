@@ -17,6 +17,10 @@ use Symfony\Component\Messenger\Middleware\StackInterface;
 /**
  * Middleware logging message processing with metadata.
  * Logs message type, metadata, duration, and success/failure.
+ *
+ * A query is logged only when it fails: a page asks hundreds of them, and
+ * their two lines each would fill the production buffer (fingers_crossed,
+ * 50 records) that an error flushes, leaving nothing of what led to it.
  */
 final readonly class MessageLoggingMiddleware implements MiddlewareInterface
 {
@@ -28,6 +32,7 @@ final readonly class MessageLoggingMiddleware implements MiddlewareInterface
     {
         $message      = $envelope->getMessage();
         $messageClass = $message::class;
+        $isQuery      = $message instanceof QueryInterface;
 
         /** @var MessageMetadataStamp|null $stamp */
         $stamp = $envelope->last(MessageMetadataStamp::class);
@@ -45,14 +50,17 @@ final readonly class MessageLoggingMiddleware implements MiddlewareInterface
         $startTime = microtime(true);
 
         try {
-            $this->logger->info('Processing message', $context);
+            if (!$isQuery) {
+                $this->logger->info('Processing message', $context);
+            }
 
             $result = $stack->next()->handle($envelope, $stack);
 
-            $duration            = microtime(true) - $startTime;
-            $context['duration'] = round($duration * 1000, 2) . ' ms';
+            if (!$isQuery) {
+                $context['duration'] = round((microtime(true) - $startTime) * 1000, 2) . ' ms';
 
-            $this->logger->info('Message processed successfully', $context);
+                $this->logger->info('Message processed successfully', $context);
+            }
 
             return $result;
         } catch (\Throwable $exception) {

@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Context\Inventory\Application\Query\WatchStock;
 
-use App\Shared\Application\Bus\QueryInterface;
+use App\Shared\Application\Bus\RequestCacheableQueryInterface;
 
 /**
  * What needs someone's attention in a clinic's stock, today. The stock page
  * lists it; the navigation counts what is critical.
  */
-final readonly class WatchStock implements QueryInterface
+final readonly class WatchStock implements RequestCacheableQueryInterface
 {
     /**
      * @param string $timeZone the clinic's: a lot expires at midnight where it is kept
