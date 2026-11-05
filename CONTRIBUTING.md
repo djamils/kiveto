@@ -161,6 +161,7 @@ make load-fixtures   # seed dev data
 | Goal                                | Command                                  |
 |-------------------------------------|------------------------------------------|
 | Start the stack                     | `make start`                             |
+| Start it with Xdebug step debugging | `XDEBUG_MODE=debug make start`           |
 | Stop the stack                      | `make stop`                              |
 | Rebuild frontend assets             | `make assets`                            |
 | Run all tests                       | `make test`                              |
@@ -207,6 +208,7 @@ What each step fails on:
 | PHPStan `level: max` | `make ci` | — |
 | Portal API contract matches the code | `make ci` (`openapi-check`), provided the dev cache is fresh | An export that does not depend on the cache state |
 | Tests green, without deprecations, notices or warnings | `make ci` | — |
+| Query budgets of the clinic pages: SQL statements per page, and per patient of the day | `make ci` (`ClinicPageQueryBudgetTest`, counted by `tests/Support/Database/QueryCounter`). A change that makes a page run fewer statements lowers its budget there. | Budgets for the pages it does not cover yet |
 | 100% line coverage per BC (excl. Presentation) | The author and the reviewer, with `make test-coverage` | An automated per-BC threshold |
 | BC boundaries | `tests/Unit/Architecture/` for a few contexts (§6), review for the others | A check covering every BC |
 | `make ci` green before every commit and PR | The author, locally | A remote CI pipeline |

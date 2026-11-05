@@ -16,6 +16,11 @@ services:
     # Fails any HTTP call a test did not mock (framework.http_client.mock_response_factory).
     App\Tests\Support\UnmockedHttpCallGuard: ~
 
+    # Counts the SQL statements of every connection: the query budgets of the
+    # clinic pages (ClinicPageQueryBudgetTest).
+    App\Tests\Support\Database\QueryCounter:
+        tags: [doctrine.middleware]
+
     # Records what entry points dispatch (ProfessionalClientEntryPointsTest).
     App\Tests\Support\RecordingCommandBus:
         decorates: App\Shared\Application\Bus\CommandBusInterface

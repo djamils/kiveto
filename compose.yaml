@@ -42,6 +42,9 @@ services:
     environment:
       - DATABASE_URL=mysql://root:k!v3t0@db/kiveto?serverVersion=8.4.7
       - GOTENBERG_URL=http://gotenberg:3000
+      # Xdebug slows every request down even when no debugger listens: off by
+      # default, `XDEBUG_MODE=debug make start` to step-debug.
+      - XDEBUG_MODE=${XDEBUG_MODE:-off}
     depends_on:
       - db
       - gotenberg
