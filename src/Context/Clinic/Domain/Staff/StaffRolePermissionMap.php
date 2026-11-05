@@ -40,6 +40,11 @@ final class StaffRolePermissionMap
             return self::$map;
         }
 
+        // Every role collects payments; the assistant records the vitals but
+        // writes nothing else in a consultation; the receptionist reads the
+        // medical record without writing it, and does not manage the stock
+        // (decided 2026-11-05). Credit notes, discounts, catalogue prices and
+        // the billing settings stay with the administration hat.
         self::$map = [
             ClinicMemberRole::MANAGER->value => [
                 ClinicPermission::VIEW_DASHBOARD,
@@ -47,8 +52,11 @@ final class StaffRolePermissionMap
                 ClinicPermission::VIEW_MEDICAL_RECORD,
                 ClinicPermission::CREATE_PRESCRIPTION,
                 ClinicPermission::CREATE_CONSULTATION,
+                ClinicPermission::RECORD_VITALS,
                 ClinicPermission::MANAGE_CLIENTS,
                 ClinicPermission::MANAGE_ANIMALS,
+                ClinicPermission::COLLECT_PAYMENTS,
+                ClinicPermission::MANAGE_STOCK,
             ],
             ClinicMemberRole::VETERINARY->value => [
                 ClinicPermission::VIEW_DASHBOARD,
@@ -56,21 +64,29 @@ final class StaffRolePermissionMap
                 ClinicPermission::VIEW_MEDICAL_RECORD,
                 ClinicPermission::CREATE_PRESCRIPTION,
                 ClinicPermission::CREATE_CONSULTATION,
+                ClinicPermission::RECORD_VITALS,
                 ClinicPermission::MANAGE_CLIENTS,
                 ClinicPermission::MANAGE_ANIMALS,
+                ClinicPermission::COLLECT_PAYMENTS,
+                ClinicPermission::MANAGE_STOCK,
             ],
             ClinicMemberRole::VETERINARY_ASSISTANT->value => [
                 ClinicPermission::VIEW_DASHBOARD,
                 ClinicPermission::MANAGE_APPOINTMENTS,
                 ClinicPermission::VIEW_MEDICAL_RECORD,
+                ClinicPermission::RECORD_VITALS,
                 ClinicPermission::MANAGE_CLIENTS,
                 ClinicPermission::MANAGE_ANIMALS,
+                ClinicPermission::COLLECT_PAYMENTS,
+                ClinicPermission::MANAGE_STOCK,
             ],
             ClinicMemberRole::RECEPTIONIST->value => [
                 ClinicPermission::VIEW_DASHBOARD,
                 ClinicPermission::MANAGE_APPOINTMENTS,
+                ClinicPermission::VIEW_MEDICAL_RECORD,
                 ClinicPermission::MANAGE_CLIENTS,
                 ClinicPermission::MANAGE_ANIMALS,
+                ClinicPermission::COLLECT_PAYMENTS,
             ],
         ];
 

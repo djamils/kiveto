@@ -15,7 +15,7 @@ final class StaffRolePermissionMapTest extends TestCase
     {
         $permissions = StaffRolePermissionMap::permissionsFor(ClinicMemberRole::MANAGER);
 
-        self::assertCount(7, $permissions);
+        self::assertCount(10, $permissions);
         self::assertContains(ClinicPermission::CREATE_PRESCRIPTION, $permissions);
         self::assertContains(ClinicPermission::CREATE_CONSULTATION, $permissions);
         self::assertContains(ClinicPermission::VIEW_MEDICAL_RECORD, $permissions);
@@ -36,7 +36,7 @@ final class StaffRolePermissionMapTest extends TestCase
     {
         $permissions = StaffRolePermissionMap::permissionsFor(ClinicMemberRole::VETERINARY);
 
-        self::assertCount(7, $permissions);
+        self::assertCount(10, $permissions);
         self::assertContains(ClinicPermission::CREATE_PRESCRIPTION, $permissions);
         self::assertContains(ClinicPermission::CREATE_CONSULTATION, $permissions);
         self::assertNotContains(ClinicPermission::MANAGE_STAFF, $permissions);
@@ -47,20 +47,27 @@ final class StaffRolePermissionMapTest extends TestCase
     {
         $permissions = StaffRolePermissionMap::permissionsFor(ClinicMemberRole::VETERINARY_ASSISTANT);
 
-        self::assertCount(5, $permissions);
+        self::assertCount(8, $permissions);
         self::assertContains(ClinicPermission::VIEW_MEDICAL_RECORD, $permissions);
+        self::assertContains(ClinicPermission::RECORD_VITALS, $permissions);
+        self::assertContains(ClinicPermission::COLLECT_PAYMENTS, $permissions);
+        self::assertContains(ClinicPermission::MANAGE_STOCK, $permissions);
         self::assertNotContains(ClinicPermission::CREATE_PRESCRIPTION, $permissions);
         self::assertNotContains(ClinicPermission::CREATE_CONSULTATION, $permissions);
     }
 
-    public function testReceptionistHasMinimalPermissions(): void
+    public function testReceptionistReadsTheRecordAndCollectsPaymentsWithoutTouchingCareOrStock(): void
     {
         $permissions = StaffRolePermissionMap::permissionsFor(ClinicMemberRole::RECEPTIONIST);
 
-        self::assertCount(4, $permissions);
+        self::assertCount(6, $permissions);
         self::assertContains(ClinicPermission::VIEW_DASHBOARD, $permissions);
         self::assertContains(ClinicPermission::MANAGE_APPOINTMENTS, $permissions);
-        self::assertNotContains(ClinicPermission::VIEW_MEDICAL_RECORD, $permissions);
+        self::assertContains(ClinicPermission::VIEW_MEDICAL_RECORD, $permissions);
+        self::assertContains(ClinicPermission::COLLECT_PAYMENTS, $permissions);
+        self::assertNotContains(ClinicPermission::RECORD_VITALS, $permissions);
+        self::assertNotContains(ClinicPermission::CREATE_CONSULTATION, $permissions);
+        self::assertNotContains(ClinicPermission::MANAGE_STOCK, $permissions);
     }
 
     public function testAllRoleCasesAreCovered(): void

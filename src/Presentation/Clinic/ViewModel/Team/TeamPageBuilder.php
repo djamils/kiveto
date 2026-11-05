@@ -74,12 +74,15 @@ final readonly class TeamPageBuilder
         ],
         'Soins' => [
             'view_medical_record' => ['Consulter les dossiers médicaux', null, 'dossiers médicaux'],
+            'record_vitals'       => ['Saisir les constantes', 'Poids et température en consultation', 'constantes'],
             'create_consultation' => ['Rédiger des consultations', null, 'consultations'],
             'create_prescription' => ['Prescrire des médicaments', 'Le n° d’Ordre du prescripteur figure sur chaque ordonnance', 'prescription'],
         ],
         'Gestion' => [
-            'manage_billing' => ['Régler la facturation de la clinique', 'Mentions, numérotation et TVA des factures', 'facturation'],
-            'manage_staff'   => ['Gérer l’équipe et les paramètres', 'Inviter, modifier et désactiver les membres', 'équipe et paramètres'],
+            'collect_payments' => ['Encaisser les visites', 'Paiements, envoi et relance des factures', 'encaissement'],
+            'manage_stock'     => ['Gérer le stock et les commandes', 'Lots, inventaires et commandes fournisseurs', 'stock'],
+            'manage_billing'   => ['Régler la facturation de la clinique', 'Mentions, numérotation, TVA, tarifs du catalogue, avoirs et remises', 'facturation'],
+            'manage_staff'     => ['Gérer l’équipe et les paramètres', 'Inviter, modifier et désactiver les membres', 'équipe et paramètres'],
         ],
     ];
 

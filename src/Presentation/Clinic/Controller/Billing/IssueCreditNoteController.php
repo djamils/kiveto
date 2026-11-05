@@ -8,6 +8,8 @@ use App\Context\Billing\Application\Command\IssueCreditNote\IssueCreditNote;
 use App\Context\Billing\Application\Query\GetCreditNoteDetails\CreditNoteDetails;
 use App\Context\Billing\Application\Query\GetCreditNoteDetails\GetCreditNoteDetails;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
+use App\Presentation\Clinic\Security\ClinicPermissionGuard;
+use App\Presentation\Clinic\Security\RequiresClinicPermission;
 use App\Presentation\Clinic\ViewModel\Billing\BillingErrorMessage;
 use App\Presentation\Clinic\ViewModel\Billing\BillingSheetBuilder;
 use App\Shared\Application\Bus\CommandBusInterface;
@@ -28,6 +30,7 @@ use Symfony\Component\Uid\Uuid;
  * kept as a credit. Comes back to the new credit note's sheet.
  */
 #[Route(path: '/invoices/{invoiceId}/credit-note', name: 'clinic_invoice_credit_note', methods: ['POST'])]
+#[RequiresClinicPermission(ClinicPermissionGuard::MANAGE_BILLING)]
 final class IssueCreditNoteController extends AbstractController
 {
     /** What the window offers to give back an overpayment: card, cash, or keep it as a credit. */

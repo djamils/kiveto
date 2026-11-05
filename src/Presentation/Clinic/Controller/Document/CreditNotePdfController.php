@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Document;
 
 use App\Context\Billing\Application\Port\InvoicePdfRendererInterface;
+use App\Presentation\Clinic\Security\ClinicPermissionGuard;
+use App\Presentation\Clinic\Security\RequiresClinicPermission;
 use App\Presentation\Clinic\ViewModel\Document\DocumentPdfFactory;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use App\Shared\Application\Document\DocumentRenderingFailed;
@@ -19,6 +21,7 @@ use Symfony\Component\Routing\Requirement\Requirement;
     requirements: ['creditNoteId' => Requirement::UUID],
     methods: ['GET'],
 )]
+#[RequiresClinicPermission(ClinicPermissionGuard::COLLECT_PAYMENTS)]
 final class CreditNotePdfController extends AbstractController
 {
     public function __construct(

@@ -161,13 +161,15 @@ final class ConfirmDeclineAppointmentTest extends WebTestCase
 
         self::assertSame('PENDING_CLINIC_CONFIRMATION', $this->statusOf(self::PENDING));
 
-        // A planned appointment is still cancelled without that permission
+        // Every write of the agenda requires the permission (ClinicRoutePermissions,
+        // « Prendre, déplacer et annuler des RDV »): a planned appointment too.
         AppointmentEntityFactory::new()->withId(self::PLANNED)->withClinicId(self::CLINIC)->withPractitionerUserId($this->vetId)
             ->startingAt($this->now->modify('+1 day 11:00')->setTimezone(new \DateTimeZone('UTC')), 30)->create()
         ;
-        $this->json('cancel', self::PLANNED);
-        self::assertResponseIsSuccessful();
-        self::assertSame('CANCELLED', $this->statusOf(self::PLANNED));
+        $answer = $this->json('cancel', self::PLANNED);
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame('FORBIDDEN', $answer['errorCode'] ?? null);
+        self::assertSame('PLANNED', $this->statusOf(self::PLANNED));
     }
 
     public function testAnyOtherRefusalIsAConflictNeverA500(): void

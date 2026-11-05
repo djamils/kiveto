@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Consultation\Record;
 
 use App\Context\Consultation\Application\Command\RemoveTypedVital\RemoveTypedVital;
+use App\Presentation\Clinic\Security\ClinicPermissionGuard;
+use App\Presentation\Clinic\Security\RequiresClinicPermission;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
+#[RequiresClinicPermission(ClinicPermissionGuard::RECORD_VITALS)]
 final class RemoveTypedVitalController extends AbstractController
 {
     public function __construct(
