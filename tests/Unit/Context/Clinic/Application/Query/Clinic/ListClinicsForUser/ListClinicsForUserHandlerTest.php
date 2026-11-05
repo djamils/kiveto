@@ -29,8 +29,8 @@ final class ListClinicsForUserHandlerTest extends TestCase
             isDefault: false,
         );
 
-        $readRepo = $this->createStub(ClinicMembershipReadRepositoryInterface::class);
-        $readRepo->method('findAccessibleClinicsForUser')
+        $readRepo = $this->createMock(ClinicMembershipReadRepositoryInterface::class);
+        $readRepo->expects(self::once())->method('findAccessibleClinicsForUser')
             ->with(self::callback(static fn (UserId $id): bool => 'user-uuid' === $id->toString()))
             ->willReturn([$clinic])
         ;

@@ -63,8 +63,8 @@ final class ListUsersHandlerTest extends TestCase
 
         $expectedCollection = new UserCollection($users, 1);
 
-        $repository = $this->createStub(UserReadRepositoryInterface::class);
-        $repository->method('listAll')
+        $repository = $this->createMock(UserReadRepositoryInterface::class);
+        $repository->expects(self::once())->method('listAll')
             ->with('john', null, null)
             ->willReturn($expectedCollection)
         ;
@@ -93,8 +93,8 @@ final class ListUsersHandlerTest extends TestCase
 
         $expectedCollection = new UserCollection($users, 1);
 
-        $repository = $this->createStub(UserReadRepositoryInterface::class);
-        $repository->method('listAll')
+        $repository = $this->createMock(UserReadRepositoryInterface::class);
+        $repository->expects(self::once())->method('listAll')
             ->with(null, 'clinic', null)
             ->willReturn($expectedCollection)
         ;
@@ -123,8 +123,8 @@ final class ListUsersHandlerTest extends TestCase
 
         $expectedCollection = new UserCollection($users, 1);
 
-        $repository = $this->createStub(UserReadRepositoryInterface::class);
-        $repository->method('listAll')
+        $repository = $this->createMock(UserReadRepositoryInterface::class);
+        $repository->expects(self::once())->method('listAll')
             ->with(null, null, 'active')
             ->willReturn($expectedCollection)
         ;
@@ -153,8 +153,8 @@ final class ListUsersHandlerTest extends TestCase
 
         $expectedCollection = new UserCollection($users, 1);
 
-        $repository = $this->createStub(UserReadRepositoryInterface::class);
-        $repository->method('listAll')
+        $repository = $this->createMock(UserReadRepositoryInterface::class);
+        $repository->expects(self::once())->method('listAll')
             ->with('john', 'clinic', 'active')
             ->willReturn($expectedCollection)
         ;

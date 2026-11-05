@@ -17,8 +17,8 @@ final class GetPurchaseOrderDetailHandlerTest extends TestCase
 
     public function testItReturnsPurchaseOrderDetail(): void
     {
-        $readRepository = $this->createStub(PurchaseOrderReadRepositoryInterface::class);
-        $readRepository->method('findById')->with(self::PO_UUID)
+        $readRepository = $this->createMock(PurchaseOrderReadRepositoryInterface::class);
+        $readRepository->expects(self::once())->method('findById')->with(self::PO_UUID)
             ->willReturn(['id' => self::PO_UUID, 'status' => 'SUBMITTED'])
         ;
 

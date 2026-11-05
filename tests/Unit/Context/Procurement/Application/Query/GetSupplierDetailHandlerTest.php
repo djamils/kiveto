@@ -16,8 +16,8 @@ final class GetSupplierDetailHandlerTest extends TestCase
 
     public function testItReturnsSupplierData(): void
     {
-        $readRepository = $this->createStub(SupplierReadRepositoryInterface::class);
-        $readRepository->method('findById')->with(self::SUPPLIER_UUID)
+        $readRepository = $this->createMock(SupplierReadRepositoryInterface::class);
+        $readRepository->expects(self::once())->method('findById')->with(self::SUPPLIER_UUID)
             ->willReturn(['id' => self::SUPPLIER_UUID, 'name' => 'Centravet'])
         ;
 

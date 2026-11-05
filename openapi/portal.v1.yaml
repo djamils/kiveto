@@ -2975,6 +2975,7 @@ components:
         city:
           type: string
         country:
+          description: 'ISO 3166-1 alpha-2 (« FR »)'
           type: string
     Appointment.AppointmentView:
       type: object
@@ -3357,6 +3358,7 @@ components:
           type: string
           format: date
         open:
+          description: 'An opening day, not an exceptional closure, within the horizon.'
           type: boolean
         slots:
           type: array
@@ -3529,6 +3531,7 @@ components:
             -
               type: 'null'
         timezone:
+          description: 'IANA time zone of the clinic, in which its clinical instants are emitted.'
           type: string
         linkStatus:
           type: string
@@ -3569,6 +3572,7 @@ components:
             - string
             - 'null'
         timezone:
+          description: 'IANA time zone (« Europe/Paris »).'
           type: string
         openingHours:
           type: array
@@ -3577,6 +3581,7 @@ components:
         acceptsNewClients:
           type: boolean
         onlineBooking:
+          description: 'Open to new clients online: booking enabled, new clients accepted, a motif open to them.'
           type: boolean
         tags:
           type: array
@@ -3600,12 +3605,14 @@ components:
             - string
             - 'null'
         distanceM:
+          description: 'Whole metres from the given point; null without `lat`/`lng`.'
           type:
             - integer
             - 'null'
         onKiveto:
           type: boolean
         onlineBooking:
+          description: 'Open to new clients online: booking enabled, new clients accepted, a motif open to them.'
           type: boolean
         tags:
           type: array
@@ -3816,6 +3823,7 @@ components:
         id:
           type: string
         status:
+          description: pending|ready|failed|expired
           type: string
         requestedAt:
           type: string
@@ -4029,6 +4037,7 @@ components:
             -
               type: 'null'
         pets:
+          description: 'Embedded, never an IRI: the list resource has no item route.'
           type: array
           items:
             $ref: '#/components/schemas/PetSummary'
@@ -4156,6 +4165,7 @@ components:
         maskedPhone:
           type: string
         petNames:
+          description: 'active animals of the client file'
           type: array
           items:
             type: string

@@ -164,7 +164,8 @@ final class RequestAdaptersTest extends TestCase
             self::fail('The eleventh request should be refused.');
         } catch (PortalRequestRateLimitedException $e) {
             self::assertGreaterThan(0, $e->retryAfterSeconds);
-            self::assertLessThanOrEqual(86_400, $e->retryAfterSeconds);
+            // The rate limiter rounds the wait up to the next second.
+            self::assertLessThanOrEqual(86_401, $e->retryAfterSeconds);
         }
     }
 

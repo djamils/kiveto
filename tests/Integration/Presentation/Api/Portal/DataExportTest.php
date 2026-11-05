@@ -76,8 +76,11 @@ final class DataExportTest extends PetsApiTestCase
         self::assertSame([['type' => 'report', 'title' => 'Compte rendu du 20/10/2026', 'issuedAt' => '2026-10-20T10:30:00+02:00']], $clinic['documents']);
         self::assertSame('%PDF', $files['summary.pdf']);
 
-        // The archive is deleted 48 hours after it is ready.
-        self::assertSame([172_800], $this->scheduledDeletions());
+        // The archive is deleted 48 hours after it is ready (available_at is
+        // stored to the second, rounded up by Messenger: never early).
+        $deletions = $this->scheduledDeletions();
+        self::assertCount(1, $deletions);
+        self::assertContains($deletions[0], [172_800, 172_801]);
 
         self::assertSame('not_found', self::problemType($this->download(substr($url, 0, -4) . 'abcd'), 404));
         self::assertSame('not_found', self::problemType($this->download(strtok($url, '?') ?: $url), 404));

@@ -15,8 +15,8 @@ final class ListSupplierAccountsByClinicHandlerTest extends TestCase
 
     public function testItReturnsAccountsForClinic(): void
     {
-        $readRepository = $this->createStub(SupplierAccountReadRepositoryInterface::class);
-        $readRepository->method('findByClinic')->with(self::CLINIC_UUID)
+        $readRepository = $this->createMock(SupplierAccountReadRepositoryInterface::class);
+        $readRepository->expects(self::once())->method('findByClinic')->with(self::CLINIC_UUID)
             ->willReturn([['id' => 'aaa', 'customerCode' => 'CLI-001']])
         ;
 

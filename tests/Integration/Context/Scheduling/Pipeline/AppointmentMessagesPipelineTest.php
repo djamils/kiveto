@@ -108,7 +108,8 @@ final class AppointmentMessagesPipelineTest extends KernelTestCase
             ['%SyncAppointmentNotification%'],
         );
         self::assertCount(1, $delays);
-        self::assertSame(120, is_numeric($delays[0]) ? (int) $delays[0] : null);
+        // available_at is stored to the second, rounded up by Messenger: never early.
+        self::assertContains(is_numeric($delays[0]) ? (int) $delays[0] : null, [120, 121]);
     }
 
     public function testTheDeathOfTheAnimalCancelsWithoutAMessage(): void

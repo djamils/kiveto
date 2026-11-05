@@ -15,8 +15,8 @@ final class SearchUnmatchedDeliveriesHandlerTest extends TestCase
 
     public function testItReturnsUnmatchedDeliveries(): void
     {
-        $readRepository = $this->createStub(SupplierReceiptReadRepositoryInterface::class);
-        $readRepository->method('findUnmatched')->with(self::CLINIC_UUID)
+        $readRepository = $this->createMock(SupplierReceiptReadRepositoryInterface::class);
+        $readRepository->expects(self::once())->method('findUnmatched')->with(self::CLINIC_UUID)
             ->willReturn([['id' => 'delivery-1', 'resolved' => false]])
         ;
 
