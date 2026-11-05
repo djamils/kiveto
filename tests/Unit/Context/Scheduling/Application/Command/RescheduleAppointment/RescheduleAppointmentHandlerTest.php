@@ -11,11 +11,13 @@ use App\Context\Scheduling\Application\Port\ClinicTimezoneResolverInterface;
 use App\Context\Scheduling\Application\Port\MembershipEligibilityCheckerInterface;
 use App\Context\Scheduling\Application\Port\PlanningBlockFinderInterface;
 use App\Context\Scheduling\Application\Port\PlanningBlockReadModel;
+use App\Context\Scheduling\Application\Service\AppointmentParties;
 use App\Context\Scheduling\Application\Service\PlanningBlockGate;
 use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Booking\OnlineBookingSettings;
 use App\Context\Scheduling\Domain\Booking\OnlineBookingSettingsRepositoryInterface;
 use App\Context\Scheduling\Domain\Exception\AppointmentNotModifiableException;
+use App\Context\Scheduling\Domain\Exception\AppointmentPartyNotFoundException;
 use App\Context\Scheduling\Domain\Exception\BlockRefusesAppointmentsException;
 use App\Context\Scheduling\Domain\Exception\PractitionerNotBookableException;
 use App\Context\Scheduling\Domain\Exception\SlotTakenException;
@@ -31,6 +33,7 @@ use App\Context\Scheduling\Domain\ValueObject\UserId;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Tests\Unit\Context\Scheduling\Support\CapturingEventBus;
+use App\Tests\Unit\Context\Scheduling\Support\Parties;
 use App\Tests\Unit\Context\Scheduling\Support\RecordingDayLock;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -62,22 +65,30 @@ final class RescheduleAppointmentHandlerTest extends TestCase
         $this->settings           = $this->createMock(OnlineBookingSettingsRepositoryInterface::class);
         $this->blockFinder        = $this->createMock(PlanningBlockFinderInterface::class);
 
-        $this->handler = new RescheduleAppointmentHandler(
-            appointmentRepository: $this->repository,
-            conflictChecker: $this->conflictChecker,
-            membershipEligibilityChecker: $this->eligibilityChecker,
-            clock: $this->clock,
-            domainEventPublisher: new DomainEventPublisher($this->events = new CapturingEventBus()),
-            onlineBookingSettings: $this->settings,
-            timezoneResolver: new class implements ClinicTimezoneResolverInterface {
-                public function resolveTimezone(ClinicId $clinicId): \DateTimeZone
-                {
-                    return new \DateTimeZone('Europe/Paris');
-                }
-            },
-            dayLock: $this->dayLock = new RecordingDayLock(),
-            planningBlockGate: new PlanningBlockGate($this->blockFinder),
-        );
+        $this->handler = $this->handlerWith(Parties::ofTheClinic());
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testMovingAnAppointmentOntoAClientOfAnotherClinicIsRefused(): void
+    {
+        $handler = $this->handlerWith(Parties::ofAnotherClinic());
+        $this->givenStored($this->createFutureAppointment());
+        $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:00:00'));
+        $this->eligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
+        $this->conflictChecker->method('hasOverlapLocked')->willReturn(false);
+        $this->repository->expects(self::never())->method('save');
+
+        $this->expectException(AppointmentPartyNotFoundException::class);
+
+        $handler(new RescheduleAppointment(
+            clinicId: self::CLINIC_ID,
+            appointmentId: self::APPOINTMENT_ID,
+            startsAtUtc: new \DateTimeImmutable('2026-04-12 14:00:00'),
+            durationMinutes: 45,
+            practitionerUserId: self::OTHER_PRACT,
+            ownerId: 'owner-of-another-clinic',
+            animalId: 'animal-of-another-clinic',
+        ));
     }
 
     #[AllowMockObjectsWithoutExpectations]
@@ -457,6 +468,27 @@ final class RescheduleAppointmentHandlerTest extends TestCase
 
         // Expires at 13:30, half an hour ago
         $this->moveTo('2026-04-10 15:30:00');
+    }
+
+    private function handlerWith(AppointmentParties $parties): RescheduleAppointmentHandler
+    {
+        return new RescheduleAppointmentHandler(
+            appointmentRepository: $this->repository,
+            conflictChecker: $this->conflictChecker,
+            membershipEligibilityChecker: $this->eligibilityChecker,
+            clock: $this->clock,
+            domainEventPublisher: new DomainEventPublisher($this->events = new CapturingEventBus()),
+            onlineBookingSettings: $this->settings,
+            timezoneResolver: new class implements ClinicTimezoneResolverInterface {
+                public function resolveTimezone(ClinicId $clinicId): \DateTimeZone
+                {
+                    return new \DateTimeZone('Europe/Paris');
+                }
+            },
+            dayLock: $this->dayLock = new RecordingDayLock(),
+            planningBlockGate: new PlanningBlockGate($this->blockFinder),
+            parties: $parties,
+        );
     }
 
     private function givenStored(?Appointment $appointment): void

@@ -14,6 +14,7 @@ use App\Context\Scheduling\Application\Port\PlanningBlockReadModel;
 use App\Context\Scheduling\Application\Service\PlanningBlockGate;
 use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Event\AppointmentScheduled;
+use App\Context\Scheduling\Domain\Exception\AppointmentPartyNotFoundException;
 use App\Context\Scheduling\Domain\Exception\BlockRefusesAppointmentsException;
 use App\Context\Scheduling\Domain\Exception\PractitionerNotBookableException;
 use App\Context\Scheduling\Domain\Exception\SlotTakenException;
@@ -26,6 +27,7 @@ use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Tests\Unit\Context\Scheduling\Support\CapturingEventBus;
+use App\Tests\Unit\Context\Scheduling\Support\Parties;
 use App\Tests\Unit\Context\Scheduling\Support\RecordingDayLock;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -64,7 +66,43 @@ final class ScheduleAppointmentHandlerTest extends TestCase
             timezoneResolver: $this->timezoneResolver,
             domainEventPublisher: new DomainEventPublisher($this->events = new CapturingEventBus()),
             dayLock: $this->dayLock = new RecordingDayLock(),
+            parties: Parties::ofTheClinic(),
         );
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testAClientOrAnAnimalOfAnotherClinicIsRefused(): void
+    {
+        $handler = new ScheduleAppointmentHandler(
+            appointmentRepository: $this->appointmentRepository,
+            membershipEligibilityChecker: $this->membershipEligibilityChecker,
+            conflictChecker: $this->conflictChecker,
+            uuidGenerator: $this->uuidGenerator,
+            clock: $this->clock,
+            planningBlockGate: new PlanningBlockGate($this->planningBlockFinder),
+            timezoneResolver: $this->timezoneResolver,
+            domainEventPublisher: new DomainEventPublisher(new CapturingEventBus()),
+            dayLock: new RecordingDayLock(),
+            parties: Parties::ofAnotherClinic(),
+        );
+        $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'));
+        $this->membershipEligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
+        $this->conflictChecker->expects(self::never())->method('hasOverlapLocked');
+        $this->appointmentRepository->expects(self::never())->method('save');
+
+        $this->expectException(AppointmentPartyNotFoundException::class);
+
+        $handler(new ScheduleAppointment(
+            clinicId: '11111111-1111-1111-1111-111111111111',
+            practitionerUserId: '44444444-4444-4444-4444-444444444444',
+            startsAtUtc: new \DateTimeImmutable('2026-02-01 09:00:00'),
+            durationMinutes: 30,
+            reason: 'Consultation',
+            notes: null,
+            ownerId: 'owner-of-another-clinic',
+            animalId: 'animal-of-another-clinic',
+            actorUserId: 'actor-1',
+        ));
     }
 
     public function testScheduleAppointmentSuccess(): void

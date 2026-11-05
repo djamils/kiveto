@@ -52,10 +52,10 @@ final readonly class GetAgendaForClinicDateRangeHandler
                 a.pending_expires_at
             FROM scheduling__appointments a
             LEFT JOIN identity_access__users u ON u.id = a.practitioner_user_id
-            LEFT JOIN client__clients c ON c.id = a.owner_id
+            LEFT JOIN client__clients c ON c.id = a.owner_id AND c.clinic_id = a.clinic_id
             LEFT JOIN client__contact_methods cm
                 ON cm.client_id = a.owner_id AND cm.type = 'phone' AND cm.is_primary = 1
-            LEFT JOIN animal__animals an ON an.id = a.animal_id
+            LEFT JOIN animal__animals an ON an.id = a.animal_id AND an.clinic_id = a.clinic_id
             WHERE a.clinic_id = UUID_TO_BIN(:clinicId)
               AND a.starts_at_utc >= :fromUtc
               AND a.starts_at_utc <= :toUtc

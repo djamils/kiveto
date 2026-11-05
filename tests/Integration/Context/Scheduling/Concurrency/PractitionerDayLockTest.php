@@ -43,6 +43,7 @@ use App\Shared\Infrastructure\Bus\Messenger\CommandBus;
 use App\Tests\Shared\Time\FrozenClock;
 use App\Tests\Unit\Context\Scheduling\Support\CapturingEventBus;
 use App\Tests\Unit\Context\Scheduling\Support\InMemoryOnlineBookingSettings;
+use App\Tests\Unit\Context\Scheduling\Support\Parties;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Exception\DeadlockException;
@@ -307,6 +308,7 @@ final class PractitionerDayLockTest extends KernelTestCase
             timezoneResolver: $this->paris(),
             domainEventPublisher: new DomainEventPublisher(new CapturingEventBus()),
             dayLock: new DbalPractitionerDayLock($connection),
+            parties: Parties::ofTheClinic(),
         );
 
         return $handler(new ScheduleAppointment(
@@ -413,6 +415,7 @@ final class PractitionerDayLockTest extends KernelTestCase
             timezoneResolver: $this->paris(),
             dayLock: new DbalPractitionerDayLock($connection),
             planningBlockGate: $this->gate($connection),
+            parties: Parties::ofTheClinic(),
         )(new RescheduleAppointment(
             clinicId: self::CLINIC,
             appointmentId: $appointmentId,
