@@ -61,25 +61,30 @@ framework:
             # Bus for commands (write operations)
             messenger.bus.command:
                 middleware:
+                    # First: the request's query answers are neither served nor
+                    # kept while the command runs, and are forgotten once it ran.
+                    - App\Shared\Infrastructure\Bus\Messenger\Middleware\ForgetQueryAnswersMiddleware
                     - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageMetadataMiddleware
                     - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageContextMiddleware
                     - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageLoggingMiddleware
                     - validation
                     - doctrine_transaction
 
-            # Bus for queries (read operations)
+            # Bus for queries (read operations). No `validation`: queries carry no
+            # constraint (the code builds them, not a form), and validating each of
+            # the hundreds a page asks cost more than handling some of them.
             messenger.bus.query:
                 middleware:
                     - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageMetadataMiddleware
                     - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageContextMiddleware
                     - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageLoggingMiddleware
-                    - validation
 
             # Bus for commands that call external services: no transaction, so that no
             # network call ever runs inside one (the handler records its outcome
             # through a short transactional command on the command bus).
             messenger.bus.external_api:
                 middleware:
+                    - App\Shared\Infrastructure\Bus\Messenger\Middleware\ForgetQueryAnswersMiddleware
                     - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageMetadataMiddleware
                     - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageContextMiddleware
                     - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageLoggingMiddleware

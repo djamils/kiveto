@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange;
 
-use App\Shared\Application\Bus\QueryInterface;
+use App\Shared\Application\Bus\RequestCacheableQueryInterface;
 
-final readonly class GetAgendaForClinicDateRange implements QueryInterface
+final readonly class GetAgendaForClinicDateRange implements RequestCacheableQueryInterface
 {
     public function __construct(
         public string $clinicId,
