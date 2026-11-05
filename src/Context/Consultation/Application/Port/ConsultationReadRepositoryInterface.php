@@ -23,6 +23,12 @@ interface ConsultationReadRepositoryInterface
     public function findById(ConsultationId $consultationId, ClinicId $clinicId): ConsultationDetailsDTO;
 
     /**
+     * The consultation's own row, without its record; null when it is unknown
+     * or another clinic's.
+     */
+    public function findHeader(ConsultationId $consultationId, ClinicId $clinicId): ?ConsultationHeader;
+
+    /**
      * Lists the clinic's consultations for a set of patient ids, most recent first.
      *
      * @param list<string> $patientIds

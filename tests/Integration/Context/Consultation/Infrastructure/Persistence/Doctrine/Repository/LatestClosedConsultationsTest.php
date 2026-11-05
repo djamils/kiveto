@@ -8,6 +8,7 @@ use App\Context\Consultation\Application\Port\ConsultationReadRepositoryInterfac
 use App\Context\Consultation\Application\Port\PatientIdsProviderInterface;
 use App\Context\Consultation\Application\Query\SearchConsultations\ConsultationListRow;
 use App\Context\Consultation\Domain\ValueObject\ClinicId;
+use App\Context\Consultation\Domain\ValueObject\ConsultationId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationStatus;
 use App\Fixtures\Context\Consultation\Factory\ConsultationEntityFactory;
 use App\Fixtures\Context\Patient\Factory\PatientEntityFactory;
@@ -59,6 +60,29 @@ final class LatestClosedConsultationsTest extends KernelTestCase
         self::assertSame([self::LATEST, self::VET, 'CLOSED', '2026-10-01 09:00:00', ['Rappel', 'Vaccin']], self::fields($byPatient[self::REX]));
         self::assertSame([self::TWIN, self::VET, 'CLOSED', '2026-10-10 10:00:00', []], self::fields($byPatient[self::LUNA]));
         self::assertSame(2, $queries, 'the consultations, then their motifs');
+    }
+
+    public function testTheHeaderOfOneConsultationInOneQuery(): void
+    {
+        $this->consultation(self::LATEST, self::REX, '2026-10-01 09:00:00');
+        $this->consultation('0192f000-0000-7000-8000-0000000000f3', self::REX, '2026-10-30 09:00:00', ConsultationStatus::OPEN);
+
+        QueryCounter::reset();
+        $closed = $this->consultations()->findHeader(ConsultationId::fromString(self::LATEST), ClinicId::fromString(self::CLINIC));
+        self::assertSame(1, QueryCounter::count());
+
+        self::assertNotNull($closed);
+        self::assertSame(
+            [self::LATEST, self::REX, self::VET, 'CLOSED', '2026-10-01 09:00:00', '2026-10-01 09:20:00', true],
+            [$closed->consultationId, $closed->patientId, $closed->practitionerUserId, $closed->status, $closed->startedAtUtc, $closed->closedAtUtc, $closed->isClosed()],
+        );
+
+        $open = $this->consultations()->findHeader(ConsultationId::fromString('0192f000-0000-7000-8000-0000000000f3'), ClinicId::fromString(self::CLINIC));
+        self::assertSame([null, false], [$open?->closedAtUtc, $open?->isClosed()]);
+
+        // Unknown, or another clinic's.
+        self::assertNull($this->consultations()->findHeader(ConsultationId::fromString('0192f000-0000-7000-8000-0000000000f9'), ClinicId::fromString(self::CLINIC)));
+        self::assertNull($this->consultations()->findHeader(ConsultationId::fromString(self::LATEST), ClinicId::fromString(self::OTHER)));
     }
 
     public function testThePatientRecordsOfSeveralAnimals(): void
