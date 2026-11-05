@@ -12,19 +12,34 @@ use App\System\Taxation\Infrastructure\Persistence\Doctrine\Entity\MentionTempla
 use App\System\Taxation\Infrastructure\Persistence\Doctrine\Mapper\MentionTemplateMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Service\ResetInterface;
 
-final readonly class DoctrineMentionTemplateRepository implements MentionTemplateRepositoryInterface
+/**
+ * A regime's active templates are read for every taxed line: they are kept
+ * by regime for the request. A save or a delete forgets them, and so does
+ * the kernel reset between requests and worker messages.
+ */
+final class DoctrineMentionTemplateRepository implements MentionTemplateRepositoryInterface, ResetInterface
 {
+    /** @var array<string, list<MentionTemplate>> by regime id */
+    private array $activeByRegime = [];
+
     public function __construct(
-        private EntityManagerInterface $em,
-        private MentionTemplateMapper $mapper,
+        private readonly EntityManagerInterface $em,
+        private readonly MentionTemplateMapper $mapper,
     ) {
+    }
+
+    public function reset(): void
+    {
+        $this->activeByRegime = [];
     }
 
     public function save(MentionTemplate $template): void
     {
-        $entity   = $this->mapper->toEntity($template);
-        $existing = $this->em->find(MentionTemplateEntity::class, Uuid::fromRfc4122($template->id()->toString()));
+        $this->activeByRegime = [];
+        $entity               = $this->mapper->toEntity($template);
+        $existing             = $this->em->find(MentionTemplateEntity::class, Uuid::fromRfc4122($template->id()->toString()));
 
         if (null === $existing) {
             $this->em->persist($entity);
@@ -54,17 +69,24 @@ final readonly class DoctrineMentionTemplateRepository implements MentionTemplat
     /** @return list<MentionTemplate> */
     public function findActiveByRegime(TaxRegimeId $regimeId): array
     {
-        /** @var list<MentionTemplateEntity> $entities */
-        $entities = $this->em->getRepository(MentionTemplateEntity::class)->findBy([
-            'regimeId' => $regimeId->toString(),
-            'active'   => true,
-        ]);
+        $key = $regimeId->toString();
 
-        return array_map(fn (MentionTemplateEntity $e) => $this->mapper->toDomain($e), $entities);
+        if (!\array_key_exists($key, $this->activeByRegime)) {
+            /** @var list<MentionTemplateEntity> $entities */
+            $entities = $this->em->getRepository(MentionTemplateEntity::class)->findBy([
+                'regimeId' => $key,
+                'active'   => true,
+            ]);
+
+            $this->activeByRegime[$key] = array_map(fn (MentionTemplateEntity $e) => $this->mapper->toDomain($e), $entities);
+        }
+
+        return $this->activeByRegime[$key];
     }
 
     public function deleteByRegime(TaxRegimeId $regimeId): void
     {
+        $this->activeByRegime = [];
         $this->em->createQueryBuilder()
             ->delete(MentionTemplateEntity::class, 'm')
             ->where('m.regimeId = :regimeId')

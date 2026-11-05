@@ -12,18 +12,34 @@ use App\System\Taxation\Infrastructure\Persistence\Doctrine\Entity\TaxRegimeEnti
 use App\System\Taxation\Infrastructure\Persistence\Doctrine\Mapper\TaxRateMapper;
 use App\System\Taxation\Infrastructure\Persistence\Doctrine\Mapper\TaxRegimeMapper;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Contracts\Service\ResetInterface;
 
-final readonly class DoctrineTaxRegimeRepository implements TaxRegimeRepositoryInterface
+/**
+ * A regime and its rates are reference data, resolved for every taxed line:
+ * each one read is kept for the request. A save forgets them, and so does
+ * the kernel reset between requests and worker messages.
+ */
+final class DoctrineTaxRegimeRepository implements TaxRegimeRepositoryInterface, ResetInterface
 {
+    /** @var array<string, TaxRegime|null> by regime id */
+    private array $regimes = [];
+
     public function __construct(
-        private EntityManagerInterface $em,
-        private TaxRegimeMapper $mapper,
-        private TaxRateMapper $rateMapper,
+        private readonly EntityManagerInterface $em,
+        private readonly TaxRegimeMapper $mapper,
+        private readonly TaxRateMapper $rateMapper,
     ) {
+    }
+
+    public function reset(): void
+    {
+        $this->regimes = [];
     }
 
     public function save(TaxRegime $regime): void
     {
+        $this->regimes = [];
+
         $entity   = $this->mapper->toEntity($regime);
         $existing = $this->em->find(TaxRegimeEntity::class, $entity->getId());
 
@@ -61,16 +77,13 @@ final readonly class DoctrineTaxRegimeRepository implements TaxRegimeRepositoryI
 
     public function findById(TaxRegimeId $id): ?TaxRegime
     {
-        $entity = $this->em->find(TaxRegimeEntity::class, $id->toString());
+        $key = $id->toString();
 
-        if (null === $entity) {
-            return null;
+        if (!\array_key_exists($key, $this->regimes)) {
+            $this->regimes[$key] = $this->load($id);
         }
 
-        /** @var list<TaxRateEntity> $rateEntities */
-        $rateEntities = $this->em->getRepository(TaxRateEntity::class)->findBy(['regimeId' => $id->toString()]);
-
-        return $this->mapper->toDomain($entity, $rateEntities);
+        return $this->regimes[$key];
     }
 
     /** @return list<TaxRegime> */
@@ -87,5 +100,19 @@ final readonly class DoctrineTaxRegimeRepository implements TaxRegimeRepositoryI
         }
 
         return $result;
+    }
+
+    private function load(TaxRegimeId $id): ?TaxRegime
+    {
+        $entity = $this->em->find(TaxRegimeEntity::class, $id->toString());
+
+        if (null === $entity) {
+            return null;
+        }
+
+        /** @var list<TaxRateEntity> $rateEntities */
+        $rateEntities = $this->em->getRepository(TaxRateEntity::class)->findBy(['regimeId' => $id->toString()]);
+
+        return $this->mapper->toDomain($entity, $rateEntities);
     }
 }
