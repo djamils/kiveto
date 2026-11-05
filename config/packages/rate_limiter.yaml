@@ -24,7 +24,9 @@ framework:
 
         # Password sign-in (ContextAuthenticator, through app.login_rate_limiter):
         # per sign-in context, account and IP, and per IP for a password tried
-        # on many accounts. A successful sign-in gives the attempts back.
+        # on many accounts. A successful sign-in gives back the attempts of its
+        # account only: the per-IP budget counts every attempt, successful ones
+        # included, so that an account of one's own cannot reset it.
         login_account:
             policy: 'sliding_window'
             limit: 5
@@ -34,3 +36,20 @@ framework:
             policy: 'sliding_window'
             limit: 50
             interval: '15 minutes'
+
+when@test:
+    # The suite signs in hundreds of times from 127.0.0.1, and the app cache of
+    # the test env (var/share/test) outlives a run: the sign-in counts stay in
+    # memory instead. InMemoryStorage is not reset between the requests of a
+    # test (LoginThrottlingTest), and each test boots a container of its own.
+    services:
+        app.test.login_rate_limiter_storage:
+            class: Symfony\Component\RateLimiter\Storage\InMemoryStorage
+
+    framework:
+        rate_limiter:
+            login_account:
+                storage_service: app.test.login_rate_limiter_storage
+
+            login_ip:
+                storage_service: app.test.login_rate_limiter_storage
