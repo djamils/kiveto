@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Context\ClientPortal\Infrastructure\Adapter;
 
 use App\Context\Animal\Application\Query\GetAnimalById\AnimalView;
-use App\Context\Animal\Application\Query\GetAnimalById\GetAnimalById;
 use App\Context\Animal\Application\Query\GetAnimalById\IdentificationDto;
 use App\Context\Animal\Application\Query\GetAnimalById\LifeCycleDto;
 use App\Context\Animal\Application\Query\GetAnimalById\OwnershipDto;
 use App\Context\Animal\Application\Query\GetAnimalById\TransferDto;
+use App\Context\Animal\Application\Query\ListAnimalsByIds\ListAnimalsByIds;
 use App\Context\ClientPortal\Application\Port\PortalRequestResolvedMessage;
 use App\Context\ClientPortal\Domain\Exception\PortalRequestRateLimitedException;
 use App\Context\ClientPortal\Infrastructure\Adapter\Animal\QueryBusPetDirectory;
@@ -34,12 +34,11 @@ final class RequestAdaptersTest extends TestCase
 {
     public function testThePetFilesAreAnimalsArchivedOnesIncluded(): void
     {
-        $bus = new AnsweringQueryBus([GetAnimalById::class => static fn (GetAnimalById $q): ?AnimalView => match ($q->animalId) {
-            'a1'    => self::animal('a1', 'active', 'alive', [new OwnershipDto('client-1', 'primary', 'active', 's', null)]),
-            'a2'    => self::animal('a2', 'archived', 'deceased', []),
-            'a3'    => throw new \DomainException('Animal not found.'),
-            default => null,
-        }]);
+        // Animal leaves out the unknown ids (a3, a4).
+        $bus = new AnsweringQueryBus([ListAnimalsByIds::class => [
+            'a1' => self::animal('a1', 'active', 'alive', [new OwnershipDto('client-1', 'primary', 'active', 's', null)]),
+            'a2' => self::animal('a2', 'archived', 'deceased', []),
+        ]]);
 
         $states = new QueryBusPetDirectory($bus)->statesOf('clinic-1', ['a1', 'a2', 'a1', 'a3', 'a4']);
 
@@ -49,14 +48,28 @@ final class RequestAdaptersTest extends TestCase
             $states['a1']->lifeStatus, $states['a1']->archived, $states['a1']->isAlive(), $states['a1']->closureState(),
         ]);
         self::assertSame([null, true, false, 'pet_archived'], [$states['a2']->primaryOwnerClientId, $states['a2']->archived, $states['a2']->isAlive(), $states['a2']->closureState()]);
-        self::assertCount(4, $bus->asked, 'one read per distinct animal');
+
+        self::assertCount(1, $bus->asked, 'one read for every pet named');
+        $query = $bus->asked[0];
+        self::assertInstanceOf(ListAnimalsByIds::class, $query);
+        self::assertSame(['clinic-1', ['a1', 'a2', 'a3', 'a4']], [$query->clinicId, $query->animalIds]);
     }
 
     public function testADeceasedActivePetClosesItsRequestsAsDeceased(): void
     {
-        $bus = new AnsweringQueryBus([GetAnimalById::class => self::animal('a1', 'active', 'deceased', [])]);
+        $bus = new AnsweringQueryBus([ListAnimalsByIds::class => ['a1' => self::animal('a1', 'active', 'deceased', [])]]);
 
         self::assertSame('pet_deceased', new QueryBusPetDirectory($bus)->statesOf('clinic-1', ['a1'])['a1']->closureState());
+    }
+
+    public function testNoPetNamedReadsNothing(): void
+    {
+        $bus = new AnsweringQueryBus();
+
+        self::assertSame([], new QueryBusPetDirectory($bus)->statesOf('clinic-1', []));
+        self::assertSame([], $bus->asked);
+        // A bus with no answer: no file to read.
+        self::assertSame([], new QueryBusPetDirectory($bus)->statesOf('clinic-1', ['a1']));
     }
 
     public function testTheConsultationsStartedAreConsultations(): void

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\ViewModel\PortalRequest;
 
+use App\Context\ClientPortal\Application\Query\CountClinicPortalRequests\CountClinicPortalRequests;
 use App\Context\ClientPortal\Application\Query\ListClinicBookingRequests\ClinicBookingRequest;
 use App\Context\ClientPortal\Application\Query\ListClinicBookingRequests\ListClinicBookingRequests;
 use App\Context\ClientPortal\Application\Query\ListClinicLinkRequests\ClinicLinkRequest;
@@ -95,10 +96,16 @@ final readonly class PortalRequestQueue
         return array_values(array_filter($requests, static fn (mixed $request): bool => $request instanceof ClinicBookingRequest));
     }
 
-    /** How many requests wait for an answer, of every type. */
+    /**
+     * How many requests wait for an answer, of every type: counted by
+     * ClientPortal, the requests themselves never read (the badge of every
+     * page asks it).
+     */
     public function count(string $clinicId): int
     {
-        return \count($this->open($clinicId)) + \count($this->links($clinicId)) + \count($this->bookings($clinicId));
+        $count = $this->queryBus->ask(new CountClinicPortalRequests($clinicId));
+
+        return \is_int($count) ? $count : 0;
     }
 
     /**

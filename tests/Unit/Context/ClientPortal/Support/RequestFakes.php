@@ -36,6 +36,9 @@ final class RequestFakes implements ConsultationStartsInterface, PrescriberDirec
     /** @var list<string> */
     public array $pages = [];
 
+    /** @var list<string> the pet of each submitted request */
+    public array $submittedPets = [];
+
     public function startedFrom(string $clinicId, array $appointmentIds): array
     {
         return array_values(array_intersect($appointmentIds, $this->started));
@@ -68,6 +71,13 @@ final class RequestFakes implements ConsultationStartsInterface, PrescriberDirec
         $this->pages[] = \sprintf('clinic:%s:%s:%s:%s:%d', $clinicId, implode(',', $statuses), $kind ?? '-', self::position($after), $limit);
 
         return \array_slice($this->records, 0, $limit);
+    }
+
+    public function submittedPetIdsOf(string $clinicId): array
+    {
+        $this->pages[] = 'submitted:' . $clinicId;
+
+        return $this->submittedPets;
     }
 
     private static function position(?RequestPosition $after): string

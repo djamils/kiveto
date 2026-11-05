@@ -10,12 +10,16 @@ use App\Shared\Application\Context\CurrentClinicContextInterface;
 use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * Settings are not for everyone: what a member may do in a clinic comes from
  * the role they hold there, which the Clinic context alone can answer.
+ *
+ * The shell, the sidebar and the page all ask: Clinic answers once per
+ * member and clinic for the request, and again for the next one.
  */
-final readonly class ClinicPermissionGuard
+final class ClinicPermissionGuard implements ResetInterface
 {
     public const string MANAGE_STAFF   = 'manage_staff';
     public const string MANAGE_BILLING = 'manage_billing';
@@ -30,11 +34,20 @@ final readonly class ClinicPermissionGuard
     // Answer a prescription renewal request (ClinicPermission::CREATE_PRESCRIPTION).
     public const string CREATE_PRESCRIPTION = 'create_prescription';
 
+    /** @var array<string, list<string>> the request's answers, by « user/clinic » */
+    private array $answers = [];
+
     public function __construct(
-        private QueryBusInterface $queryBus,
-        private CurrentClinicContextInterface $currentClinicContext,
-        private Security $security,
+        private readonly QueryBusInterface $queryBus,
+        private readonly CurrentClinicContextInterface $currentClinicContext,
+        private readonly Security $security,
     ) {
+    }
+
+    /** A kernel serving several requests (worker, test client) asks Clinic again for each. */
+    public function reset(): void
+    {
+        $this->answers = [];
     }
 
     /**
@@ -70,10 +83,15 @@ final readonly class ClinicPermissionGuard
             return [];
         }
 
-        $permissions = $this->queryBus->ask(new ListPermissionsForUserInClinic(
-            userId: $user->id(),
-            clinicId: $clinicId->toString(),
-        ));
+        return $this->answers[$user->id() . '/' . $clinicId->toString()] ??= $this->read($user->id(), $clinicId->toString());
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function read(string $userId, string $clinicId): array
+    {
+        $permissions = $this->queryBus->ask(new ListPermissionsForUserInClinic(userId: $userId, clinicId: $clinicId));
 
         return \is_array($permissions) ? array_values(array_filter($permissions, \is_string(...))) : [];
     }

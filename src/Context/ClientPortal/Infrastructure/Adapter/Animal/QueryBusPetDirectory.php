@@ -6,6 +6,7 @@ namespace App\Context\ClientPortal\Infrastructure\Adapter\Animal;
 
 use App\Context\Animal\Application\Query\GetAnimalById\AnimalView;
 use App\Context\Animal\Application\Query\GetAnimalById\GetAnimalById;
+use App\Context\Animal\Application\Query\ListAnimalsByIds\ListAnimalsByIds;
 use App\Context\Animal\Application\Query\ListPortalPets\ListPortalPets;
 use App\Context\Animal\Application\Query\ListPortalPets\PortalPetView;
 use App\Context\ClientPortal\Application\Port\PetDirectoryInterface;
@@ -16,8 +17,8 @@ use App\Shared\Application\Bus\QueryBusInterface;
 
 /**
  * Animal's ListPortalPets: the visibility rule (active, primary owner, not
- * transferred) is Animal's. GetAnimalById for the identity of one animal
- * and for the files of the few pets a page of requests names.
+ * transferred) is Animal's. GetAnimalById for the identity of one animal,
+ * ListAnimalsByIds for the files of the pets a page of requests names.
  */
 final readonly class QueryBusPetDirectory implements PetDirectoryInterface
 {
@@ -82,12 +83,21 @@ final readonly class QueryBusPetDirectory implements PetDirectoryInterface
 
     public function statesOf(string $clinicId, array $animalIds): array
     {
-        $states = [];
+        $animalIds = array_values(array_unique($animalIds));
 
-        foreach (array_unique($animalIds) as $animalId) {
-            $animal = $this->animal($clinicId, $animalId);
+        if ([] === $animalIds) {
+            return [];
+        }
 
-            if (null !== $animal) {
+        // One read for every pet named, however many.
+        $animals = $this->queryBus->ask(new ListAnimalsByIds($clinicId, $animalIds));
+        $animals = \is_array($animals) ? $animals : [];
+        $states  = [];
+
+        foreach ($animalIds as $animalId) {
+            $animal = $animals[$animalId] ?? null;
+
+            if ($animal instanceof AnimalView) {
                 $states[$animalId] = new PetState(
                     $animal->id,
                     $animal->name,

@@ -113,22 +113,21 @@ final class ClinicPageQueryBudgetTest extends WebTestCase
     }
 
     /**
-     * Every page pays 3 statements per patient for the « Demandes Portal »
-     * badge of the shell, which reads each waiting request's pet and client;
-     * the dashboard and the admission queue add their own reads per patient.
+     * The shell costs the same whatever the day holds; the dashboard and the
+     * admission queue still read each patient of the day on their own.
      *
      * @return iterable<string, array{string, int, int}>
      */
     public static function provideThePageStaysWithinItsQueryBudgetCases(): iterable
     {
-        yield 'dashboard' => ['/dashboard', 94, 16];
-        yield 'admission queue' => ['/admission/queue', 53, 8];
-        yield 'consultation register' => ['/consultations', 45, 3];
-        yield 'consultation' => ['/clinic/consultations/{consultation}', 68, 3];
-        yield 'client directory' => ['/clients', 33, 3];
-        yield 'prescriptions' => ['/prescriptions', 38, 3];
-        yield 'agenda' => ['/scheduling/agenda', 32, 3];
-        yield 'planning' => ['/scheduling/planning', 28, 3];
+        yield 'dashboard' => ['/dashboard', 83, 13];
+        yield 'admission queue' => ['/admission/queue', 44, 6];
+        yield 'consultation register' => ['/consultations', 33, 0];
+        yield 'consultation' => ['/clinic/consultations/{consultation}', 59, 0];
+        yield 'client directory' => ['/clients', 21, 0];
+        yield 'prescriptions' => ['/prescriptions', 26, 0];
+        yield 'agenda' => ['/scheduling/agenda', 20, 0];
+        yield 'planning' => ['/scheduling/planning', 16, 0];
     }
 
     /** The SQL statements the page runs, from the request to the rendered response. */

@@ -14,8 +14,7 @@ use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
 use App\Context\Inventory\Application\Query\WatchStock\StockWatchRow;
 use App\Context\Inventory\Application\Query\WatchStock\WatchStock;
 use App\Context\Inventory\Domain\StockAlert\ValueObject\StockAlertSeverity;
-use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\AppointmentItem;
-use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\GetAgendaForClinicDateRange;
+use App\Context\Scheduling\Application\Query\CountClinicAppointments\CountClinicAppointments;
 use App\Presentation\Clinic\Security\ClinicPermissionGuard;
 use App\Presentation\Clinic\ViewModel\PortalRequest\PortalRequestQueue;
 use App\Presentation\Clinic\ViewModel\Shared\SheetText;
@@ -216,14 +215,10 @@ final class ShellViewBuilder implements ResetInterface
 
     private function appointmentsToday(string $clinicId, \DateTimeImmutable $now, \DateTimeZone $timeZone): int
     {
-        $appointments = $this->queryBus->ask(GetAgendaForClinicDateRange::forDay($clinicId, $now, $timeZone));
-        \assert(\is_array($appointments));
+        // Counted by Scheduling: the shell does not read the agenda for a number.
+        $count = $this->queryBus->ask(CountClinicAppointments::forDay($clinicId, $now, $timeZone));
 
-        return \count(array_filter(
-            $appointments,
-            static fn (mixed $appointment): bool => $appointment instanceof AppointmentItem
-                && !$appointment->isWithdrawn,
-        ));
+        return \is_int($count) ? $count : 0;
     }
 
     /**

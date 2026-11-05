@@ -57,6 +57,25 @@ final readonly class DoctrineAnimalReadRepository implements AnimalReadRepositor
         return $this->mapToAnimalView($entity);
     }
 
+    public function findByIds(ClinicId $clinicId, array $animalIds): array
+    {
+        // The ownerships are fetched with the animals: one query, not one per animal.
+        /** @var list<AnimalEntity> $entities */
+        $entities = $this->entityManager->createQueryBuilder()
+            ->select('a', 'o')
+            ->from(AnimalEntity::class, 'a')
+            ->leftJoin('a.ownerships', 'o')
+            ->where('a.clinicId = :clinicId')
+            ->andWhere('a.id IN (:ids)')
+            ->setParameter('clinicId', Uuid::fromString($clinicId->toString()), UuidType::NAME)
+            ->setParameter('ids', array_map(static fn (string $id): string => Uuid::fromString($id)->toBinary(), $animalIds), ArrayParameterType::BINARY)
+            ->getQuery()
+            ->getResult()
+        ;
+
+        return array_map($this->mapToAnimalView(...), $entities);
+    }
+
     public function search(ClinicId $clinicId, SearchAnimalsCriteria $criteria): array
     {
         if ($criteria->isImpossible()) {

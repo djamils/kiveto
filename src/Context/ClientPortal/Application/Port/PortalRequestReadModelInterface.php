@@ -27,4 +27,12 @@ interface PortalRequestReadModelInterface
      * @return list<PortalRequestRecord>
      */
     public function clinicPage(string $clinicId, array $statuses, ?string $kind, ?RequestPosition $after, int $limit): array;
+
+    /**
+     * The pet of each submitted request of the clinic, of both kinds: one id
+     * per request, so a pet with two requests waiting is there twice.
+     *
+     * @return list<string>
+     */
+    public function submittedPetIdsOf(string $clinicId): array;
 }
