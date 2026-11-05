@@ -73,6 +73,38 @@ final class QueryBusTaxRateProviderTest extends TestCase
         self::assertSame(1, $clinicLookups);
     }
 
+    public function testEachCategoryIsResolvedOncePerRequest(): void
+    {
+        $rateLookups = [];
+
+        $queryBus = $this->createStub(QueryBusInterface::class);
+        $queryBus->method('ask')->willReturnCallback(
+            function (object $query) use (&$rateLookups): ClinicDto|EffectiveRateResult|null {
+                if ($query instanceof GetClinic) {
+                    return $this->clinic();
+                }
+
+                self::assertInstanceOf(GetEffectiveRateForUI::class, $query);
+                $rateLookups[] = $query->categoryCode->toString();
+
+                // An unknown category resolves to null, kept as such.
+                return 'veterinary.unknown' === $query->categoryCode->toString() ? null : new EffectiveRateResult('20.00', 'FR');
+            },
+        );
+
+        $provider = new QueryBusTaxRateProvider($queryBus, $this->clock());
+
+        foreach ([self::CATEGORY_CODE, 'veterinary.unknown', self::CATEGORY_CODE, 'veterinary.unknown', self::CATEGORY_CODE] as $code) {
+            $provider->effectiveRatePercent($code, self::CLINIC_ID);
+        }
+        self::assertSame([self::CATEGORY_CODE, 'veterinary.unknown'], $rateLookups);
+
+        // The next request (kernel reset) asks Taxation again.
+        $provider->reset();
+        self::assertSame(20.0, $provider->effectiveRatePercent(self::CATEGORY_CODE, self::CLINIC_ID));
+        self::assertSame([self::CATEGORY_CODE, 'veterinary.unknown', self::CATEGORY_CODE], $rateLookups);
+    }
+
     public function testReturnsNullWhenTheClinicLookupThrows(): void
     {
         $queryBus = $this->createStub(QueryBusInterface::class);
