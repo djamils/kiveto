@@ -48,7 +48,7 @@ cd kiveto
 make install
 ```
 
-`make install` construit les images, démarre les conteneurs, installe les dépendances Composer, génère les clés JWT du Portal, crée et migre les bases de dev et de test, charge les fixtures et compile les assets. `make help` liste les autres cibles.
+`make install` construit les images, démarre les conteneurs, installe les dépendances Composer, génère les clés JWT du Portal, crée et migre les bases de dev et de test, charge les fixtures et compile Tailwind. `make help` liste les autres cibles.
 
 ### Hosts Configuration
 
@@ -108,7 +108,7 @@ make phpcs                        # PSR-12 (seules les erreurs font échouer)
 make php-cs-fixer && make phpcbf  # corriger le style
 make reset-db                     # recréer la base de dev et charger les fixtures
 make load-fixtures                # recharger les fixtures
-make assets                       # recompiler Tailwind et AssetMapper
+make assets                       # recompiler Tailwind (AssetMapper sert assets/ à jour)
 make worker-start / worker-logs   # workers Messenger et Scheduler
 make openapi-export               # régénérer openapi/portal.v1.yaml
 make openapi-check                # vérifier que le contrat correspond au code

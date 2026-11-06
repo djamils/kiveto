@@ -49,10 +49,12 @@ check.
 
 ### 2. Frontend assets are rebuilt with `make assets`
 
-Never use `php bin/console asset-map:compile` directly — it leaves the
-debug-mode warning that prevents fresh assets from being served. `make
-assets` handles whatever extra step is needed so the changes show up
-immediately on reload.
+Never use `php bin/console asset-map:compile` in dev: in debug mode, a
+compiled `public/assets/` is served as it is, and no later change to
+`assets/` shows until it is deleted. `make assets` compiles Tailwind and
+removes any `public/assets/`, so that AssetMapper serves the current files
+on reload. Run it after every change to the CSS. Only the production image
+compiles `public/assets/` (`Dockerfile`).
 
 ### 3. Test coverage stays at 100% per BC (excl. Presentation)
 
