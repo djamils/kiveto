@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Presentation\Backoffice\Controller\Registry;
 
 use App\Presentation\Backoffice\Audit\ConsoleAuditTrail;
+use App\Presentation\Backoffice\Security\CurrentAdmin;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\System\Audit\Domain\ValueObject\AuditCategory;
 use App\System\PharmaceuticalRegistry\Application\Command\RequestRegistryImport\RequestRegistryImport;
@@ -28,6 +29,7 @@ final class LaunchRegistryImportController extends AbstractController
         #[Autowire(service: 'messenger.bus.command')]
         private readonly MessageBusInterface $asyncCommands,
         private readonly ConsoleAuditTrail $auditTrail,
+        private readonly CurrentAdmin $currentAdmin,
     ) {
     }
 
@@ -53,7 +55,13 @@ final class LaunchRegistryImportController extends AbstractController
             return $this->redirectToRoute('backoffice_registry');
         }
 
-        $this->asyncCommands->dispatch(new RequestRegistryImport('ANMV'));
+        if ($status->sameAsLast) {
+            $this->addFlash('info', 'Ces fichiers sont ceux du dernier import (même empreinte SHA-256) : rien à importer.');
+
+            return $this->redirectToRoute('backoffice_registry');
+        }
+
+        $this->asyncCommands->dispatch(new RequestRegistryImport('ANMV', $this->currentAdmin->get()->name));
         $this->auditTrail->record('registry.import_requested', AuditCategory::REGISTRY, 'Import du registre ANMV lancé');
         $this->addFlash('success', 'Import lancé : le registre se met à jour en arrière-plan.');
 

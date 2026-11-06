@@ -53,6 +53,26 @@
     </div>
 
     <div class="co-col">
+      <section class="co-card" aria-labelledby="registry-files">
+        <div class="co-card-head"><h2 class="co-label" id="registry-files">Fichiers source</h2></div>
+        {% if snapshot.files|length > 0 %}
+          <ul class="co-settings co-registry-files">
+            {% for file in snapshot.files %}
+              <li>
+                <div class="co-settings-text">
+                  <b>{{ file.kind == 'amm' ? 'Registre' : 'Dictionnaire' }} · <code>{{ file.name }}</code></b>
+                  <span>{{ file.sizeLabel }} · déposé le {{ file.receivedAt|co_day_time }}</span>
+                  <span class="co-mono co-registry-hash" title="SHA-256">{{ file.sha256 }}</span>
+                </div>
+                <a class="co-btn is-white is-sm" href="{{ path('backoffice_registry_import_file', {id: snapshot.id, kind: file.kind}) }}" data-turbo="false">{{ co.icon('download', 12) }} Télécharger</a>
+              </li>
+            {% endfor %}
+          </ul>
+          <p class="co-card-foot">Lancé par {{ snapshot.importedBy ?? '—' }}. Les fichiers sont gardés tels qu'importés, dans l'archive horodatée du registre.</p>
+        {% else %}
+          <p class="co-card-body co-sub">Import antérieur au journal des fichiers : ses fichiers source n'ont pas été conservés.</p>
+        {% endif %}
+      </section>
       <section class="co-card" aria-labelledby="registry-meaning">
         <div class="co-card-head"><h2 class="co-label" id="registry-meaning">Ce qui change pour les cliniques</h2></div>
         <div class="co-card-body co-prose">

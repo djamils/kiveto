@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Presentation\Backoffice;
 
+use App\System\PharmaceuticalRegistry\Application\Port\RegistryImportFileLogInterface;
+use App\System\PharmaceuticalRegistry\Application\Query\Console\RegistryImportFile;
 use App\Tests\Support\Console\SignsInToTheConsole;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Test\Factories;
 
@@ -112,6 +115,47 @@ final class RegistryPagesTest extends WebTestCase
 
         $this->browser->request('POST', self::CONSOLE . '/registry/import', ['_token' => 'faux']);
         self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testTheSourceFilesOfAnImportAreKeptAndDownloaded(): void
+    {
+        $id     = $this->snapshot('2026-11-03 06:00:00', 'APPLIED', ['UPDATE' => 1]);
+        $folder = 'archive/test-' . bin2hex(random_bytes(4));
+        $dir    = \dirname(__DIR__, 4) . '/storage/pharma-registry/france/' . $folder;
+        mkdir($dir, 0o755, true);
+        file_put_contents($dir . '/amm.xml', '<amm/>');
+
+        try {
+            $log = static::getContainer()->get(RegistryImportFileLogInterface::class);
+            \assert($log instanceof RegistryImportFileLogInterface);
+            $at = new \DateTimeImmutable('2026-11-03 05:50:00', new \DateTimeZone('UTC'));
+            $log->record($id, 'ANMV', [
+                new RegistryImportFile('amm', 'amm.xml', hash('sha256', '<amm/>'), 6, $folder . '/amm.xml', $at, 'Djamil Soidiki'),
+                new RegistryImportFile('dict', 'dict.xml', str_repeat('d', 64), 7, $folder . '/dict.xml', $at, 'Djamil Soidiki'),
+            ]);
+
+            $crawler = $this->browser->request('GET', self::CONSOLE . '/registry');
+            self::assertStringContainsString(substr(hash('sha256', '<amm/>'), 0, 12), $crawler->filter('.co-registry-history tbody tr')->first()->text());
+            self::assertStringContainsString('Djamil Soidiki', $crawler->filter('.co-registry-history tbody tr')->first()->text());
+
+            $crawler = $this->browser->request('GET', self::CONSOLE . '/registry/imports/' . $id);
+            self::assertSelectorTextContains('[aria-labelledby=registry-files] .co-registry-files', 'amm.xml');
+            self::assertSelectorTextContains('[aria-labelledby=registry-files]', 'Lancé par Djamil Soidiki');
+            self::assertCount(2, $crawler->filter('.co-registry-files a[href*="/files/"]'));
+
+            $this->browser->request('GET', self::CONSOLE . '/registry/imports/' . $id . '/files/amm');
+            self::assertResponseIsSuccessful();
+            self::assertResponseHeaderSame('Content-Disposition', 'attachment; filename=ANMV-2026-11-03-amm.xml');
+            $response = $this->browser->getResponse();
+            \assert($response instanceof BinaryFileResponse);
+            self::assertSame('<amm/>', file_get_contents($response->getFile()->getPathname()));
+
+            $this->browser->request('GET', self::CONSOLE . '/registry/imports/' . $id . '/files/dict');
+            self::assertResponseStatusCodeSame(404, 'its copy is gone');
+        } finally {
+            unlink($dir . '/amm.xml');
+            rmdir($dir);
+        }
     }
 
     private function post(): void

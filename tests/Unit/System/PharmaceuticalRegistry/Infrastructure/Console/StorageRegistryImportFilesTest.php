@@ -49,6 +49,22 @@ final class StorageRegistryImportFilesTest extends TestCase
         self::assertSame([$this->current . '/amm.xml', $this->current . '/dict.xml', '2026-11-06 06:00:00', 'UTC'], [
             $files['file'], $files['dictionary'], $files['modifiedAt']->format('Y-m-d H:i:s'), $files['modifiedAt']->getTimezone()->getName(),
         ]);
+        self::assertSame([hash('sha256', '<amm/>'), 6, hash('sha256', '<dict/>'), 7], [$files['fileHash'], $files['fileSize'], $files['dictionaryHash'], $files['dictionarySize']]);
+    }
+
+    public function testAKeptFileIsFoundInTheArchiveOnly(): void
+    {
+        file_put_contents($this->current . '/amm.xml', '<amm/>');
+        file_put_contents($this->current . '/dict.xml', '<dict/>');
+        $kept = $this->files()->archive('ANMV', new \DateTimeImmutable('2026-11-06 06:30:00', new \DateTimeZone('UTC')));
+
+        self::assertSame(['file' => 'archive/2026-11-06/amm.xml', 'dictionary' => 'archive/2026-11-06/dict.xml'], $kept);
+        self::assertSame(realpath($this->projectDir . '/storage/pharma-registry/france/archive/2026-11-06/amm.xml'), $this->files()->kept('ANMV', $kept['file']));
+        self::assertNull($this->files()->kept('ANMV', 'archive/2026-11-06/gone.xml'), 'gone');
+        file_put_contents($this->current . '/amm.xml', '<next/>');
+        self::assertNull($this->files()->kept('ANMV', 'current/amm.xml'), 'not in the archive');
+        self::assertNull($this->files()->kept('ANMV', 'archive/../current/amm.xml'), 'no way out of the archive');
+        self::assertNull($this->files()->kept('EMA_UPD', 'archive/2026-11-06/amm.xml'), 'a source without an archive');
     }
 
     #[DataProvider('provideNothingWaitsWithoutBothFilesCases')]
@@ -91,10 +107,11 @@ final class StorageRegistryImportFilesTest extends TestCase
         file_put_contents($this->current . '/amm.xml', '<first/>');
         $this->files()->archive('ANMV', $at);
         file_put_contents($this->current . '/amm.xml', '<second/>');
-        $this->files()->archive('ANMV', $at->modify('+1 hour'));
+        $kept = $this->files()->archive('ANMV', $at->modify('+1 hour'));
 
         $archive = $this->projectDir . '/storage/pharma-registry/france/archive/2026-11-06';
         self::assertSame(['<first/>', '<second/>'], [file_get_contents($archive . '/amm.xml'), file_get_contents($archive . '_2/amm.xml')]);
+        self::assertSame('archive/2026-11-06_2/amm.xml', $kept['file']);
     }
 
     #[DataProvider('provideEachSourceHasItsFolderCases')]

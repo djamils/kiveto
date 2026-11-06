@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace App\System\PharmaceuticalRegistry\Application\Query\Console;
 
+/**
+ * G1 — the registry today: the authorisations it holds, the latest imports,
+ * whether files wait for the next one (and whether they are the very files
+ * of the last import).
+ */
 final readonly class RegistryStatusView
 {
     /**
@@ -14,6 +19,8 @@ final readonly class RegistryStatusView
         public array $imports,
         public bool $filesReady,
         public ?\DateTimeImmutable $filesModifiedAt,
+        public ?string $filesHash = null,
+        public bool $sameAsLast = false,
     ) {
     }
 

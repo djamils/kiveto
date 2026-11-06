@@ -288,6 +288,10 @@ services:
     App\System\PharmaceuticalRegistry\Application\Port\RegistryImportFilesInterface:
         class: App\System\PharmaceuticalRegistry\Infrastructure\Console\StorageRegistryImportFiles
 
+    # The journal of the imports' source files (fingerprint, where they are kept, who launched)
+    App\System\PharmaceuticalRegistry\Application\Port\RegistryImportFileLogInterface:
+        class: App\System\PharmaceuticalRegistry\Infrastructure\Persistence\Doctrine\Repository\DbalRegistryImportFileLog
+
     # FeatureCatalog: what Kiveto switches on per clinic, and the modules it gates
     App\System\FeatureCatalog\Domain\FeatureRepositoryInterface:
         class: App\System\FeatureCatalog\Infrastructure\Persistence\Doctrine\Repository\DbalFeatureRepository

@@ -9,7 +9,9 @@ use App\System\PharmaceuticalRegistry\Application\Query\Console\GetRegistryImpor
 use App\System\PharmaceuticalRegistry\Application\Query\Console\GetRegistryImportHandler;
 use App\System\PharmaceuticalRegistry\Application\Query\Console\RegistryDiffLine;
 use App\System\PharmaceuticalRegistry\Application\Query\Console\RegistryImportDetail;
+use App\System\PharmaceuticalRegistry\Application\Query\Console\RegistryImportFile;
 use App\System\PharmaceuticalRegistry\Application\Query\Console\RegistryImportView;
+use App\Tests\Unit\System\PharmaceuticalRegistry\Support\InMemoryRegistryImportFileLog;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -26,10 +28,27 @@ final class GetRegistryImportHandlerTest extends TestCase
         $repository->expects(self::once())->method('countDiff')->with(self::ID, 'UPDATE')->willReturn(25);
         $repository->expects(self::once())->method('diff')->with(self::ID, 'UPDATE', 10, 10)->willReturn([$line]);
 
-        $detail = new GetRegistryImportHandler($repository)(new GetRegistryImport(self::ID, 'UPDATE', 2));
+        $detail = new GetRegistryImportHandler($repository, new InMemoryRegistryImportFileLog())(new GetRegistryImport(self::ID, 'UPDATE', 2));
 
         self::assertInstanceOf(RegistryImportDetail::class, $detail);
-        self::assertSame([$import, [$line], 25, 2, 10, 3], [$detail->import, $detail->lines, $detail->total, $detail->page, $detail->perPage, $detail->pageCount()]);
+        self::assertSame([$import->id, $import->status, []], [$detail->import->id, $detail->import->status, $detail->import->files], 'no file kept for it');
+        self::assertSame([[$line], 25, 2, 10, 3], [$detail->lines, $detail->total, $detail->page, $detail->perPage, $detail->pageCount()]);
+    }
+
+    public function testTheImportComesWithItsSourceFiles(): void
+    {
+        $repository = self::createStub(RegistryImportReadRepositoryInterface::class);
+        $repository->method('import')->willReturn(self::import());
+        $repository->method('countDiff')->willReturn(0);
+        $log  = new InMemoryRegistryImportFileLog();
+        $file = new RegistryImportFile('amm', 'amm.xml', 'h', 6, 'archive/x/amm.xml', new \DateTimeImmutable(), 'Djamil Soidiki');
+        $log->record(self::ID, 'ANMV', [$file]);
+
+        $detail = new GetRegistryImportHandler($repository, $log)(new GetRegistryImport(self::ID));
+
+        self::assertNotNull($detail);
+        self::assertSame([$file], $detail->import->files);
+        self::assertSame('Djamil Soidiki', $detail->import->importedBy());
     }
 
     #[DataProvider('provideTheKindAndThePageAreKeptWithinBoundsCases')]
@@ -40,7 +59,7 @@ final class GetRegistryImportHandlerTest extends TestCase
         $repository->expects(self::once())->method('countDiff')->with(self::ID, $readKind)->willReturn(25);
         $repository->expects(self::once())->method('diff')->with(self::ID, $readKind, $offset, $limit)->willReturn([]);
 
-        self::assertSame($keptPage, new GetRegistryImportHandler($repository)(new GetRegistryImport(self::ID, $kind, $page, $perPage))?->page);
+        self::assertSame($keptPage, new GetRegistryImportHandler($repository, new InMemoryRegistryImportFileLog())(new GetRegistryImport(self::ID, $kind, $page, $perPage))?->page);
     }
 
     /**
@@ -70,7 +89,7 @@ final class GetRegistryImportHandlerTest extends TestCase
         $repository->expects(self::once())->method('countDiff')->willReturn(0);
         $repository->expects(self::never())->method('diff');
 
-        $detail = new GetRegistryImportHandler($repository)(new GetRegistryImport(self::ID, page: 3));
+        $detail = new GetRegistryImportHandler($repository, new InMemoryRegistryImportFileLog())(new GetRegistryImport(self::ID, page: 3));
 
         self::assertNotNull($detail);
         self::assertSame([[], 0, 1, 1], [$detail->lines, $detail->total, $detail->page, $detail->pageCount()]);
@@ -82,7 +101,7 @@ final class GetRegistryImportHandlerTest extends TestCase
         $repository->expects(self::once())->method('import')->willReturn(null);
         $repository->expects(self::never())->method('countDiff');
 
-        self::assertNull(new GetRegistryImportHandler($repository)(new GetRegistryImport(self::ID)));
+        self::assertNull(new GetRegistryImportHandler($repository, new InMemoryRegistryImportFileLog())(new GetRegistryImport(self::ID)));
     }
 
     private static function import(): RegistryImportView

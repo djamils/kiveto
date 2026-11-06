@@ -542,6 +542,12 @@ body.co-body.is-auth{background:#0a0a0b}
 .co-prose p:last-child{margin-bottom:0}
 .co-card.is-greyed{opacity:.6}
 .co-registry-diff code{font-size:12px}
+.co .co-registry-files .co-settings-text code{font-size:12px}
+.co .co-registry-files .co-registry-hash{display:block;margin-top:2px;font-size:11px;color:var(--co-faint);overflow-wrap:anywhere}
+.co .co-cut b{font-weight:600}
+.co .co-filter-search{width:200px;padding:5px 10px;font-size:12.5px;background:#fff}
+.co .co-bulk{display:flex;gap:6px}
+.co .co-bulk form{margin:0}
 @media (max-width:720px){.co-registry-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 /* ── ⌘K search ── */

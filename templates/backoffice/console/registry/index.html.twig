@@ -24,7 +24,7 @@
     </div>
     <form class="co-head-actions" method="post" action="{{ path('backoffice_registry_import_launch') }}">
       <input type="hidden" name="_token" value="{{ csrf_token('backoffice_registry') }}">
-      <button class="co-btn is-primary" type="submit"{% if latest and latest.running %} disabled{% endif %}>{{ co.icon('refresh', 13) }} Lancer l'import</button>
+      <button class="co-btn is-primary" type="submit"{% if (latest and latest.running) or status.sameAsLast %} disabled title="{{ status.sameAsLast ? 'Ces fichiers sont ceux du dernier import' : 'Un import est en cours' }}"{% endif %}>{{ co.icon('refresh', 13) }} Lancer l'import</button>
     </form>
   </header>
 
@@ -32,6 +32,8 @@
     <div class="co-banner is-info co-registry-running" role="status">{{ co.icon('clock', 14) }} <span><b>Import en cours</b> depuis {{ latest.downloadedAt|co_time }} : le registre en service reste celui {{ inService ? 'du ' ~ inService.downloadedAt|co_date : 'd’avant' }} jusqu'à la fin.</span></div>
   {% elseif latest and latest.failed %}
     <div class="co-banner is-danger co-registry-failed" role="alert">{{ co.icon('warning', 14) }} <span><b>Le dernier import a échoué</b> ({{ latest.downloadedAt|co_day_time }}) : aucune écriture, le registre en service n'a pas changé.{% if latest.errorMessage %} <code>{{ latest.errorMessage|length > 160 ? latest.errorMessage|slice(0, 157) ~ '…' : latest.errorMessage }}</code>{% endif %}</span></div>
+  {% elseif status.sameAsLast %}
+    <div class="co-banner is-warning" role="note">{{ co.icon('info', 14) }} <span>Les fichiers en attente sont ceux du dernier import (même empreinte SHA-256 <code>{{ status.filesHash|slice(0, 12) }}</code>) : rien à importer. Dépose le fichier de la semaine.</span></div>
   {% else %}
     <div class="co-banner is-info" role="note">{{ co.icon('info', 14) }} <span>Prochain fichier attendu {{ nextFile|co_long_date }}. Dépose-le dans <code>storage/pharma-registry/ANMV/current/</code>, puis lance l'import.</span></div>
   {% endif %}
@@ -46,7 +48,7 @@
           </div>
           {% if latest %}
             <p class="co-registry-when">{{ latest.downloadedAt|co_long_date|capitalize }}, {{ latest.downloadedAt|co_time }}</p>
-            <p class="co-sub">Source ANMV{% if latest.seconds is not null %} · {{ latest.seconds }} s{% endif %}</p>
+            <p class="co-sub">Source ANMV{% if latest.seconds is not null %} · {{ latest.seconds }} s{% endif %}{% if latest.importedBy %} · lancé par {{ latest.importedBy }}{% endif %}{% if latest.registryFile %} · <span class="co-mono" title="SHA-256 {{ latest.registryFile.sha256 }}">{{ latest.registryFile.sha256|slice(0, 12) }}</span>{% endif %}</p>
             <div class="co-registry-stats">
               <div class="co-tile"><span>AMM au registre</span><b>{{ status.authorizations|number_format(0, ',', ' ') }}</b></div>
               <div class="co-tile"><span>Ajoutées</span><b class="is-green">+{{ latest.created }}</b></div>
@@ -64,17 +66,20 @@
         <div class="co-card-head"><h2 class="co-label" id="registry-history">Historique</h2></div>
         <div class="co-table-wrap">
           <table class="co-table co-registry-history">
-            <thead><tr><th>Date</th><th>Différentiel</th><th>Résultat</th><th class="is-actions"><span class="co-sr">Ouvrir</span></th></tr></thead>
+            <thead><tr><th>Date</th><th>Différentiel</th><th>Fichier source</th><th>Lancé par</th><th>Résultat</th><th class="is-actions"><span class="co-sr">Ouvrir</span></th></tr></thead>
             <tbody>
               {% for run in status.imports %}
+                {% set source = run.registryFile %}
                 <tr>
                   <td>{{ run.downloadedAt|co_day_time }}</td>
                   <td>{{ reg.diff(run) }}</td>
+                  <td>{% if source %}<span class="co-mono" title="SHA-256 {{ source.sha256 }}">{{ source.sha256|slice(0, 12) }}</span> · {{ source.sizeLabel }}{% else %}<span class="co-sub">Non conservé</span>{% endif %}</td>
+                  <td>{{ run.importedBy ?? '—' }}</td>
                   <td>{{ reg.result(run) }}</td>
-                  <td class="is-actions">{% if run.changes > 0 %}<a class="co-row-link" href="{{ path('backoffice_registry_import', {id: run.id}) }}" aria-label="Différentiel du {{ run.downloadedAt|co_date }}">{{ co.icon('arrow-right', 14) }}</a>{% endif %}</td>
+                  <td class="is-actions">{% if run.changes > 0 or source %}<a class="co-row-link" href="{{ path('backoffice_registry_import', {id: run.id}) }}" aria-label="Import du {{ run.downloadedAt|co_date }}">{{ co.icon('arrow-right', 14) }}</a>{% endif %}</td>
                 </tr>
               {% else %}
-                <tr><td colspan="4"><div class="co-empty"><b>Aucun import</b>Rien n'a encore été importé depuis l'amorçage.</div></td></tr>
+                <tr><td colspan="6"><div class="co-empty"><b>Aucun import</b>Rien n'a encore été importé depuis l'amorçage.</div></td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -94,7 +99,7 @@
           <div><dt>Fichier en attente</dt><dd>{{ status.filesReady ? 'Oui · ' ~ status.filesModifiedAt|co_date : 'Non' }}</dd></div>
           <div><dt>Prochain fichier</dt><dd>{{ nextFile|co_day_date }}</dd></div>
         </dl>
-        <p class="co-card-foot">Import par différentiel (empreinte de contenu) : les identifiants des AMM déjà référencées par les catalogues des cliniques ne changent jamais.</p>
+        <p class="co-card-foot">Import par différentiel (empreinte de contenu) : les identifiants des AMM déjà référencées par les catalogues des cliniques ne changent jamais. Chaque import garde ses fichiers source, horodatés, avec leur empreinte SHA-256 ; un fichier déjà importé ne l'est pas deux fois.</p>
       </section>
     </div>
   </div>
