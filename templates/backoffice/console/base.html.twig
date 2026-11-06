@@ -1,0 +1,85 @@
+{#
+ # Kiveto Console — base of every back-office page.
+ #   {% extends 'backoffice/console/base.html.twig' %}
+ # Blocks: page_title (the <title>), content, modals.
+ #}
+{% extends 'base.html.twig' %}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+
+{% block title %}{% block page_title %}Console{% endblock %} · Kiveto Console{% endblock %}
+
+{% block head_meta %}
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block body_attributes %} class="co-body"{% endblock %}
+
+{% block body %}
+{% set shell = console_shell() %}
+<div class="co">
+  <header class="co-top">
+    <div class="co-top-in">
+      <a class="co-brand" href="{{ path('backoffice_home') }}">
+        <span class="co-brand-k">K</span>
+        <span class="co-brand-name">Kiveto</span>
+        <span class="co-brand-sep" aria-hidden="true">/</span>
+        <span class="co-brand-app">Console</span>
+      </a>
+      <span class="co-env {{ shell.tierModifier }}">{{ shell.tierLabel }}</span>
+
+      {% if shell.searchUrl %}
+        <button type="button" class="co-search" data-controller="co-palette" data-co-palette-url-value="{{ shell.searchUrl }}" data-action="click->co-palette#open keydown@window->co-palette#shortcut">
+          {{ co.icon('search', 14) }}
+          <span>Clinique, utilisateur, SIRET…</span>
+          <kbd class="co-kbd">⌘K</kbd>
+        </button>
+      {% else %}
+        <span class="co-top-push"></span>
+      {% endif %}
+
+      {% if shell.auditUrl %}
+        <a class="co-top-icon" href="{{ shell.auditUrl }}" aria-label="Journal d’audit" title="Journal d’audit">{{ co.icon('bell', 16) }}</a>
+      {% endif %}
+
+      {% if shell.admin %}
+        <details class="co-me">
+          <summary aria-label="Mon compte">{{ shell.admin.initials }}</summary>
+          <div class="co-me-menu">
+            <div class="co-me-who">
+              <b>{{ shell.admin.name }}</b>
+              <span>{{ shell.admin.email }}</span>
+            </div>
+            {% if shell.accountUrl %}<a href="{{ shell.accountUrl }}">Mon compte</a>{% endif %}
+            {% if shell.translationsUrl %}<a href="{{ shell.translationsUrl }}">Traductions</a>{% endif %}
+            <a href="{{ logout_path('backoffice') }}">{{ co.icon('logout', 14) }} Se déconnecter</a>
+          </div>
+        </details>
+      {% endif %}
+    </div>
+  </header>
+
+  <nav class="co-nav" aria-label="Navigation console">
+    <div class="co-nav-in">
+      {% for tab in shell.tabs %}
+        {% if tab.preAlpha %}
+          <span class="co-tab is-disabled" aria-disabled="true" title="Non géré en pré-alpha">
+            {{ tab.label }} <span class="co-prealpha">Pré-alpha</span>
+          </span>
+        {% else %}
+          <a class="co-tab{{ tab.active ? ' is-active' }}" href="{{ tab.url }}"{% if tab.active %} aria-current="page"{% endif %}>
+            {{ tab.label }}
+            {% if tab.count is not null %}<span class="co-count">{{ tab.count }}</span>{% endif %}
+          </a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </nav>
+
+  <main class="co-page" id="main-content">
+    {{ co.flashes() }}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+{% block modals %}{% endblock %}
+{% endblock %}

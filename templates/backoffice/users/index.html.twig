@@ -113,9 +113,6 @@
               </td>
               <td>{{ user.createdAt|date('Y-m-d H:i') }}</td>
               <td>
-                <a href="{{ path('backoffice_clinic_memberships_new') }}?user_id={{ user.id }}" class="btn btn-sm btn-primary">
-                  Ajouter a une clinique
-                </a>
               </td>
             </tr>
           {% else %}

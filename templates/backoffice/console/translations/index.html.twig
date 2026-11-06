@@ -1,0 +1,92 @@
+{% extends 'backoffice/console/base.html.twig' %}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+
+{% block page_title %}Traductions{% endblock %}
+
+{% set csrf = csrf_token('backoffice_translation') %}
+
+{% block content %}
+  <header class="co-head">
+    <div class="co-head-title">
+      <h1 class="co-title">Traductions</h1>
+      <span class="co-sub">Libellés des apps · {{ result.total }} entrée{{ result.total > 1 ? 's' }}</span>
+    </div>
+  </header>
+
+  <section class="co-card" aria-label="Filtres">
+    <form class="co-card-body co-tr-filters" method="get" action="{{ path('backoffice_translations') }}">
+      <div class="co-field">
+        <label for="tr-scope">Scope</label>
+        <select class="co-select" id="tr-scope" name="scope">
+          <option value="">Tous</option>
+          {% for scope in scopes %}
+            <option value="{{ scope }}"{% if filters.scope|default('') == scope %} selected{% endif %}>{{ scope }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="co-field"><label for="tr-locale">Locale</label><input class="co-input" id="tr-locale" name="locale" value="{{ filters.locale|default('') }}"></div>
+      <div class="co-field"><label for="tr-domain">Domaine</label><input class="co-input" id="tr-domain" name="domain" value="{{ filters.domain|default('') }}"></div>
+      <div class="co-field"><label for="tr-key">Clé contient</label><input class="co-input is-mono" id="tr-key" name="key" value="{{ filters.key|default('') }}"></div>
+      <div class="co-field"><label for="tr-value">Valeur contient</label><input class="co-input" id="tr-value" name="value" value="{{ filters.value|default('') }}"></div>
+      <div class="co-field co-tr-submit"><button class="co-btn is-primary" type="submit">{{ co.icon('search', 13) }} Rechercher</button></div>
+    </form>
+  </section>
+
+  <details class="co-card co-tr-new">
+    <summary class="co-card-head"><span class="co-label">Créer ou mettre à jour</span><span class="co-card-head-actions">{{ co.icon('chevron-down', 12) }}</span></summary>
+    <form class="co-card-body co-tr-filters" method="post" action="{{ path('backoffice_translations_upsert') }}">
+      <input type="hidden" name="_token" value="{{ csrf }}">
+      <div class="co-field">
+        <label for="up-scope">Scope</label>
+        <select class="co-select" id="up-scope" name="scope" required>
+          {% for scope in scopes %}
+            <option value="{{ scope }}"{% if filters.scope|default('clinic') == scope %} selected{% endif %}>{{ scope }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="co-field"><label for="up-locale">Locale</label><input class="co-input" id="up-locale" name="locale" value="{{ filters.locale|default('fr-FR') }}" required></div>
+      <div class="co-field"><label for="up-domain">Domaine</label><input class="co-input" id="up-domain" name="domain" value="{{ filters.domain|default('messages') }}" required></div>
+      <div class="co-field"><label for="up-key">Clé</label><input class="co-input is-mono" id="up-key" name="key" required></div>
+      <div class="co-field co-tr-wide"><label for="up-value">Valeur (ICU autorisé)</label><textarea class="co-textarea" id="up-value" name="value" rows="2" required></textarea></div>
+      <div class="co-field co-tr-wide"><label for="up-desc">Description (optionnel)</label><textarea class="co-textarea" id="up-desc" name="description" rows="2"></textarea></div>
+      <div class="co-field co-tr-submit"><button class="co-btn is-primary" type="submit">Enregistrer</button></div>
+    </form>
+  </details>
+
+  <section class="co-card" aria-label="Traductions">
+    <div class="co-table-wrap">
+      <table class="co-table">
+        <thead>
+          <tr><th>Scope</th><th>Locale</th><th>Domaine</th><th>Clé</th><th>Valeur</th><th>Modifiée</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for item in result.items %}
+            <tr>
+              <td><span class="co-badge is-outline">{{ item.scope }}</span></td>
+              <td>{{ item.locale }}</td>
+              <td>{{ item.domain }}</td>
+              <td><code class="co-code">{{ item.key }}</code></td>
+              <td class="co-tr-value">{{ item.value }}{% if item.description %}<span class="co-hint">{{ item.description }}</span>{% endif %}</td>
+              <td>{{ item.updatedAt|co_when }}</td>
+              <td class="is-actions">
+                <form method="post" action="{{ path('backoffice_translations_delete') }}" data-controller="co-confirm" data-co-confirm-message-value="Supprimer cette traduction ?" data-action="submit->co-confirm#ask">
+                  <input type="hidden" name="_token" value="{{ csrf }}">
+                  <input type="hidden" name="scope" value="{{ item.scope }}">
+                  <input type="hidden" name="locale" value="{{ item.locale }}">
+                  <input type="hidden" name="domain" value="{{ item.domain }}">
+                  <input type="hidden" name="key" value="{{ item.key }}">
+                  <button class="co-btn is-danger is-sm" type="submit">Supprimer</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="7"><div class="co-empty"><b>Aucune traduction</b>Rien ne correspond à ces filtres.</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if result.total > 0 %}
+      {{ co.pager(result.page, pageCount, result.total, result.perPage, 'backoffice_translations', filters) }}
+    {% endif %}
+  </section>
+{% endblock %}

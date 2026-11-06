@@ -250,6 +250,16 @@ services:
             $secret: '%kernel.secret%'
 
     # ============================================================================
+    # SYSTEM: AUDIT (the console's append-only log)
+    # ============================================================================
+
+    App\System\Audit\Domain\Repository\AuditEntryRepositoryInterface:
+        class: App\System\Audit\Infrastructure\Persistence\Doctrine\Repository\DbalAuditEntryRepository
+
+    App\System\Audit\Application\Port\AuditLogReadRepositoryInterface:
+        class: App\System\Audit\Infrastructure\Persistence\Doctrine\Repository\DbalAuditLogReadRepository
+
+    # ============================================================================
     # PORTAL API — rate limiters (one-time codes, anti SMS-pumping)
     # ============================================================================
     # `framework.lock` is disabled, so these limiters are built by hand. Their

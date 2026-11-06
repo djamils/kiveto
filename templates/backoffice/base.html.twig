@@ -66,14 +66,10 @@
 {# ── Navigation items ── #}
 {% set nav_items = [
   { section: 'Gestion Cliniques' },
-  { key: 'backoffice_home',               label: 'Dashboard',             icon: icon_grid,     route: 'backoffice_home' },
   { key: 'backoffice_clinics',            label: 'Cliniques',             icon: icon_building, route: 'backoffice_clinics' },
-  { key: 'backoffice_clinic_groups',      label: 'Groupes de cliniques',  icon: icon_layers,   route: 'backoffice_clinic_groups' },
   { section: 'Acces & Membres' },
   { key: 'backoffice_users',              label: 'Utilisateurs',          icon: icon_users,    route: 'backoffice_users' },
-  { key: 'backoffice_clinic_memberships', label: 'Membres cliniques',     icon: icon_link,     route: 'backoffice_clinic_memberships' },
   { section: 'Configuration' },
-  { key: 'backoffice_translations',       label: 'Traductions',           icon: icon_globe,    route: 'backoffice_translations' },
 ] %}
 
 {# ── App Shell ── #}

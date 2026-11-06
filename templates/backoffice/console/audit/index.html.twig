@@ -1,0 +1,122 @@
+{% extends 'backoffice/console/base.html.twig' %}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+
+{% block page_title %}Journal d’audit{% endblock %}
+
+{% block content %}
+  <header class="co-head">
+    <div class="co-head-title">
+      <h1 class="co-title">Journal d'audit</h1>
+      <span class="co-sub">Ajout seul : aucune entrée ne peut être modifiée ni supprimée</span>
+    </div>
+
+    <form class="co-search-field" method="get" action="{{ path('backoffice_audit') }}" role="search">
+      {% for name, value in filters.params({q: null}) %}
+        <input type="hidden" name="{{ name }}" value="{{ value }}">
+      {% endfor %}
+      <label class="co-sr" for="audit-q">Rechercher dans le journal</label>
+      {{ co.icon('search', 14) }}
+      <input class="co-input" id="audit-q" type="search" name="q" value="{{ filters.text }}" placeholder="Action, utilisateur, code…">
+    </form>
+
+    <div class="co-head-actions">
+      <a class="co-btn" href="{{ path('backoffice_audit_export', filters.params) }}">{{ co.icon('download', 12) }} Exporter (CSV)</a>
+    </div>
+  </header>
+
+  <section class="co-card" aria-label="Entrées du journal">
+    <div class="co-filters">
+      <a class="co-pill{{ filters.category is null ? ' is-active' }}" href="{{ path('backoffice_audit', filters.params({category: null})) }}"{% if filters.category is null %} aria-current="true"{% endif %}>Tout</a>
+      {% for value, label in categories %}
+        {% set active = filters.category is not null and filters.category.value == value %}
+        <a class="co-pill{{ active ? ' is-active' }}" href="{{ path('backoffice_audit', filters.params({category: value})) }}"{% if active %} aria-current="true"{% endif %}>{{ label }}</a>
+      {% endfor %}
+
+      <form class="co-filters-end" method="get" action="{{ path('backoffice_audit') }}" data-controller="co-autosubmit">
+        {% for name, value in filters.params({clinic: null, actor: null, period: null}) %}
+          <input type="hidden" name="{{ name }}" value="{{ value }}">
+        {% endfor %}
+        <label class="co-filter-select">Clinique
+          <select class="co-select is-sm" name="clinic" data-action="co-autosubmit#submit">
+            <option value="">Toutes</option>
+            {% for id, name in clinicNames %}
+              <option value="{{ id }}"{% if filters.clinicId == id %} selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="co-filter-select">Acteur
+          <select class="co-select is-sm" name="actor" data-action="co-autosubmit#submit">
+            <option value="">Tous</option>
+            {% for value, label in actors %}
+              <option value="{{ value }}"{% if filters.actorKind is not null and filters.actorKind.value == value %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="co-filter-select">Période
+          <select class="co-select is-sm" name="period" data-action="co-autosubmit#submit">
+            {% for value, label in periods %}
+              <option value="{{ value }}"{% if filters.period == value %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <noscript><button class="co-btn is-sm" type="submit">Filtrer</button></noscript>
+      </form>
+    </div>
+
+    {% if filters.userId %}
+      <div class="co-filters">
+        <span class="co-sub">Entrées écrites par ce compte ou le concernant.</span>
+        <a class="co-pill" href="{{ path('backoffice_audit', filters.params({user: null})) }}">Retirer ce filtre {{ co.icon('x', 10) }}</a>
+      </div>
+    {% endif %}
+
+    <div class="co-table-wrap">
+      <div class="co-log-table">
+        <div class="co-log-grid co-log-head">
+          <span>Date</span><span>Acteur</span><span>Action</span><span>Clinique</span><span>IP</span><span></span>
+        </div>
+
+        {% for entry in page.items %}
+          <details class="co-log-entry">
+            <summary class="co-log-grid">
+              <span class="co-log-date">{{ entry.occurredAt|co_log_date }}</span>
+              <span class="co-log-actor">
+                {% if entry.actorKind == 'kiveto' %}<span class="co-tag is-kiveto">KIVETO</span>{% endif %}
+                {% if entry.actorKind == 'system' %}<span class="co-tag is-system">SYSTÈME</span>{% endif %}
+                <span>{{ entry.actorName ?? 'Inconnu' }}</span>
+              </span>
+              <span class="co-log-action">
+                <span>
+                  {% if entry.category == 'support' %}<span class="co-badge is-amber">Support</span>{% endif %}
+                  {{ entry.summary }}
+                </span>
+                <code class="co-code">{{ entry.action }}</code>
+              </span>
+              <span class="co-log-clinic">{{ entry.clinicName ?? '—' }}</span>
+              <code class="co-code">{{ entry.ipAddress|co_ip }}</code>
+              <span class="co-log-chevron">{{ co.icon('chevron-down', 12) }}</span>
+            </summary>
+            {% if entry.details|length > 0 %}
+              <div class="co-log-details">
+                {% for detail in entry.details %}
+                  <div class="co-tile"><span>{{ detail.label }}</span><b>{{ detail.value }}</b></div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="co-log-details is-empty">Aucun détail pour cette entrée · {{ entry.occurredAt|co_day_date(true) }}</div>
+            {% endif %}
+          </details>
+        {% else %}
+          <div class="co-empty">
+            <b>Aucune entrée</b>
+            Rien ne correspond à ces filtres sur la période choisie.
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if page.total > 0 %}
+      {{ co.pager(page.page, page.pageCount, page.total, page.perPage, 'backoffice_audit', filters.params) }}
+    {% endif %}
+  </section>
+{% endblock %}
