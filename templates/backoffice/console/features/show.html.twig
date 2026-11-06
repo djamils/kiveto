@@ -37,7 +37,7 @@
             <tbody>
               {% for row in detail.clinics %}
                 <tr>
-                  <td><a class="co-strong" href="{{ path('backoffice_clinic_show', {id: row.clinic.id}) }}">{{ row.clinic.name }}</a></td>
+                  <td><a class="co-who" href="{{ path('backoffice_clinic_show', {id: row.clinic.id}) }}">{{ co.clinic_mark(row.clinic) }}<b>{{ row.clinic.name }}</b></a></td>
                   <td><span class="co-badge {{ row.lifecycle.badge }}">{{ row.lifecycle.label }}</span></td>
                   <td>{% if row.state.enabled and row.state.changedAt %}{{ row.state.changedAt|co_date }}{% if row.state.changedByName %} · {{ row.state.changedByName }}{% endif %}{% elseif row.state.enabled %}Depuis toujours{% else %}—{% endif %}</td>
                   <td class="is-actions">
@@ -58,6 +58,7 @@
             </tbody>
           </table>
         </div>
+        {{ co.count_foot(detail.clinics|length, 'clinique', 'cliniques') }}
       </section>
 
       <section class="co-card" aria-labelledby="feature-history">

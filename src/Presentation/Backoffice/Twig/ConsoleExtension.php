@@ -22,6 +22,7 @@ final class ConsoleExtension extends AbstractExtension
             new TwigFunction('console_shell', [ConsoleRuntime::class, 'shell']),
             new TwigFunction('co_recent', [ConsoleRuntime::class, 'recent']),
             new TwigFunction('user_agent_label', UserAgentLabel::of(...)),
+            new TwigFunction('co_tint', ConsoleFormat::tint(...)),
         ];
     }
 
@@ -36,6 +37,7 @@ final class ConsoleExtension extends AbstractExtension
             new TwigFilter('co_log_date', [ConsoleRuntime::class, 'logDate']),
             new TwigFilter('co_time', [ConsoleRuntime::class, 'time']),
             new TwigFilter('co_initials', ConsoleFormat::initials(...)),
+            new TwigFilter('co_clinic_initials', ConsoleFormat::clinicInitials(...)),
             new TwigFilter('co_ip', ConsoleFormat::maskedIp(...)),
             new TwigFilter('co_duration', ConsoleFormat::duration(...)),
             new TwigFilter('co_euros', ConsoleFormat::euros(...)),

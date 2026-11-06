@@ -25,6 +25,15 @@ final class ConsoleFormat
 
     private const array SHORT_DAYS = [1 => 'lun.', 2 => 'mar.', 3 => 'mer.', 4 => 'jeu.', 5 => 'ven.', 6 => 'sam.', 7 => 'dim.'];
 
+    /** The tints of the clinic marks (indigo, emerald, amber, rose, sky, violet, teal, orange, lime, fuchsia, cyan, pink). */
+    private const array TINTS = ['#4f46e5', '#059669', '#d97706', '#e11d48', '#0284c7', '#7c3aed', '#0d9488', '#ea580c', '#65a30d', '#c026d3', '#0891b2', '#db2777'];
+
+    /** Words a clinic's name shares with every other, left out of its initials. */
+    private const array CLINIC_WORDS = [
+        'clinique', 'clinic', 'cabinet', 'centre', 'hôpital', 'hopital', 'chv', 'vétérinaire', 'veterinaire', 'vétérinaires', 'veterinaires',
+        'du', 'de', 'des', 'la', 'le', 'les', 'l', 'd', 'et', 'sas', 'sarl', 'selarl', 'selas', 'llc', 'inc', 'ltd',
+    ];
+
     /**
      * « à l'instant », « il y a 3 min », « il y a 2 h » within the last six
      * hours; then « aujourd'hui, 09:12 », « hier, 18:40 », « 28 oct. »,
@@ -129,6 +138,33 @@ final class ConsoleFormat
         }
 
         return mb_strtoupper(mb_substr($words[0], 0, 1) . mb_substr($words[\count($words) - 1], 0, 1));
+    }
+
+    /**
+     * Two letters for a clinic's mark, without the words every clinic name
+     * shares: « Clinique vétérinaire du Vieux-Port » → « VP », « Clinique
+     * de la Côte Bleue » → « CB ».
+     */
+    public static function clinicInitials(string $name): string
+    {
+        $words = array_values(array_filter(preg_split('/[\s\'’._\-]+/u', trim($name)) ?: [], static fn (string $w): bool => '' !== $w));
+        $kept  = array_values(array_filter($words, static fn (string $w): bool => !\in_array(mb_strtolower($w), self::CLINIC_WORDS, true)));
+
+        return self::initials(implode(' ', [] !== $kept ? $kept : $words));
+    }
+
+    /**
+     * The colour of a clinic's mark: the brand colour it chose, else one of
+     * the console's tints, always the same for the same clinic. The CSS
+     * fades it (`.co-initials.is-tinted`).
+     */
+    public static function tint(string $seed, ?string $brandColor = null): string
+    {
+        if (null !== $brandColor && 1 === preg_match('/^#[0-9a-f]{6}$/i', $brandColor)) {
+            return strtolower($brandColor);
+        }
+
+        return self::TINTS[crc32($seed) % \count(self::TINTS)];
     }
 
     /**

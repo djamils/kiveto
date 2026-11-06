@@ -72,6 +72,40 @@ final class ConsoleFormatTest extends TestCase
         self::assertSame($expected, ConsoleFormat::initials($name));
     }
 
+    /**
+     * @return iterable<string, array{0: string, 1: string}>
+     */
+    public static function provideClinicInitialsLeaveOutTheWordsEveryClinicHasCases(): iterable
+    {
+        yield 'the shared words left out' => ['Clinique Vétérinaire du Vieux-Port', 'VP'];
+        yield 'articles left out' => ['Clinique de la Côte Bleue', 'CB'];
+        yield 'one word left' => ['Clinique des Calanques', 'CA'];
+        yield 'elided article' => ["Cabinet vétérinaire de l'Étang", 'ÉT'];
+        yield 'nothing but shared words' => ['Clinique vétérinaire', 'CV'];
+    }
+
+    #[DataProvider('provideClinicInitialsLeaveOutTheWordsEveryClinicHasCases')]
+    public function testClinicInitialsLeaveOutTheWordsEveryClinicHas(string $name, string $expected): void
+    {
+        self::assertSame($expected, ConsoleFormat::clinicInitials($name));
+    }
+
+    public function testAClinicKeepsItsTintAndItsBrandColourWins(): void
+    {
+        $tint = ConsoleFormat::tint('0195e0c2-1111-7000-8000-000000000001');
+
+        self::assertMatchesRegularExpression('/^#[0-9a-f]{6}$/', $tint);
+        self::assertSame($tint, ConsoleFormat::tint('0195e0c2-1111-7000-8000-000000000001'), 'the same clinic, the same tint');
+        self::assertSame('#e07a5f', ConsoleFormat::tint('any', '#E07A5F'));
+        self::assertSame(ConsoleFormat::tint('any'), ConsoleFormat::tint('any', 'red'), 'not a hex colour: the tint');
+
+        $tints = [];
+        foreach (range(1, 40) as $i) {
+            $tints[ConsoleFormat::tint('clinic-' . $i)] = true;
+        }
+        self::assertGreaterThan(5, \count($tints), 'the clinics are not all of one colour');
+    }
+
     public function testAddressesAreShownInPart(): void
     {
         self::assertSame('91.x.x.12', ConsoleFormat::maskedIp('91.12.34.12'));

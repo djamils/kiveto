@@ -1,0 +1,16 @@
+{# One « À traiter » item of the clinics page (alert: see ClinicListBuilder). #}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+<li>
+  <span class="co-badge is-orange">{{ alert.label }}</span>
+  {{ co.clinic_mark(alert.clinic) }}
+  <span class="co-todo-text">{{ alert.text }} · <b>{{ alert.clinic.name }}</b></span>
+  {% if alert.action == 'resend' %}
+    <form method="post" action="{{ path('backoffice_clinic_invitations_resend', {id: alert.clinic.id}) }}">
+      <input type="hidden" name="_token" value="{{ csrf_token('backoffice_clinic') }}">
+      <input type="hidden" name="back" value="list">
+      <button class="co-btn is-link" type="submit">Relancer</button>
+    </form>
+  {% else %}
+    <a href="{{ path('backoffice_clinic_show', {id: alert.clinic.id}) }}">Ouvrir</a>
+  {% endif %}
+</li>

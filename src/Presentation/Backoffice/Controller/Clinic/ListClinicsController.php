@@ -32,6 +32,8 @@ final class ListClinicsController extends AbstractController
         $sort   = $request->query->getString('sort', 'activity');
         $sort   = \array_key_exists($sort, ClinicListBuilder::SORTS) ? $sort : 'activity';
         $search = trim($request->query->getString('q'));
+        $todo   = $request->query->getString('todo');
+        $todo   = \array_key_exists($todo, ClinicListBuilder::ALERT_KINDS) ? $todo : '';
 
         $list     = $this->builder->build($status, $search, $sort, max(1, $request->query->getInt('page', 1)));
         $features = $this->features->counts(array_map(static fn (ClinicListRow $row): string => $row->clinic->id, $list['rows']));
@@ -41,6 +43,7 @@ final class ListClinicsController extends AbstractController
             'status'         => $status,
             'sort'           => $sort,
             'search'         => $search,
+            'todo'           => $todo,
             'sorts'          => ClinicListBuilder::SORTS,
             'features_total' => $features['total'],
             'feature_counts' => $features['counts'],

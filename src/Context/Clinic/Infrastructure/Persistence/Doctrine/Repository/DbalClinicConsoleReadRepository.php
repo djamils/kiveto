@@ -14,7 +14,7 @@ use Symfony\Component\Uid\Uuid;
 final readonly class DbalClinicConsoleReadRepository implements ClinicConsoleReadRepositoryInterface
 {
     private const string CLINICS = 'SELECT c.id, c.name, c.slug, c.letterhead_city, c.letterhead_postal_code, c.letterhead_siret, c.letterhead_legal_name,'
-        . ' c.status, c.created_at, a.plan, a.pilot_ends_on, a.onboarded_at, a.suspended_at,'
+        . ' c.status, c.created_at, c.brand_color, a.plan, a.pilot_ends_on, a.onboarded_at, a.suspended_at,'
         . " (SELECT COUNT(*) FROM clinic__clinic_memberships m WHERE m.clinic_id = c.id AND m.status = 'ACTIVE') AS members,"
         . " (SELECT COUNT(*) FROM clinic__clinic_memberships m WHERE m.clinic_id = c.id AND m.status = 'ACTIVE' AND m.role = 'VETERINARY') AS veterinarians"
         . ' FROM clinic__clinics c LEFT JOIN ' . DbalClinicAccountRepository::TABLE . ' a ON a.clinic_id = c.id'
@@ -114,6 +114,7 @@ final readonly class DbalClinicConsoleReadRepository implements ClinicConsoleRea
             createdAt: new \DateTimeImmutable(RowAccessor::string($row, 'created_at'), new \DateTimeZone('UTC')),
             veterinarians: RowAccessor::int($row, 'veterinarians'),
             members: RowAccessor::int($row, 'members'),
+            brandColor: self::blank(RowAccessor::nullableString($row, 'brand_color')),
         );
     }
 

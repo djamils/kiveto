@@ -53,6 +53,21 @@
 {%- endmacro %}
 
 {#
+ # A clinic's mark: two letters on a faded tint of its colour.
+ #   clinic: a ConsoleClinicRow (id, name, brandColor).
+ #}
+{% macro clinic_mark(clinic, large = false) %}
+  <span class="co-initials is-square is-tinted{{ large ? ' is-lg' }}" style="--co-tint: {{ co_tint(clinic.id, clinic.brandColor ?? null) }}" aria-hidden="true">{{ clinic.name|co_clinic_initials }}</span>
+{% endmacro %}
+
+{#
+ # The foot of a table that has a single page: « 6 fonctionnalités ».
+ #}
+{% macro count_foot(total, one, many) %}
+  <div class="co-pager"><span>{{ total }} {{ total > 1 ? many : one }}</span></div>
+{% endmacro %}
+
+{#
  # Pager « 1–12 sur 318  ‹ 1 2 … 27 › ».
  #   route / params: the page's route and its current query (page excluded).
  #}

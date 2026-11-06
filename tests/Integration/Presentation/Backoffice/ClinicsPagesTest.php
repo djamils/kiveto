@@ -64,6 +64,12 @@ final class ClinicsPagesTest extends WebTestCase
         self::assertSame(['Toutes 3', 'Pilote actif 1', 'Onboarding 1', 'Suspendues 1'], $crawler->filter('.co-filters .co-pill')->each(static fn (Crawler $p): string => preg_replace('/\s+/', ' ', trim($p->text())) ?? ''));
         self::assertStringContainsString('Activation', $crawler->filter('.co-todo')->text(), 'Lyon was created a week ago and nobody signed in');
         self::assertStringContainsString('Clinique de Lyon', $crawler->filter('.co-todo')->text());
+        self::assertSame(['PR', 'CA', 'LY'], $crawler->filter('.co-clinics tbody .co-initials')->each(static fn (Crawler $m): string => trim($m->text())), 'the marks leave out « Clinique de »');
+        self::assertCount(3, $crawler->filter('.co-clinics tbody .co-initials.is-tinted[style*="--co-tint: #"]'));
+
+        $crawler = $this->browser->request('GET', self::CONSOLE . '/clinics?todo=activation');
+        self::assertSelectorTextContains('.co-todo .co-pill.is-active', 'Activation 1');
+        self::assertStringContainsString('Clinique de Lyon', $crawler->filter('.co-todo-list')->text(), 'a kind keeps its items');
 
         $crawler = $this->browser->request('GET', self::CONSOLE . '/clinics?status=suspended');
         self::assertSame(['Clinique de Cassis'], $this->clinicNames($crawler));

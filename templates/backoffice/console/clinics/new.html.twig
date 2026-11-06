@@ -43,6 +43,10 @@
               <ul class="co-company-hits" data-co-company-search-target="hits" hidden></ul>
               <p class="co-hint" data-co-company-search-target="status" hidden></p>
             </div>
+            <p class="co-sources">
+              {{ co.icon('info', 13) }}
+              <span>Sources : <a href="https://annuaire-entreprises.data.gouv.fr" target="_blank" rel="noopener">Annuaire des entreprises</a> de l'État (INSEE Sirene, RNE), mis à jour chaque jour. Le numéro de TVA est vérifié auprès de <a href="https://ec.europa.eu/taxation_customs/vies/" target="_blank" rel="noopener">VIES</a> (Commission européenne).</span>
+            </p>
             {% for field in ['siren', 'siret', 'name', 'naf', 'street', 'postal_code', 'city', 'vat', 'vat_check'] %}
               {% set key = {siren: 'siren', siret: 'siret', name: 'legalName', naf: 'naf', street: 'street', postal_code: 'postalCode', city: 'city', vat: 'vat', vat_check: 'vatCheck'}[field] %}
               <input type="hidden" name="company_{{ field }}" value="{{ company[key]|default('') }}" data-co-company-search-target="{{ field|replace({'_': ''}) }}">

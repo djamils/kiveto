@@ -6,7 +6,8 @@ namespace App\Context\Clinic\Application\Query\Console;
 
 /**
  * A clinic as the console lists it: identity, account and head counts
- * (members not disabled; veterinarians among them).
+ * (members not disabled; veterinarians among them), and the colour the
+ * clinic chose for its brand, if any.
  */
 final readonly class ConsoleClinicRow
 {
@@ -26,6 +27,7 @@ final readonly class ConsoleClinicRow
         public \DateTimeImmutable $createdAt,
         public int $veterinarians,
         public int $members,
+        public ?string $brandColor = null,
     ) {
     }
 

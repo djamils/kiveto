@@ -30,7 +30,7 @@ body.co-body{margin:0;background:#fafafa}
 
 /* ── Top bar ── */
 .co-top{background:#09090b;border-bottom:1px solid #27272a}
-.co-top-in{max-width:1360px;margin:0 auto;padding:0 32px;min-height:48px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.co-top-in{padding:0 32px;min-height:48px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .co-brand{display:flex;align-items:center;gap:10px}
 .co .co-brand,.co .co-brand:hover{text-decoration:none}
 .co-brand-k{width:24px;height:24px;border-radius:6px;background:#fafafa;color:#09090b;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
@@ -47,7 +47,6 @@ body.co-body{margin:0;background:#fafafa}
 .co-search{margin-left:auto;flex:0 1 340px;min-width:200px;display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;border-radius:6px;border:1px solid #27272a;background:#18181b;color:#a1a1aa;font-size:13px;cursor:pointer;text-align:left}
 .co-search span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .co-search:hover{border-color:#3f3f46}
-.co-kbd{font-family:var(--co-mono);font-size:11px;color:#a1a1aa;border:1px solid #3f3f46;border-radius:4px;padding:0 5px}
 .co-top-icon{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#a1a1aa}
 .co .co-top-icon:hover{color:#fafafa;background:#18181b}
 .co-top-push{margin-left:auto}
@@ -64,7 +63,7 @@ body.co-body{margin:0;background:#fafafa}
 
 /* ── Tab bar ── */
 .co-nav{background:#fff;border-bottom:1px solid #e4e4e7}
-.co-nav-in{max-width:1360px;margin:0 auto;padding:0 24px;display:flex;align-items:stretch;gap:4px;overflow-x:auto}
+.co-nav-in{padding:0 24px;display:flex;align-items:stretch;gap:4px;overflow-x:auto}
 .co .co-tab{display:flex;align-items:center;gap:7px;height:44px;padding:0 8px;border-bottom:2px solid transparent;color:#52525b;font-size:13.5px;font-weight:500;white-space:nowrap}
 .co .co-tab:hover{color:#09090b}
 .co .co-tab.is-active{color:#09090b;border-bottom-color:var(--co-accent);margin-bottom:-1px}
@@ -73,8 +72,8 @@ body.co-body{margin:0;background:#fafafa}
 .co-tab.is-active .co-count{color:var(--co-accent);background:var(--co-accent-pale)}
 .co-prealpha{font-size:10px;font-weight:600;letter-spacing:.02em;color:#71717a;background:#f4f4f5;border:1px dashed #d4d4d8;border-radius:999px;padding:0 6px;line-height:1.6}
 
-/* ── Page ── */
-.co-page{flex:1;width:100%;max-width:1360px;margin:0 auto;padding:24px 32px 48px;display:flex;flex-direction:column;gap:16px}
+/* ── Page: the whole width of the window ── */
+.co-page{flex:1;width:100%;padding:24px 32px 48px;display:flex;flex-direction:column;gap:16px}
 .co-head{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
 .co-head-title{display:flex;flex-direction:column;gap:2px}
 .co-title{font-size:22px;font-weight:600;color:#09090b;letter-spacing:-.02em;line-height:1.25}
@@ -88,7 +87,8 @@ body.co-body{margin:0;background:#fafafa}
 .co-col{display:flex;flex-direction:column;gap:16px;min-width:0}
 
 /* ── Cards ── */
-.co-card{background:#fff;border:1px solid var(--co-card-line);border-radius:8px;overflow:hidden}
+/* clip, not hidden: a hidden overflow would hold the sticky table feet inside the card. */
+.co-card{background:#fff;border:1px solid var(--co-card-line);border-radius:8px;overflow:clip}
 .co-card-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--co-divider)}
 .co-card-head .co-label{margin:0}
 .co-card-head-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
@@ -172,14 +172,20 @@ body.co-body{margin:0;background:#fafafa}
 .co-who{display:flex;align-items:center;gap:10px;min-width:0}
 .co-who b{display:block;font-size:13.5px;font-weight:500;color:var(--co-ink)}
 .co-who span{display:block;font-size:12px;color:var(--co-muted)}
-.co-initials{flex:none;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--co-accent);background:var(--co-accent-pale)}
+/* Two capitals, centred on their cap height rather than on the line box. */
+.co-initials{flex:none;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;line-height:1;letter-spacing:.02em;text-box:trim-both cap alphabetic;color:var(--co-accent);background:var(--co-accent-pale)}
 .co-initials.is-square{border-radius:8px}
 .co-initials.is-lg{width:46px;height:46px;font-size:15px;border-radius:10px}
+.co-initials.is-tinted{background:color-mix(in srgb,var(--co-tint) 14%,#fff);color:color-mix(in srgb,var(--co-tint) 78%,#000);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--co-tint) 18%,transparent)}
+/* In a .co-who, `.co-who span` would make the mark a block, off centre. */
+.co .co-who .co-initials{display:flex;font-size:11px;color:var(--co-accent)}
+.co .co-who .co-initials.is-lg{font-size:15px}
+.co .co-who .co-initials.is-tinted{color:color-mix(in srgb,var(--co-tint) 78%,#000)}
 .co .co-row-link{width:30px;height:30px;border-radius:7px;border:1px solid var(--co-line);display:inline-flex;align-items:center;justify-content:center;color:var(--co-ink-3);background:#fff}
 .co .co-row-link:hover{color:var(--co-ink);border-color:#cbd5e1}
 
-/* ── Pager ── */
-.co-pager{display:flex;align-items:center;gap:6px;padding:10px 16px;border-top:1px solid var(--co-divider);font-size:12.5px;color:var(--co-muted)}
+/* ── Pager: the foot of a table, held at the bottom of the window ── */
+.co-pager{position:sticky;bottom:0;z-index:3;display:flex;align-items:center;gap:6px;min-height:50px;padding:10px 16px;border-top:1px solid var(--co-divider);background:#fff;box-shadow:0 -10px 18px -16px rgba(15,23,42,.35);font-size:12.5px;color:var(--co-muted)}
 .co-pager-pages{margin-left:auto;display:flex;gap:4px}
 .co .co-page-btn{min-width:30px;height:30px;padding:0 8px;border-radius:7px;border:1px solid var(--co-line);background:#fff;color:var(--co-ink-3);display:inline-flex;align-items:center;justify-content:center;font-size:12.5px}
 .co .co-page-btn.is-current{background:var(--co-accent);border-color:var(--co-accent);color:#fff}
@@ -314,6 +320,13 @@ body.co-body.is-auth{background:#0a0a0b}
 .co-todo-text{flex:1}
 .co-todo-text b{font-weight:600}
 .co-todo-list form{margin:0}
+.co-todo-list.is-rest{max-height:320px;overflow:auto;border-top:1px solid var(--co-divider)}
+.co-todo-more>summary{list-style:none;display:flex;align-items:center;gap:6px;padding:10px 16px;border-top:1px solid var(--co-divider);font-size:13px;font-weight:500;color:var(--co-accent);cursor:pointer}
+.co-todo-more>summary::-webkit-details-marker{display:none}
+.co-todo-more>summary svg{transition:transform .15s}
+.co-todo-more[open]>summary svg{transform:rotate(180deg)}
+.co-todo-more .is-open,.co-todo-more[open] .is-closed{display:none}
+.co-todo-more[open] .is-open{display:inline}
 .co .co-clinics a.co-who{color:inherit}
 .co .co-clinics a.co-who:hover b{color:var(--co-accent)}
 .co-clinics code{font-size:11.5px;color:var(--co-muted)}
@@ -392,7 +405,10 @@ body.co-body.is-auth{background:#0a0a0b}
 .co-stepper li.is-current .co-stepper-dot{background:var(--co-accent);border-color:var(--co-accent);color:#fff}
 .co-stepper li.is-done .co-stepper-dot{background:var(--co-green);border-color:var(--co-green);color:#fff}
 .co-form-stack{display:flex;flex-direction:column;gap:14px}
-.co-company-q{max-width:none}
+/* flex:none: in the column of .co-field, the 240px basis of .co-search-field would be its height. */
+.co-company-q{flex:none;max-width:none}
+.co-sources{display:flex;align-items:flex-start;gap:8px;margin:0;padding:8px 10px;border-radius:8px;background:var(--co-subtle);border:1px solid var(--co-divider);font-size:12px;line-height:1.5;color:var(--co-muted)}
+.co-sources svg{flex:none;margin-top:2px;color:var(--co-faint)}
 .co-company-hits{list-style:none;margin:6px 0 0;padding:0;border:1px solid var(--co-accent-line);border-radius:8px;overflow:hidden}
 .co-company-hits li+li{border-top:1px solid var(--co-divider)}
 .co .co-company-hits button{width:100%;display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:10px 12px;border:0;background:#fff;text-align:left;cursor:pointer}

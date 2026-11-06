@@ -44,7 +44,7 @@
   {% endif %}
 
   <div class="co-who co-sheet-title">
-    <span class="co-initials is-lg">{{ sheet.clinic.name|co_initials }}</span>
+    {{ co.clinic_mark(sheet.clinic, true) }}
     <div>
       <h1 class="co-title">{{ sheet.clinic.name }} <span class="co-badge {{ sheet.lifecycle.badge }}">{{ sheet.lifecycle.label }}</span></h1>
       <span class="co-sub">{{ sheet.place ?? 'Adresse à compléter' }} · tenant <code>{{ sheet.clinic.slug }}</code> · créée le {{ sheet.clinic.createdAt|co_date(true) }}</span>

@@ -3,7 +3,7 @@
 
 {% block page_title %}Cliniques{% endblock %}
 
-{% set params = {status: status != 'all' ? status : null, q: search != '' ? search : null, sort: sort != 'activity' ? sort : null}|filter(v => v is not null) %}
+{% set params = {status: status != 'all' ? status : null, q: search != '' ? search : null, sort: sort != 'activity' ? sort : null, todo: todo != '' ? todo : null}|filter(v => v is not null) %}
 
 {% block content %}
   <header class="co-head">
@@ -45,25 +45,30 @@
     </section>
   {% else %}
     {% if list.alerts|length > 0 %}
+      {# The longest waiting first: five shown, the rest folded; a kind filters them. #}
+      {% set todo_items = list.alerts|filter(a => todo == '' or a.kind == todo) %}
       <section class="co-card co-todo" aria-labelledby="clinics-todo">
-        <div class="co-card-head"><h2 class="co-label co-todo-title" id="clinics-todo">À traiter · {{ list.alerts|length }}</h2></div>
+        <div class="co-card-head">
+          <h2 class="co-label co-todo-title" id="clinics-todo">À traiter · {{ list.alerts|length }}</h2>
+          {% if list.alertKinds|length > 1 or todo != '' %}
+            <div class="co-card-head-actions">
+              {% for kind, group in list.alertKinds %}
+                <a class="co-pill{{ todo == kind ? ' is-active' }}" href="{{ path('backoffice_clinics', params|merge({todo: todo == kind ? null : kind})|filter(v => v is not null)) }}">{{ group.label }} <span class="co-pill-count">{{ group.count }}</span></a>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
         <ul class="co-todo-list">
-          {% for alert in list.alerts %}
-            <li>
-              <span class="co-badge is-orange">{{ alert.label }}</span>
-              <span class="co-todo-text">{{ alert.text }} · <b>{{ alert.clinic.name }}</b></span>
-              {% if alert.action == 'resend' %}
-                <form method="post" action="{{ path('backoffice_clinic_invitations_resend', {id: alert.clinic.id}) }}">
-                  <input type="hidden" name="_token" value="{{ csrf_token('backoffice_clinic') }}">
-                  <input type="hidden" name="back" value="list">
-                  <button class="co-btn is-link" type="submit">Relancer</button>
-                </form>
-              {% else %}
-                <a href="{{ path('backoffice_clinic_show', {id: alert.clinic.id}) }}">Ouvrir</a>
-              {% endif %}
-            </li>
-          {% endfor %}
+          {% for alert in todo_items|slice(0, 5) %}{{ include('backoffice/console/clinics/_todo_item.html.twig') }}{% endfor %}
         </ul>
+        {% if todo_items|length > 5 %}
+          <details class="co-todo-more">
+            <summary><span class="is-closed">Voir les {{ todo_items|length - 5 }} autres</span><span class="is-open">Replier</span> {{ co.icon('chevron-down', 12) }}</summary>
+            <ul class="co-todo-list is-rest">
+              {% for alert in todo_items|slice(5) %}{{ include('backoffice/console/clinics/_todo_item.html.twig') }}{% endfor %}
+            </ul>
+          </details>
+        {% endif %}
       </section>
     {% endif %}
 
@@ -105,7 +110,7 @@
               <tr>
                 <td>
                   <a class="co-who" href="{{ path('backoffice_clinic_show', {id: row.clinic.id}) }}">
-                    <span class="co-initials is-square">{{ row.clinic.name|co_initials }}</span>
+                    {{ co.clinic_mark(row.clinic) }}
                     <span><b>{{ row.clinic.name }}</b><span>{{ row.place ?? '—' }} · <code>{{ row.clinic.slug }}</code></span></span>
                   </a>
                 </td>

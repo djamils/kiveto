@@ -21,6 +21,9 @@ final readonly class ClinicListBuilder
 
     public const array SORTS = ['activity' => 'Dernière activité', 'name' => 'Nom', 'created' => 'Création récente'];
 
+    /** The kinds of « À traiter » items, by which the list is filtered. */
+    public const array ALERT_KINDS = ['invitations' => 'Invitations', 'activation' => 'Activation'];
+
     /** An invitation still waiting after that many days is to be chased. */
     private const int INVITATION_CHASE_DAYS = 2;
 
@@ -37,7 +40,8 @@ final readonly class ClinicListBuilder
      * @return array{
      *     rows: list<ClinicListRow>, total: int, page: int, pageCount: int, perPage: int,
      *     counts: array<string, int>, stats: array<string, array{value: int, hint: string}>,
-     *     alerts: list<array{kind: string, label: string, text: string, clinic: ConsoleClinicRow, action: string}>,
+     *     alerts: list<array{kind: string, label: string, text: string, clinic: ConsoleClinicRow, action: string, days: int}>,
+     *     alertKinds: array<string, array{label: string, count: int}>,
      *     people: int
      * }
      */
@@ -84,6 +88,16 @@ final readonly class ClinicListBuilder
             $alerts = [...$alerts, ...$this->alerts($row, $pending, $now)];
         }
 
+        // The longest waiting first; each kind counted, for its filter.
+        usort($alerts, static fn (array $a, array $b): int => $b['days'] <=> $a['days'] ?: strcasecmp($a['clinic']->name, $b['clinic']->name));
+        $kinds = [];
+        foreach (self::ALERT_KINDS as $kind => $label) {
+            $count = \count(array_filter($alerts, static fn (array $alert): bool => $kind === $alert['kind']));
+            if ($count > 0) {
+                $kinds[$kind] = ['label' => $label, 'count' => $count];
+            }
+        }
+
         $counts = ['all' => \count($rows)];
         foreach ([ClinicLifecycle::ACTIVE, ClinicLifecycle::ONBOARDING, ClinicLifecycle::SUSPENDED] as $key) {
             $counts[$key] = \count(self::withLifecycle($rows, $key));
@@ -101,22 +115,23 @@ final readonly class ClinicListBuilder
         $page     = min(max(1, $page), $lastPage);
 
         return [
-            'rows'      => \array_slice($visible, ($page - 1) * self::PER_PAGE, self::PER_PAGE),
-            'total'     => $total,
-            'page'      => $page,
-            'pageCount' => $lastPage,
-            'perPage'   => self::PER_PAGE,
-            'counts'    => $counts,
-            'stats'     => $this->stats($rows, $members, $logins, $now),
-            'alerts'    => $alerts,
-            'people'    => \count($people),
+            'rows'       => \array_slice($visible, ($page - 1) * self::PER_PAGE, self::PER_PAGE),
+            'total'      => $total,
+            'page'       => $page,
+            'pageCount'  => $lastPage,
+            'perPage'    => self::PER_PAGE,
+            'counts'     => $counts,
+            'stats'      => $this->stats($rows, $members, $logins, $now),
+            'alerts'     => $alerts,
+            'alertKinds' => $kinds,
+            'people'     => \count($people),
         ];
     }
 
     /**
      * @param list<ConsoleMemberRow> $pending
      *
-     * @return list<array{kind: string, label: string, text: string, clinic: ConsoleClinicRow, action: string}>
+     * @return list<array{kind: string, label: string, text: string, clinic: ConsoleClinicRow, action: string, days: int}>
      */
     private function alerts(ClinicListRow $row, array $pending, \DateTimeImmutable $now): array
     {
@@ -138,6 +153,7 @@ final readonly class ClinicListBuilder
                 'text'   => \sprintf('%d invitation%s non acceptée%s depuis %d jours', \count($stale), $many, $many, $days),
                 'clinic' => $row->clinic,
                 'action' => 'resend',
+                'days'   => $days,
             ];
         }
 
@@ -150,6 +166,7 @@ final readonly class ClinicListBuilder
                 'text'   => \sprintf('Aucune connexion depuis la création il y a %d jours', $age),
                 'clinic' => $row->clinic,
                 'action' => 'open',
+                'days'   => $age,
             ];
         }
 
