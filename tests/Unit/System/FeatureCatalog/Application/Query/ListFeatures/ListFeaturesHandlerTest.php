@@ -7,11 +7,12 @@ namespace App\Tests\Unit\System\FeatureCatalog\Application\Query\ListFeatures;
 use App\System\FeatureCatalog\Application\Query\FeatureView;
 use App\System\FeatureCatalog\Application\Query\ListFeatures\ListFeatures;
 use App\System\FeatureCatalog\Application\Query\ListFeatures\ListFeaturesHandler;
-use App\System\FeatureCatalog\Application\Service\FeatureStates;
+use App\System\FeatureCatalog\Application\Service\FeatureResolver;
 use App\System\FeatureCatalog\Domain\FeatureCatalogue;
 use App\System\FeatureCatalog\Domain\FeatureDefinition;
 use App\System\FeatureCatalog\Domain\FeatureSettings;
 use App\System\FeatureCatalog\Domain\FeatureStatus;
+use App\Tests\Unit\System\FeatureCatalog\Support\FakeClinicPlans;
 use App\Tests\Unit\System\FeatureCatalog\Support\InMemoryFeatures;
 use PHPUnit\Framework\TestCase;
 
@@ -36,7 +37,7 @@ final class ListFeaturesHandlerTest extends TestCase
         $features->set(self::A, FeatureCatalogue::HOSPITALISATION, true, '2026-10-01 08:00:00');
 
         $views = [];
-        foreach (new ListFeaturesHandler($features, new FeatureStates($features))(new ListFeatures([self::A, self::B, self::C])) as $view) {
+        foreach (new ListFeaturesHandler($features, new FeatureResolver($features, new FakeClinicPlans()))(new ListFeatures([self::A, self::B, self::C])) as $view) {
             $views[$view->code] = $view;
         }
 
@@ -60,7 +61,7 @@ final class ListFeaturesHandlerTest extends TestCase
 
     public function testNoClinicGivenCountsNone(): void
     {
-        $views = new ListFeaturesHandler(new InMemoryFeatures(), new FeatureStates(new InMemoryFeatures()))(new ListFeatures([]));
+        $views = new ListFeaturesHandler(new InMemoryFeatures(), new FeatureResolver(new InMemoryFeatures(), new FakeClinicPlans()))(new ListFeatures([]));
 
         self::assertSame([0, 0, 0, 0, 0, 0], array_map(static fn (FeatureView $view): int => $view->enabledCount, $views));
     }

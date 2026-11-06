@@ -6,10 +6,11 @@ namespace App\Tests\Unit\System\FeatureCatalog\Application\Command\SetClinicFeat
 
 use App\System\FeatureCatalog\Application\Command\SetClinicFeature\SetClinicFeature;
 use App\System\FeatureCatalog\Application\Command\SetClinicFeature\SetClinicFeatureHandler;
-use App\System\FeatureCatalog\Application\Service\FeatureStates;
+use App\System\FeatureCatalog\Application\Service\FeatureResolver;
 use App\System\FeatureCatalog\Domain\FeatureCatalogue;
 use App\System\FeatureCatalog\Domain\UnknownFeatureException;
 use App\Tests\Shared\Time\FrozenClock;
+use App\Tests\Unit\System\FeatureCatalog\Support\FakeClinicPlans;
 use App\Tests\Unit\System\FeatureCatalog\Support\InMemoryFeatures;
 use PHPUnit\Framework\TestCase;
 
@@ -87,7 +88,7 @@ final class SetClinicFeatureHandlerTest extends TestCase
 
     private function set(string $code, bool $enabled): bool
     {
-        return new SetClinicFeatureHandler($this->features, new FeatureStates($this->features), $this->clock)(
+        return new SetClinicFeatureHandler($this->features, new FeatureResolver($this->features, new FakeClinicPlans()), $this->clock)(
             new SetClinicFeature(self::CLINIC, $code, $enabled, self::ACTOR, 'Djamil Soidiki'),
         );
     }

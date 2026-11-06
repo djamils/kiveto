@@ -24,6 +24,14 @@ class FeatureSettingsEntity
         public bool $defaultOn,
         #[ORM\Column(name: 'updated_at', type: 'datetime_immutable', nullable: true)]
         public ?\DateTimeImmutable $updatedAt,
+        #[ORM\Column(type: 'string', length: 8, options: ['default' => 'all'])]
+        public string $audience = 'all',
+        #[ORM\Column(name: 'cut_reason', type: 'string', length: 255, nullable: true)]
+        public ?string $cutReason = null,
+        #[ORM\Column(name: 'cut_at', type: 'datetime_immutable', nullable: true)]
+        public ?\DateTimeImmutable $cutAt = null,
+        #[ORM\Column(name: 'cut_by_name', type: 'string', length: 120, nullable: true)]
+        public ?string $cutByName = null,
     ) {
     }
 }

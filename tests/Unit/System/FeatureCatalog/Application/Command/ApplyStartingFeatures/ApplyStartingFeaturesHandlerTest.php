@@ -6,12 +6,13 @@ namespace App\Tests\Unit\System\FeatureCatalog\Application\Command\ApplyStarting
 
 use App\System\FeatureCatalog\Application\Command\ApplyStartingFeatures\ApplyStartingFeatures;
 use App\System\FeatureCatalog\Application\Command\ApplyStartingFeatures\ApplyStartingFeaturesHandler;
-use App\System\FeatureCatalog\Application\Service\FeatureStates;
+use App\System\FeatureCatalog\Application\Service\FeatureResolver;
 use App\System\FeatureCatalog\Domain\ClinicFeature;
 use App\System\FeatureCatalog\Domain\FeatureCatalogue;
 use App\System\FeatureCatalog\Domain\FeatureSettings;
 use App\System\FeatureCatalog\Domain\FeatureStatus;
 use App\Tests\Shared\Time\FrozenClock;
+use App\Tests\Unit\System\FeatureCatalog\Support\FakeClinicPlans;
 use App\Tests\Unit\System\FeatureCatalog\Support\InMemoryFeatures;
 use PHPUnit\Framework\TestCase;
 
@@ -29,7 +30,7 @@ final class ApplyStartingFeaturesHandlerTest extends TestCase
         $features = new InMemoryFeatures();
         $now      = new \DateTimeImmutable('2026-11-06 09:00:00', new \DateTimeZone('UTC'));
 
-        $on = new ApplyStartingFeaturesHandler($features, new FeatureStates($features), new FrozenClock($now))(new ApplyStartingFeatures(
+        $on = new ApplyStartingFeaturesHandler($features, new FeatureResolver($features, new FakeClinicPlans()), new FrozenClock($now))(new ApplyStartingFeatures(
             self::CLINIC,
             [FeatureCatalogue::ONLINE_BOOKING, FeatureCatalogue::HOSPITALISATION, FeatureCatalogue::SUPPORT_WRITE_MODE],
             self::ACTOR,
@@ -53,7 +54,7 @@ final class ApplyStartingFeaturesHandlerTest extends TestCase
         $features = new InMemoryFeatures();
         $features->saveSettings(FeatureSettings::reconstitute(FeatureCatalogue::SMS_REMINDERS, FeatureStatus::UPCOMING, false, null));
 
-        $on = new ApplyStartingFeaturesHandler($features, new FeatureStates($features), new FrozenClock(new \DateTimeImmutable()))(
+        $on = new ApplyStartingFeaturesHandler($features, new FeatureResolver($features, new FakeClinicPlans()), new FrozenClock(new \DateTimeImmutable()))(
             new ApplyStartingFeatures(self::CLINIC, [FeatureCatalogue::SMS_REMINDERS], null, null),
         );
 

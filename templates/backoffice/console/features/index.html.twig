@@ -32,7 +32,11 @@
                   <code>{{ feature.code }}</code>
                 </a>
               </td>
-              <td><span class="co-badge {{ badges[feature.status] }}">{{ feature.statusLabel }}</span></td>
+              <td>
+                {% if feature.isCut() %}<span class="co-badge is-red" title="{{ feature.cutReason }}">Coupée partout</span>
+                {% else %}<span class="co-badge {{ badges[feature.status] }}">{{ feature.statusLabel }}</span>{% endif %}
+                {% if feature.audience != 'all' %}<span class="co-block co-sub">{{ feature.audienceLabel }}</span>{% endif %}
+              </td>
               <td>{{ feature.upcoming ? '—' : (feature.defaultOn ? 'Activée' : 'Désactivée') }}</td>
               <td>
                 {% if feature.upcoming %}—{% else %}

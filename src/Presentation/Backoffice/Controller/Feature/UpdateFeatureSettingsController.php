@@ -11,7 +11,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * F2 « Réglages globaux »: status and default for new clinics.
+ * F2 « Réglages globaux »: status, the clinics it is kept for, default for
+ * new clinics; saved as soon as one changes.
  */
 final class UpdateFeatureSettingsController extends AbstractController
 {
@@ -30,14 +31,19 @@ final class UpdateFeatureSettingsController extends AbstractController
         $feature = $this->features->find($code) ?? throw $this->createNotFoundException('Fonctionnalité inconnue.');
 
         try {
-            $changes = $this->features->changeSettings($feature, $request->request->getString('status'), $request->request->getBoolean('default_on'));
+            $changes = $this->features->changeSettings(
+                $feature,
+                $request->request->getString('status'),
+                $request->request->getBoolean('default_on'),
+                $request->request->getString('audience', $feature->audience),
+            );
         } catch (\DomainException $exception) {
             $this->addFlash('error', $exception->getMessage());
 
             return $this->redirectToRoute('backoffice_feature_show', ['code' => $code]);
         }
 
-        $this->addFlash([] !== $changes ? 'success' : 'info', [] !== $changes ? 'Réglages enregistrés.' : 'Rien n’a changé.');
+        $this->addFlash([] !== $changes ? 'success' : 'info', [] !== $changes ? 'Réglages enregistrés : ' . mb_strtolower(implode(', ', $changes)) . '.' : 'Rien n’a changé.');
 
         return $this->redirectToRoute('backoffice_feature_show', ['code' => $code]);
     }

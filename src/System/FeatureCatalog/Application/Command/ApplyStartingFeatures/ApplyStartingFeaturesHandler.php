@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\System\FeatureCatalog\Application\Command\ApplyStartingFeatures;
 
 use App\Shared\Domain\Time\ClockInterface;
-use App\System\FeatureCatalog\Application\Service\FeatureStates;
+use App\System\FeatureCatalog\Application\Service\FeatureResolver;
 use App\System\FeatureCatalog\Domain\ClinicFeature;
 use App\System\FeatureCatalog\Domain\FeatureCatalogue;
 use App\System\FeatureCatalog\Domain\FeatureRepositoryInterface;
@@ -16,7 +16,7 @@ final readonly class ApplyStartingFeaturesHandler
 {
     public function __construct(
         private FeatureRepositoryInterface $features,
-        private FeatureStates $states,
+        private FeatureResolver $resolver,
         private ClockInterface $clock,
     ) {
     }
@@ -30,7 +30,7 @@ final readonly class ApplyStartingFeaturesHandler
         $on  = [];
 
         foreach (FeatureCatalogue::all() as $definition) {
-            if ($this->states->settings($definition)->isUpcoming()) {
+            if ($this->resolver->settings($definition)->isUpcoming()) {
                 continue;
             }
 

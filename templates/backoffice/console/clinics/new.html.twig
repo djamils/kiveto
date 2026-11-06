@@ -155,7 +155,7 @@
               {% for feature in features %}
                 <li class="{{ feature.upcoming ? 'is-greyed' }}">
                   <label class="co-check">
-                    <input type="checkbox" name="features[]" value="{{ feature.code }}"{% if feature.code in draft.features or (draft.features|length == 0 and feature.defaultOn) %} checked{% endif %}{% if feature.upcoming %} disabled{% endif %}>
+                    <input type="checkbox" name="features[]" value="{{ feature.code }}" data-audience="{{ feature.audience }}"{% if feature.upcoming %} data-upcoming{% endif %}{% if feature.code in draft.features or (draft.features|length == 0 and feature.defaultOn and (feature.audience == 'all' or feature.audience == draft.plan)) %} checked{% endif %}{% if feature.upcoming %} disabled{% endif %}>
                     <span>{{ feature.name }}{% if feature.badge %} <span class="co-badge {{ feature.badge.class }}">{{ feature.badge.label }}</span>{% endif %}<small>{{ feature.description }}</small></span>
                   </label>
                   <code class="co-code">{{ feature.code }}</code>

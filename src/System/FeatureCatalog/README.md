@@ -29,7 +29,7 @@ since and the state of each clinic.
 
 - `FeatureSettings` — status and default of a feature; a feature never saved reads its definition's initial settings. `change()` refuses an upcoming feature and the status « À venir », and answers the changes in French for the history.
 - `ClinicFeature` — on or off for one clinic, when and by whom.
-- `FeatureStates::isOn()` — an upcoming feature is off everywhere; a clinic without a row keeps the legacy state.
+- `FeatureResolver` — the one place that decides, in this order: « À venir » (off everywhere), cut off everywhere (the kill switch, `CutFeature` / `RestoreFeature`), kept for a plan the clinic is not on (`FeatureAudience`, plans read through `ClinicPlansInterface` only for such a feature), the clinic's own setting, else the legacy state. Its `FeatureDecision` says what decided.
 - Tables `feature_catalog__features` (code, status, default_on, updated_at) and `feature_catalog__clinic_features` (clinic, code, enabled, changed_at, changed_by_id, changed_by_name), `DbalFeatureRepository`.
 
 ## Use cases

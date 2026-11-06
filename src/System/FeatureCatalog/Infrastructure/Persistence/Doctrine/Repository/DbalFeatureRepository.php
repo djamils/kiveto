@@ -6,6 +6,8 @@ namespace App\System\FeatureCatalog\Infrastructure\Persistence\Doctrine\Reposito
 
 use App\Shared\Infrastructure\Persistence\RowAccessor;
 use App\System\FeatureCatalog\Domain\ClinicFeature;
+use App\System\FeatureCatalog\Domain\FeatureAudience;
+use App\System\FeatureCatalog\Domain\FeatureCutOff;
 use App\System\FeatureCatalog\Domain\FeatureRepositoryInterface;
 use App\System\FeatureCatalog\Domain\FeatureSettings;
 use App\System\FeatureCatalog\Domain\FeatureStatus;
@@ -33,25 +35,36 @@ final readonly class DbalFeatureRepository implements FeatureRepositoryInterface
         }
 
         $updatedAt = RowAccessor::nullableString($row, 'updated_at');
+        $cutAt     = RowAccessor::nullableString($row, 'cut_at');
 
         return FeatureSettings::reconstitute(
             RowAccessor::string($row, 'code'),
             FeatureStatus::from(RowAccessor::string($row, 'status')),
             (bool) RowAccessor::int($row, 'default_on'),
             null !== $updatedAt ? self::date($updatedAt) : null,
+            FeatureAudience::tryFrom(RowAccessor::string($row, 'audience')) ?? FeatureAudience::ALL,
+            null !== $cutAt ? new FeatureCutOff((string) RowAccessor::nullableString($row, 'cut_reason'), self::date($cutAt), RowAccessor::nullableString($row, 'cut_by_name')) : null,
         );
     }
 
     public function saveSettings(FeatureSettings $settings): void
     {
+        $cut = $settings->cutOff();
+
         $this->connection->executeStatement(
-            'INSERT INTO ' . self::FEATURES . ' (code, status, default_on, updated_at) VALUES (:code, :status, :default_on, :updated_at) AS new'
-            . ' ON DUPLICATE KEY UPDATE status = new.status, default_on = new.default_on, updated_at = new.updated_at',
+            'INSERT INTO ' . self::FEATURES . ' (code, status, default_on, updated_at, audience, cut_reason, cut_at, cut_by_name)'
+            . ' VALUES (:code, :status, :default_on, :updated_at, :audience, :cut_reason, :cut_at, :cut_by_name) AS new'
+            . ' ON DUPLICATE KEY UPDATE status = new.status, default_on = new.default_on, updated_at = new.updated_at,'
+            . ' audience = new.audience, cut_reason = new.cut_reason, cut_at = new.cut_at, cut_by_name = new.cut_by_name',
             [
-                'code'       => $settings->code(),
-                'status'     => $settings->status()->value,
-                'default_on' => $settings->isDefaultOn() ? 1 : 0,
-                'updated_at' => null !== $settings->updatedAt() ? self::utc($settings->updatedAt()) : null,
+                'code'        => $settings->code(),
+                'status'      => $settings->status()->value,
+                'default_on'  => $settings->isDefaultOn() ? 1 : 0,
+                'updated_at'  => null !== $settings->updatedAt() ? self::utc($settings->updatedAt()) : null,
+                'audience'    => $settings->audience()->value,
+                'cut_reason'  => $cut?->reason,
+                'cut_at'      => null !== $cut ? self::utc($cut->at) : null,
+                'cut_by_name' => $cut?->byName,
             ],
         );
     }

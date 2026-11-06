@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Presentation\Backoffice;
 
 use App\Fixtures\Context\Clinic\Factory\ClinicEntityFactory;
+use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
+use App\System\FeatureCatalog\Application\Query\IsFeatureEnabled\IsFeatureEnabled;
 use App\Tests\Support\Console\SignsInToTheConsole;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -92,7 +94,90 @@ final class FeaturesPagesTest extends WebTestCase
         $this->browser->followRedirect();
         self::assertSelectorTextContains('.co-flashes', 'Toutes les cliniques l’ont déjà.');
 
-        self::assertSame(['feature.enabled', 'feature.enabled_for_all', 'feature.enabled_for_all'], $this->column("SELECT action FROM audit__entries WHERE category = 'features' ORDER BY occurred_at, id"));
+        self::assertSame(['feature.enabled', 'feature.enabled_for_all'], $this->column("SELECT action FROM audit__entries WHERE category = 'features' ORDER BY occurred_at, id"), 'nothing to switch, nothing logged');
+    }
+
+    public function testAFeatureIsCutOffEverywhereThenRestored(): void
+    {
+        $this->browser->request('GET', self::CONSOLE . '/features/portal.online_booking');
+        self::assertSelectorTextContains('#feature-cut', 'Coupe-circuit');
+
+        $this->post('/features/portal.online_booking/cut', ['reason' => '  ']);
+        $this->browser->followRedirect();
+        self::assertSelectorTextContains('.co-flashes', 'Indique pourquoi tu la coupes');
+
+        $this->browser->submit($this->browser->getCrawler()->filter('#dialog-cut form')->form(['reason' => 'Réservations en double chez un éditeur']));
+        self::assertResponseRedirects('/features/portal.online_booking');
+        $crawler = $this->browser->followRedirect();
+        self::assertSelectorTextContains('.co-flashes', '« Prise de RDV en ligne » est coupée partout.');
+        self::assertSelectorTextContains('.co-cut', 'Réservations en double chez un éditeur');
+        self::assertSelectorTextContains('#feature-clinics', 'Cliniques · 0 activée sur 3');
+        self::assertSame(['Coupée partout', 'Coupée partout', 'Coupée partout'], $crawler->filter('.co-feature-clinics tbody td:nth-child(4) .co-badge')->each(static fn (Crawler $b): string => $b->text()));
+        self::assertCount(3, $crawler->filter('.co-feature-clinics tbody input[type=checkbox][disabled]'), 'no switch decides');
+        self::assertSelectorNotExists('#feature-cut');
+
+        $enabled = static::getContainer()->get(QueryBusInterface::class);
+        \assert($enabled instanceof QueryBusInterface);
+        self::assertFalse($enabled->ask(new IsFeatureEnabled(self::PRADO, 'portal.online_booking')), 'the apps lose it at once');
+
+        $crawler = $this->browser->request('GET', self::CONSOLE . '/features');
+        self::assertSame('Coupée partout', $crawler->filter('.co-features tbody tr')->eq(1)->filter('.co-badge')->text());
+
+        $this->post('/features/portal.online_booking/cut', ['reason' => 'Encore']);
+        $this->browser->followRedirect();
+        self::assertSelectorTextContains('.co-flashes', 'déjà coupée partout');
+
+        $this->browser->request('GET', self::CONSOLE . '/features/portal.online_booking');
+        $this->browser->submit($this->browser->getCrawler()->filter('.co-cut form')->form());
+        $this->browser->followRedirect();
+        self::assertSelectorTextContains('.co-flashes', 'est remise en service');
+        self::assertSelectorTextContains('#feature-clinics', 'Cliniques · 3 activées sur 3', 'each clinic is back to its state of before');
+        self::assertTrue($enabled->ask(new IsFeatureEnabled(self::PRADO, 'portal.online_booking')));
+
+        $this->post('/features/portal.online_booking/restore');
+        $this->browser->followRedirect();
+        self::assertSelectorTextContains('.co-flashes', 'n’est pas coupée');
+
+        self::assertSame(['feature.cut_off', 'feature.restored'], $this->column("SELECT action FROM audit__entries WHERE category = 'features' ORDER BY occurred_at, id"));
+        self::assertSame(['1'], $this->column("SELECT COUNT(*) FROM audit__entries WHERE action = 'feature.cut_off' AND details LIKE ?", ['%en double chez un%']), 'the reason is in the log');
+    }
+
+    public function testAFeatureKeptForThePaidClinicsAndTheFilters(): void
+    {
+        $connection = static::getContainer()->get(Connection::class);
+        \assert($connection instanceof Connection);
+        $connection->executeStatement(
+            "INSERT INTO clinic__clinic_accounts (clinic_id, plan, internal_note, created_at, updated_at) VALUES (UUID_TO_BIN(?), 'paid', '', NOW(), NOW())",
+            [self::LYON],
+        );
+
+        $this->post('/features/notification.sms_reminders/settings', ['status' => 'available', 'default_on' => '1', 'audience' => 'paid']);
+        $this->browser->followRedirect();
+        self::assertSelectorTextContains('.co-flashes', 'réservée à : toutes les cliniques → cliniques payantes');
+        self::assertSelectorTextContains('h1', 'Cliniques payantes');
+
+        $crawler = $this->browser->getCrawler();
+        self::assertSame(['Clinique de Cassis', 'Clinique de Lyon', 'Clinique du Prado'], $crawler->filter('.co-feature-clinics tbody .co-who b')->each(static fn (Crawler $b): string => $b->text()));
+        self::assertSame(['Hors formule', 'Hors formule'], $crawler->filter('.co-feature-clinics tbody td:nth-child(4) .co-badge')->each(static fn (Crawler $b): string => $b->text()), 'the two pilots');
+
+        $crawler = $this->browser->request('GET', self::CONSOLE . '/features/notification.sms_reminders?plan=paid');
+        self::assertSame(['Clinique de Lyon'], $crawler->filter('.co-feature-clinics tbody .co-who b')->each(static fn (Crawler $b): string => $b->text()));
+
+        $crawler = $this->browser->request('GET', self::CONSOLE . '/features/notification.sms_reminders?q=prad&state=off');
+        self::assertSame(['Clinique du Prado'], $crawler->filter('.co-feature-clinics tbody .co-who b')->each(static fn (Crawler $b): string => $b->text()));
+        self::assertSelectorTextContains('.co-pill.is-active', 'Désactivées 1');
+
+        // Lyon (paid) is switched off for the shown clinics, then on again: the pilots are left alone.
+        $this->post('/features/notification.sms_reminders/clinics', ['enabled' => '0', 'plan' => 'paid']);
+        self::assertResponseRedirects('/features/notification.sms_reminders?plan=paid');
+        $this->browser->followRedirect();
+        self::assertSelectorTextContains('.co-flashes', '« Rappels SMS » désactivée pour 1 clinique.');
+
+        $this->post('/features/notification.sms_reminders/clinics', ['enabled' => '0', 'plan' => 'paid']);
+        $this->browser->followRedirect();
+        self::assertSelectorTextContains('.co-flashes', 'Aucune clinique à changer.');
+
+        self::assertSame(['feature.settings_changed', 'feature.disabled_for_many'], $this->column("SELECT action FROM audit__entries WHERE category = 'features' ORDER BY occurred_at, id"));
     }
 
     public function testTheSettingsOfAFeature(): void
@@ -102,7 +187,7 @@ final class FeaturesPagesTest extends WebTestCase
 
         self::assertResponseRedirects('/features/billing.electronic_invoicing');
         $this->browser->followRedirect();
-        self::assertSelectorTextContains('.co-flashes', 'Réglages enregistrés.');
+        self::assertSelectorTextContains('.co-flashes', 'Réglages enregistrés : statut : bêta → disponible');
         self::assertSelectorTextContains('h1 .co-badge', 'Disponible');
         self::assertSame(['Fonctionnalité « Facturation électronique » : statut : bêta → disponible, activée par défaut pour les nouvelles cliniques'], $this->column("SELECT summary FROM audit__entries WHERE action = 'feature.settings_changed'"));
 

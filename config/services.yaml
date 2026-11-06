@@ -292,6 +292,10 @@ services:
     App\System\FeatureCatalog\Domain\FeatureRepositoryInterface:
         class: App\System\FeatureCatalog\Infrastructure\Persistence\Doctrine\Repository\DbalFeatureRepository
 
+    # The plans of the clinics, for the features kept for one plan
+    App\System\FeatureCatalog\Application\Port\ClinicPlansInterface:
+        class: App\System\FeatureCatalog\Infrastructure\Adapter\Clinic\QueryBusClinicPlans
+
     App\Context\Scheduling\Application\Port\ClinicFeaturesInterface:
         class: App\Context\Scheduling\Infrastructure\Adapter\FeatureCatalog\QueryBusClinicFeatures
 

@@ -6,11 +6,12 @@ namespace App\Tests\Unit\System\FeatureCatalog\Application\Command\ChangeFeature
 
 use App\System\FeatureCatalog\Application\Command\ChangeFeatureSettings\ChangeFeatureSettings;
 use App\System\FeatureCatalog\Application\Command\ChangeFeatureSettings\ChangeFeatureSettingsHandler;
-use App\System\FeatureCatalog\Application\Service\FeatureStates;
+use App\System\FeatureCatalog\Application\Service\FeatureResolver;
 use App\System\FeatureCatalog\Domain\FeatureCatalogue;
 use App\System\FeatureCatalog\Domain\FeatureStatus;
 use App\System\FeatureCatalog\Domain\UnknownFeatureException;
 use App\Tests\Shared\Time\FrozenClock;
+use App\Tests\Unit\System\FeatureCatalog\Support\FakeClinicPlans;
 use App\Tests\Unit\System\FeatureCatalog\Support\InMemoryFeatures;
 use PHPUnit\Framework\TestCase;
 
@@ -27,7 +28,7 @@ final class ChangeFeatureSettingsHandlerTest extends TestCase
 
     public function testTheChangedSettingsAreSavedWithTheirLines(): void
     {
-        self::assertSame(['Statut : Bêta → Disponible'], $this->change(new ChangeFeatureSettings(FeatureCatalogue::ELECTRONIC_INVOICING, 'available', false)));
+        self::assertSame(['Statut : Bêta → Disponible'], $this->change(new ChangeFeatureSettings(FeatureCatalogue::ELECTRONIC_INVOICING, 'available', false, 'all')));
 
         $saved = $this->features->settings(FeatureCatalogue::ELECTRONIC_INVOICING);
         self::assertNotNull($saved);
@@ -36,14 +37,14 @@ final class ChangeFeatureSettingsHandlerTest extends TestCase
 
     public function testSettingsUnchangedAreNotSaved(): void
     {
-        self::assertSame([], $this->change(new ChangeFeatureSettings(FeatureCatalogue::ONLINE_BOOKING, 'available', true)));
+        self::assertSame([], $this->change(new ChangeFeatureSettings(FeatureCatalogue::ONLINE_BOOKING, 'available', true, 'all')));
         self::assertSame([], $this->features->savedSettings);
     }
 
     public function testAStatusIsChosenAmongTheKnownOnes(): void
     {
         try {
-            $this->change(new ChangeFeatureSettings(FeatureCatalogue::ONLINE_BOOKING, 'soon', true));
+            $this->change(new ChangeFeatureSettings(FeatureCatalogue::ONLINE_BOOKING, 'soon', true, 'all'));
             self::fail('An unknown status was expected to be refused.');
         } catch (\DomainException $e) {
             self::assertSame('Choisis un statut.', $e->getMessage());
@@ -57,14 +58,14 @@ final class ChangeFeatureSettingsHandlerTest extends TestCase
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('Une fonctionnalité « À venir » ne se règle pas : son module n’existe pas encore.');
 
-        $this->change(new ChangeFeatureSettings(FeatureCatalogue::CONTROLLED_SUBSTANCES, 'available', true));
+        $this->change(new ChangeFeatureSettings(FeatureCatalogue::CONTROLLED_SUBSTANCES, 'available', true, 'all'));
     }
 
     public function testAnUnknownFeatureIsRefused(): void
     {
         $this->expectException(UnknownFeatureException::class);
 
-        $this->change(new ChangeFeatureSettings('portal.teleconsultation', 'available', true));
+        $this->change(new ChangeFeatureSettings('portal.teleconsultation', 'available', true, 'all'));
     }
 
     /**
@@ -72,6 +73,6 @@ final class ChangeFeatureSettingsHandlerTest extends TestCase
      */
     private function change(ChangeFeatureSettings $command): array
     {
-        return new ChangeFeatureSettingsHandler($this->features, new FeatureStates($this->features), $this->clock)($command);
+        return new ChangeFeatureSettingsHandler($this->features, new FeatureResolver($this->features, new FakeClinicPlans()), $this->clock)($command);
     }
 }

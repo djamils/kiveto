@@ -6,8 +6,9 @@ namespace App\Tests\Unit\System\FeatureCatalog\Application\Query\IsFeatureEnable
 
 use App\System\FeatureCatalog\Application\Query\IsFeatureEnabled\IsFeatureEnabled;
 use App\System\FeatureCatalog\Application\Query\IsFeatureEnabled\IsFeatureEnabledHandler;
-use App\System\FeatureCatalog\Application\Service\FeatureStates;
+use App\System\FeatureCatalog\Application\Service\FeatureResolver;
 use App\System\FeatureCatalog\Domain\FeatureCatalogue;
+use App\Tests\Unit\System\FeatureCatalog\Support\FakeClinicPlans;
 use App\Tests\Unit\System\FeatureCatalog\Support\InMemoryFeatures;
 use PHPUnit\Framework\TestCase;
 
@@ -22,7 +23,7 @@ final class IsFeatureEnabledHandlerTest extends TestCase
         $features->set(self::CLINIC, FeatureCatalogue::ONLINE_BOOKING, false);
         $features->set(self::CLINIC, FeatureCatalogue::SUPPORT_WRITE_MODE, true);
         $features->set(self::CLINIC, FeatureCatalogue::HOSPITALISATION, true);
-        $handler = new IsFeatureEnabledHandler($features, new FeatureStates($features));
+        $handler = new IsFeatureEnabledHandler(new FeatureResolver($features, new FakeClinicPlans()));
 
         self::assertFalse($handler(new IsFeatureEnabled(self::CLINIC, FeatureCatalogue::ONLINE_BOOKING)), 'switched off');
         self::assertTrue($handler(new IsFeatureEnabled(self::OTHER, FeatureCatalogue::ONLINE_BOOKING)), 'another clinic keeps the legacy state');

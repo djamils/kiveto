@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Integration\System\FeatureCatalog\Infrastructure\Persistence\Doctrine\Repository;
 
 use App\System\FeatureCatalog\Domain\ClinicFeature;
+use App\System\FeatureCatalog\Domain\FeatureAudience;
 use App\System\FeatureCatalog\Domain\FeatureCatalogue;
 use App\System\FeatureCatalog\Domain\FeatureRepositoryInterface;
 use App\System\FeatureCatalog\Domain\FeatureSettings;
@@ -37,7 +38,26 @@ final class DbalFeatureRepositoryTest extends KernelTestCase
 
         $features->saveSettings(FeatureSettings::reconstitute(FeatureCatalogue::ELECTRONIC_INVOICING, FeatureStatus::BETA, false, null));
         $replaced = $features->settings(FeatureCatalogue::ELECTRONIC_INVOICING);
-        self::assertSame([FeatureStatus::BETA, false, null], [$replaced?->status(), $replaced?->isDefaultOn(), $replaced?->updatedAt()]);
+        self::assertSame([FeatureStatus::BETA, false, null, FeatureAudience::ALL, null], [$replaced?->status(), $replaced?->isDefaultOn(), $replaced?->updatedAt(), $replaced?->audience(), $replaced?->cutOff()]);
+    }
+
+    public function testTheAudienceAndTheCutOffAreReadBack(): void
+    {
+        $features = $this->features();
+        $settings = FeatureSettings::reconstitute(FeatureCatalogue::SMS_REMINDERS, FeatureStatus::AVAILABLE, true, null, FeatureAudience::PAID);
+        $settings->cut('Envois en double', 'Djamil Soidiki', new \DateTimeImmutable('2026-11-06 11:30:00', new \DateTimeZone('Europe/Paris')));
+        $features->saveSettings($settings);
+
+        $saved = $features->settings(FeatureCatalogue::SMS_REMINDERS);
+        self::assertSame(
+            [FeatureAudience::PAID, 'Envois en double', 'Djamil Soidiki', '2026-11-06 10:30:00'],
+            [$saved?->audience(), $saved?->cutOff()?->reason, $saved?->cutOff()?->byName, $saved?->cutOff()?->at->format('Y-m-d H:i:s')],
+        );
+
+        $saved?->restore(new \DateTimeImmutable());
+        \assert(null !== $saved);
+        $features->saveSettings($saved);
+        self::assertNull($features->settings(FeatureCatalogue::SMS_REMINDERS)?->cutOff(), 'restored');
     }
 
     public function testAClinicFeatureIsReadBackAndReplaced(): void

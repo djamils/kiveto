@@ -16,6 +16,8 @@ use App\System\Audit\Application\Query\SearchAuditLog\SearchAuditLog;
 use App\System\Audit\Domain\ValueObject\AuditCategory;
 use App\System\FeatureCatalog\Application\Command\ApplyStartingFeatures\ApplyStartingFeatures;
 use App\System\FeatureCatalog\Application\Command\ChangeFeatureSettings\ChangeFeatureSettings;
+use App\System\FeatureCatalog\Application\Command\CutFeature\CutFeature;
+use App\System\FeatureCatalog\Application\Command\RestoreFeature\RestoreFeature;
 use App\System\FeatureCatalog\Application\Command\SetClinicFeature\SetClinicFeature;
 use App\System\FeatureCatalog\Application\Query\ClinicFeatureView;
 use App\System\FeatureCatalog\Application\Query\FeatureView;
@@ -29,6 +31,12 @@ use App\System\FeatureCatalog\Application\Query\ListFeatures\ListFeatures;
 final readonly class ConsoleFeatures
 {
     public const array BADGES = ['available' => 'is-green', 'beta' => 'is-purple', 'internal' => 'is-outline', 'upcoming' => 'is-outline'];
+
+    public const array AUDIENCES = ['all' => 'Toutes les cliniques', 'pilot' => 'Cliniques pilotes', 'paid' => 'Cliniques payantes'];
+
+    public const array STATES = ['all', 'on', 'off'];
+
+    public const array PLANS = ['all', 'pilot', 'paid'];
 
     public function __construct(
         private QueryBusInterface $queryBus,
@@ -61,11 +69,20 @@ final readonly class ConsoleFeatures
     }
 
     /**
-     * F2 — each clinic with its state for this feature, and the history.
+     * F2 — each clinic with its state for this feature (`all`), those the
+     * filters keep (`clinics`: a name or tenant, on or off, a plan), the
+     * counts of the state filter, and the history.
      *
-     * @return array{feature: FeatureView, clinics: list<array{clinic: ConsoleClinicRow, lifecycle: ClinicLifecycle, state: ClinicFeatureView}>, history: list<mixed>, missing: list<array{clinic: ConsoleClinicRow, lifecycle: ClinicLifecycle}>}|null
+     * @return array{
+     *     feature: FeatureView,
+     *     all: list<array{clinic: ConsoleClinicRow, lifecycle: ClinicLifecycle, state: ClinicFeatureView}>,
+     *     clinics: list<array{clinic: ConsoleClinicRow, lifecycle: ClinicLifecycle, state: ClinicFeatureView}>,
+     *     counts: array<string, int>,
+     *     history: list<mixed>,
+     *     missing: list<array{clinic: ConsoleClinicRow, lifecycle: ClinicLifecycle}>
+     * }|null
      */
-    public function detail(string $code): ?array
+    public function detail(string $code, string $search = '', string $state = 'all', string $plan = 'all'): ?array
     {
         $feature = $this->find($code);
 
@@ -78,24 +95,38 @@ final readonly class ConsoleFeatures
         $rows    = [];
         $missing = [];
         foreach ($clinics as $clinic) {
-            $state = $states[$clinic->id] ?? null;
+            $one = $states[$clinic->id] ?? null;
 
-            if (null === $state) {
+            if (null === $one) {
                 continue;
             }
 
             $lifecycle = ClinicLifecycle::of($clinic->isSuspended(), null !== $clinic->onboardedAt, $clinic->plan);
-            $rows[]    = ['clinic' => $clinic, 'lifecycle' => $lifecycle, 'state' => $state];
+            $rows[]    = ['clinic' => $clinic, 'lifecycle' => $lifecycle, 'state' => $one];
 
-            if (!$state->enabled && !$clinic->isSuspended()) {
+            if (!$one->enabled && $one->own && !$clinic->isSuspended()) {
                 $missing[] = ['clinic' => $clinic, 'lifecycle' => $lifecycle];
             }
         }
 
+        $byPlan = array_values(array_filter($rows, static fn (array $row): bool => self::matches($row, $search, 'all', $plan)));
+        $counts = [
+            'all' => \count($byPlan),
+            'on'  => \count(array_filter($byPlan, static fn (array $row): bool => $row['state']->enabled)),
+            'off' => \count(array_filter($byPlan, static fn (array $row): bool => !$row['state']->enabled)),
+        ];
+
         $history = $this->queryBus->ask(new SearchAuditLog(perPage: 8, category: AuditCategory::FEATURES, text: '« ' . $feature->name . ' »'));
         \assert($history instanceof AuditLogPage);
 
-        return ['feature' => $feature, 'clinics' => $rows, 'history' => $history->items, 'missing' => $missing];
+        return [
+            'feature' => $feature,
+            'all'     => $rows,
+            'clinics' => array_values(array_filter($byPlan, static fn (array $row): bool => self::matches($row, '', $state, 'all'))),
+            'counts'  => $counts,
+            'history' => $history->items,
+            'missing' => $missing,
+        ];
     }
 
     /**
@@ -140,9 +171,10 @@ final readonly class ConsoleFeatures
     }
 
     /**
-     * B5 — the features offered at the third step of a new clinic.
+     * B5 — the features offered at the third step of a new clinic, with
+     * the plan each one is kept for.
      *
-     * @return list<array{code: string, name: string, description: string, defaultOn: bool, upcoming: bool, badge: ?array{label: string, class: string}}>
+     * @return list<array{code: string, name: string, description: string, defaultOn: bool, upcoming: bool, audience: string, badge: ?array{label: string, class: string}}>
      */
     public function starting(): array
     {
@@ -150,9 +182,14 @@ final readonly class ConsoleFeatures
             'code'        => $f->code,
             'name'        => $f->name,
             'description' => $f->description,
-            'defaultOn'   => $f->defaultOn,
-            'upcoming'    => $f->isUpcoming(),
-            'badge'       => 'available' !== $f->status ? ['label' => $f->statusLabel, 'class' => self::BADGES[$f->status] ?? 'is-outline'] : null,
+            'defaultOn'   => $f->defaultOn && !$f->isCut(),
+            'upcoming'    => $f->isUpcoming() || $f->isCut(),
+            'audience'    => $f->audience,
+            'badge'       => match (true) {
+                $f->isCut()                => ['label' => 'Coupée partout', 'class' => 'is-red'],
+                'available' !== $f->status => ['label' => $f->statusLabel, 'class' => self::BADGES[$f->status] ?? 'is-outline'],
+                default                    => null,
+            },
         ], $this->features([]));
     }
 
@@ -191,31 +228,67 @@ final readonly class ConsoleFeatures
     {
         $detail = $this->detail($feature->code);
         \assert(null !== $detail);
-        $admin = $this->currentAdmin->get();
-        $count = 0;
-        foreach ($detail['missing'] as $row) {
-            $this->commandBus->dispatch(new SetClinicFeature($row['clinic']->id, $feature->code, true, $admin->id, $admin->name));
-            ++$count;
-        }
 
-        $this->auditTrail->record(
-            'feature.enabled_for_all',
-            AuditCategory::FEATURES,
-            \sprintf('Fonctionnalité « %s » activée pour %d clinique%s', $feature->name, $count, $count > 1 ? 's' : ''),
-            details: ['Code' => $feature->code, 'Cliniques' => implode(', ', array_map(static fn (array $row): string => $row['clinic']->name, $detail['missing']))],
-        );
-
-        return $count;
+        return $this->switchMany($feature, true, array_map(static fn (array $row): ConsoleClinicRow => $row['clinic'], $detail['missing']), 'feature.enabled_for_all');
     }
 
     /**
-     * @throws \DomainException a status refused
+     * F2 — on (or off) for the clinics the filters keep, whose switch decides
+     * and which are not suspended.
+     */
+    public function switchShown(FeatureView $feature, bool $enabled, string $search, string $state, string $plan): int
+    {
+        $detail = $this->detail($feature->code, $search, $state, $plan);
+        \assert(null !== $detail);
+        $clinics = [];
+        foreach ($detail['clinics'] as $row) {
+            if ($row['state']->own && $row['state']->enabled !== $enabled && !$row['clinic']->isSuspended()) {
+                $clinics[] = $row['clinic'];
+            }
+        }
+
+        return $this->switchMany($feature, $enabled, $clinics, $enabled ? 'feature.enabled_for_many' : 'feature.disabled_for_many');
+    }
+
+    /**
+     * The kill switch, audited with its reason.
+     *
+     * @throws \DomainException an upcoming feature, one already cut off, no reason
+     */
+    public function cut(FeatureView $feature, string $reason): void
+    {
+        $admin = $this->currentAdmin->get();
+        $this->commandBus->dispatch(new CutFeature($feature->code, $reason, $admin->name));
+        $this->auditTrail->record(
+            'feature.cut_off',
+            AuditCategory::FEATURES,
+            \sprintf('Fonctionnalité « %s » coupée partout', $feature->name),
+            details: ['Code' => $feature->code, 'Motif' => trim($reason), 'Cliniques qui l’avaient' => (string) $feature->enabledCount],
+        );
+    }
+
+    /**
+     * @throws \DomainException a feature that is not cut off
+     */
+    public function restore(FeatureView $feature): void
+    {
+        $this->commandBus->dispatch(new RestoreFeature($feature->code));
+        $this->auditTrail->record(
+            'feature.restored',
+            AuditCategory::FEATURES,
+            \sprintf('Fonctionnalité « %s » remise en service', $feature->name),
+            details: ['Code' => $feature->code, 'Coupée depuis' => $feature->cutAt?->format('d/m/Y H:i') . ' UTC', 'Motif' => (string) $feature->cutReason],
+        );
+    }
+
+    /**
+     * @throws \DomainException a status or an audience refused
      *
      * @return list<string> what changed
      */
-    public function changeSettings(FeatureView $feature, string $status, bool $defaultOn): array
+    public function changeSettings(FeatureView $feature, string $status, bool $defaultOn, string $audience): array
     {
-        $changes = $this->commandBus->dispatch(new ChangeFeatureSettings($feature->code, $status, $defaultOn));
+        $changes = $this->commandBus->dispatch(new ChangeFeatureSettings($feature->code, $status, $defaultOn, $audience));
         $changes = \is_array($changes) ? array_values(array_filter($changes, is_string(...))) : [];
 
         if ([] !== $changes) {
@@ -228,6 +301,44 @@ final readonly class ConsoleFeatures
         }
 
         return $changes;
+    }
+
+    /**
+     * @param list<ConsoleClinicRow> $clinics
+     */
+    private function switchMany(FeatureView $feature, bool $enabled, array $clinics, string $action): int
+    {
+        if ([] === $clinics) {
+            return 0;
+        }
+
+        $admin = $this->currentAdmin->get();
+        foreach ($clinics as $clinic) {
+            $this->commandBus->dispatch(new SetClinicFeature($clinic->id, $feature->code, $enabled, $admin->id, $admin->name));
+        }
+
+        $count = \count($clinics);
+        $this->auditTrail->record(
+            $action,
+            AuditCategory::FEATURES,
+            \sprintf('Fonctionnalité « %s » %s pour %d clinique%s', $feature->name, $enabled ? 'activée' : 'désactivée', $count, $count > 1 ? 's' : ''),
+            details: ['Code' => $feature->code, 'Cliniques' => implode(', ', array_map(static fn (ConsoleClinicRow $c): string => $c->name, $clinics))],
+        );
+
+        return $count;
+    }
+
+    /**
+     * @param array{clinic: ConsoleClinicRow, lifecycle: ClinicLifecycle, state: ClinicFeatureView} $row
+     */
+    private static function matches(array $row, string $search, string $state, string $plan): bool
+    {
+        $search = mb_strtolower(trim($search));
+        $found  = '' === $search || str_contains(mb_strtolower($row['clinic']->name), $search) || str_contains($row['clinic']->slug, $search);
+
+        return $found
+            && ('all' === $state || ('on' === $state) === $row['state']->enabled)
+            && ('all' === $plan || $plan === $row['clinic']->plan);
     }
 
     /**

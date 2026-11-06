@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\System\FeatureCatalog\Application\Query\IsFeatureEnabled;
 
-use App\System\FeatureCatalog\Application\Service\FeatureStates;
+use App\System\FeatureCatalog\Application\Service\FeatureResolver;
 use App\System\FeatureCatalog\Domain\FeatureCatalogue;
-use App\System\FeatureCatalog\Domain\FeatureRepositoryInterface;
 use App\System\FeatureCatalog\Domain\UnknownFeatureException;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -14,8 +13,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final readonly class IsFeatureEnabledHandler
 {
     public function __construct(
-        private FeatureRepositoryInterface $features,
-        private FeatureStates $states,
+        private FeatureResolver $resolver,
     ) {
     }
 
@@ -27,6 +25,6 @@ final readonly class IsFeatureEnabledHandler
             return false;
         }
 
-        return FeatureStates::isOn($definition, $this->states->settings($definition), $this->features->clinicFeature($query->clinicId, $query->code));
+        return $this->resolver->decisionFor($definition, $query->clinicId)->isOn();
     }
 }

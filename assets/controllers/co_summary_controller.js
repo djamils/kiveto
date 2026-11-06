@@ -43,7 +43,26 @@ export default class extends Controller {
       this.invitationsTarget.textContent = people.length > 0 ? `${people.length} personne${people.length > 1 ? 's' : ''}` : '—';
     }
 
+    const plan = form.querySelector('[name="plan"]:checked')?.value ?? this.planValue;
+
+    // A feature kept for the other plan is greyed and left out; it comes back as it was.
     const features = form.querySelectorAll('[name="features[]"]');
+    features.forEach((box) => {
+      const audience = box.dataset.audience || 'all';
+      if (audience === 'all' || box.dataset.upcoming !== undefined) {
+        return;
+      }
+      const admitted = audience === plan;
+      if (!admitted && !box.disabled) {
+        box.dataset.wasChecked = box.checked ? '1' : '';
+        box.checked = false;
+      } else if (admitted && box.disabled && box.dataset.wasChecked !== undefined) {
+        box.checked = box.dataset.wasChecked === '1';
+        delete box.dataset.wasChecked;
+      }
+      box.disabled = !admitted;
+      box.closest('li')?.classList.toggle('is-greyed', !admitted);
+    });
     if (features.length > 0) {
       const on = [...features].filter((box) => box.checked).length;
       this.featuresTarget.textContent = on > 0 ? String(on) : '—';
@@ -52,7 +71,6 @@ export default class extends Controller {
     const price = this.euros(this.priceValue);
     this.vetsTarget.textContent = vets > 0 ? `${vets} × ${price} HT` : '—';
 
-    const plan = form.querySelector('[name="plan"]:checked')?.value ?? this.planValue;
     if (vets === 0) {
       this.monthlyTarget.textContent = '—';
     } else if (plan === 'pilot' && form.querySelector('[name="plan"]')) {
