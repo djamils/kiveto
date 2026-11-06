@@ -308,6 +308,67 @@ final class User extends AggregateRoot
         $this->anonymisedAt    = $at;
     }
 
+    /**
+     * Kiveto turns a clinic account off from the console: no sign-in any
+     * more. A disabled account stays so.
+     */
+    public function disableStaff(): void
+    {
+        self::assertClinic($this->type);
+
+        $this->status = UserStatus::DISABLED;
+    }
+
+    /**
+     * Back on: ACTIVE when its holder had chosen a password, PENDING (waiting
+     * for an invitation) otherwise. An account not disabled is left as is.
+     */
+    public function enableStaff(): void
+    {
+        self::assertClinic($this->type);
+
+        if (UserStatus::DISABLED !== $this->status) {
+            return;
+        }
+
+        $this->status = str_starts_with($this->passwordHash, self::UNUSABLE_PASSWORD_PREFIX) ? UserStatus::PENDING : UserStatus::ACTIVE;
+    }
+
+    /**
+     * A member of the Kiveto team loses the console (« Équipe »); back on
+     * as for a clinic account.
+     */
+    public function disableConsoleMember(): void
+    {
+        self::assertBackoffice($this->type);
+
+        $this->status = UserStatus::DISABLED;
+    }
+
+    public function enableConsoleMember(): void
+    {
+        self::assertBackoffice($this->type);
+
+        if (UserStatus::DISABLED === $this->status) {
+            $this->status = str_starts_with($this->passwordHash, self::UNUSABLE_PASSWORD_PREFIX) ? UserStatus::PENDING : UserStatus::ACTIVE;
+        }
+    }
+
+    /**
+     * The address of an invitation not yet accepted is corrected. Uniqueness
+     * among clinic accounts is the caller's to check.
+     */
+    public function changeInvitedEmail(string $email): void
+    {
+        self::assertClinic($this->type);
+
+        if (UserStatus::PENDING !== $this->status) {
+            throw AccountStateException::notPending($this->status);
+        }
+
+        $this->email = $email;
+    }
+
     /** The account has an e-mail address its owner proved. */
     public function hasVerifiedEmail(): bool
     {
@@ -321,6 +382,20 @@ final class User extends AggregateRoot
     public function passwordFingerprint(): string
     {
         return substr(hash('sha256', $this->passwordHash), 0, 16);
+    }
+
+    private static function assertClinic(UserType $type): void
+    {
+        if (UserType::CLINIC !== $type) {
+            throw new \LogicException('Only a clinic account is managed from the console.');
+        }
+    }
+
+    private static function assertBackoffice(UserType $type): void
+    {
+        if (UserType::BACKOFFICE !== $type) {
+            throw new \LogicException('Only a console account is a member of the Kiveto team.');
+        }
     }
 
     private static function assertPortal(UserType $type): void

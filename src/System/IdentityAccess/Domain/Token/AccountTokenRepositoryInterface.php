@@ -20,6 +20,12 @@ interface AccountTokenRepositoryInterface
     /** Marks used every unused password-reset token of this user; returns how many. */
     public function invalidatePasswordResets(string $userId, \DateTimeImmutable $at): int;
 
+    /** Marks used every unused console invitation of this user; returns how many. */
+    public function invalidateConsoleInvitations(string $userId, \DateTimeImmutable $at): int;
+
+    /** The user's most recent unused invitation, whatever the clinic and even expired. */
+    public function latestUnusedInvitation(string $userId): ?AccountToken;
+
     /**
      * Among these users, those holding an invitation of this clinic still usable at $now.
      *

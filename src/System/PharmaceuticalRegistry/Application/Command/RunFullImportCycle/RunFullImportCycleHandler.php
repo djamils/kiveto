@@ -30,7 +30,10 @@ final class RunFullImportCycleHandler
     ) {
     }
 
-    public function handle(RunFullImportCycle $command): void
+    /**
+     * @return string the id of the snapshot imported
+     */
+    public function handle(RunFullImportCycle $command): string
     {
         $snapshotId = ($this->importSnapshotHandler)(new ImportSnapshot(
             source: $command->source,
@@ -51,5 +54,7 @@ final class RunFullImportCycleHandler
 
             throw $e;
         }
+
+        return $snapshotId;
     }
 }

@@ -1,0 +1,34 @@
+{# C5 — « Inviter un utilisateur ». #}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+<dialog class="co-modal" id="dialog-invite" aria-labelledby="dialog-invite-title" data-action="click->co-dialog#backdrop">
+  <form method="post" action="{{ path('backoffice_clinic_invite', {id: sheet.clinic.id}) }}" data-controller="co-role-hint">
+    <input type="hidden" name="_token" value="{{ csrf_token('backoffice_clinic') }}">
+    <header class="co-dialog-head">
+      <div><h2 id="dialog-invite-title">Inviter un utilisateur</h2><span>{{ sheet.clinic.name }}</span></div>
+      <button class="co-btn is-white is-icon" type="button" data-action="co-dialog#close" aria-label="Fermer">{{ co.icon('x', 14) }}</button>
+    </header>
+    <div class="co-dialog-body">
+      {% if invite_error|default(null) %}<div class="co-error-box" role="alert">{{ invite_error }}</div>{% endif %}
+      <div class="co-row2">
+        <div class="co-field"><label for="invite-first">Prénom</label><input class="co-input" id="invite-first" name="first_name" required maxlength="60" autofocus></div>
+        <div class="co-field"><label for="invite-last">Nom</label><input class="co-input" id="invite-last" name="last_name" required maxlength="60"></div>
+      </div>
+      <div class="co-field"><label for="invite-email">E-mail</label><input class="co-input" id="invite-email" type="email" name="email" required maxlength="180"></div>
+      <fieldset class="co-field co-segment">
+        <legend class="co-field-label">Rôle</legend>
+        {% for value, label in roles %}
+          <label><input type="radio" name="role" value="{{ value }}"{% if loop.first %} checked{% endif %} data-action="co-role-hint#update"><span>{{ label }}</span></label>
+        {% endfor %}
+      </fieldset>
+      <label class="co-check">
+        <input type="checkbox" name="administrator" value="1">
+        <span>Administrateur de la clinique<small>Peut inviter, modifier les rôles et les paramètres de la clinique.</small></span>
+      </label>
+      <div class="co-banner is-info" data-co-role-hint-target="hint">{{ co.icon('info', 14) }} <span>Vétérinaire : +1 véto facturable ({{ price_per_vet }} HT / mois hors pilote).</span></div>
+    </div>
+    <footer class="co-dialog-foot">
+      <button class="co-btn is-white" type="button" data-action="co-dialog#close">Annuler</button>
+      <button class="co-btn is-primary" type="submit">Envoyer l'invitation</button>
+    </footer>
+  </form>
+</dialog>

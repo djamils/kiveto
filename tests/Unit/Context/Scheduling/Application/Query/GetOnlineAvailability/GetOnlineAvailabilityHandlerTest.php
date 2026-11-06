@@ -24,6 +24,7 @@ use App\Context\Scheduling\Domain\ValueObject\PlanningBlockType;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
 use App\Tests\Shared\Time\FrozenClock;
 use App\Tests\Unit\Context\Scheduling\Support\FakeAvailabilitySources;
+use App\Tests\Unit\Context\Scheduling\Support\FakeClinicFeatures;
 use App\Tests\Unit\Context\Scheduling\Support\InMemoryBookingMotifs;
 use App\Tests\Unit\Context\Scheduling\Support\InMemoryOnlineBookingSettings;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -241,12 +242,40 @@ final class GetOnlineAvailabilityHandlerTest extends TestCase
         $this->checker()->isBookable(ClinicId::fromString(self::CLINIC), BookingMotifId::fromString(self::CONSULT), UserId::fromString(self::VET), new \DateTimeImmutable('2026-04-14T09:00:00Z'), false);
     }
 
+    /**
+     * Kiveto switched « Prise de RDV en ligne » off for the clinic: nothing
+     * is offered online, whatever its own settings say.
+     */
+    public function testTheFeatureSwitchedOffClosesEveryOnlineBooking(): void
+    {
+        $features = new FakeClinicFeatures(onlineBooking: false);
+        $checker  = $this->checker($features);
+
+        try {
+            $checker->isBookable(ClinicId::fromString(self::CLINIC), BookingMotifId::fromString(self::CONSULT), UserId::fromString(self::VET), new \DateTimeImmutable('2026-04-14T09:00:00Z'), false);
+            self::fail('A clinic without the feature was expected to take no online booking.');
+        } catch (BookingNotOpenException $e) {
+            self::assertSame('La réservation en ligne n\'est pas ouverte pour cette clinique.', $e->getMessage());
+        }
+
+        $this->expectException(BookingNotOpenException::class);
+        new GetOnlineAvailabilityHandler($checker)(new GetOnlineAvailability(self::CLINIC, self::CONSULT, self::VET, '2026-04-13', '2026-04-14'));
+    }
+
+    public function testTheFeatureSwitchedOnLeavesTheClinicsSettingsToDecide(): void
+    {
+        $features = new FakeClinicFeatures(onlineBooking: true);
+
+        self::assertTrue($this->checker($features)->isBookable(ClinicId::fromString(self::CLINIC), BookingMotifId::fromString(self::CONSULT), UserId::fromString(self::VET), new \DateTimeImmutable('2026-04-14T09:00:00Z'), false));
+        self::assertSame([self::CLINIC], $features->asked);
+    }
+
     private function handler(): GetOnlineAvailabilityHandler
     {
         return new GetOnlineAvailabilityHandler($this->checker());
     }
 
-    private function checker(): OnlineSlotChecker
+    private function checker(?FakeClinicFeatures $features = null): OnlineSlotChecker
     {
         return new OnlineSlotChecker(
             $this->motifs,
@@ -257,6 +286,7 @@ final class GetOnlineAvailabilityHandlerTest extends TestCase
             $this->sources,
             // Monday 13 April 2026, 08:00 in Paris
             new FrozenClock(new \DateTimeImmutable('2026-04-13T06:00:00Z')),
+            $features,
         );
     }
 

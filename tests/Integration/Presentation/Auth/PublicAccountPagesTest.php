@@ -76,11 +76,14 @@ final class PublicAccountPagesTest extends WebTestCase
         $this->browser->request('GET', self::HOST . '/login');
         self::assertSelectorExists('a#lOubli[href="/mot-de-passe-oublie"]');
 
-        foreach (['http://portal.kiveto.local/login', 'http://backoffice.kiveto.local/login'] as $login) {
-            $this->browser->request('GET', $login);
-            self::assertResponseIsSuccessful();
-            self::assertSelectorNotExists('#lOubli');
-        }
+        $this->browser->request('GET', 'http://portal.kiveto.local/login');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorNotExists('#lOubli');
+
+        // The console has a reset page of its own.
+        $this->browser->request('GET', 'http://backoffice.kiveto.local/login');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('a#lOubli[href="/mot-de-passe-oublie"]');
     }
 
     /**
@@ -213,7 +216,7 @@ final class PublicAccountPagesTest extends WebTestCase
 
     /**
      * A1: the secret kept by a link page lives 30 minutes at most in the
-     * session, even when the link itself (an invitation, 72 h) is still good.
+     * session, even when the link itself (an invitation, seven days) is still good.
      */
     public function testTheSecretKeptInTheSessionExpires(): void
     {

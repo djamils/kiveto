@@ -65,6 +65,9 @@ parameters:
     notification.sms.segments_per_veterinarian: 400
     notification.sms.overage_unit_price: '0.079'
     notification.sms.default_overage_cap: 500
+
+    # Console: what a veterinarian costs a paying clinic, € HT cents per month.
+    app.console.price_per_vet_cents: 9900
     # Notification: delay (ms) before the local simulator fakes a delivery webhook.
     notification.simulator.delivery_delay: 5000
 
@@ -106,18 +109,22 @@ services:
         arguments:
             $users: '@App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface'
             $type: !php/const App\System\IdentityAccess\Domain\ValueObject\UserType::CLINIC
+            $consoleProfiles: null
 
     App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.portal:
         class: App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider
         arguments:
             $users: '@App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface'
             $type: !php/const App\System\IdentityAccess\Domain\ValueObject\UserType::PORTAL
+            $consoleProfiles: null
 
     App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.backoffice:
         class: App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider
         arguments:
             $users: '@App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface'
             $type: !php/const App\System\IdentityAccess\Domain\ValueObject\UserType::BACKOFFICE
+            # The role of a member of the Kiveto team: ROLE_CONSOLE_ADMIN or ROLE_CONSOLE_SUPPORT
+            $consoleProfiles: '@App\System\IdentityAccess\Application\Port\BackofficeProfileStoreInterface'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
@@ -239,6 +246,22 @@ services:
     App\System\IdentityAccess\Domain\Session\RefreshTokenRepositoryInterface:
         class: App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DbalRefreshTokenRepository
 
+    # Console: second factor, trusted browsers, signed-in sessions, profiles
+    App\System\IdentityAccess\Domain\SecondFactor\SecondFactorRepositoryInterface:
+        class: App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DbalSecondFactorRepository
+
+    App\System\IdentityAccess\Domain\SecondFactor\TrustedDeviceRepositoryInterface:
+        class: App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DbalTrustedDeviceRepository
+
+    App\System\IdentityAccess\Application\Port\UserSessionStoreInterface:
+        class: App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DbalUserSessionStore
+
+    App\System\IdentityAccess\Application\Port\BackofficeProfileStoreInterface:
+        class: App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DbalBackofficeProfileStore
+
+    App\System\IdentityAccess\Application\Port\SecondFactorSecretsInterface:
+        class: App\System\IdentityAccess\Infrastructure\Security\RandomSecondFactorSecrets
+
     # Password sign-in of the web firewalls (ContextAuthenticator): Symfony's
     # login limiter (keys hashed with the kernel secret) over the login_account
     # and login_ip limiters of config/packages/rate_limiter.yaml.
@@ -248,6 +271,44 @@ services:
             $globalFactory: '@limiter.login_ip'
             $localFactory: '@limiter.login_account'
             $secret: '%kernel.secret%'
+
+    # ============================================================================
+    # SYSTEM: AUDIT (the console's append-only log)
+    # ============================================================================
+
+    App\System\Audit\Domain\Repository\AuditEntryRepositoryInterface:
+        class: App\System\Audit\Infrastructure\Persistence\Doctrine\Repository\DbalAuditEntryRepository
+
+    App\System\Audit\Application\Port\AuditLogReadRepositoryInterface:
+        class: App\System\Audit\Infrastructure\Persistence\Doctrine\Repository\DbalAuditLogReadRepository
+
+    App\System\IdentityAccess\Domain\Support\SupportSessionRepositoryInterface:
+        class: App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DbalSupportSessionRepository
+
+    # PharmaceuticalRegistry: the console's view of the imports
+    App\System\PharmaceuticalRegistry\Application\Port\RegistryImportReadRepositoryInterface:
+        class: App\System\PharmaceuticalRegistry\Infrastructure\Persistence\Doctrine\Repository\DbalRegistryImportReadRepository
+
+    App\System\PharmaceuticalRegistry\Application\Port\RegistryImportFilesInterface:
+        class: App\System\PharmaceuticalRegistry\Infrastructure\Console\StorageRegistryImportFiles
+
+    # The journal of the imports' source files (fingerprint, where they are kept, who launched)
+    App\System\PharmaceuticalRegistry\Application\Port\RegistryImportFileLogInterface:
+        class: App\System\PharmaceuticalRegistry\Infrastructure\Persistence\Doctrine\Repository\DbalRegistryImportFileLog
+
+    # FeatureCatalog: what Kiveto switches on per clinic, and the modules it gates
+    App\System\FeatureCatalog\Domain\FeatureRepositoryInterface:
+        class: App\System\FeatureCatalog\Infrastructure\Persistence\Doctrine\Repository\DbalFeatureRepository
+
+    # The plans of the clinics, for the features kept for one plan
+    App\System\FeatureCatalog\Application\Port\ClinicPlansInterface:
+        class: App\System\FeatureCatalog\Infrastructure\Adapter\Clinic\QueryBusClinicPlans
+
+    App\Context\Scheduling\Application\Port\ClinicFeaturesInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\FeatureCatalog\QueryBusClinicFeatures
+
+    App\Context\Billing\Application\Port\ElectronicInvoicingFeatureInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\FeatureCatalog\QueryBusElectronicInvoicingFeature
 
     # ============================================================================
     # PORTAL API — rate limiters (one-time codes, anti SMS-pumping)
@@ -649,6 +710,16 @@ services:
 
     App\Context\Clinic\Application\Port\ClinicGroupReadRepositoryInterface:
         class: App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicGroupReadRepository
+
+    # Console: the clinic as a customer (plan, onboarding, suspension) and its read side
+    App\Context\Clinic\Domain\Account\ClinicAccountRepositoryInterface:
+        class: App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository\DbalClinicAccountRepository
+
+    App\Context\Clinic\Application\Port\ClinicConsoleReadRepositoryInterface:
+        class: App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository\DbalClinicConsoleReadRepository
+
+    App\Context\Clinic\Application\Port\ClinicAppointmentsInterface:
+        class: App\Context\Clinic\Infrastructure\Adapter\Scheduling\QueryBusClinicAppointments
 
     App\Context\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicMapper: ~
     App\Context\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicGroupMapper: ~

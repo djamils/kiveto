@@ -1,0 +1,15 @@
+{#
+ # The masked code of A2 and of the second factor's configuration, driven by
+ # co-code (on the form). Without JavaScript, a plain field with its mask as
+ # the placeholder.
+ #   id: the field's id; backup: a backup code « XXXXX-XXXXX » rather than « 000 000 ».
+ #}
+<span class="co-code" style="--co-code-length: {{ backup ? 11 : 7 }}">
+  <span class="co-code-ghost" data-co-code-target="ghost" aria-hidden="true"></span>
+  {% if backup %}
+    <input class="co-input co-code-input" id="{{ id }}" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="11" placeholder="XXXXX-XXXXX" aria-describedby="{{ id }}-error" autofocus data-co-code-target="input" data-action="input->co-code#type">
+  {% else %}
+    <input class="co-input co-code-input" id="{{ id }}" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="000 000" aria-describedby="{{ id }}-error" autofocus data-co-code-target="input" data-action="input->co-code#type">
+  {% endif %}
+</span>
+<p class="co-field-error" id="{{ id }}-error" data-co-code-target="error" role="alert" hidden></p>

@@ -1,0 +1,204 @@
+{% extends 'backoffice/console/base.html.twig' %}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+
+{% block page_title %}Nouvelle clinique{% endblock %}
+
+{% set company = draft.company %}
+{% set place = draft.place %}
+
+{% block content %}
+  <header class="co-head">
+    <nav class="co-crumbs" aria-label="Fil d'Ariane">
+      <a href="{{ path('backoffice_clinics') }}">Cliniques</a>{{ co.icon('chevron-right', 12) }}<h1 class="co-title">Nouvelle clinique</h1>
+    </nav>
+    <div class="co-head-actions"><a class="co-btn is-white" href="{{ path('backoffice_clinic_new', {cancel: 1}) }}">Annuler</a></div>
+  </header>
+
+  <ol class="co-stepper" aria-label="Étapes">
+    {% for number, item in {1: ['Établissement', 'Entreprise et coordonnées'], 2: ['Équipe', 'Personnes à inviter'], 3: ['Fonctionnalités & abonnement', 'Vérifier et créer']} %}
+      <li class="{{ number < step ? 'is-done' : (number == step ? 'is-current') }}"{% if number == step %} aria-current="step"{% endif %}>
+        <span class="co-stepper-dot">{% if number < step %}{{ co.icon('check', 11) }}{% else %}{{ number }}{% endif %}</span>
+        <span><b>{{ item[0] }}</b><small>{{ item[1] }}</small></span>
+      </li>
+    {% endfor %}
+  </ol>
+
+  <div class="co-grid" data-controller="co-summary" data-co-summary-price-value="{{ price_cents }}" data-co-summary-vets-value="{{ summary.vets }}" data-co-summary-plan-value="{{ draft.plan }}"
+       data-action="input->co-summary#refresh change->co-summary#refresh co-company-search:chosen->co-summary#refresh">
+    <form class="co-col" method="post" action="{{ path('backoffice_clinic_new', {step: step}) }}" novalidate>
+      <input type="hidden" name="_token" value="{{ csrf_token('backoffice_clinic') }}">
+      {% if errors|length > 0 %}
+        <div class="co-error-box" role="alert">{% for message in errors %}<div>{{ message }}</div>{% endfor %}</div>
+      {% endif %}
+
+      {% if step == 1 %}
+        <section class="co-card" data-controller="co-company-search" data-co-company-search-url-value="{{ path('backoffice_clinic_lookup') }}">
+          <div class="co-card-body co-form-stack">
+            <p class="co-label">Entreprise</p>
+            <div class="co-field">
+              <label for="company-q">Rechercher par SIRET, SIREN ou raison sociale</label>
+              <div class="co-search-field co-company-q">
+                {{ co.icon('search', 14) }}
+                <input class="co-input" id="company-q" type="search" autocomplete="off" placeholder="castel veterinaire marseille" data-co-company-search-target="query" data-action="input->co-company-search#search">
+              </div>
+              <ul class="co-company-hits" data-co-company-search-target="hits" hidden></ul>
+              <p class="co-hint" data-co-company-search-target="status" hidden></p>
+            </div>
+            <p class="co-sources">
+              {{ co.icon('info', 13) }}
+              <span>Sources : <a href="https://annuaire-entreprises.data.gouv.fr" target="_blank" rel="noopener">Annuaire des entreprises</a> de l'État (INSEE Sirene, RNE), mis à jour chaque jour. Le numéro de TVA est vérifié auprès de <a href="https://ec.europa.eu/taxation_customs/vies/" target="_blank" rel="noopener">VIES</a> (Commission européenne).</span>
+            </p>
+            {% for field in ['siren', 'siret', 'name', 'naf', 'street', 'postal_code', 'city', 'vat', 'vat_check'] %}
+              {% set key = {siren: 'siren', siret: 'siret', name: 'legalName', naf: 'naf', street: 'street', postal_code: 'postalCode', city: 'city', vat: 'vat', vat_check: 'vatCheck'}[field] %}
+              <input type="hidden" name="company_{{ field }}" value="{{ company[key]|default('') }}" data-co-company-search-target="{{ field|replace({'_': ''}) }}">
+            {% endfor %}
+            <div class="co-company-card{{ company.siret|default('') == '' ? '' : ' is-chosen' }}" data-co-company-search-target="card"{% if company.siret|default('') == '' %} hidden{% endif %}>
+              <p class="co-company-check" data-co-company-search-target="check">
+                {{ co.icon('check-circle', 14) }}
+                <span>
+                  Entreprise vérifiée au registre
+                  {%- if company.vatCheck|default('') == 'valid' %} · TVA intracommunautaire valide (VIES){% elseif company.vatCheck|default('') == 'invalid' %} · TVA non reconnue par VIES{% elseif company.vatCheck|default('') == 'unavailable' %} · VIES indisponible, TVA non vérifiée{% endif %}
+                </span>
+              </p>
+              <div class="co-row2">
+                <div class="co-tile"><span>Raison sociale</span><b data-co-company-search-target="showName">{{ company.legalName|default('') }}</b></div>
+                <div class="co-tile"><span>SIRET</span><b class="co-mono" data-co-company-search-target="showSiret">{{ company.siret|default('') }}</b></div>
+                <div class="co-tile"><span>N° TVA</span><b data-co-company-search-target="showVat">{{ company.vat|default('—') }}</b></div>
+                <div class="co-tile"><span>Siège</span><b data-co-company-search-target="showAddress">{{ company.street|default('') }}{% if company.postalCode|default('') %}, {{ company.postalCode }} {{ company.city|default('') }}{% endif %}</b></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="co-card" data-controller="co-tenant-check" data-co-tenant-check-url-value="{{ path('backoffice_clinic_lookup') }}"{% if errors.slug is defined %} data-co-tenant-check-open-value="true"{% endif %}
+                 data-action="co-company-search:chosen@window->co-tenant-check#prefill">
+          <div class="co-card-body co-form-stack">
+            <p class="co-label">Établissement</p>
+            <div class="co-row2">
+              <div class="co-field">
+                <label for="new-name">Nom affiché</label>
+                <input class="co-input" id="new-name" name="name" value="{{ place.name|default('') }}" required maxlength="120" data-co-tenant-check-target="name" data-action="input->co-tenant-check#suggest">
+                <span class="co-hint">Repris de la raison sociale, à ajuster. Visible par l'équipe et dans l'app Portal.</span>
+              </div>
+              <div class="co-field">
+                <label for="new-slug">Identifiant du tenant</label>
+                <div class="co-slug" data-co-tenant-check-target="slugView" hidden>
+                  <code data-co-tenant-check-target="slugText">{{ place.slug|default('—') }}</code>
+                  <button class="co-btn is-link" type="button" data-action="co-tenant-check#edit">{{ co.icon('pencil', 12) }} Modifier</button>
+                </div>
+                <input class="co-input is-mono" id="new-slug" name="slug" value="{{ place.slug|default('') }}" required pattern="[a-z0-9\-]+" maxlength="60" data-co-message="Minuscules, chiffres et tirets seulement." data-co-tenant-check-target="slug" data-action="input->co-tenant-check#check">
+                <span class="co-hint{{ errors.slug is defined ? ' is-error' }}" data-co-tenant-check-target="hint">{{ errors.slug ?? 'Fabriqué à partir du nom affiché' }}</span>
+              </div>
+            </div>
+            <label class="co-check"><input type="checkbox" name="same_address" value="1"{% if place.sameAddress|default('1') == '1' %} checked{% endif %} data-action="co-tenant-check#address"> <span>Adresse de l'établissement identique au siège</span></label>
+            <div class="co-address" data-co-tenant-check-target="address"{% if place.sameAddress|default('1') == '1' %} hidden{% endif %}>
+              <div class="co-field"><label for="new-street">Adresse</label><input class="co-input" id="new-street" name="street" value="{{ place.street|default('') }}"></div>
+              <div class="co-row-zip">
+                <div class="co-field"><label for="new-postal">Code postal</label><input class="co-input" id="new-postal" name="postal_code" value="{{ place.postalCode|default('') }}"></div>
+                <div class="co-field"><label for="new-city">Ville</label><input class="co-input" id="new-city" name="city" value="{{ place.city|default('') }}"></div>
+              </div>
+            </div>
+            <div class="co-row2">
+              <div class="co-field"><label for="new-phone">Téléphone</label><input class="co-input" id="new-phone" name="phone" value="{{ place.phone|default('') }}"></div>
+              <div class="co-field"><label for="new-email">E-mail de contact</label><input class="co-input" id="new-email" type="email" name="email" value="{{ place.email|default('') }}"></div>
+            </div>
+            <div class="co-row2">
+              <div class="co-field"><label for="new-country">Pays</label><select class="co-select" id="new-country" disabled><option>France</option></select></div>
+              <div class="co-field">
+                <label for="new-zone">Fuseau horaire</label>
+                <select class="co-select" id="new-zone" name="time_zone">
+                  {% for zone in zones %}<option value="{{ zone }}"{% if zone == place.timeZone|default('Europe/Paris') %} selected{% endif %}>{{ zone }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="co-field">
+              <label for="new-software">Logiciel utilisé en parallèle pendant l'alpha</label>
+              <select class="co-select" id="new-software" name="parallel_software">
+                <option value="">—</option>
+                {% for value, label in softwares %}<option value="{{ value }}"{% if value == place.parallelSoftware|default('') %} selected{% endif %}>{{ label }}</option>{% endfor %}
+              </select>
+            </div>
+          </div>
+        </section>
+        <div class="co-form-end"><button class="co-btn is-primary" type="submit">Continuer {{ co.icon('chevron-right', 12) }}</button></div>
+
+      {% elseif step == 2 %}
+        <section class="co-card" data-controller="co-team-rows">
+          <div class="co-card-head"><div><h2 class="co-label">Équipe à inviter</h2><span class="co-sub">Les invitations partent à la création. Le lien est valable 7 jours.</span></div></div>
+          <div class="co-table-wrap">
+            <table class="co-table co-team-table">
+              <thead><tr><th>Prénom</th><th>Nom</th><th>E-mail</th><th>Rôle</th><th>Admin</th><th></th></tr></thead>
+              <tbody data-co-team-rows-target="body">
+                {% set rows = draft.team|length > 0 ? draft.team : [{firstName: '', lastName: '', email: '', role: 'VETERINARY'}] %}
+                {% for person in rows %}
+                  {{ include('backoffice/console/clinics/_team_row.html.twig', {index: loop.index0, person: person}) }}
+                {% endfor %}
+              </tbody>
+            </table>
+            <template data-co-team-rows-target="template">{{ include('backoffice/console/clinics/_team_row.html.twig', {index: '__INDEX__', person: {firstName: '', lastName: '', email: '', role: 'VETERINARY_ASSISTANT'}}) }}</template>
+          </div>
+          <div class="co-card-foot">
+            <button class="co-btn is-white co-add-row" type="button" data-action="co-team-rows#add">{{ co.icon('plus', 12) }} Ajouter une personne</button>
+            <span>Le premier vétérinaire est administrateur de la clinique. Il pourra inviter le reste de l'équipe lui-même.</span>
+          </div>
+        </section>
+        <div class="co-form-split">
+          <a class="co-btn is-white" href="{{ path('backoffice_clinic_new', {step: 1}) }}">{{ co.icon('chevron-left', 12) }} Retour</a>
+          <button class="co-btn is-primary" type="submit">Continuer {{ co.icon('chevron-right', 12) }}</button>
+        </div>
+
+      {% else %}
+        {% if features|default([])|length > 0 %}
+          <section class="co-card">
+            <div class="co-card-head"><h2 class="co-label">Fonctionnalités de départ</h2></div>
+            <ul class="co-feature-choices">
+              {% for feature in features %}
+                <li class="{{ feature.upcoming ? 'is-greyed' }}">
+                  <label class="co-check">
+                    <input type="checkbox" name="features[]" value="{{ feature.code }}" data-audience="{{ feature.audience }}"{% if feature.upcoming %} data-upcoming{% endif %}{% if feature.code in draft.features or (draft.features|length == 0 and feature.defaultOn and (feature.audience == 'all' or feature.audience == draft.plan)) %} checked{% endif %}{% if feature.upcoming %} disabled{% endif %}>
+                    <span>{{ feature.name }}{% if feature.badge %} <span class="co-badge {{ feature.badge.class }}">{{ feature.badge.label }}</span>{% endif %}<small>{{ feature.description }}</small></span>
+                  </label>
+                  <code class="co-code">{{ feature.code }}</code>
+                </li>
+              {% endfor %}
+            </ul>
+          </section>
+        {% endif %}
+        <section class="co-card">
+          <div class="co-card-head"><h2 class="co-label">Abonnement</h2></div>
+          <div class="co-card-body co-plans">
+            <label class="co-plan">
+              <input type="radio" name="plan" value="pilot"{% if draft.plan != 'paid' %} checked{% endif %}>
+              <span><b>Pilote</b><small>Aucune facturation pendant l'alpha. Bascule manuelle vers le payant.</small></span>
+            </label>
+            <label class="co-plan">
+              <input type="radio" name="plan" value="paid"{% if draft.plan == 'paid' %} checked{% endif %}>
+              <span><b>Payant · {{ price }} HT / véto / mois</b><small>Facturation à partir de la date de création.</small></span>
+            </label>
+          </div>
+        </section>
+        <div class="co-form-split">
+          <a class="co-btn is-white" href="{{ path('backoffice_clinic_new', {step: 2}) }}">{{ co.icon('chevron-left', 12) }} Retour</a>
+          <button class="co-btn is-primary" type="submit">Créer la clinique et envoyer {{ draft.team|length }} invitation{{ draft.team|length > 1 ? 's' }} {{ co.icon('chevron-right', 12) }}</button>
+        </div>
+      {% endif %}
+    </form>
+
+    <aside class="co-col">
+      <section class="co-card" aria-labelledby="new-summary">
+        <div class="co-card-head"><h2 class="co-label" id="new-summary">Récapitulatif</h2></div>
+        <dl class="co-dl">
+          <div><dt>Clinique</dt><dd data-co-summary-target="name">{{ place.name|default('—') }}</dd></div>
+          <div><dt>Tenant</dt><dd><code data-co-summary-target="slug">{{ place.slug|default('—') }}</code></dd></div>
+          {% set legal = company.legalName|default('—') %}
+          <div><dt>Entreprise</dt><dd title="{{ legal }}" data-co-summary-target="company">{{ legal|length > 24 ? legal|slice(0, 22) ~ '…' : legal }}</dd></div>
+          <div><dt>Invitations</dt><dd data-co-summary-target="invitations">{{ draft.team|length > 0 ? draft.team|length ~ ' personne' ~ (draft.team|length > 1 ? 's') : '—' }}</dd></div>
+          <div><dt>Fonctionnalités</dt><dd data-co-summary-target="features">{{ step == 3 and draft.features|length > 0 ? draft.features|length : '—' }}</dd></div>
+          <div><dt>Vétos facturables</dt><dd data-co-summary-target="vets">{{ summary.vets > 0 ? summary.vets ~ ' × ' ~ price ~ ' HT' : '—' }}</dd></div>
+          <div class="co-dl-total"><dt>Mensuel</dt><dd data-co-summary-target="monthly">{{ summary.vets == 0 ? '—' : (step == 3 and draft.plan != 'paid' ? '0 € (pilote)' : summary.monthly ~ ' HT') }}</dd></div>
+        </dl>
+        <p class="co-card-foot">Vétos facturables = utilisateurs avec le rôle Vétérinaire. Les ASV, l'accueil et le gérant sont inclus.</p>
+      </section>
+    </aside>
+  </div>
+{% endblock %}

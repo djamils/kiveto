@@ -32,6 +32,9 @@ final readonly class RequireClinicSelectionSubscriber implements EventSubscriber
         'clinic_reset_password_submit',
         'clinic_invitation',
         'clinic_invitation_submit',
+        // A support session opens (D2) and ends (D3) on its own.
+        'clinic_support_claim',
+        'clinic_support_end',
     ];
 
     public function __construct(

@@ -1,0 +1,18 @@
+{% extends 'backoffice/console/base.html.twig' %}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+
+{% block page_title %}Reconfigurer la double authentification{% endblock %}
+
+{% block content %}
+  <nav class="co-crumbs" aria-label="Fil d'Ariane">
+    <a href="{{ path('backoffice_account') }}">Mon compte</a>{{ co.icon('chevron-right', 12) }}<strong>Application d'authentification</strong>
+  </nav>
+
+  <section class="co-card co-codes-card" aria-label="Nouvelle clé">
+    <div class="co-card-body">
+      <h1 class="co-auth-title">Reconfigurer l'application d'authentification</h1>
+      <p class="co-auth-sub">La nouvelle clé remplace l'ancienne dès que tu as saisi l'un de ses codes ; de nouveaux codes de secours sont générés.</p>
+      {{ include('backoffice/console/auth/_second_factor_setup.html.twig', {setup: setup, qr: qr, action: action, error: error}) }}
+    </div>
+  </section>
+{% endblock %}

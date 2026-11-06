@@ -134,7 +134,7 @@ final class AccountUseCasesTest extends TestCase
     }
 
     /**
-     * AC 28 / 29: a 72-hour link; « Renvoyer » replaces the link of that clinic only.
+     * AC 28 / 29: a 7-day link; « Renvoyer » replaces the link of that clinic only.
      */
     public function testAnInvitationIsALinkOfTheClinic(): void
     {
@@ -149,7 +149,7 @@ final class AccountUseCasesTest extends TestCase
         ]);
         $token = $this->tokens->findByHash(hash('sha256', AccountFakes::secretOf($request->activationUrl)));
         self::assertNotNull($token);
-        self::assertSame(['2026-10-29 07:14', self::CLINIC_A], [$token->expiresAt()->format('Y-m-d H:i'), $token->clinicId()]);
+        self::assertSame(['2026-11-02 07:14', self::CLINIC_A], [$token->expiresAt()->format('Y-m-d H:i'), $token->clinicId()]);
 
         $this->invite($userId, self::CLINIC_B);
         $this->invite($userId, self::CLINIC_A);
@@ -207,7 +207,7 @@ final class AccountUseCasesTest extends TestCase
 
         foreach (['unknown', $link] as $i => $secret) {
             if (1 === $i) {
-                $this->clock = new FrozenClock(new \DateTimeImmutable('2026-10-29 08:00:00', new \DateTimeZone('UTC')));
+                $this->clock = new FrozenClock(new \DateTimeImmutable('2026-11-02 08:00:00', new \DateTimeZone('UTC')));
             }
 
             try {
@@ -264,6 +264,29 @@ final class AccountUseCasesTest extends TestCase
 
         $this->requestReset('claire@example.com');
         self::assertFalse($token->isUsable($this->clock->now()), 'a new request replaces the previous link');
+    }
+
+    /**
+     * A member of the Kiveto team asks from the console: the link opens the
+     * console's reset page, and the clinic form never reaches that account.
+     */
+    public function testABackOfficeAccountReceivesALinkToTheConsole(): void
+    {
+        $admin = $this->existing('admin@kiveto.fr', UserStatus::ACTIVE, UserType::BACKOFFICE);
+
+        $this->requestReset('admin@kiveto.fr');
+        self::assertSame([], $this->fakes->resets, 'the clinic form looks for a clinic account');
+
+        $this->requestReset(' Admin@Kiveto.fr ', backoffice: true);
+        self::assertCount(1, $this->fakes->resets);
+        $request = $this->fakes->resets[0];
+        self::assertSame([$admin->id()->toString(), 'admin@kiveto.fr'], [$request->userId, $request->email]);
+        self::assertStringStartsWith('https://backoffice/reinitialiser/', $request->resetUrl);
+        self::assertNotNull($this->tokens->findByHash(hash('sha256', AccountFakes::secretOf($request->resetUrl))));
+
+        $this->existing('clinic@kiveto.fr', UserStatus::ACTIVE, UserType::CLINIC);
+        $this->requestReset('clinic@kiveto.fr', backoffice: true);
+        self::assertCount(1, $this->fakes->resets, 'the console form looks for a back-office account');
     }
 
     public function testAResetChangesThePasswordOnceAndSpendsEveryLink(): void
@@ -348,9 +371,9 @@ final class AccountUseCasesTest extends TestCase
         return new ActivateInvitedUserHandler($this->users, $this->tokens, $this->fakes, $this->clock, $this->fakes->publisher(), new OpaqueTokenHasher())(new ActivateInvitedUser($secret, $password));
     }
 
-    private function requestReset(string $email): void
+    private function requestReset(string $email, bool $backoffice = false): void
     {
-        new RequestPasswordResetHandler($this->users, $this->tokens, $this->fakes, $this->clock, $this->fakes, $this->fakes, new OpaqueTokenHasher())(new RequestPasswordReset($email));
+        new RequestPasswordResetHandler($this->users, $this->tokens, $this->fakes, $this->clock, $this->fakes, $this->fakes, new OpaqueTokenHasher())(new RequestPasswordReset($email, $backoffice));
     }
 
     private function reset(string $secret, string $password): void

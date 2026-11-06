@@ -1,0 +1,110 @@
+{% extends 'backoffice/console/base.html.twig' %}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+
+{% block page_title %}Utilisateurs{% endblock %}
+
+{% set params = filters.params() %}
+
+{% block content %}
+  <header class="co-head">
+    <div class="co-head-title">
+      <h1 class="co-title">Utilisateurs</h1>
+      <span class="co-sub">{{ totals.staff }} compte{{ totals.staff > 1 ? 's' }} clinique · {{ totals.portal }} propriétaire{{ totals.portal > 1 ? 's' }}</span>
+    </div>
+
+    <form class="co-search-field" method="get" action="{{ path('backoffice_users') }}" role="search" data-turbo-frame="users-list">
+      {% for name, value in params|filter((v, k) => k != 'q') %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+      <label class="co-sr" for="users-q">Rechercher un utilisateur</label>
+      {{ co.icon('search', 14) }}
+      <input class="co-input" id="users-q" type="search" name="q" value="{{ filters.search }}" placeholder="Nom, e-mail, téléphone…">
+    </form>
+  </header>
+
+  {# The tabs, the filters and the pages reload the list alone; the export follows them. #}
+  <turbo-frame id="users-list" data-turbo-action="advance">
+  <div class="co-users-bar">
+  <nav class="co-segmented" aria-label="Type de compte">
+    <a class="{{ filters.tab == 'staff' ? 'is-active' }}" href="{{ path('backoffice_users', filters.search != '' ? {q: filters.search} : {}) }}"{% if filters.tab == 'staff' %} aria-current="page"{% endif %}>Personnel clinique <span>{{ totals.staff }}</span></a>
+    <a class="{{ filters.tab == 'portal' ? 'is-active' }}" href="{{ path('backoffice_users', {tab: 'portal'}|merge(filters.search != '' ? {q: filters.search} : {})) }}"{% if filters.tab == 'portal' %} aria-current="page"{% endif %}>Propriétaires (Portal) <span>{{ totals.portal }}</span></a>
+  </nav>
+  <a class="co-btn is-white" href="{{ path('backoffice_users_export', params) }}" data-turbo="false">{{ co.icon('download', 13) }} Exporter</a>
+  </div>
+
+  {% if staff %}
+    <section class="co-card" aria-label="Personnel clinique">
+      <div class="co-filters">
+        {% for key, label in {all: 'Tous', active: 'Actifs', invited: 'Invitations', disabled: 'Désactivés'} %}
+          <a class="co-pill{{ filters.status == key ? ' is-active' }}" href="{{ path('backoffice_users', params|merge({status: key != 'all' ? key : null})|filter(v => v is not null)) }}">
+            {{ label }} <span class="co-pill-count">{{ staff.counts[key] }}</span>
+          </a>
+        {% endfor %}
+        <form class="co-filters-end" method="get" action="{{ path('backoffice_users') }}" data-controller="co-autosubmit">
+          {% for name, value in params|filter((v, k) => k != 'clinic') %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+          <label class="co-filter-select">Clinique
+            <select class="co-select is-sm" name="clinic" data-action="co-autosubmit#submit">
+              <option value="">Toutes</option>
+              {% for clinic in clinics %}<option value="{{ clinic.id }}"{% if filters.clinicId == clinic.id %} selected{% endif %}>{{ clinic.name }}</option>{% endfor %}
+            </select>
+          </label>
+        </form>
+      </div>
+
+      <div class="co-table-wrap">
+        <table class="co-table co-users">
+          <thead>
+            <tr><th>Utilisateur</th><th>Clinique</th><th>Rôle</th><th>État</th><th>Dernière connexion</th><th class="is-actions"><span class="co-sr">Ouvrir</span></th></tr>
+          </thead>
+          <tbody>
+            {% for row in staff.rows %}
+              <tr>
+                <td>
+                  <a class="co-who" href="{{ path('backoffice_user_show', {id: row.account.id}) }}" data-turbo-frame="_top">
+                    <span class="co-initials">{{ row.name|co_initials }}</span>
+                    <span><b>{{ row.name }}</b><span>{{ row.account.email ?? '—' }}</span></span>
+                  </a>
+                </td>
+                <td>
+                  {% if row.first %}{{ row.first.clinicName }}{% if row.others > 0 %} <span class="co-badge is-outline co-more">+{{ row.others }}</span>{% endif %}{% else %}—{% endif %}
+                </td>
+                <td>{{ row.role ?? '—' }}</td>
+                <td><span class="co-badge {{ row.state.badge }}">{{ row.state.label }}</span></td>
+                <td>{{ row.account.lastLoginAt ? row.account.lastLoginAt|co_when : '—' }}</td>
+                <td class="is-actions"><a class="co-row-link" href="{{ path('backoffice_user_show', {id: row.account.id}) }}" aria-label="Ouvrir · {{ row.name }}" data-turbo-frame="_top">{{ co.icon('arrow-right', 14) }}</a></td>
+              </tr>
+            {% else %}
+              <tr><td colspan="6"><div class="co-empty"><b>Aucun utilisateur</b>Rien ne correspond à ces filtres.</div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {{ co.pager(staff.page, staff.pageCount, staff.total, staff.perPage, 'backoffice_users', params) }}
+    </section>
+  {% else %}
+    <section class="co-card" aria-label="Propriétaires (Portal)">
+      <div class="co-table-wrap">
+        <table class="co-table co-owners">
+          <thead><tr><th>Propriétaire</th><th>Téléphone</th><th>État</th><th>Inscrit le</th><th>Dernière connexion</th></tr></thead>
+          <tbody>
+            {% for account in portal.items %}
+              <tr>
+                <td><div class="co-who"><span class="co-initials">{{ (account.email ?? 'P')|co_initials }}</span><span><b>{{ account.email ?? 'Sans e-mail' }}</b><span>Compte Portal</span></span></div></td>
+                <td>{{ account.phone ? account.phone|phone_display : '—' }}</td>
+                <td>
+                  {% if account.status == 'ACTIVE' %}<span class="co-badge is-green">Actif</span>
+                  {% elseif account.status == 'DISABLED' %}<span class="co-badge is-outline">Supprimé</span>
+                  {% else %}<span class="co-badge is-orange">En attente</span>{% endif %}
+                </td>
+                <td>{{ account.createdAt|co_date(true) }}</td>
+                <td>{{ account.lastLoginAt ? account.lastLoginAt|co_when : '—' }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="5"><div class="co-empty"><b>Aucun propriétaire</b>Rien ne correspond à cette recherche.</div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {{ co.pager(portal.page, portal.pageCount, portal.total, portal.perPage, 'backoffice_users', params) }}
+    </section>
+  {% endif %}
+  </turbo-frame>
+{% endblock %}

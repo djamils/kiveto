@@ -1,0 +1,39 @@
+{% extends 'backoffice/console/base.html.twig' %}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+
+{% block page_title %}{{ clinic.name }} est créée{% endblock %}
+
+{% block content %}
+  <nav class="co-crumbs" aria-label="Fil d'Ariane">
+    <a href="{{ path('backoffice_clinics') }}">Cliniques</a>{{ co.icon('chevron-right', 12) }}<strong>Nouvelle clinique</strong>
+  </nav>
+
+  <section class="co-card co-created">
+    <div class="co-card-body">
+      <span class="co-created-icon">{{ co.icon('check', 20) }}</span>
+      <h1 class="co-title">{{ clinic.name }} est créée</h1>
+      <p class="co-sub">Tenant <code>{{ clinic.slug }}</code> · statut Pilote · onboarding en cours</p>
+
+      <p class="co-label">Invitations envoyées</p>
+      <ul class="co-created-list">
+        {% for person in invited %}
+          <li>
+            <div><b>{{ person.name }}</b><span>{{ person.email }} · {{ person.role }}</span></div>
+            {% if person.error %}
+              <span class="co-badge is-red" title="{{ person.error }}">Non envoyée</span>
+            {% elseif person.sent %}
+              <span class="co-badge is-green">Envoyée · expire le {{ expires_on|co_date }}</span>
+            {% else %}
+              <span class="co-badge is-outline">Compte déjà actif</span>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+
+      <div class="co-form-split">
+        <a class="co-btn is-primary" href="{{ path('backoffice_clinic_show', {id: clinic.id}) }}">Ouvrir la fiche clinique</a>
+        <a class="co-btn is-white" href="{{ path('backoffice_clinic_new') }}">Créer une autre clinique</a>
+      </div>
+    </div>
+  </section>
+{% endblock %}

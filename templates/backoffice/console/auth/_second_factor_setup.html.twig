@@ -1,0 +1,31 @@
+{#
+ # The key to scan and the code that proves it, shared by the first
+ # sign-in and « Mon compte · Reconfigurer ».
+ #   setup: SecondFactorEnrollment, qr: inline SVG, action: the form's target,
+ #   error: a message or null.
+ #}
+<div class="co-setup">
+  <ol class="co-setup-steps">
+    <li>Ouvre ton application d'authentification (Google Authenticator, 1Password, Authy…) et ajoute un compte.</li>
+    <li>Scanne ce QR code, ou saisis la clé à la main.</li>
+    <li>Tape le code à 6 chiffres qu'elle affiche.</li>
+  </ol>
+  <div class="co-setup-qr" aria-label="QR code de la clé">{{ qr|raw }}</div>
+  <div class="co-tile co-setup-key"><span>Clé</span><b class="co-mono">{{ setup.groupedSecret }}</b></div>
+</div>
+
+{% if error %}
+  <div class="co-error-box" role="alert">{{ error }}</div>
+{% endif %}
+
+<form class="co-auth-form" method="post" action="{{ action }}" novalidate
+      data-controller="co-code" data-action="submit->co-code#submit"
+      data-co-code-mask-value="000 000" data-co-code-accept-value="[0-9]"
+      data-co-code-incomplete-value="Le code fait 6 chiffres." data-co-code-refused-value="Chiffres seulement : le code fait 6 chiffres.">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token('backoffice_sign_in') }}">
+  <div class="co-field">
+    <label for="setup-code">Code de l'application</label>
+    {% include 'backoffice/console/auth/_code_field.html.twig' with {id: 'setup-code', backup: false} only %}
+  </div>
+  <button class="co-btn is-primary co-auth-submit" type="submit">Activer la double authentification</button>
+</form>

@@ -44,6 +44,24 @@ final class InMemoryAccountTokens implements AccountTokenRepositoryInterface
         return $this->invalidate(static fn (AccountToken $t): bool => $t->userId() === $userId && TokenPurpose::PASSWORD_RESET === $t->purpose(), $at);
     }
 
+    public function invalidateConsoleInvitations(string $userId, \DateTimeImmutable $at): int
+    {
+        return $this->invalidate(static fn (AccountToken $t): bool => $t->userId() === $userId && TokenPurpose::CONSOLE_INVITATION === $t->purpose(), $at);
+    }
+
+    public function latestUnusedInvitation(string $userId): ?AccountToken
+    {
+        $latest = null;
+
+        foreach ($this->tokens as $token) {
+            if ($token->userId() === $userId && TokenPurpose::INVITATION === $token->purpose() && null === $token->usedAt() && (null === $latest || $token->createdAt() >= $latest->createdAt())) {
+                $latest = $token;
+            }
+        }
+
+        return $latest;
+    }
+
     public function usersWithUsableInvitation(string $clinicId, array $userIds, \DateTimeImmutable $now): array
     {
         $users = [];

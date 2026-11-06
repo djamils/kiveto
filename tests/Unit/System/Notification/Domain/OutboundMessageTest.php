@@ -457,7 +457,7 @@ final class OutboundMessageTest extends TestCase
     }
 
     /**
-     * N10: a reset link lives 30 min, an invitation link 72 h, from the request.
+     * N10: a reset link lives 30 min, an invitation link 7 days, from the request.
      */
     public function testAOneTimeLinkExpiresWithItsToken(): void
     {
@@ -466,8 +466,8 @@ final class OutboundMessageTest extends TestCase
 
         self::assertFalse($reset->linkExpired(new \DateTimeImmutable('2026-10-16 08:29:59')));
         self::assertTrue($reset->linkExpired(new \DateTimeImmutable('2026-10-16 08:30:00')));
-        self::assertFalse($invitation->linkExpired(new \DateTimeImmutable('2026-10-19 07:59:59')));
-        self::assertTrue($invitation->linkExpired(new \DateTimeImmutable('2026-10-19 08:00:00')));
+        self::assertFalse($invitation->linkExpired(new \DateTimeImmutable('2026-10-23 07:59:59')));
+        self::assertTrue($invitation->linkExpired(new \DateTimeImmutable('2026-10-23 08:00:00')));
         self::assertFalse(Messages::email()->linkExpired(new \DateTimeImmutable('2030-01-01')), 'no link, never expired');
     }
 

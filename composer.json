@@ -11,6 +11,7 @@
         "ext-iconv": "*",
         "ext-libxml": "*",
         "api-platform/symfony": "^4.4.6",
+        "bacon/bacon-qr-code": "^3.1",
         "doctrine/doctrine-bundle": "^2.18",
         "doctrine/doctrine-migrations-bundle": "^3.7",
         "doctrine/orm": "^3.5",

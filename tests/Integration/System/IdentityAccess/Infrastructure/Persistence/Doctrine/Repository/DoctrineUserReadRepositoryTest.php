@@ -8,7 +8,11 @@ use App\Fixtures\System\IdentityAccess\Factory\BackofficeUserFactory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\Fixtures\System\IdentityAccess\Factory\PortalUserFactory;
 use App\System\IdentityAccess\Application\Port\UserReadRepositoryInterface;
+use App\System\IdentityAccess\Application\Query\GetAccountSummaries\AccountSummary;
+use App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface;
+use App\System\IdentityAccess\Domain\ValueObject\UserId;
 use App\System\IdentityAccess\Domain\ValueObject\UserStatus;
+use App\System\IdentityAccess\Domain\ValueObject\UserType;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
 
@@ -340,5 +344,60 @@ final class DoctrineUserReadRepositoryTest extends KernelTestCase
 
         self::assertSame($expected, $statuses);
         self::assertSame([], $this->repository->statuses([]));
+    }
+
+    public function testSummariesAnswersTheKnownAccountsKeyedById(): void
+    {
+        $clinic = ClinicUserFactory::createOne(['email' => 'claire@clinique.fr', 'createdAt' => new \DateTimeImmutable('2026-09-01 08:00:00', new \DateTimeZone('UTC'))]);
+        $portal = PortalUserFactory::new()->withPhone('+33612345678')->create(['status' => UserStatus::PENDING, 'createdAt' => new \DateTimeImmutable('2026-10-01 08:00:00', new \DateTimeZone('UTC'))]);
+        $users  = self::getContainer()->get(UserRepositoryInterface::class);
+        \assert($users instanceof UserRepositoryInterface);
+        $users->recordLogin(UserId::fromString($clinic->getId()->toRfc4122()), new \DateTimeImmutable('2026-11-06 09:00:00', new \DateTimeZone('UTC')));
+
+        $summaries = $this->repository->summaries([$clinic->getId()->toRfc4122(), $portal->getId()->toRfc4122(), '01912345-6789-7abc-8def-0000000000ff']);
+
+        self::assertCount(2, $summaries);
+        $claire = $summaries[$clinic->getId()->toRfc4122()] ?? null;
+        $owner  = $summaries[$portal->getId()->toRfc4122()] ?? null;
+        self::assertNotNull($claire);
+        self::assertNotNull($owner);
+        self::assertSame([$clinic->getId()->toRfc4122(), 'CLINIC', 'claire@clinique.fr', null, 'ACTIVE', '2026-09-01 08:00:00', '2026-11-06 09:00:00', 'UTC'], [
+            $claire->id, $claire->type, $claire->email, $claire->phone, $claire->status, $claire->createdAt->format('Y-m-d H:i:s'),
+            $claire->lastLoginAt?->format('Y-m-d H:i:s'), $claire->lastLoginAt?->getTimezone()->getName(),
+        ]);
+        self::assertSame(['PORTAL', null, '+33612345678', 'PENDING', null], [$owner->type, $owner->email, $owner->phone, $owner->status, $owner->lastLoginAt]);
+        self::assertSame([], $this->repository->summaries([]));
+    }
+
+    public function testTheAccountsOfOneTypeAreSearchedNewestFirst(): void
+    {
+        $older   = ClinicUserFactory::createOne(['email' => 'a.martin@clinique.fr', 'createdAt' => new \DateTimeImmutable('2026-01-01 08:00:00')]);
+        $newer   = ClinicUserFactory::createOne(['email' => 'b.martin@clinique.fr', 'createdAt' => new \DateTimeImmutable('2026-03-01 08:00:00')]);
+        $between = ClinicUserFactory::createOne(['email' => 'c.durand@clinique.fr', 'createdAt' => new \DateTimeImmutable('2026-02-01 08:00:00')]);
+        $oldest  = ClinicUserFactory::createOne(['email' => 'x_y@clinique.fr', 'createdAt' => new \DateTimeImmutable('2025-12-01 08:00:00')]);
+        PortalUserFactory::new()->withPhone('+33612345678')->create(['email' => 'martin@portal.fr']);
+
+        self::assertSame([$newer->getId()->toRfc4122(), $older->getId()->toRfc4122()], self::ids($this->repository->accounts(UserType::CLINIC, ' martin ', 0, 10)), 'by e-mail, of that type only');
+        self::assertSame(2, $this->repository->countAccounts(UserType::CLINIC, 'martin'));
+
+        self::assertSame([$between->getId()->toRfc4122(), $older->getId()->toRfc4122()], self::ids($this->repository->accounts(UserType::CLINIC, null, 1, 2)), 'a page');
+        self::assertSame([4, 4], [$this->repository->countAccounts(UserType::CLINIC, null), $this->repository->countAccounts(UserType::CLINIC, '  ')]);
+        self::assertSame([], $this->repository->accounts(UserType::CLINIC, null, -5, -1), 'no negative page');
+
+        self::assertSame([$oldest->getId()->toRfc4122()], self::ids($this->repository->accounts(UserType::CLINIC, '_', 0, 10)), 'an underscore is a literal');
+        self::assertSame(0, $this->repository->countAccounts(UserType::CLINIC, '%'), 'so is a percent sign');
+
+        self::assertSame(1, $this->repository->countAccounts(UserType::PORTAL, '612345'), 'by phone');
+        self::assertSame(0, $this->repository->countAccounts(UserType::BACKOFFICE, null));
+    }
+
+    /**
+     * @param list<AccountSummary> $summaries
+     *
+     * @return list<string>
+     */
+    private static function ids(array $summaries): array
+    {
+        return array_map(static fn (AccountSummary $summary): string => $summary->id, $summaries);
     }
 }

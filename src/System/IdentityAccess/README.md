@@ -118,7 +118,7 @@ A phone with neither account nor invitation is answered `registration_required` 
 Single-use links sent by e-mail, table `identity_access__account_tokens` (`AccountToken`, `TokenPurpose`):
 
 - The secret is 32 random bytes in base64url; **only its sha256 is stored** (`token_hash`, unique). Secret and digest come from Shared's `OpaqueTokenHasherInterface`, also used by refresh tokens and onboarding grants.
-- `INVITATION` — 72 h, scoped to **(clinic, user)**: a new invitation of a clinic invalidates only that clinic's previous one, so two clinics inviting the same person never cancel each other.
+- `INVITATION` — 7 days, scoped to **(clinic, user)**: a new invitation of a clinic invalidates only that clinic's previous one, so two clinics inviting the same person never cancel each other.
 - `PASSWORD_RESET` — 30 min; a new one, and a successful reset, invalidate the user's other reset tokens.
 - A token is used once (`used_at`); invalidated tokens are marked used too.
 - Issuing a link locks the user row (`SELECT … FOR UPDATE`) before invalidating the previous ones: a double click leaves one live link.
@@ -135,6 +135,11 @@ Query `GetInvitationStatuses(clinicId, userIds)` answers `PENDING_VALID`, `PENDI
 | `ActivateInvitedUser(token, plainPassword)` | Usable invitation, password of 8 characters or more → `activate()`, token used, `ActivationResult::ACTIVATED`. An account already ACTIVE (link of another clinic) → token used, `ALREADY_ACTIVE`. |
 | `RequestPasswordReset(email)` | **Asynchronous** (`async` transport, raw `messenger.bus.command`). For an ACTIVE clinic account only: invalidates its reset tokens, issues a 30-minute one and requests `PASSWORD_RESET` (key `password-reset:<tokenId>`, « Demande reçue le … à … » Europe/Paris). Otherwise does nothing. |
 | `ResetPassword(token, plainPassword)` | Usable reset token of an ACTIVE account → `changePassword()`, token and every other reset token of the user used. |
+| `GetAccountSummaries(userIds)` | `AccountSummary` (e-mail, phone, type, status, created, last sign-in) of each known id, keyed by id — the console's member and user lists. |
+| `SearchAccounts(type, text, page, perPage)` | `AccountPage` of the accounts of one type, newest first, the text matched literally on the e-mail or the phone. |
+| `DisableClinicAccount(userId)` | The Kiveto console turns a clinic account off (`User::disableStaff()`): no sign-in, every session revoked (answers how many). Its memberships stay, so `EnableClinicAccount(userId)` gives the same access back: ACTIVE when a password was chosen, PENDING otherwise. |
+| `ChangeInvitedUserEmail(userId, email)` | Corrects the address of a PENDING clinic account (`User::changeInvitedEmail()`): normalised, refused when malformed (`InvalidArgumentException`) or held by another clinic account (`DomainException`), French messages. The caller sends the invitations again. |
+| `GetLatestInvitation(userId)` | `InvitationView{clinicId, sentAt, expiresAt, expired}` of the most recent unused invitation link, or null — the console's « Invitation envoyée le … · expire le … ». |
 | `CheckAccountToken(token, purpose)` | `AccountTokenCheck{VALID (with the e-mail) | INVALID | ALREADY_ACTIVE}` for the public pages. |
 
 Unusable links throw `InvalidAccountTokenException` (« Ce lien n’est plus valide. »), refused passwords `UnacceptablePasswordException`. Ports: `PasswordHasherInterface` (Symfony hasher), `AccountLinkBuilderInterface` (`KIVETO_PUBLIC_BASE_URL`), `NotificationRequesterInterface` (`CommandBusNotificationRequester` → Notification's `RequestNotification`, sender « Kiveto <no-reply@kiveto.app> »).
@@ -149,6 +154,27 @@ The secret kept in the session is bound to its page (one key per page) and lives
 
 `SecurityUser` carries a **password fingerprint** (first 16 hex characters of the sha256 of the password hash) and implements `EquatableInterface`. `ContextUserProvider::refreshUser()` reloads the account at every request: when the password changed elsewhere (reset), the fingerprints differ and Symfony closes the session — every other open session of the user is logged out.
 
+**Signed-in sessions** (`identity_access__user_sessions`, `UserSessionStoreInterface`): one row per web session of a CLINIC or BACKOFFICE account (the session id stored as a sha256 digest, user agent, IP, created, last seen, ended, revoked). `UserSessionListener` opens it at the sign-in (after the session id migration), tracks it at most every 30 seconds (`TrackUserSession`, which answers false for a revoked row or another account's), ends a revoked one at its next request (token cleared, session invalidated, back to `/login`) and ends it at logout (`EndUserSession`). `ListUserSessions` (last 30 days, the asking browser flagged) and `RevokeUserSessions` (one row, or all but the asking browser's) serve « Sessions actives ». Owner accounts are not tracked: their sessions are refresh-token families.
+
+## Console second factor (back office)
+
+Back-office accounts sign in with a password **and** a second factor (`BackofficeAuthenticator` in `Presentation/Backoffice/Security`):
+
+- **TOTP** (RFC 6238: HMAC-SHA1, 30 s, 6 digits, one step of drift each way; `Domain/SecondFactor/Totp`). `SecondFactor` keeps the key, the last step used (a code is accepted once) and ten **backup codes** (HMAC digests through `OtpCodeHasherInterface`, normalised: case, spaces and dashes ignored; each used once). The key is encrypted at rest (`TotpSecretCipher`: libsodium secretbox, key = HMAC-SHA256 of a context with the kernel secret — rotating `APP_SECRET` makes every admin configure his app again).
+- `PrepareSecondFactor` gives a fresh key (and its otpauth:// URI); `EnableSecondFactor(userId, secret, code)` enables it once a code of it is typed (a previous factor replaced) and answers the ten backup codes in clear, shown once; `VerifySecondFactor` answers `APP_CODE`, `BACKUP_CODE`, `INVALID` or `NOT_ENABLED` and never throws; `RegenerateBackupCodes`; `GetSecondFactorStatus`.
+- **Trusted devices** (`identity_access__trusted_devices`): `TrustDevice` answers the secret of a 30-day cookie (only its sha256 stored); `IsDeviceTrusted`; `RevokeTrustedDevices`.
+- **Console profile** (`identity_access__backoffice_profiles`, `BackofficeProfileStoreInterface`): display name (80 characters), display time zone and two e-mail preferences (registry import failed, invitation expired). An account without a row reads the defaults (name from the address, Europe/Paris, both e-mails). `UpdateBackofficeProfile`, `GetBackofficeProfile`, `ListBackofficeProfiles` (active accounts).
+- `ChangeOwnPassword(userId, current, new)`: the current password proves the holder; every session closes (fingerprint).
+- `RequestPasswordReset(email, backoffice: true)` resets a back-office account; its link opens the console's `/reinitialiser` (`AccountLinkBuilderInterface::backofficePasswordResetUrl()`: the backoffice host of `KIVETO_DOMAIN`, scheme of `KIVETO_PUBLIC_BASE_URL`).
+
+## Support sessions (console)
+
+A member of the Kiveto team signs in to a clinic as one of its people (D1–D3), for a logged reason, 15, 30 or 60 minutes, read-only unless the clinic has `support.write_mode` (FeatureCatalog, checked by the console):
+
+- `SupportSession` (`identity_access__support_sessions`): clinic, person, admin (id and name), reason, mode (`SupportMode`), start, expiry, the sha256 of a one-time hand-off secret, claimed, ended, pages seen and changes made.
+- `StartSupportSession` answers a `SupportHandoff` whose URL (`AccountLinkBuilderInterface::supportHandoffUrl()`, `KIVETO_PUBLIC_BASE_URL/support/<secret>`) opens it on the clinic host; `ClaimSupportSession` takes it once within two minutes; `RecordSupportPage` counts (false once it ended or ran out); `EndSupportSession` ends it at the time asked or at its expiry, once; `GetSupportSession`, `ListClinicSupportSessions` (claimed ones, newest first).
+- On the clinic host (`Presentation/Clinic/Support`) the token is set without a `LoginSuccessEvent`: no sign-in of the holder is recorded or tracked, and `SupportSessionListener` keeps the session out of « Sessions actives », refuses every change in read-only mode, counts pages and ends the session when its time is up. « Terminer la session » signs the browser out and sends it back to the clinic's sheet in the console, which shows what the session was. Start and end are in the audit log (`support.session_started`, `support.session_ended`).
+
 ## Domain Events
 
 - `UserRegistered` — emitted when a new user account is created via `RegisterUser` command.
@@ -161,5 +187,23 @@ The secret kept in the session is bound to its page (one key per page) and lives
 
 The following security features are intentionally out of scope for the current phase and documented here as known debt:
 
-- **2FA** — no second factor authentication is implemented. Planned for Phase 3.
+- **2FA** — only back-office accounts have a second factor (« Console second factor »); clinic staff sign in with a password alone.
 - **Account lockout** — no brute-force protection (failed attempt counter, temporary lock). Planned for Phase 3.
+
+
+## The Kiveto team in the console
+
+- `InviteConsoleMember` creates a PENDING back-office account with its name
+  and role (`ConsoleRole`: `admin`, `support`) and a 7-day
+  `CONSOLE_INVITATION` link to the console's `/invitation/{secret}`, where
+  `ActivateInvitedUser` sets the password; the second factor is set up at
+  the first sign-in. Inviting again a PENDING address issues a new link and
+  kills the previous one.
+- `ChangeConsoleRole` and `SwitchConsoleMember` keep an active
+  administrator; one never switches oneself off; off closes every session.
+- The backoffice `ContextUserProvider` adds `ROLE_CONSOLE_ADMIN` or
+  `ROLE_CONSOLE_SUPPORT` from the profile (no profile: administrator);
+  `security.yaml` keeps the team, the translations and the changes of the
+  features and of the registry to administrators.
+- The first administrator of a deployment: `bin/console app:console:invite
+  <email> "<name>"` prints the link.

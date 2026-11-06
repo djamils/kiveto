@@ -23,6 +23,8 @@ doctrine_migrations:
         'DoctrineMigrations\Notification': '%kernel.project_dir%/migrations/Notification'
         'DoctrineMigrations\ClientPortal': '%kernel.project_dir%/migrations/ClientPortal'
         'DoctrineMigrations\ClinicListing': '%kernel.project_dir%/migrations/ClinicListing'
+        'DoctrineMigrations\Audit': '%kernel.project_dir%/migrations/Audit'
+        'DoctrineMigrations\FeatureCatalog': '%kernel.project_dir%/migrations/FeatureCatalog'
     enable_profiler: '%kernel.debug%'
     transactional: true
     check_database_platform: true

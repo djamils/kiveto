@@ -1,0 +1,127 @@
+{% extends 'backoffice/console/base.html.twig' %}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+
+{% block page_title %}Mon compte{% endblock %}
+
+{% set csrf = csrf_token('backoffice_account') %}
+
+{% block content %}
+  <header class="co-head">
+    <div class="co-head-title">
+      <h1 class="co-title">Mon compte</h1>
+      <span class="co-sub">Super-administrateur de la plateforme</span>
+    </div>
+    <div class="co-head-actions">
+      <a class="co-btn is-white" href="{{ logout_path('backoffice') }}">{{ co.icon('logout', 14) }} Se déconnecter</a>
+    </div>
+  </header>
+
+  <div class="co-grid">
+    <div class="co-col">
+      <section class="co-card" aria-labelledby="account-profile">
+        <div class="co-card-head"><h2 class="co-label" id="account-profile">Profil</h2></div>
+        <form class="co-card-body co-account-profile" method="post" action="{{ path('backoffice_account_profile') }}">
+          <input type="hidden" name="_token" value="{{ csrf }}">
+          <div class="co-who">
+            <span class="co-initials is-lg">{{ profile.displayName|co_initials }}</span>
+            <div><b>{{ profile.displayName }}</b><span>Super-admin · depuis le {{ profile.memberSince|co_date(true) }}</span></div>
+          </div>
+          <div class="co-row2">
+            <div class="co-field">
+              <label for="account-name">Nom affiché</label>
+              <input class="co-input" id="account-name" name="display_name" value="{{ profile.displayName }}" maxlength="80" required>
+            </div>
+            <div class="co-field">
+              <label for="account-email">E-mail</label>
+              <input class="co-input" id="account-email" value="{{ profile.email }}" readonly aria-describedby="account-email-hint">
+              <span class="co-hint" id="account-email-hint">L'adresse de connexion se change par un autre administrateur.</span>
+            </div>
+          </div>
+          <div class="co-form-end"><button class="co-btn is-primary" type="submit">Enregistrer</button></div>
+        </form>
+      </section>
+
+      <section class="co-card" aria-labelledby="account-security">
+        <div class="co-card-head"><h2 class="co-label" id="account-security">Sécurité</h2></div>
+        <ul class="co-settings">
+          <li>
+            <div class="co-settings-text">
+              <b>Mot de passe</b>
+              <span>{{ password_changed ? 'Modifié le ' ~ password_changed|co_date(true) : 'Inchangé depuis la création du compte' }}</span>
+            </div>
+            <details class="co-inline-form">
+              <summary class="co-btn is-white">Modifier</summary>
+              <form method="post" action="{{ path('backoffice_account_password') }}">
+                <input type="hidden" name="_token" value="{{ csrf }}">
+                <div class="co-field"><label for="pw-current">Mot de passe actuel</label><input class="co-input" id="pw-current" type="password" name="current_password" autocomplete="current-password" required></div>
+                <div class="co-field"><label for="pw-new">Nouveau mot de passe</label><input class="co-input" id="pw-new" type="password" name="new_password" autocomplete="new-password" minlength="8" required></div>
+                <div class="co-field"><label for="pw-confirm">Confirmation</label><input class="co-input" id="pw-confirm" type="password" name="confirmation" autocomplete="new-password" minlength="8" required></div>
+                <p class="co-hint">Toutes tes sessions seront fermées : tu te reconnecteras avec le nouveau mot de passe.</p>
+                <button class="co-btn is-primary" type="submit">Changer le mot de passe</button>
+              </form>
+            </details>
+          </li>
+          <li>
+            <div class="co-settings-text">
+              <b>Application d'authentification</b>
+              <span>Code à 6 chiffres demandé à chaque connexion</span>
+            </div>
+            {% if second_factor.enabled %}<span class="co-badge is-green">Activée</span>{% else %}<span class="co-badge is-orange">À configurer</span>{% endif %}
+            <a class="co-btn is-white" href="{{ path('backoffice_account_second_factor') }}">Reconfigurer</a>
+          </li>
+          <li>
+            <div class="co-settings-text">
+              <b>Codes de secours</b>
+              <span>{{ second_factor.remainingBackupCodes }} code{{ second_factor.remainingBackupCodes > 1 ? 's' }} restant{{ second_factor.remainingBackupCodes > 1 ? 's' }} sur {{ second_factor.backupCodeCount }}</span>
+            </div>
+            <form method="post" action="{{ path('backoffice_account_backup_codes_regenerate') }}" data-controller="co-confirm" data-co-confirm-message-value="Les codes de secours actuels cesseront de fonctionner. Continuer ?" data-action="submit->co-confirm#ask">
+              <input type="hidden" name="_token" value="{{ csrf }}">
+              <button class="co-btn is-white" type="submit"{% if not second_factor.enabled %} disabled{% endif %}>Régénérer</button>
+            </form>
+          </li>
+          <li>
+            <div class="co-settings-text">
+              <b>Appareils de confiance</b>
+              <span>{{ second_factor.trustedDevices }} appareil{{ second_factor.trustedDevices > 1 ? 's' }} · 2FA non redemandée pendant 30 jours</span>
+            </div>
+            <form method="post" action="{{ path('backoffice_account_trusted_devices_revoke') }}">
+              <input type="hidden" name="_token" value="{{ csrf }}">
+              <button class="co-btn is-white" type="submit"{% if second_factor.trustedDevices == 0 %} disabled{% endif %}>Tout révoquer</button>
+            </form>
+          </li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="co-col">
+      <section class="co-card" aria-labelledby="account-sessions">
+        <div class="co-card-head"><h2 class="co-label" id="account-sessions">Sessions actives</h2></div>
+        {{ include('backoffice/console/_sessions.html.twig', {sessions: sessions, csrf: csrf, action: path('backoffice_account_sessions_revoke'), others: true}) }}
+      </section>
+
+      <section class="co-card" aria-labelledby="account-preferences">
+        <div class="co-card-head"><h2 class="co-label" id="account-preferences">Préférences</h2></div>
+        <form class="co-card-body co-prefs" method="post" action="{{ path('backoffice_account_preferences') }}" data-controller="co-autosubmit">
+          <input type="hidden" name="_token" value="{{ csrf }}">
+          <label class="co-check">
+            <input type="checkbox" name="notify_registry_failure" value="1"{% if profile.notifyOnRegistryFailure %} checked{% endif %} data-action="co-autosubmit#submit">
+            <span>E-mail en cas d'échec d'import ANMV<small>Envoyé à l'adresse du profil.</small></span>
+          </label>
+          <label class="co-check">
+            <input type="checkbox" name="notify_invitation_expiry" value="1"{% if profile.notifyOnInvitationExpiry %} checked{% endif %} data-action="co-autosubmit#submit">
+            <span>E-mail quand une invitation expire<small>Pour relancer la clinique à temps.</small></span>
+          </label>
+          <div class="co-field">
+            <label for="account-zone">Fuseau d'affichage</label>
+            <select class="co-select" id="account-zone" name="time_zone" data-action="co-autosubmit#submit">
+              {% for zone in time_zones %}
+                <option value="{{ zone }}"{% if zone == profile.timeZone %} selected{% endif %}>{{ zone }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <noscript><button class="co-btn is-primary" type="submit">Enregistrer</button></noscript>
+        </form>
+      </section>
+    </div>
+  </div>
+{% endblock %}

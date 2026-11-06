@@ -24,13 +24,13 @@ final class AccountTokenTest extends TestCase
         self::assertSame(['t-1', self::USER, TokenPurpose::PASSWORD_RESET, '2026-10-26 10:00:00'], [$token->id()->toString(), $token->userId(), $token->purpose(), $token->createdAt()->format('Y-m-d H:i:s')]);
     }
 
-    public function testAnInvitationLastsSeventyTwoHoursAndIsUsedOnce(): void
+    public function testAnInvitationLastsSevenDaysAndIsUsedOnce(): void
     {
         $token = AccountToken::issue(AccountTokenId::fromString('t-2'), self::USER, TokenPurpose::INVITATION, self::CLINIC, 'secret', new \DateTimeImmutable('2026-10-26 10:00:00'));
 
         self::assertSame(self::CLINIC, $token->clinicId());
-        self::assertTrue($token->isUsable(new \DateTimeImmutable('2026-10-29 09:59:59')));
-        self::assertFalse($token->isUsable(new \DateTimeImmutable('2026-10-29 10:00:00')), '73 h later');
+        self::assertTrue($token->isUsable(new \DateTimeImmutable('2026-11-02 09:59:59')));
+        self::assertFalse($token->isUsable(new \DateTimeImmutable('2026-11-02 10:00:00')), 'seven days later');
 
         $token->markUsed(new \DateTimeImmutable('2026-10-27 08:00:00'));
         $token->markUsed(new \DateTimeImmutable('2026-10-27 09:00:00'));

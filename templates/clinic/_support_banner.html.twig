@@ -1,0 +1,22 @@
+{# D2 — the support banner of the VetApp, over every page of a support session. #}
+{% set support = app.session.get('support.data') %}
+{% if support is iterable %}
+  <style>
+    body.shell{padding-top:46px}
+    .v-support{position:fixed;inset:0 0 auto 0;z-index:1000;height:46px;display:flex;align-items:center;gap:14px;padding:0 20px;background:#fbbf24;color:#1c1917;font:500 13px/1.3 system-ui,-apple-system,sans-serif}
+    .v-support b{font-weight:700}
+    .v-support .v-support-tag{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#1c1917;color:#fbbf24;border-radius:4px;padding:2px 7px}
+    .v-support form{margin:0 0 0 auto}
+    .v-support button{height:30px;padding:0 14px;border:0;border-radius:7px;background:#1c1917;color:#fff;font:600 13px system-ui,-apple-system,sans-serif;cursor:pointer}
+  </style>
+  <div class="v-support" role="status">
+    <b>Mode support</b>
+    <span>Connecté en tant que <b>{{ support.userName }}</b> · {{ support.clinicName }}</span>
+    <span class="v-support-tag">{{ support.modeLabel }}</span>
+    <span>Expire à {{ support.expiresAt|date('H:i', 'Europe/Paris') }}</span>
+    <form method="post" action="{{ path('clinic_support_end') }}">
+      <input type="hidden" name="_token" value="{{ csrf_token('clinic_support_end') }}">
+      <button type="submit">Terminer la session</button>
+    </form>
+  </div>
+{% endif %}

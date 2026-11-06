@@ -1,0 +1,28 @@
+{% extends 'backoffice/console/auth/_layout.html.twig' %}
+
+{% block auth_title %}Connexion administrateur{% endblock %}
+
+{% block card %}
+  <h1 class="co-auth-title">Connexion administrateur</h1>
+  <p class="co-auth-sub">Accès réservé à l'équipe Kiveto.</p>
+
+  {% if error %}
+    <div class="co-error-box" role="alert">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
+  {% endif %}
+
+  <form class="co-auth-form" method="post" action="{{ path('backoffice_login') }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token('backoffice_sign_in') }}">
+    <div class="co-field">
+      <label for="login-email">Adresse e-mail</label>
+      <input class="co-input" id="login-email" type="email" name="email" value="{{ last_email }}" autocomplete="username" required autofocus>
+    </div>
+    <div class="co-field">
+      <div class="co-auth-label-row">
+        <label for="login-password">Mot de passe</label>
+        <a href="{{ path('backoffice_forgot_password') }}" id="lOubli">Mot de passe oublié ?</a>
+      </div>
+      <input class="co-input" id="login-password" type="password" name="password" autocomplete="current-password" required>
+    </div>
+    <button class="co-btn is-primary co-auth-submit" type="submit">Continuer</button>
+  </form>
+{% endblock %}

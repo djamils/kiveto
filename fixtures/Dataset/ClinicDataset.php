@@ -18,6 +18,7 @@ use App\Fixtures\Context\ClientPortal\Story\ClientPortalStatesStory;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicMembershipDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicStaffProfileDataStory;
+use App\Fixtures\Context\Clinic\Story\ConsoleDemoStory;
 use App\Fixtures\Context\Clinic\Story\TeamDemoStory;
 use App\Fixtures\Context\Consultation\Story\ConsultationDemoStory;
 use App\Fixtures\Context\Consultation\Story\ConsultationRegisterStory;
@@ -31,12 +32,15 @@ use App\Fixtures\Context\Scheduling\Story\SchedulingPlanningBlockStory;
 use App\Fixtures\Context\Scheduling\Story\SchedulingStory;
 use App\Fixtures\System\AccessControl\Story\RolePermissionSeedStory;
 use App\Fixtures\System\ElectronicInvoicing\Story\ElectronicInvoicingDemoStory;
+use App\Fixtures\System\FeatureCatalog\Story\FeatureCatalogDemoStory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\Fixtures\System\IdentityAccess\Story\ClinicVetStory;
+use App\Fixtures\System\IdentityAccess\Story\SupportSessionsDemoStory;
 use App\Fixtures\System\Notification\Story\NotificationDemoStory;
 use App\Fixtures\System\PharmaceuticalRegistry\Story\ControlledSubstancesStory;
 use App\Fixtures\System\PharmaceuticalRegistry\Story\CoreMedicationsStory;
 use App\Fixtures\System\PharmaceuticalRegistry\Story\LivestockMedicationsStory;
+use App\Fixtures\System\PharmaceuticalRegistry\Story\RegistryImportsDemoStory;
 use App\Fixtures\System\Taxation\Story\TaxonomyBootstrapStory;
 use App\Fixtures\System\Translation\Story\RegulatoryTranslationStory;
 use Zenstruck\Foundry\Attribute\AsFixture;
@@ -93,6 +97,8 @@ final class ClinicDataset extends Story
         CoreMedicationsStory::load();
         ControlledSubstancesStory::load();
         LivestockMedicationsStory::load();
+        // The weekly imports the console's « Registre ANMV » lists
+        RegistryImportsDemoStory::load();
 
         // Seed the demo clinic's Catalog (acts, articles, packages, price lists)
         CompanionClinicCatalogStory::load();
@@ -151,6 +157,17 @@ final class ClinicDataset extends Story
         // After the Portal links (its clients have none), before the
         // notifications (they drain the bell entries its requests queued).
         OnlineBookingStory::load();
+
+        // The clinics as the Kiveto console sees them: accounts, onboarding,
+        // waiting and expired invitations, a suspension. Before the
+        // notifications, which send the invitation e-mails it queued.
+        ConsoleDemoStory::load();
+
+        // The features each demo clinic has (FeatureCatalog).
+        FeatureCatalogDemoStory::load();
+
+        // Past support sessions of the console (Paris).
+        SupportSessionsDemoStory::load();
 
         // The notifications: messaging profiles, the confirmations the
         // bookings above queued, SMS quotas, every delivery status, the bell,

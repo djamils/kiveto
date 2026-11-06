@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\System\PharmaceuticalRegistry\Infrastructure\Console;
 
-use App\Shared\Domain\Time\ClockInterface;
+use App\System\PharmaceuticalRegistry\Application\Command\RequestRegistryImport\RequestRegistryImport;
+use App\System\PharmaceuticalRegistry\Application\Command\RequestRegistryImport\RequestRegistryImportHandler;
 use App\System\PharmaceuticalRegistry\Application\Command\RunFullImportCycle\RunFullImportCycle;
 use App\System\PharmaceuticalRegistry\Application\Command\RunFullImportCycle\RunFullImportCycleHandler;
 use App\System\PharmaceuticalRegistry\Domain\ValueObject\ImportSource;
@@ -19,8 +20,8 @@ final class FullImportCycleCommand extends Command
 {
     public function __construct(
         private readonly RunFullImportCycleHandler $handler,
+        private readonly RequestRegistryImportHandler $requestImport,
         private readonly ImportFileManager $importFileManager,
-        private readonly ClockInterface $clock,
     ) {
         parent::__construct();
     }
@@ -64,6 +65,14 @@ final class FullImportCycleCommand extends Command
 
         $output->writeln('<info>Running full import cycle...</info>');
 
+        // The files of current/ go the way of the console's « Lancer l'import »: archived and recorded in the journal.
+        if (!$isDebugOverride) {
+            $ran = ($this->requestImport)(new RequestRegistryImport($source->value, 'Ligne de commande'));
+            $output->writeln($ran ? '<info>Import complete. Files archived and recorded.</info>' : '<comment>Nothing imported: these are the very files of the last import.</comment>');
+
+            return Command::SUCCESS;
+        }
+
         $this->handler->handle(new RunFullImportCycle(
             source: $source->value,
             filePath: $file,
@@ -71,11 +80,6 @@ final class FullImportCycleCommand extends Command
         ));
 
         $output->writeln('<info>Import complete.</info>');
-
-        if (!$isDebugOverride) {
-            $this->importFileManager->archiveCurrentFiles($source, $this->clock->now());
-            $output->writeln('<info>Files archived.</info>');
-        }
 
         return Command::SUCCESS;
     }

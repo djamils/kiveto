@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\Scheduling\Application\Query\IsOnlineBookingOpen;
 
+use App\Context\Scheduling\Application\Port\ClinicFeaturesInterface;
 use App\Context\Scheduling\Application\Port\ClinicOpeningHoursInterface;
 use App\Context\Scheduling\Domain\Booking\OnlineBookingSettingsRepositoryInterface;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
@@ -15,6 +16,7 @@ final readonly class IsOnlineBookingOpenHandler
     public function __construct(
         private OnlineBookingSettingsRepositoryInterface $settings,
         private ClinicOpeningHoursInterface $clinics,
+        private ?ClinicFeaturesInterface $features = null,
     ) {
     }
 
@@ -23,6 +25,10 @@ final readonly class IsOnlineBookingOpenHandler
         $clinicId = ClinicId::fromString($query->clinicId);
         $clinic   = $this->clinics->of($clinicId);
 
-        return null !== $clinic && $this->settings->forClinic($clinicId)->isOpenForBooking($clinic->active);
+        if (null === $clinic || (null !== $this->features && !$this->features->onlineBookingOn($query->clinicId))) {
+            return false;
+        }
+
+        return $this->settings->forClinic($clinicId)->isOpenForBooking($clinic->active);
     }
 }

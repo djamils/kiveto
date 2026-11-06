@@ -91,7 +91,7 @@ enum MessagePurpose: string
     public function linkValidity(): ?\DateInterval
     {
         return match ($this) {
-            self::STAFF_INVITATION          => new \DateInterval('PT72H'),
+            self::STAFF_INVITATION          => new \DateInterval('P7D'),
             self::PASSWORD_RESET            => new \DateInterval('PT30M'),
             self::PORTAL_OTP                => new \DateInterval('PT10M'),
             self::PORTAL_INVITATION         => new \DateInterval('P7D'),

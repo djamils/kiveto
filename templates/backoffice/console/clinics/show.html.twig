@@ -1,0 +1,200 @@
+{% extends 'backoffice/console/base.html.twig' %}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+
+{% block page_title %}{{ sheet.clinic.name }}{% endblock %}
+
+{% set csrf = csrf_token('backoffice_clinic') %}
+{% set suspended = sheet.lifecycle.key == 'suspended' %}
+
+{% block content %}
+<div class="co-sheet" data-controller="co-dialog" data-co-dialog-open-value="{{ open_dialog|default('') }}">
+  <div class="co-head">
+    <nav class="co-crumbs" aria-label="Fil d'Ariane">
+      <a href="{{ path('backoffice_clinics') }}">Cliniques</a>{{ co.icon('chevron-right', 12) }}<strong>{{ sheet.clinic.name }}</strong>
+    </nav>
+    <div class="co-head-actions">
+      <button class="co-btn is-white" type="button" data-action="co-dialog#open" data-co-dialog-id-param="dialog-edit">{{ co.icon('pencil', 12) }} Modifier</button>
+      {% if sheet.support_url %}
+        <button class="co-btn is-primary" type="button" data-action="co-dialog#open" data-co-dialog-id-param="dialog-support"{% if suspended %} disabled title="Clinique suspendue"{% endif %}>{{ co.icon('login', 14) }} Session support</button>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if support_summary|default(null) %}
+    {% set ended = support_summary.view %}
+    <div class="co-banner is-success co-support-ended" role="status">
+      {{ co.icon('check-circle', 14) }}
+      <div><b>Session support terminée.</b> <span>{{ support_summary.name }} · {{ ended.minutes }} min · {{ ended.modeLabel|lower }} · {{ ended.pages }} page{{ ended.pages > 1 ? 's' }} consultée{{ ended.pages > 1 ? 's' }}, {{ ended.writes == 0 ? 'aucune modification' : ended.writes ~ ' modification' ~ (ended.writes > 1 ? 's') }}.</span></div>
+      <a class="co-banner-link" href="{{ path('backoffice_audit', {clinic: sheet.clinic.id, category: 'support', period: 'tout'}) }}">Voir dans le journal</a>
+    </div>
+  {% endif %}
+
+  {% if suspended and sheet.account.suspendedAt %}
+    <div class="co-banner is-danger co-suspended" role="status">
+      {{ co.icon('warning', 14) }}
+      <div>
+        <b>Clinique suspendue le {{ sheet.account.suspendedAt|co_date(true) }} par {{ sheet.account.suspendedByName }} · motif : {{ sheet.account.suspensionReasonLabel|lower }}</b>
+        <span>Les utilisateurs ne peuvent plus se connecter, la clinique est masquée dans l'app Portal et les rappels SMS sont en pause. Les données sont conservées.</span>
+      </div>
+      <form class="co-banner-actions" method="post" action="{{ path('backoffice_clinic_reactivate', {id: sheet.clinic.id}) }}">
+        <input type="hidden" name="_token" value="{{ csrf }}">
+        <button class="co-btn is-white" type="submit">Réactiver la clinique</button>
+      </form>
+    </div>
+  {% endif %}
+
+  <div class="co-who co-sheet-title">
+    {{ co.clinic_mark(sheet.clinic, true) }}
+    <div>
+      <h1 class="co-title">{{ sheet.clinic.name }} <span class="co-badge {{ sheet.lifecycle.badge }}">{{ sheet.lifecycle.label }}</span></h1>
+      <span class="co-sub">{{ sheet.place ?? 'Adresse à compléter' }} · tenant <code>{{ sheet.clinic.slug }}</code> · créée le {{ sheet.clinic.createdAt|co_date(true) }}</span>
+    </div>
+  </div>
+
+  <div class="co-grid">
+    <div class="co-col">
+      {% if sheet.lifecycle.key == 'onboarding' %}
+        <section class="co-card" aria-labelledby="sheet-onboarding">
+          <div class="co-card-head co-onboarding-head">
+            <div>
+              <h2 class="co-label" id="sheet-onboarding">Mise en route · {{ sheet.onboarding.done }} sur {{ sheet.onboarding.total }}</h2>
+              <span class="co-sub">La clinique passe en « Pilote actif » quand les {{ sheet.onboarding.total }} étapes sont faites.</span>
+            </div>
+            <div class="co-progress" role="progressbar" aria-valuemin="0" aria-valuemax="{{ sheet.onboarding.total }}" aria-valuenow="{{ sheet.onboarding.done }}"><span style="--co-progress: {{ (100 * sheet.onboarding.done / max(1, sheet.onboarding.total))|round }}%"></span></div>
+          </div>
+          <ul class="co-steps-list">
+            {% for step in sheet.onboarding.steps %}
+              <li class="{{ step.done ? 'is-done' }}{{ not step.counted ? ' is-greyed' }}">
+                <span class="co-step-dot" aria-hidden="true">{% if step.done %}{{ co.icon('check', 10) }}{% endif %}</span>
+                <div class="co-step-text">
+                  <b>{{ step.label }}{% if not step.counted %} <span class="co-prealpha">Pré-alpha</span>{% endif %}</b>
+                  <span>{{ step.key == 'created' ? sheet.clinic.createdAt|co_date ~ (sheet.created_by ? ' par ' ~ sheet.created_by : '') : step.detail }}</span>
+                </div>
+                {% if step.key == 'accepted' and not step.done and sheet.pending > 0 %}
+                  <form method="post" action="{{ path('backoffice_clinic_invitations_resend', {id: sheet.clinic.id}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf }}">
+                    <button class="co-btn is-white is-sm" type="submit">Relancer</button>
+                  </form>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        </section>
+      {% endif %}
+
+      <section class="co-card" aria-labelledby="sheet-identity">
+        <div class="co-card-head">
+          <h2 class="co-label" id="sheet-identity">Identité</h2>
+          <div class="co-card-head-actions"><button class="co-btn is-white is-sm" type="button" data-action="co-dialog#open" data-co-dialog-id-param="dialog-edit">Modifier</button></div>
+        </div>
+        <div class="co-card-body co-tiles">
+          <div class="co-tile"><span>Raison sociale</span><b>{{ sheet.identity.legalName ?? '—' }}</b></div>
+          <div class="co-tile"><span>SIRET</span><b class="co-mono">{{ sheet.identity.siret ?? '—' }}</b></div>
+          <div class="co-tile"><span>N° TVA</span><b>{{ sheet.identity.vat ?? '—' }}</b></div>
+          <div class="co-tile"><span>Code NAF</span><b>{{ sheet.identity.naf ?? '—' }}</b></div>
+          <div class="co-tile"><span>Adresse</span><b>{{ sheet.identity.address ?? '—' }}</b></div>
+          <div class="co-tile"><span>Téléphone</span><b>{{ sheet.identity.phone ? sheet.identity.phone|phone_display : '—' }}</b></div>
+          <div class="co-tile"><span>E-mail</span><b>{{ sheet.identity.email ?? '—' }}</b></div>
+          <div class="co-tile"><span>Fuseau horaire</span><b>{{ sheet.identity.timeZone }}</b></div>
+          <div class="co-tile"><span>Logiciel en parallèle</span><b>{{ sheet.account.parallelSoftwareLabel ?? '—' }}</b></div>
+        </div>
+      </section>
+
+      <section class="co-card" aria-labelledby="sheet-team">
+        <div class="co-card-head">
+          <h2 class="co-label" id="sheet-team">Équipe · {{ sheet.team|length }}</h2>
+          <div class="co-card-head-actions"><button class="co-btn is-primary is-sm" type="button" data-action="co-dialog#open" data-co-dialog-id-param="dialog-invite"{% if suspended %} disabled{% endif %}>{{ co.icon('plus', 12) }} Inviter</button></div>
+        </div>
+        <div class="co-table-wrap">
+          <table class="co-table">
+            <thead><tr><th>Utilisateur</th><th>Rôle</th><th>Admin</th><th>État</th><th>Dernière connexion</th><th></th></tr></thead>
+            <tbody>
+              {% for member in sheet.team|slice(0, 6) %}
+                <tr>
+                  <td>
+                    <div class="co-who">
+                      <span class="co-initials">{{ member.name|co_initials }}</span>
+                      <div><b>{{ member.name }}</b><span>{{ member.email ?? '—' }}</span></div>
+                    </div>
+                  </td>
+                  <td>{{ member.role }}</td>
+                  <td>{{ member.admin ? 'Oui' : '—' }}</td>
+                  <td><span class="co-badge {{ member.state.badge }}">{{ member.state.label }}</span></td>
+                  <td>{{ member.lastLogin ? member.lastLogin|co_when : '—' }}</td>
+                  <td class="is-actions">{% if member.url %}<a class="co-row-link" href="{{ member.url }}" aria-label="Ouvrir · {{ member.name }}">{{ co.icon('arrow-right', 14) }}</a>{% endif %}</td>
+                </tr>
+              {% else %}
+                <tr><td colspan="6"><div class="co-empty"><b>Personne pour l'instant</b>Invite le premier vétérinaire : il pourra inviter le reste de l'équipe.</div></td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if sheet.team|length > 6 and sheet.users_url %}
+          <div class="co-card-foot"><a href="{{ sheet.users_url }}">Voir les {{ sheet.team|length }} utilisateurs</a></div>
+        {% endif %}
+      </section>
+
+      <section class="co-card" aria-labelledby="sheet-activity">
+        <div class="co-card-head">
+          <h2 class="co-label" id="sheet-activity">Activité récente</h2>
+          <div class="co-card-head-actions"><a href="{{ path('backoffice_audit', {clinic: sheet.clinic.id, period: 'tout'}) }}">Journal complet</a></div>
+        </div>
+        {{ include('backoffice/console/_activity.html.twig', {entries: sheet.activity, empty: 'Rien d’enregistré pour cette clinique.'}) }}
+      </section>
+    </div>
+
+    <div class="co-col">
+      <section class="co-card" aria-labelledby="sheet-plan">
+        <div class="co-card-head"><h2 class="co-label" id="sheet-plan">Abonnement</h2></div>
+        <dl class="co-dl">
+          <div><dt>Formule</dt><dd>{{ sheet.account.planLabel }}</dd></div>
+          <div><dt>Fin du pilote</dt><dd>{{ sheet.account.pilotEndsOn ? sheet.account.pilotEndsOn|co_date(true) : '—' }}</dd></div>
+          <div><dt>Vétos facturables</dt><dd>{{ sheet.billing.vets }}</dd></div>
+          <div><dt>{{ sheet.account.plan == 'pilot' ? 'Montant après pilote' : 'Montant' }}</dt><dd>{{ sheet.billing.monthly }}</dd></div>
+          <div><dt>Moyen de paiement</dt><dd>—</dd></div>
+          {% if sheet.sms %}
+            <div><dt>SMS envoyés en {{ sheet.sms.month }}</dt><dd>{{ sheet.sms.used }} / {{ sheet.sms.quota }}</dd></div>
+          {% endif %}
+        </dl>
+        {% if sheet.sms %}
+          <div class="co-meter" aria-hidden="true"><span style="--co-progress: {{ min(100, sheet.sms.percent) }}%"></span></div>
+        {% endif %}
+      </section>
+
+      {% if features|default([])|length > 0 %}{{ include('backoffice/console/clinics/_features_card.html.twig') }}{% endif %}
+      {% if sheet.support_url %}{{ include('backoffice/console/clinics/_support_card.html.twig') }}{% endif %}
+      {% block sheet_side %}{% endblock %}
+
+      <section class="co-card is-danger" aria-labelledby="sheet-danger">
+        <div class="co-card-head"><h2 class="co-label" id="sheet-danger">Zone sensible</h2></div>
+        <ul class="co-settings">
+          {% if suspended %}
+            <li>
+              <div class="co-settings-text"><b>Réactiver la clinique</b><span>Les utilisateurs retrouvent l'accès.</span></div>
+              <form method="post" action="{{ path('backoffice_clinic_reactivate', {id: sheet.clinic.id}) }}">
+                <input type="hidden" name="_token" value="{{ csrf }}">
+                <button class="co-btn is-white is-sm" type="submit">Réactiver</button>
+              </form>
+            </li>
+          {% else %}
+            <li>
+              <div class="co-settings-text"><b>Suspendre la clinique</b><span>Bloque les connexions, données conservées.</span></div>
+              <button class="co-btn is-danger is-sm" type="button" data-action="co-dialog#open" data-co-dialog-id-param="dialog-suspend">Suspendre</button>
+            </li>
+          {% endif %}
+          <li class="is-greyed" title="Non géré en pré-alpha">
+            <div class="co-settings-text"><b>Exporter les données <span class="co-prealpha">Pré-alpha</span></b><span>Archive complète (RGPD, portabilité).</span></div>
+            <button class="co-btn is-white is-sm" type="button" disabled>Exporter</button>
+          </li>
+        </ul>
+      </section>
+    </div>
+  </div>
+
+  {{ include('backoffice/console/clinics/_edit_dialog.html.twig') }}
+  {{ include('backoffice/console/clinics/_invite_dialog.html.twig') }}
+  {% if not suspended %}{{ include('backoffice/console/clinics/_suspend_dialog.html.twig') }}{% endif %}
+  {% if sheet.support_url and not suspended %}{{ include('backoffice/console/clinics/_support_dialog.html.twig') }}{% endif %}
+  {% block sheet_dialogs %}{% endblock %}
+</div>
+{% endblock %}

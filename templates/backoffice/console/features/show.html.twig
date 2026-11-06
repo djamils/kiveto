@@ -1,0 +1,239 @@
+{% extends 'backoffice/console/base.html.twig' %}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+
+{% set feature = detail.feature %}
+{% set csrf = csrf_token('backoffice_feature') %}
+{% set enabled = detail.all|filter(r => r.state.enabled)|length %}
+{% set params = {q: filters.q != '' ? filters.q : null, state: filters.state != 'all' ? filters.state : null, plan: filters.plan != 'all' ? filters.plan : null}|filter(v => v is not null) %}
+{% set switchable = detail.clinics|filter(r => r.state.own and not r.clinic.isSuspended()) %}
+{# Support reads the features; an administrator changes them. #}
+{% set can_edit = is_granted('ROLE_CONSOLE_ADMIN') %}
+
+{% block page_title %}{{ feature.name }}{% endblock %}
+
+{% block content %}
+<div class="co-sheet" data-controller="co-dialog" data-co-dialog-open-value="{{ open_dialog|default('') }}">
+  <div class="co-head">
+    <nav class="co-crumbs" aria-label="Fil d'Ariane">
+      <a href="{{ path('backoffice_features') }}">Fonctionnalités</a>{{ co.icon('chevron-right', 12) }}<strong>{{ feature.name }}</strong>
+    </nav>
+    <div class="co-head-actions">
+      <button class="co-btn is-primary" type="button" data-action="co-dialog#open" data-co-dialog-id-param="dialog-all"{% if feature.upcoming or feature.isCut() or detail.missing|length == 0 or not can_edit %} disabled{% endif %}>Activer pour toutes</button>
+    </div>
+  </div>
+
+  <div class="co-sheet-title">
+    <h1 class="co-title">
+      {{ feature.name }}
+      {% if feature.isCut() %}<span class="co-badge is-red">Coupée partout</span>{% endif %}
+      <span class="co-badge {{ badges[feature.status] }}">{{ feature.statusLabel }}</span>
+      {% if feature.audience != 'all' %}<span class="co-badge is-outline">{{ feature.audienceLabel }}</span>{% endif %}
+    </h1>
+    <span class="co-sub"><code>{{ feature.code }}</code> · {{ feature.description|lower|trim('.') }}</span>
+  </div>
+
+  {% if feature.upcoming %}
+    <div class="co-banner is-info" role="note">{{ co.icon('info', 14) }} <span>Module à venir : la fonctionnalité est listée pour la feuille de route, elle ne s'active pour aucune clinique.</span></div>
+  {% elseif feature.isCut() %}
+    <div class="co-banner is-danger co-cut" role="alert">
+      {{ co.icon('warning', 14) }}
+      <span>
+        <b>Coupée partout depuis {{ feature.cutAt|co_when }}{% if feature.cutByName %} par {{ feature.cutByName }}{% endif %}.</b>
+        Motif : « {{ feature.cutReason }} ». Aucune clinique ne l'a, quel que soit son réglage. Les réglages des cliniques sont gardés pour la remise en service.
+      </span>
+      {% if can_edit %}
+      <form class="co-banner-actions" method="post" action="{{ path('backoffice_feature_restore', {code: feature.code}) }}">
+        <input type="hidden" name="_token" value="{{ csrf }}">
+        <button class="co-btn is-white is-sm" type="submit">Remettre en service</button>
+      </form>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="co-grid">
+    <div class="co-col">
+      <section class="co-card" aria-labelledby="feature-clinics">
+        <div class="co-card-head"><h2 class="co-label" id="feature-clinics">Cliniques · {{ enabled }} activée{{ enabled > 1 ? 's' }} sur {{ detail.all|length }}</h2></div>
+
+        {# The search and the filters reload the table alone. #}
+        <turbo-frame id="feature-clinics-table" data-turbo-action="advance">
+          <div class="co-filters">
+            {% for key, label in {all: 'Toutes', on: 'Activées', off: 'Désactivées'} %}
+              <a class="co-pill{{ filters.state == key ? ' is-active' }}" href="{{ path('backoffice_feature_show', {code: feature.code}|merge(params)|merge({state: key != 'all' ? key : null})|filter(v => v is not null)) }}">
+                {{ label }} <span class="co-pill-count">{{ detail.counts[key] }}</span>
+              </a>
+            {% endfor %}
+            <form class="co-filters-end" method="get" action="{{ path('backoffice_feature_show', {code: feature.code}) }}" data-controller="co-autosubmit" role="search">
+              {% if filters.state != 'all' %}<input type="hidden" name="state" value="{{ filters.state }}">{% endif %}
+              <label class="co-sr" for="feature-q">Rechercher une clinique</label>
+              <input class="co-input co-filter-search" id="feature-q" type="search" name="q" value="{{ filters.q }}" placeholder="Clinique, tenant…" data-action="input->co-autosubmit#submitLater" data-turbo-permanent>
+              <label class="co-filter-select">Formule
+                <select class="co-select is-sm" name="plan" data-action="co-autosubmit#submit">
+                  {% for value, label in {all: 'Toutes', pilot: 'Pilote', paid: 'Payante'} %}<option value="{{ value }}"{% if filters.plan == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select>
+              </label>
+            </form>
+          </div>
+
+          <div class="co-table-wrap">
+            <table class="co-table co-feature-clinics">
+              <thead><tr><th>Clinique</th><th>Statut</th><th>Formule</th><th>État</th><th class="is-actions"><span class="co-sr">Interrupteur</span></th></tr></thead>
+              <tbody>
+                {% for row in detail.clinics %}
+                  <tr>
+                    <td><a class="co-who" href="{{ path('backoffice_clinic_show', {id: row.clinic.id}) }}" data-turbo-frame="_top">{{ co.clinic_mark(row.clinic) }}<b>{{ row.clinic.name }}</b></a></td>
+                    <td><span class="co-badge {{ row.lifecycle.badge }}">{{ row.lifecycle.label }}</span></td>
+                    <td>{{ row.clinic.plan == 'paid' ? 'Payante' : 'Pilote' }}</td>
+                    <td>
+                      {% if not row.state.own %}
+                        <span class="co-badge is-outline">{{ row.state.decisionLabel }}</span>
+                      {% elseif row.state.enabled and row.state.changedAt %}{{ row.state.changedAt|co_date }}{% if row.state.changedByName %} · {{ row.state.changedByName }}{% endif %}
+                      {% elseif row.state.enabled %}Depuis toujours
+                      {% else %}Désactivée{% endif %}
+                    </td>
+                    <td class="is-actions">
+                      <form method="post" action="{{ path('backoffice_feature_toggle', {code: feature.code, clinicId: row.clinic.id}) }}" data-controller="co-autosubmit" data-turbo-frame="_top">
+                        <input type="hidden" name="_token" value="{{ csrf }}">
+                        <input type="hidden" name="enabled" value="0">
+                        <label class="co-switch" title="{{ not row.state.own ? row.state.decisionLabel ~ ' : son interrupteur ne décide pas' : (row.state.enabled ? 'Désactiver' : 'Activer') ~ ' pour ' ~ row.clinic.name }}">
+                          <input type="checkbox" name="enabled" value="1"{% if row.state.enabled %} checked{% endif %}{% if not row.state.own or not can_edit %} disabled{% endif %} data-action="co-autosubmit#submit">
+                          <span class="co-sr">{{ feature.name }} pour {{ row.clinic.name }}</span>
+                        </label>
+                        <noscript><button class="co-btn is-white is-sm" type="submit">OK</button></noscript>
+                      </form>
+                    </td>
+                  </tr>
+                {% else %}
+                  <tr><td colspan="5"><div class="co-empty"><b>Aucune clinique</b>{{ detail.all|length > 0 ? 'Rien ne correspond à ces filtres.' : 'Les cliniques apparaissent ici dès leur création.' }}</div></td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="co-pager">
+            <span>{{ detail.clinics|length }} clinique{{ detail.clinics|length > 1 ? 's' }}{{ params|length > 0 ? ' affichée' ~ (detail.clinics|length > 1 ? 's') ~ ' sur ' ~ detail.all|length }}</span>
+            {% if switchable|length > 0 and not feature.upcoming and can_edit %}
+              <span class="co-pager-pages co-bulk">
+                {% for on in [true, false] %}
+                  <form method="post" action="{{ path('backoffice_feature_bulk', {code: feature.code}) }}" data-turbo-frame="_top">
+                    <input type="hidden" name="_token" value="{{ csrf }}">
+                    <input type="hidden" name="enabled" value="{{ on ? 1 : 0 }}">
+                    {% for name, value in params %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+                    <button class="co-btn is-white is-sm" type="submit">{{ on ? 'Activer' : 'Désactiver' }} pour {{ params|length > 0 ? 'ces' : 'les' }} {{ switchable|length }}</button>
+                  </form>
+                {% endfor %}
+              </span>
+            {% endif %}
+          </div>
+        </turbo-frame>
+      </section>
+
+      <section class="co-card" aria-labelledby="feature-history">
+        <div class="co-card-head">
+          <h2 class="co-label" id="feature-history">Historique</h2>
+          <div class="co-card-head-actions"><a href="{{ path('backoffice_audit', {category: 'features', q: feature.name, period: 'tout'}) }}">Journal complet</a></div>
+        </div>
+        {{ include('backoffice/console/_activity.html.twig', {entries: detail.history, empty: 'Aucun changement enregistré pour cette fonctionnalité.'}) }}
+      </section>
+    </div>
+
+    <div class="co-col">
+      <section class="co-card" aria-labelledby="feature-settings">
+        <div class="co-card-head"><h2 class="co-label" id="feature-settings">Réglages globaux</h2><span class="co-card-head-actions co-sub">Enregistrés dès qu'ils changent</span></div>
+        <form class="co-card-body co-form-stack" method="post" action="{{ path('backoffice_feature_settings', {code: feature.code}) }}" data-controller="co-autosubmit">
+          <input type="hidden" name="_token" value="{{ csrf }}">
+          <div class="co-field">
+            <label for="feature-status">Statut</label>
+            <select class="co-select" id="feature-status" name="status"{% if feature.upcoming or not can_edit %} disabled{% endif %} data-action="co-autosubmit#submit">
+              {% if feature.upcoming %}<option selected>À venir</option>{% endif %}
+              {% for value, label in statuses %}<option value="{{ value }}"{% if value == feature.status %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="co-field">
+            <label for="feature-audience">Réservée à</label>
+            <select class="co-select" id="feature-audience" name="audience"{% if feature.upcoming or not can_edit %} disabled{% endif %} data-action="co-autosubmit#submit">
+              {% for value, label in audiences %}<option value="{{ value }}"{% if value == feature.audience %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            <span class="co-hint">Une clinique d'une autre formule ne l'a pas, quel que soit son interrupteur.</span>
+          </div>
+          <label class="co-check">
+            <input type="hidden" name="default_on" value="0">
+            <input type="checkbox" name="default_on" value="1"{% if feature.defaultOn %} checked{% endif %}{% if feature.upcoming or not can_edit %} disabled{% endif %} data-action="co-autosubmit#submit">
+            <span>Activée par défaut pour les nouvelles cliniques<small>Pré-cochée à l'étape 3 de la création, si la formule choisie y a droit.</small></span>
+          </label>
+          <div class="co-tile">
+            <span>Effet dans les apps</span>
+            <b class="co-effect">{{ feature.effect }}</b>
+          </div>
+          {% if not feature.upcoming %}<noscript><div class="co-form-end"><button class="co-btn is-white" type="submit">Enregistrer</button></div></noscript>{% endif %}
+        </form>
+      </section>
+
+      {% if not feature.upcoming and not feature.isCut() and can_edit %}
+        <section class="co-card is-danger" aria-labelledby="feature-cut">
+          <div class="co-card-head"><h2 class="co-label" id="feature-cut">Coupe-circuit</h2></div>
+          <div class="co-card-body co-form-stack">
+            <p class="co-sub">En cas d'incident : coupe la fonctionnalité pour toutes les cliniques d'un coup. Le réglage de chacune est gardé et revient à la remise en service.</p>
+            <div><button class="co-btn is-danger" type="button" data-action="co-dialog#open" data-co-dialog-id-param="dialog-cut">Couper partout</button></div>
+          </div>
+        </section>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if detail.missing|length > 0 and not feature.upcoming and not feature.isCut() %}
+    <dialog class="co-modal" id="dialog-all" aria-labelledby="dialog-all-title" data-action="click->co-dialog#backdrop">
+      <form method="post" action="{{ path('backoffice_feature_enable_all', {code: feature.code}) }}">
+        <input type="hidden" name="_token" value="{{ csrf }}">
+        <header class="co-dialog-head">
+          <div>
+            <h2 id="dialog-all-title">Activer « {{ feature.name }} » pour {{ detail.missing|length }} clinique{{ detail.missing|length > 1 ? 's' }} ?</h2>
+            <span>Elle est déjà active pour {{ enabled }} clinique{{ enabled > 1 ? 's' }}. Les cliniques suspendues, et celles d'une autre formule, ne sont pas modifiées.</span>
+          </div>
+        </header>
+        <div class="co-dialog-body">
+          <ul class="co-pick-list">
+            {% for row in detail.missing %}
+              <li><span>{{ row.clinic.name }}</span><span class="co-badge {{ row.lifecycle.badge }}">{{ row.lifecycle.label }}</span></li>
+            {% endfor %}
+          </ul>
+          <label class="co-check is-greyed" title="Non géré en pré-alpha">
+            <input type="checkbox" disabled>
+            <span>Prévenir les administrateurs des cliniques par e-mail <span class="co-prealpha">Pré-alpha</span></span>
+          </label>
+        </div>
+        <footer class="co-dialog-foot">
+          <button class="co-btn is-white" type="button" data-action="co-dialog#close">Annuler</button>
+          <button class="co-btn is-primary" type="submit">Activer pour {{ detail.missing|length }} clinique{{ detail.missing|length > 1 ? 's' }}</button>
+        </footer>
+      </form>
+    </dialog>
+  {% endif %}
+
+  {% if not feature.upcoming and not feature.isCut() %}
+    <dialog class="co-modal" id="dialog-cut" aria-labelledby="dialog-cut-title" data-action="click->co-dialog#backdrop">
+      <form method="post" action="{{ path('backoffice_feature_cut', {code: feature.code}) }}">
+        <input type="hidden" name="_token" value="{{ csrf }}">
+        <header class="co-dialog-head is-danger">
+          <span class="co-dialog-icon">{{ co.icon('warning', 16) }}</span>
+          <div>
+            <h2 id="dialog-cut-title">Couper « {{ feature.name }} » partout ?</h2>
+            <span>Les {{ enabled }} clinique{{ enabled > 1 ? 's' }} qui l'ont la perdent tout de suite, dans la VetApp, le Portal et l'API.</span>
+          </div>
+        </header>
+        <div class="co-dialog-body">
+          <div class="co-field">
+            <label for="cut-reason">Motif</label>
+            <textarea class="co-textarea" id="cut-reason" name="reason" required maxlength="255" placeholder="Faille de sécurité, incident chez un prestataire…"></textarea>
+            <span class="co-hint">Inscrit au journal d'audit et affiché sur la page tant qu'elle est coupée.</span>
+          </div>
+        </div>
+        <footer class="co-dialog-foot">
+          <button class="co-btn is-white" type="button" data-action="co-dialog#close">Annuler</button>
+          <button class="co-btn is-danger-solid" type="submit">Couper partout</button>
+        </footer>
+      </form>
+    </dialog>
+  {% endif %}
+</div>
+{% endblock %}

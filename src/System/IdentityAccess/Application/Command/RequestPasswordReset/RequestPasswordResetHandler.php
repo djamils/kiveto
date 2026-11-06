@@ -37,7 +37,7 @@ final readonly class RequestPasswordResetHandler
 
     public function __invoke(RequestPasswordReset $command): void
     {
-        $found = $this->users->findByEmailAndType(mb_strtolower(mb_trim($command->email)), UserType::CLINIC);
+        $found = $this->users->findByEmailAndType(mb_strtolower(mb_trim($command->email)), $command->backoffice ? UserType::BACKOFFICE : UserType::CLINIC);
         // Locked: two requests at once leave one live link, not two.
         $user = null !== $found ? $this->users->findByIdForUpdate($found->id()) : null;
 
@@ -57,7 +57,7 @@ final readonly class RequestPasswordResetHandler
             tokenId: $token->id()->toString(),
             userId: $userId,
             email: $user->requireEmail(),
-            resetUrl: $this->links->passwordResetUrl($secret),
+            resetUrl: $command->backoffice ? $this->links->backofficePasswordResetUrl($secret) : $this->links->passwordResetUrl($secret),
             requestedAtLabel: $now->setTimezone(new \DateTimeZone(self::LABEL_TIME_ZONE))->format('d/m/Y \à H:i'),
         ));
     }

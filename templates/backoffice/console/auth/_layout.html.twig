@@ -1,0 +1,41 @@
+{#
+ # Kiveto Console — the sign-in pages (A1, A2, configuration, password):
+ # a black page and one centred card.
+ #}
+{% extends 'base.html.twig' %}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+
+{% block title %}{% block auth_title %}Connexion{% endblock %} · Kiveto Console{% endblock %}
+
+{% block head_meta %}
+  <meta name="robots" content="noindex, nofollow">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block body_attributes %} class="co-body is-auth" data-controller="co-forms" data-action="submit->co-forms#submit focusout->co-forms#leave input->co-forms#input change->co-forms#input"{% endblock %}
+
+{% block body %}
+<div class="co co-auth">
+  <div class="co-auth-in">
+    <div class="co-brand co-auth-brand">
+      <span class="co-brand-k">K</span>
+      <span class="co-brand-name">Kiveto</span>
+      <span class="co-brand-sep" aria-hidden="true">/</span>
+      <span class="co-brand-app">Console</span>
+    </div>
+
+    {% block auth_before_card %}{% endblock %}
+
+    <main class="co-auth-card">
+      {% for type, messages in app.flashes %}
+        {% for message in messages %}
+          <div class="co-banner is-{{ type == 'error' ? 'danger' : (type == 'success' ? 'success' : 'info') }}" role="status">{{ message }}</div>
+        {% endfor %}
+      {% endfor %}
+      {% block card %}{% endblock %}
+    </main>
+
+    <p class="co-auth-note">{{ co.icon('lock', 12) }} Chaque connexion est enregistrée dans le journal d'audit.</p>
+  </div>
+</div>
+{% endblock %}

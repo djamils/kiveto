@@ -1,0 +1,19 @@
+{#
+ # A short list of audit entries (« Activité récente », « Historique du
+ # compte »). entries: list<AuditEntryView>, empty: the text without entry.
+ #}
+{% if entries|length == 0 %}
+  <p class="co-card-body co-sub">{{ empty }}</p>
+{% else %}
+  <ul class="co-activity">
+    {% for entry in entries %}
+      <li>
+        <div class="co-activity-text">
+          <b>{{ entry.summary }}</b>
+          <span>{{ entry.actorName ?? 'Inconnu' }} · {{ entry.occurredAt|co_when }}</span>
+        </div>
+        <code class="co-code-chip">{{ entry.action }}</code>
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}

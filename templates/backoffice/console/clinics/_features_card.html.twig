@@ -1,0 +1,32 @@
+{# C1 — « Fonctionnalités » of a clinic: one switch per feature; greyed, with why, when the clinic's switch does not decide (« À venir », cut off everywhere, outside its plan). #}
+{% set csrf_feature = csrf_token('backoffice_feature') %}
+<section class="co-card" aria-labelledby="sheet-features">
+  <div class="co-card-head">
+    <h2 class="co-label" id="sheet-features">Fonctionnalités</h2>
+    <div class="co-card-head-actions"><a href="{{ path('backoffice_features') }}">Catalogue</a></div>
+  </div>
+  <ul class="co-settings co-feature-switches">
+    {% for card in features %}
+      <li class="{{ not card.state.own ? 'is-greyed' }}">
+        <div class="co-settings-text">
+          <b>
+            {{ card.feature.name }}
+            {% if card.feature.isCut() %} <span class="co-badge is-red">Coupée partout</span>
+            {% elseif card.feature.status != 'available' %} <span class="co-badge {{ feature_badges[card.feature.status] }}">{{ card.feature.statusLabel }}</span>{% endif %}
+          </b>
+          <span>{{ not card.state.own and not card.feature.upcoming ? card.state.decisionLabel ~ ' · ' }}{{ card.feature.description }}</span>
+        </div>
+        <form method="post" action="{{ path('backoffice_feature_toggle', {code: card.feature.code, clinicId: sheet.clinic.id}) }}" data-controller="co-autosubmit">
+          <input type="hidden" name="_token" value="{{ csrf_feature }}">
+          <input type="hidden" name="back" value="clinic">
+          <input type="hidden" name="enabled" value="0">
+          <label class="co-switch"{% if not card.state.own %} title="{{ card.state.decisionLabel }} : son interrupteur ne décide pas"{% endif %}>
+            <input type="checkbox" name="enabled" value="1"{% if card.state.enabled %} checked{% endif %}{% if not card.state.own or not is_granted('ROLE_CONSOLE_ADMIN') %} disabled{% endif %} data-action="co-autosubmit#submit">
+            <span class="co-sr">{{ card.feature.name }}</span>
+          </label>
+          <noscript><button class="co-btn is-white is-sm" type="submit">OK</button></noscript>
+        </form>
+      </li>
+    {% endfor %}
+  </ul>
+</section>

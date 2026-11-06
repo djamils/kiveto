@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\Scheduling\Application\Service;
 
+use App\Context\Scheduling\Application\Port\ClinicFeaturesInterface;
 use App\Context\Scheduling\Application\Port\ClinicOpeningHours;
 use App\Context\Scheduling\Application\Port\ClinicOpeningHoursInterface;
 use App\Context\Scheduling\Application\Port\MembershipEligibilityCheckerInterface;
@@ -57,6 +58,7 @@ final readonly class OnlineSlotChecker
         private PlanningBlockOccurrencesReaderInterface $blocks,
         private OccupyingAppointmentsReaderInterface $appointments,
         private ClockInterface $clock,
+        private ?ClinicFeaturesInterface $features = null,
     ) {
     }
 
@@ -141,7 +143,9 @@ final readonly class OnlineSlotChecker
         $settings = $this->settings->forClinic($clinicId);
         $hours    = $this->clinics->of($clinicId);
 
-        if (null === $hours || !$settings->isOpenForBooking($hours->active)) {
+        $featureOff = null !== $this->features && !$this->features->onlineBookingOn($clinicId->toString());
+
+        if (null === $hours || $featureOff || !$settings->isOpenForBooking($hours->active)) {
             throw new BookingNotOpenException($clinicId->toString());
         }
 

@@ -1,0 +1,37 @@
+{# « Ajouter à une clinique ». #}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+<dialog class="co-modal" id="dialog-add" aria-labelledby="dialog-add-title" data-action="click->co-dialog#backdrop">
+  <form method="post" action="{{ path('backoffice_user_membership_add', {id: sheet.account.id}) }}">
+    <input type="hidden" name="_token" value="{{ csrf_token('backoffice_user') }}">
+    <header class="co-dialog-head">
+      <div><h2 id="dialog-add-title">Ajouter à une clinique</h2><span>{{ sheet.name }}</span></div>
+      <button class="co-btn is-white is-icon" type="button" data-action="co-dialog#close" aria-label="Fermer">{{ co.icon('x', 14) }}</button>
+    </header>
+    <div class="co-dialog-body">
+      {% if add_error|default(null) %}<div class="co-error-box" role="alert">{{ add_error }}</div>{% endif %}
+      <div class="co-field">
+        <label for="add-clinic">Clinique</label>
+        <select class="co-select" id="add-clinic" name="clinic" required>
+          {% for clinic in sheet.clinics %}<option value="{{ clinic.id }}">{{ clinic.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <fieldset class="co-field co-segment">
+        <legend class="co-field-label">Rôle</legend>
+        {% for value, label in roles %}
+          <label><input type="radio" name="role" value="{{ value }}"{% if value == (sheet.row.first.role ?? 'VETERINARY') %} checked{% endif %}><span>{{ label }}</span></label>
+        {% endfor %}
+      </fieldset>
+      <label class="co-check">
+        <input type="checkbox" name="administrator" value="1">
+        <span>Administrateur de la clinique<small>Peut inviter, modifier les rôles et les paramètres de la clinique.</small></span>
+      </label>
+      {% if sheet.account.status == 'PENDING' %}
+        <div class="co-banner is-info">{{ co.icon('info', 14) }} <span>Le compte n'est pas encore activé : la clinique lui envoie aussi son invitation.</span></div>
+      {% endif %}
+    </div>
+    <footer class="co-dialog-foot">
+      <button class="co-btn is-white" type="button" data-action="co-dialog#close">Annuler</button>
+      <button class="co-btn is-primary" type="submit">Ajouter</button>
+    </footer>
+  </form>
+</dialog>

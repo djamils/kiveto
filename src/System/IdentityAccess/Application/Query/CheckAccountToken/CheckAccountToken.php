@@ -15,8 +15,10 @@ final readonly class CheckAccountToken implements QueryInterface
     public const string INVITATION     = 'INVITATION';
     public const string PASSWORD_RESET = 'PASSWORD_RESET';
 
+    public const string CONSOLE_INVITATION = 'CONSOLE_INVITATION';
+
     /**
-     * @param string $purpose self::INVITATION or self::PASSWORD_RESET
+     * @param string $purpose self::INVITATION, self::PASSWORD_RESET or self::CONSOLE_INVITATION
      */
     public function __construct(
         public string $token,

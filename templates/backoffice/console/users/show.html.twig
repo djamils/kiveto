@@ -1,0 +1,199 @@
+{% extends 'backoffice/console/base.html.twig' %}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+
+{% block page_title %}{{ sheet.name }}{% endblock %}
+
+{% set csrf = csrf_token('backoffice_user') %}
+{% set account = sheet.account %}
+{% set pending = account.status == 'PENDING' %}
+{% set disabled = sheet.state.key == 'disabled' %}
+
+{% block content %}
+<div class="co-sheet" data-controller="co-dialog" data-co-dialog-open-value="{{ open_dialog|default('') }}">
+  <div class="co-head">
+    <nav class="co-crumbs" aria-label="Fil d'Ariane">
+      <a href="{{ path('backoffice_users') }}">Utilisateurs</a>{{ co.icon('chevron-right', 12) }}<strong>{{ sheet.name }}</strong>
+    </nav>
+    <div class="co-head-actions">
+      {% if pending and not disabled %}
+        <form method="post" action="{{ path('backoffice_user_invitation_resend', {id: account.id}) }}">
+          <input type="hidden" name="_token" value="{{ csrf }}">
+          <button class="co-btn is-primary" type="submit">{{ co.icon('mail', 13) }} Renvoyer l'invitation</button>
+        </form>
+      {% elseif sheet.support_url %}
+        <a class="co-btn is-primary" href="{{ sheet.support_url }}">{{ co.icon('login', 14) }} Session support</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="co-who co-sheet-title">
+    <span class="co-initials is-lg">{{ sheet.name|co_initials }}</span>
+    <div>
+      <h1 class="co-title">{{ sheet.name }} <span class="co-badge {{ sheet.state.badge }}">{{ sheet.state.label }}</span></h1>
+      <span class="co-sub">
+        {{ account.email ?? '—' }}{% if sheet.role %} · {{ sheet.role }}{% endif %}
+        {%- if sheet.live_clinics|length == 1 %} · {{ sheet.live_clinics|first }}{% elseif sheet.live_clinics|length > 1 %} · {{ sheet.live_clinics|length }} cliniques{% endif %}
+      </span>
+    </div>
+  </div>
+
+  {% if pending and not disabled and sheet.invitation %}
+    {% set invitation = sheet.invitation %}
+    <div class="co-banner is-warning co-invitation" role="status">
+      {{ co.icon('clock', 14) }}
+      <div>
+        {% if invitation.expired %}
+          <b>Invitation envoyée le {{ invitation.sentAt|co_date }} · expirée le {{ invitation.expiresAt|co_date }}</b>
+          <span>Le lien ne fonctionne plus : renvoie l'invitation pour en créer un nouveau, valable 7 jours.</span>
+        {% else %}
+          <b>Invitation envoyée le {{ invitation.sentAt|co_date }} · expire le {{ invitation.expiresAt|co_date }} (dans {{ invitation.daysLeft }} jour{{ invitation.daysLeft > 1 ? 's' }})</b>
+          <span>Lien pas encore utilisé{% if invitation.clinicName %} · envoyé pour {{ invitation.clinicName }}{% endif %}.</span>
+        {% endif %}
+      </div>
+      <div class="co-banner-actions">
+        <button class="co-btn is-white is-sm" type="button" data-action="co-dialog#open" data-co-dialog-id-param="dialog-email">Modifier l'e-mail</button>
+        <form method="post" action="{{ path('backoffice_user_invitation_cancel', {id: account.id}) }}" data-controller="co-confirm" data-co-confirm-message-value="Annuler l'invitation de {{ sheet.name }} ? Le lien ne fonctionnera plus." data-action="submit->co-confirm#ask">
+          <input type="hidden" name="_token" value="{{ csrf }}">
+          <button class="co-btn is-white is-sm is-danger-text" type="submit">Annuler l'invitation</button>
+        </form>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if account.status == 'DISABLED' %}
+    <div class="co-banner is-danger" role="status">
+      {{ co.icon('warning', 14) }}
+      <div>
+        <b>Compte désactivé</b>
+        <span>La personne ne peut plus se connecter. Ses accès aux cliniques sont conservés et reviennent à la réactivation.</span>
+      </div>
+      <form class="co-banner-actions" method="post" action="{{ path('backoffice_user_enable', {id: account.id}) }}">
+        <input type="hidden" name="_token" value="{{ csrf }}">
+        <button class="co-btn is-white" type="submit">Réactiver le compte</button>
+      </form>
+    </div>
+  {% endif %}
+
+  <div class="co-grid">
+    <div class="co-col">
+      <section class="co-card" aria-labelledby="user-profile">
+        <div class="co-card-head"><h2 class="co-label" id="user-profile">Profil</h2></div>
+        <div class="co-card-body co-tiles">
+          <div class="co-tile"><span>Prénom</span><b>{{ sheet.profile.firstName ?? '—' }}</b></div>
+          <div class="co-tile"><span>Nom</span><b>{{ sheet.profile.lastName ?? '—' }}</b></div>
+          <div class="co-tile"><span>E-mail</span><b>{{ account.email ?? '—' }}</b></div>
+          {% set phone = sheet.profile.phone ?? account.phone %}
+          <div class="co-tile"><span>Téléphone</span><b>{{ phone ? phone|phone_display : '—' }}</b></div>
+          <div class="co-tile"><span>N° d’ordre</span><b>{{ sheet.profile.registrationNumber ?? '—' }}</b></div>
+          <div class="co-tile"><span>{{ pending ? 'Invité le' : 'Compte créé le' }}</span><b>{{ account.createdAt|co_date(true) }}</b></div>
+        </div>
+      </section>
+
+      <section class="co-card" aria-labelledby="user-access">
+        <div class="co-card-head">
+          <h2 class="co-label" id="user-access">Accès aux cliniques · {{ sheet.live_clinics|length }}</h2>
+          <div class="co-card-head-actions"><button class="co-btn is-white is-sm" type="button" data-action="co-dialog#open" data-co-dialog-id-param="dialog-add"{% if account.status == 'DISABLED' or sheet.clinics|length == 0 %} disabled{% endif %}>{{ co.icon('plus', 12) }} Ajouter à une clinique</button></div>
+        </div>
+        <div class="co-table-wrap">
+          <table class="co-table co-access">
+            <thead><tr><th>Clinique</th><th>Rôle</th><th>Admin</th><th>Depuis</th><th class="is-actions"><span class="co-sr">Action</span></th></tr></thead>
+            <tbody>
+              {% for access in sheet.memberships %}
+                <tr class="{{ access.removed ? 'is-greyed' }}">
+                  <td>
+                    {% if access.clinicUrl %}<a class="co-strong" href="{{ access.clinicUrl }}">{{ access.clinicName }}</a>{% else %}<b>{{ access.clinicName }}</b>{% endif %}
+                    {% if access.removed %}<span class="co-badge is-outline">Retiré</span>{% endif %}
+                  </td>
+                  <td>
+                    {% if access.removed %}
+                      {{ roles[access.role] ?? access.role }}
+                    {% else %}
+                      <form method="post" action="{{ path('backoffice_user_membership_role', {id: account.id, membershipId: access.membershipId}) }}" data-controller="co-autosubmit">
+                        <input type="hidden" name="_token" value="{{ csrf }}">
+                        <label class="co-sr" for="role-{{ access.membershipId }}">Rôle à {{ access.clinicName }}</label>
+                        <select class="co-select is-sm" id="role-{{ access.membershipId }}" name="role" data-action="co-autosubmit#submit">
+                          {% for value, label in roles %}<option value="{{ value }}"{% if value == access.role %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                        </select>
+                        <noscript><button class="co-btn is-white is-sm" type="submit">OK</button></noscript>
+                      </form>
+                    {% endif %}
+                  </td>
+                  <td>{{ access.admin ? 'Oui' : '—' }}</td>
+                  <td>{{ access.since|co_date }}</td>
+                  <td class="is-actions">
+                    {% if access.removed %}
+                      <form method="post" action="{{ path('backoffice_user_membership_restore', {id: account.id, membershipId: access.membershipId}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf }}">
+                        <button class="co-btn is-white is-sm" type="submit">Rétablir</button>
+                      </form>
+                    {% else %}
+                      <form method="post" action="{{ path('backoffice_user_membership_remove', {id: account.id, membershipId: access.membershipId}) }}" data-controller="co-confirm" data-co-confirm-message-value="Retirer l'accès de {{ sheet.name }} à {{ access.clinicName }} ?" data-action="submit->co-confirm#ask">
+                        <input type="hidden" name="_token" value="{{ csrf }}">
+                        <button class="co-btn is-white is-sm is-danger-text" type="submit">Retirer</button>
+                      </form>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% else %}
+                <tr><td colspan="5"><div class="co-empty"><b>Aucune clinique</b>Ce compte n'a accès à aucune clinique.</div></td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="co-card" aria-labelledby="user-history">
+        <div class="co-card-head">
+          <h2 class="co-label" id="user-history">Historique du compte</h2>
+          <div class="co-card-head-actions"><a href="{{ path('backoffice_audit', {user: account.id, period: 'tout'}) }}">Journal complet</a></div>
+        </div>
+        {{ include('backoffice/console/_activity.html.twig', {entries: sheet.history, empty: 'Rien d’enregistré pour ce compte.'}) }}
+      </section>
+    </div>
+
+    <div class="co-col">
+      <section class="co-card" aria-labelledby="user-sessions">
+        <div class="co-card-head"><h2 class="co-label" id="user-sessions">Sessions actives</h2></div>
+        {% if account.status == 'ACTIVE' %}
+          {{ include('backoffice/console/_sessions.html.twig', {sessions: sheet.sessions, csrf: csrf, action: path('backoffice_user_sessions_revoke', {id: account.id}), others: false}) }}
+        {% else %}
+          <p class="co-card-body co-sub">{{ pending ? 'Aucune session : le compte n’est pas encore activé.' : 'Aucune session : le compte est désactivé.' }}</p>
+        {% endif %}
+      </section>
+
+      <section class="co-card" aria-labelledby="user-security">
+        <div class="co-card-head"><h2 class="co-label" id="user-security">Sécurité</h2></div>
+        <ul class="co-settings">
+          <li class="is-greyed" title="Non proposée au personnel clinique en pré-alpha">
+            <div class="co-settings-text"><b>Double authentification <span class="co-prealpha">Pré-alpha</span></b><span>Pas encore proposée au personnel clinique.</span></div>
+            <button class="co-btn is-white is-sm" type="button" disabled>Réinitialiser</button>
+          </li>
+          <li>
+            <div class="co-settings-text"><b>Mot de passe</b><span>{{ account.status == 'ACTIVE' ? 'Lien de réinitialisation par e-mail, valable 30 minutes.' : '—' }}</span></div>
+            <form method="post" action="{{ path('backoffice_user_password_link', {id: account.id}) }}">
+              <input type="hidden" name="_token" value="{{ csrf }}">
+              <button class="co-btn is-white is-sm" type="submit"{% if account.status != 'ACTIVE' %} disabled{% endif %}>Envoyer un lien</button>
+            </form>
+          </li>
+        </ul>
+      </section>
+
+      {% if account.status != 'DISABLED' %}
+        <section class="co-card is-danger" aria-labelledby="user-danger">
+          <div class="co-card-head"><h2 class="co-label" id="user-danger">Zone sensible</h2></div>
+          <ul class="co-settings">
+            <li>
+              <div class="co-settings-text"><b>Désactiver le compte</b><span>Retire l'accès à toutes les cliniques.</span></div>
+              <button class="co-btn is-danger is-sm" type="button" data-action="co-dialog#open" data-co-dialog-id-param="dialog-disable">Désactiver</button>
+            </li>
+          </ul>
+        </section>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if account.status != 'DISABLED' %}{{ include('backoffice/console/users/_disable_dialog.html.twig') }}{% endif %}
+  {{ include('backoffice/console/users/_add_dialog.html.twig') }}
+  {% if pending %}{{ include('backoffice/console/users/_email_dialog.html.twig') }}{% endif %}
+</div>
+{% endblock %}

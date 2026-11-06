@@ -24,17 +24,22 @@ final class ImportFileManager
         return $this->storageDir($source) . '/current/' . $filename;
     }
 
-    /** Moves amm.xml and dict.xml from current/ to a timestamped archive/ subfolder. */
-    public function archiveCurrentFiles(ImportSource $source, \DateTimeImmutable $importedAt): void
+    /**
+     * Moves amm.xml and dict.xml from current/ to a timestamped archive/ subfolder.
+     *
+     * @return string that subfolder, relative to the source's folder (« archive/2026-11-06_2 »)
+     */
+    public function archiveCurrentFiles(ImportSource $source, \DateTimeImmutable $importedAt): string
     {
-        $currentDir  = $this->storageDir($source) . '/current';
-        $archiveBase = $this->storageDir($source) . '/archive/' . $importedAt->format('Y-m-d');
-
-        $archiveDir = $archiveBase;
+        $currentDir = $this->storageDir($source) . '/current';
+        $folder     = 'archive/' . $importedAt->format('Y-m-d');
+        $archiveDir = $this->storageDir($source) . '/' . $folder;
+        $relative   = $folder;
         $suffix     = 2;
 
         while (is_dir($archiveDir)) {
-            $archiveDir = $archiveBase . '_' . $suffix++;
+            $relative   = $folder . '_' . $suffix++;
+            $archiveDir = $this->storageDir($source) . '/' . $relative;
         }
 
         if (!mkdir($archiveDir, 0755, true) && !is_dir($archiveDir)) {
@@ -48,6 +53,20 @@ final class ImportFileManager
                 rename($src, $archiveDir . '/' . $filename);
             }
         }
+
+        return $relative;
+    }
+
+    /**
+     * A file kept in the source's archive; null when it is gone or when the
+     * path leads out of the archive.
+     */
+    public function keptFile(ImportSource $source, string $relativePath): ?string
+    {
+        $archive = realpath($this->storageDir($source) . '/archive');
+        $path    = realpath($this->storageDir($source) . '/' . $relativePath);
+
+        return false !== $archive && false !== $path && str_starts_with($path, $archive . '/') && is_file($path) ? $path : null;
     }
 
     private function storageDir(ImportSource $source): string

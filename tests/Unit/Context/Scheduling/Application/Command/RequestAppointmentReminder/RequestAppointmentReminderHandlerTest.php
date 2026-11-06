@@ -23,6 +23,7 @@ use App\Tests\Unit\Context\Scheduling\Support\CapturingNotifications;
 use App\Tests\Unit\Context\Scheduling\Support\FakeAnimals;
 use App\Tests\Unit\Context\Scheduling\Support\FakeClientContacts;
 use App\Tests\Unit\Context\Scheduling\Support\FakeClinicDirectory;
+use App\Tests\Unit\Context\Scheduling\Support\FakeClinicFeatures;
 use App\Tests\Unit\Context\Scheduling\Support\InMemoryAppointments;
 use App\Tests\Unit\Context\Scheduling\Support\InMemoryAttachments;
 use App\Tests\Unit\Context\Scheduling\Support\InMemoryNotificationStates;
@@ -139,6 +140,35 @@ final class RequestAppointmentReminderHandlerTest extends TestCase
         self::assertSame([], $this->notifications->messages);
     }
 
+    /**
+     * Kiveto switched « Rappels SMS » off for the clinic: the reminder is
+     * dropped, not kept for later.
+     */
+    public function testNoReminderWhenTheClinicsSmsRemindersAreSwitchedOff(): void
+    {
+        $this->plan(Appointments::planned());
+        $features = new FakeClinicFeatures(smsReminders: false);
+
+        $this->clock->at('2026-10-21 07:30');
+        $this->remind(features: $features);
+
+        self::assertSame([], $this->notifications->messages);
+        self::assertSame([Appointments::CLINIC], $features->asked);
+        self::assertNull($this->states->of(Appointments::ID)->reminderDueAt());
+        self::assertSame([], $this->states->dueReminders($this->clock->now()));
+    }
+
+    public function testTheClinicsSmsRemindersSwitchedOnLetTheReminderGo(): void
+    {
+        $this->plan(Appointments::planned());
+
+        $this->clock->at('2026-10-21 07:30');
+        $this->remind(features: new FakeClinicFeatures(smsReminders: true));
+
+        self::assertCount(1, $this->notifications->messages);
+        self::assertSame('2026-10-21 07:30', $this->states->of(Appointments::ID)->reminderRequestedAt()?->format('Y-m-d H:i'));
+    }
+
     public function testAReminderNotDueYetOrWithoutStateWaits(): void
     {
         $this->plan(Appointments::planned());
@@ -247,7 +277,7 @@ final class RequestAppointmentReminderHandlerTest extends TestCase
         $this->states->save($state);
     }
 
-    private function remind(string $appointmentId = Appointments::ID): void
+    private function remind(string $appointmentId = Appointments::ID, ?FakeClinicFeatures $features = null): void
     {
         $clinics = new FakeClinicDirectory(printedNames: [Appointments::ROUSSEAU => 'Dr Rousseau']);
 
@@ -260,6 +290,7 @@ final class RequestAppointmentReminderHandlerTest extends TestCase
             new AppointmentMessageComposer(new FakeAnimals(), $clinics, new IcsWriter(), new InMemoryAttachments()),
             $this->notifications,
             $this->clock,
+            $features,
         )(new RequestAppointmentReminder(AppointmentId::fromString($appointmentId)->toString()));
     }
 }

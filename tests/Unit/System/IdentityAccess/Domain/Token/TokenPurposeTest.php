@@ -13,7 +13,7 @@ final class TokenPurposeTest extends TestCase
     {
         $start = new \DateTimeImmutable('2026-10-26 10:00:00');
 
-        self::assertSame('2026-10-29 10:00', $start->add(TokenPurpose::INVITATION->lifetime())->format('Y-m-d H:i'));
+        self::assertSame('2026-11-02 10:00', $start->add(TokenPurpose::INVITATION->lifetime())->format('Y-m-d H:i'));
         self::assertSame('2026-10-26 10:30', $start->add(TokenPurpose::PASSWORD_RESET->lifetime())->format('Y-m-d H:i'));
     }
 }

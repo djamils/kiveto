@@ -1,0 +1,14 @@
+{# One person of « Équipe à inviter » (index, person). #}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+<tr data-co-team-rows-target="row">
+  <td><input class="co-input" name="team[{{ index }}][firstName]" value="{{ person.firstName }}" aria-label="Prénom" maxlength="60"></td>
+  <td><input class="co-input" name="team[{{ index }}][lastName]" value="{{ person.lastName }}" aria-label="Nom" maxlength="60"></td>
+  <td><input class="co-input" type="email" name="team[{{ index }}][email]" value="{{ person.email }}" aria-label="E-mail" maxlength="180"></td>
+  <td>
+    <select class="co-select" name="team[{{ index }}][role]" aria-label="Rôle" data-action="co-team-rows#refresh">
+      {% for value, label in roles %}<option value="{{ value }}"{% if value == person.role %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </td>
+  <td><span class="co-badge is-indigo" data-co-team-rows-target="admin" hidden>Admin</span><span class="co-sub" data-co-team-rows-target="noAdmin">—</span></td>
+  <td class="is-actions"><button class="co-btn is-white is-icon" type="button" data-action="co-team-rows#remove" aria-label="Retirer">{{ co.icon('x', 12) }}</button></td>
+</tr>

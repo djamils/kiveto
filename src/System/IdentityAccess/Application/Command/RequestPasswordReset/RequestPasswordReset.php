@@ -15,7 +15,13 @@ use App\Shared\Application\Bus\CommandInterface;
  */
 final readonly class RequestPasswordReset implements CommandInterface
 {
-    public function __construct(public string $email)
-    {
+    /**
+     * `backoffice`: the account is a member of the Kiveto team; its link
+     * opens the console's reset page.
+     */
+    public function __construct(
+        public string $email,
+        public bool $backoffice = false,
+    ) {
     }
 }
