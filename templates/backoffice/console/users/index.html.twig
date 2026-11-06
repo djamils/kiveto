@@ -12,22 +12,23 @@
       <span class="co-sub">{{ totals.staff }} compte{{ totals.staff > 1 ? 's' }} clinique · {{ totals.portal }} propriétaire{{ totals.portal > 1 ? 's' }}</span>
     </div>
 
-    <form class="co-search-field" method="get" action="{{ path('backoffice_users') }}" role="search">
+    <form class="co-search-field" method="get" action="{{ path('backoffice_users') }}" role="search" data-turbo-frame="users-list">
       {% for name, value in params|filter((v, k) => k != 'q') %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
       <label class="co-sr" for="users-q">Rechercher un utilisateur</label>
       {{ co.icon('search', 14) }}
       <input class="co-input" id="users-q" type="search" name="q" value="{{ filters.search }}" placeholder="Nom, e-mail, téléphone…">
     </form>
-
-    <div class="co-head-actions">
-      <a class="co-btn is-white" href="{{ path('backoffice_users_export', params) }}">{{ co.icon('download', 13) }} Exporter</a>
-    </div>
   </header>
 
+  {# The tabs, the filters and the pages reload the list alone; the export follows them. #}
+  <turbo-frame id="users-list" data-turbo-action="advance">
+  <div class="co-users-bar">
   <nav class="co-segmented" aria-label="Type de compte">
     <a class="{{ filters.tab == 'staff' ? 'is-active' }}" href="{{ path('backoffice_users', filters.search != '' ? {q: filters.search} : {}) }}"{% if filters.tab == 'staff' %} aria-current="page"{% endif %}>Personnel clinique <span>{{ totals.staff }}</span></a>
     <a class="{{ filters.tab == 'portal' ? 'is-active' }}" href="{{ path('backoffice_users', {tab: 'portal'}|merge(filters.search != '' ? {q: filters.search} : {})) }}"{% if filters.tab == 'portal' %} aria-current="page"{% endif %}>Propriétaires (Portal) <span>{{ totals.portal }}</span></a>
   </nav>
+  <a class="co-btn is-white" href="{{ path('backoffice_users_export', params) }}" data-turbo="false">{{ co.icon('download', 13) }} Exporter</a>
+  </div>
 
   {% if staff %}
     <section class="co-card" aria-label="Personnel clinique">
@@ -57,7 +58,7 @@
             {% for row in staff.rows %}
               <tr>
                 <td>
-                  <a class="co-who" href="{{ path('backoffice_user_show', {id: row.account.id}) }}">
+                  <a class="co-who" href="{{ path('backoffice_user_show', {id: row.account.id}) }}" data-turbo-frame="_top">
                     <span class="co-initials">{{ row.name|co_initials }}</span>
                     <span><b>{{ row.name }}</b><span>{{ row.account.email ?? '—' }}</span></span>
                   </a>
@@ -68,7 +69,7 @@
                 <td>{{ row.role ?? '—' }}</td>
                 <td><span class="co-badge {{ row.state.badge }}">{{ row.state.label }}</span></td>
                 <td>{{ row.account.lastLoginAt ? row.account.lastLoginAt|co_when : '—' }}</td>
-                <td class="is-actions"><a class="co-row-link" href="{{ path('backoffice_user_show', {id: row.account.id}) }}" aria-label="Ouvrir · {{ row.name }}">{{ co.icon('arrow-right', 14) }}</a></td>
+                <td class="is-actions"><a class="co-row-link" href="{{ path('backoffice_user_show', {id: row.account.id}) }}" aria-label="Ouvrir · {{ row.name }}" data-turbo-frame="_top">{{ co.icon('arrow-right', 14) }}</a></td>
               </tr>
             {% else %}
               <tr><td colspan="6"><div class="co-empty"><b>Aucun utilisateur</b>Rien ne correspond à ces filtres.</div></td></tr>
@@ -105,4 +106,5 @@
       {{ co.pager(portal.page, portal.pageCount, portal.total, portal.perPage, 'backoffice_users', params) }}
     </section>
   {% endif %}
+  </turbo-frame>
 {% endblock %}

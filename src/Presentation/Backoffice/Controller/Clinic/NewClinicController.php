@@ -95,15 +95,16 @@ final class NewClinicController extends AbstractController
         $features = 3 === $step ? $this->features->starting() : [];
 
         return $this->render('backoffice/console/clinics/new.html.twig', [
-            'step'      => $step,
-            'draft'     => $draft,
-            'errors'    => $errors,
-            'roles'     => array_combine(self::ROLES, array_map(ConsoleDirectory::roleLabel(...), self::ROLES)),
-            'softwares' => array_combine(array_map(static fn (ParallelSoftware $s): string => $s->value, ParallelSoftware::cases()), array_map(static fn (ParallelSoftware $s): string => $s->label(), ParallelSoftware::cases())),
-            'zones'     => ShowAccountController::TIME_ZONES,
-            'features'  => $features,
-            'price'     => ConsoleFormat::euros($this->pricePerVetCents),
-            'summary'   => [
+            'step'        => $step,
+            'draft'       => $draft,
+            'errors'      => $errors,
+            'roles'       => array_combine(self::ROLES, array_map(ConsoleDirectory::roleLabel(...), self::ROLES)),
+            'softwares'   => array_combine(array_map(static fn (ParallelSoftware $s): string => $s->value, ParallelSoftware::cases()), array_map(static fn (ParallelSoftware $s): string => $s->label(), ParallelSoftware::cases())),
+            'zones'       => ShowAccountController::TIME_ZONES,
+            'features'    => $features,
+            'price'       => ConsoleFormat::euros($this->pricePerVetCents),
+            'price_cents' => $this->pricePerVetCents,
+            'summary'     => [
                 'vets'    => $vets,
                 'monthly' => ConsoleFormat::euros($vets * $this->pricePerVetCents),
             ],

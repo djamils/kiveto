@@ -4,6 +4,8 @@
 {% block page_title %}Journal d’audit{% endblock %}
 
 {% block content %}
+  {# The search, the filters and the pages reload the log alone; the export follows them. #}
+  <turbo-frame id="audit-log" data-turbo-action="advance">
   <header class="co-head">
     <div class="co-head-title">
       <h1 class="co-title">Journal d'audit</h1>
@@ -20,7 +22,7 @@
     </form>
 
     <div class="co-head-actions">
-      <a class="co-btn" href="{{ path('backoffice_audit_export', filters.params) }}">{{ co.icon('download', 12) }} Exporter (CSV)</a>
+      <a class="co-btn" href="{{ path('backoffice_audit_export', filters.params) }}" data-turbo="false">{{ co.icon('download', 12) }} Exporter (CSV)</a>
     </div>
   </header>
 
@@ -119,4 +121,5 @@
       {{ co.pager(page.page, page.pageCount, page.total, page.perPage, 'backoffice_audit', filters.params) }}
     {% endif %}
   </section>
+  </turbo-frame>
 {% endblock %}

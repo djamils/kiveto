@@ -10,9 +10,12 @@
 
 {% block head_meta %}
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  {# Back on the same page (a switch, a dialog, a filter): Turbo morphs it and keeps the scroll. #}
+  <meta name="turbo-refresh-method" content="morph">
+  <meta name="turbo-refresh-scroll" content="preserve">
 {% endblock %}
 
-{% block body_attributes %} class="co-body"{% endblock %}
+{% block body_attributes %} class="co-body" data-controller="co-forms" data-action="submit->co-forms#submit focusout->co-forms#leave input->co-forms#input change->co-forms#input"{% endblock %}
 
 {% block body %}
 {% set shell = console_shell() %}

@@ -133,6 +133,12 @@ body.co-body{margin:0;background:#fafafa}
 .co-check input{margin-top:2px;accent-color:var(--co-accent)}
 .co-check small{display:block;font-size:12px;color:var(--co-muted)}
 .co-error-box{border:1px solid var(--co-red-line);background:var(--co-red-pale);color:var(--co-red);border-radius:8px;padding:10px 12px;font-size:13px}
+/* A field the checks refused (co-forms, co-code): red border, red message under it. */
+.co .co-input[aria-invalid="true"],.co .co-select[aria-invalid="true"],.co .co-textarea[aria-invalid="true"]{border-color:var(--co-red);background:#fff}
+.co .co-input[aria-invalid="true"]:focus,.co .co-select[aria-invalid="true"]:focus,.co .co-textarea[aria-invalid="true"]:focus{box-shadow:0 0 0 3px rgba(185,28,28,.12)}
+.co-field-error{margin:0;font-size:12px;line-height:1.4;color:var(--co-red)}
+.co-check .co-field-error{flex-basis:100%}
+.co turbo-frame{display:contents}
 
 /* ── Filters ── */
 .co-filters{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--co-divider);flex-wrap:wrap}
@@ -273,7 +279,19 @@ body.co-body.is-auth{background:#0a0a0b}
 .co-auth-label-row{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px}
 .co-auth-label-row label{font-weight:500;color:var(--co-ink-2)}
 .co .co-auth-submit{width:100%;height:40px;font-size:14px}
-.co .co-auth-code{font-size:20px;letter-spacing:.3em;text-align:center}
+/* The masked code (co-code): the field's text is transparent, the mask is
+   drawn under it in the same font, size, spacing and padding, so that each
+   typed character covers its place exactly. */
+.co-code{position:relative;display:block;width:fit-content;margin:0 auto}
+.co .co-code .co-code-input,.co-code-ghost{font-family:var(--co-mono);font-size:22px;line-height:28px;letter-spacing:.32em;padding:10px 14px 10px 18px;border:1px solid transparent;font-variant-numeric:tabular-nums}
+.co .co-code .co-code-input{width:calc(var(--co-code-length) * (1ch + .32em) + 34px);text-align:left;border-color:var(--co-line)}
+.co-code-ghost{position:absolute;inset:0;display:none;white-space:pre;pointer-events:none;color:var(--co-ink)}
+.co-code.is-masked .co-code-ghost{display:block}
+.co .co-code.is-masked .co-code-input{color:transparent;caret-color:var(--co-ink)}
+.co .co-code.is-masked .co-code-input::placeholder{color:transparent}
+.co-code-ghost .is-empty,.co-code-ghost .is-sep{color:#cbd5e1}
+.co .co-code.is-invalid .co-code-input{border-color:var(--co-red);background:#fff}
+.co-auth-form .co-field-error{text-align:center}
 .co-auth-alt{text-align:center;font-size:13px}
 .co-auth-note{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#a1a1aa}
 .co-setup{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:start}
@@ -421,6 +439,10 @@ body.co-body.is-auth{background:#0a0a0b}
 .co-company-card .co-tile{background:transparent;padding:0}
 .co-company-check{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--co-green)}
 .co-address{display:flex;flex-direction:column;gap:12px}
+.co-slug{display:flex;align-items:center;gap:10px;min-height:38px}
+.co-slug code{font-size:13px;color:var(--co-ink);background:var(--co-subtle);border:1px solid var(--co-line);border-radius:6px;padding:5px 9px}
+.co-users-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 16px}
+.co-users-bar .co-segmented{margin:0}
 .co-form-split{display:flex;justify-content:space-between;gap:8px}
 .co-team-table td{padding:8px 6px}
 .co-team-table td:first-child{padding-left:16px}

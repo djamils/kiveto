@@ -12,7 +12,7 @@
       <span class="co-sub">{{ list.counts.all }} clinique{{ list.counts.all > 1 ? 's' }} · {{ list.people }} utilisateur{{ list.people > 1 ? 's' }}</span>
     </div>
 
-    <form class="co-search-field" method="get" action="{{ path('backoffice_clinics') }}" role="search">
+    <form class="co-search-field" method="get" action="{{ path('backoffice_clinics') }}" role="search" data-turbo-frame="clinics-list">
       {% for name, value in params|filter((v, k) => k != 'q') %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
       <label class="co-sr" for="clinics-q">Rechercher une clinique</label>
       {{ co.icon('search', 14) }}
@@ -79,6 +79,8 @@
       <div class="co-stat"><span>Utilisateurs actifs (7 j)</span><b>{{ list.stats.users.value }}</b><small>{{ list.stats.users.hint }}</small></div>
     </div>
 
+    {# The search, the filters, the sort and the pages reload the table alone. #}
+    <turbo-frame id="clinics-list" data-turbo-action="advance">
     <section class="co-card" aria-label="Liste des cliniques">
       <div class="co-filters">
         {% for key, label in {all: 'Toutes', active: 'Pilote actif', onboarding: 'Onboarding', suspended: 'Suspendues'} %}
@@ -109,7 +111,7 @@
             {% for row in list.rows %}
               <tr>
                 <td>
-                  <a class="co-who" href="{{ path('backoffice_clinic_show', {id: row.clinic.id}) }}">
+                  <a class="co-who" href="{{ path('backoffice_clinic_show', {id: row.clinic.id}) }}" data-turbo-frame="_top">
                     {{ co.clinic_mark(row.clinic) }}
                     <span><b>{{ row.clinic.name }}</b><span>{{ row.place ?? '—' }} · <code>{{ row.clinic.slug }}</code></span></span>
                   </a>
@@ -124,8 +126,8 @@
                   {% else %}Jamais connectée{% endif %}
                 </td>
                 <td class="is-actions">
-                  <a class="co-row-link" href="{{ path('backoffice_clinic_show', {id: row.clinic.id, support: 1}) }}" title="Session support" aria-label="Session support · {{ row.clinic.name }}">{{ co.icon('login', 14) }}</a>
-                  <a class="co-row-link" href="{{ path('backoffice_clinic_show', {id: row.clinic.id}) }}" title="Ouvrir" aria-label="Ouvrir · {{ row.clinic.name }}">{{ co.icon('arrow-right', 14) }}</a>
+                  <a class="co-row-link" href="{{ path('backoffice_clinic_show', {id: row.clinic.id, support: 1}) }}" title="Session support" aria-label="Session support · {{ row.clinic.name }}" data-turbo-frame="_top">{{ co.icon('login', 14) }}</a>
+                  <a class="co-row-link" href="{{ path('backoffice_clinic_show', {id: row.clinic.id}) }}" title="Ouvrir" aria-label="Ouvrir · {{ row.clinic.name }}" data-turbo-frame="_top">{{ co.icon('arrow-right', 14) }}</a>
                 </td>
               </tr>
             {% else %}
@@ -136,5 +138,6 @@
       </div>
       {{ co.pager(list.page, list.pageCount, list.total, list.perPage, 'backoffice_clinics', params) }}
     </section>
+    </turbo-frame>
   {% endif %}
 {% endblock %}

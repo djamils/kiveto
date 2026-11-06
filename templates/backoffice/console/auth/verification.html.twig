@@ -18,15 +18,19 @@
     <div class="co-error-box" role="alert">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
   {% endif %}
 
-  <form class="co-auth-form" method="post" action="{{ path('backoffice_login_verification') }}">
+  <form class="co-auth-form" method="post" action="{{ path('backoffice_login_verification') }}" novalidate
+        data-controller="co-code" data-action="submit->co-code#submit"
+        {% if backup %}
+          data-co-code-mask-value="XXXXX-XXXXX" data-co-code-accept-value="[A-Z0-9]"
+          data-co-code-incomplete-value="Un code de secours fait 10 caractères." data-co-code-refused-value="Lettres et chiffres seulement."
+        {% else %}
+          data-co-code-mask-value="000 000" data-co-code-accept-value="[0-9]" data-co-code-autosubmit-value="true"
+          data-co-code-incomplete-value="Le code fait 6 chiffres." data-co-code-refused-value="Chiffres seulement : le code fait 6 chiffres."
+        {% endif %}>
     <input type="hidden" name="_csrf_token" value="{{ csrf_token('backoffice_sign_in') }}">
     <div class="co-field">
       <label for="code">{{ backup ? 'Code de secours' : 'Code' }}</label>
-      {% if backup %}
-        <input class="co-input is-mono co-auth-code" id="code" name="code" autocomplete="off" placeholder="XXXXX-XXXXX" required autofocus>
-      {% else %}
-        <input class="co-input is-mono co-auth-code" id="code" name="code" inputmode="numeric" pattern="[0-9 ]{6,7}" maxlength="7" autocomplete="one-time-code" placeholder="000 000" required autofocus>
-      {% endif %}
+      {% include 'backoffice/console/auth/_code_field.html.twig' with {id: 'code', backup: backup} only %}
     </div>
     <label class="co-check">
       <input type="checkbox" name="trust_device" value="1">

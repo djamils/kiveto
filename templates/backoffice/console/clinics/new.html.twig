@@ -23,7 +23,8 @@
     {% endfor %}
   </ol>
 
-  <div class="co-grid">
+  <div class="co-grid" data-controller="co-summary" data-co-summary-price-value="{{ price_cents }}" data-co-summary-vets-value="{{ summary.vets }}" data-co-summary-plan-value="{{ draft.plan }}"
+       data-action="input->co-summary#refresh change->co-summary#refresh co-company-search:chosen->co-summary#refresh">
     <form class="co-col" method="post" action="{{ path('backoffice_clinic_new', {step: step}) }}" novalidate>
       <input type="hidden" name="_token" value="{{ csrf_token('backoffice_clinic') }}">
       {% if errors|length > 0 %}
@@ -69,19 +70,24 @@
           </div>
         </section>
 
-        <section class="co-card" data-controller="co-tenant-check" data-co-tenant-check-url-value="{{ path('backoffice_clinic_lookup') }}">
+        <section class="co-card" data-controller="co-tenant-check" data-co-tenant-check-url-value="{{ path('backoffice_clinic_lookup') }}"{% if errors.slug is defined %} data-co-tenant-check-open-value="true"{% endif %}
+                 data-action="co-company-search:chosen@window->co-tenant-check#prefill">
           <div class="co-card-body co-form-stack">
             <p class="co-label">Établissement</p>
             <div class="co-row2">
               <div class="co-field">
                 <label for="new-name">Nom affiché</label>
                 <input class="co-input" id="new-name" name="name" value="{{ place.name|default('') }}" required maxlength="120" data-co-tenant-check-target="name" data-action="input->co-tenant-check#suggest">
-                <span class="co-hint">Visible par l'équipe et dans l'app Portal.</span>
+                <span class="co-hint">Repris de la raison sociale, à ajuster. Visible par l'équipe et dans l'app Portal.</span>
               </div>
               <div class="co-field">
                 <label for="new-slug">Identifiant du tenant</label>
-                <input class="co-input is-mono" id="new-slug" name="slug" value="{{ place.slug|default('') }}" required pattern="[a-z0-9-]+" maxlength="60" data-co-tenant-check-target="slug" data-action="input->co-tenant-check#check">
-                <span class="co-hint{{ errors.slug is defined ? ' is-error' }}" data-co-tenant-check-target="hint">{{ errors.slug ?? 'Non modifiable après création' }}</span>
+                <div class="co-slug" data-co-tenant-check-target="slugView" hidden>
+                  <code data-co-tenant-check-target="slugText">{{ place.slug|default('—') }}</code>
+                  <button class="co-btn is-link" type="button" data-action="co-tenant-check#edit">{{ co.icon('pencil', 12) }} Modifier</button>
+                </div>
+                <input class="co-input is-mono" id="new-slug" name="slug" value="{{ place.slug|default('') }}" required pattern="[a-z0-9\-]+" maxlength="60" data-co-message="Minuscules, chiffres et tirets seulement." data-co-tenant-check-target="slug" data-action="input->co-tenant-check#check">
+                <span class="co-hint{{ errors.slug is defined ? ' is-error' }}" data-co-tenant-check-target="hint">{{ errors.slug ?? 'Fabriqué à partir du nom affiché' }}</span>
               </div>
             </div>
             <label class="co-check"><input type="checkbox" name="same_address" value="1"{% if place.sameAddress|default('1') == '1' %} checked{% endif %} data-action="co-tenant-check#address"> <span>Adresse de l'établissement identique au siège</span></label>
@@ -182,14 +188,14 @@
       <section class="co-card" aria-labelledby="new-summary">
         <div class="co-card-head"><h2 class="co-label" id="new-summary">Récapitulatif</h2></div>
         <dl class="co-dl">
-          <div><dt>Clinique</dt><dd>{{ place.name|default('—') }}</dd></div>
-          <div><dt>Tenant</dt><dd><code>{{ place.slug|default('—') }}</code></dd></div>
+          <div><dt>Clinique</dt><dd data-co-summary-target="name">{{ place.name|default('—') }}</dd></div>
+          <div><dt>Tenant</dt><dd><code data-co-summary-target="slug">{{ place.slug|default('—') }}</code></dd></div>
           {% set legal = company.legalName|default('—') %}
-          <div><dt>Entreprise</dt><dd title="{{ legal }}">{{ legal|length > 24 ? legal|slice(0, 22) ~ '…' : legal }}</dd></div>
-          <div><dt>Invitations</dt><dd>{{ draft.team|length > 0 ? draft.team|length ~ ' personne' ~ (draft.team|length > 1 ? 's') : '—' }}</dd></div>
-          <div><dt>Fonctionnalités</dt><dd>{{ step == 3 and draft.features|length > 0 ? draft.features|length : '—' }}</dd></div>
-          <div><dt>Vétos facturables</dt><dd>{{ summary.vets > 0 ? summary.vets ~ ' × ' ~ price ~ ' HT' : '—' }}</dd></div>
-          <div class="co-dl-total"><dt>Mensuel</dt><dd>{{ summary.vets == 0 ? '—' : (step == 3 and draft.plan != 'paid' ? '0 € (pilote)' : summary.monthly ~ ' HT') }}</dd></div>
+          <div><dt>Entreprise</dt><dd title="{{ legal }}" data-co-summary-target="company">{{ legal|length > 24 ? legal|slice(0, 22) ~ '…' : legal }}</dd></div>
+          <div><dt>Invitations</dt><dd data-co-summary-target="invitations">{{ draft.team|length > 0 ? draft.team|length ~ ' personne' ~ (draft.team|length > 1 ? 's') : '—' }}</dd></div>
+          <div><dt>Fonctionnalités</dt><dd data-co-summary-target="features">{{ step == 3 and draft.features|length > 0 ? draft.features|length : '—' }}</dd></div>
+          <div><dt>Vétos facturables</dt><dd data-co-summary-target="vets">{{ summary.vets > 0 ? summary.vets ~ ' × ' ~ price ~ ' HT' : '—' }}</dd></div>
+          <div class="co-dl-total"><dt>Mensuel</dt><dd data-co-summary-target="monthly">{{ summary.vets == 0 ? '—' : (step == 3 and draft.plan != 'paid' ? '0 € (pilote)' : summary.monthly ~ ' HT') }}</dd></div>
         </dl>
         <p class="co-card-foot">Vétos facturables = utilisateurs avec le rôle Vétérinaire. Les ASV, l'accueil et le gérant sont inclus.</p>
       </section>

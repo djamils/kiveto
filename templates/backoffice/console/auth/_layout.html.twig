@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 {% endblock %}
 
-{% block body_attributes %} class="co-body is-auth"{% endblock %}
+{% block body_attributes %} class="co-body is-auth" data-controller="co-forms" data-action="submit->co-forms#submit focusout->co-forms#leave input->co-forms#input change->co-forms#input"{% endblock %}
 
 {% block body %}
 <div class="co co-auth">
