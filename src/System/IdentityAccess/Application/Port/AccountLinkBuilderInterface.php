@@ -18,4 +18,7 @@ interface AccountLinkBuilderInterface
 
     /** The clinic host's address that opens a support session (one-time secret). */
     public function supportHandoffUrl(string $secret): string;
+
+    /** The console's page where a new member of the Kiveto team chooses a password (backoffice host). */
+    public function consoleInvitationUrl(string $secret): string;
 }

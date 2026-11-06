@@ -1,0 +1,31 @@
+{% extends 'backoffice/console/auth/_layout.html.twig' %}
+
+{% block auth_title %}Bienvenue dans l'équipe{% endblock %}
+
+{% block card %}
+  {% if state == 'invalid' %}
+    <h1 class="co-auth-title">Ce lien n’est plus valide</h1>
+    <p class="co-auth-sub">Il a déjà servi ou a expiré (7 jours). Demande un nouveau lien à un administrateur de la console.</p>
+    <a class="co-btn is-white co-auth-submit" href="{{ path('backoffice_login') }}">Aller à la connexion</a>
+  {% else %}
+    <h1 class="co-auth-title">Bienvenue dans l'équipe Kiveto</h1>
+    <p class="co-auth-sub">Choisis le mot de passe du compte {{ email }}. La double authentification se configure à ta première connexion.</p>
+
+    {% if error %}
+      <div class="co-error-box" role="alert">{{ error }}</div>
+    {% endif %}
+
+    <form class="co-auth-form" method="post" action="{{ path('backoffice_invitation') }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token('backoffice_invitation') }}">
+      <div class="co-field">
+        <label for="invitation-password">Mot de passe</label>
+        <input class="co-input" id="invitation-password" type="password" name="password" autocomplete="new-password" minlength="8" required autofocus>
+      </div>
+      <div class="co-field">
+        <label for="invitation-confirmation">Confirmation</label>
+        <input class="co-input" id="invitation-confirmation" type="password" name="confirmation" autocomplete="new-password" minlength="8" required>
+      </div>
+      <button class="co-btn is-primary co-auth-submit" type="submit">Activer mon compte</button>
+    </form>
+  {% endif %}
+{% endblock %}

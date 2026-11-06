@@ -69,6 +69,14 @@ final readonly class DbalAccountTokenRepository implements AccountTokenRepositor
         );
     }
 
+    public function invalidateConsoleInvitations(string $userId, \DateTimeImmutable $at): int
+    {
+        return (int) $this->connection->executeStatement(
+            'UPDATE ' . self::TABLE . ' SET used_at = :at WHERE user_id = :user AND purpose = :purpose AND used_at IS NULL',
+            ['at' => self::utc($at), 'user' => self::binary($userId), 'purpose' => TokenPurpose::CONSOLE_INVITATION->value],
+        );
+    }
+
     public function usersWithUsableInvitation(string $clinicId, array $userIds, \DateTimeImmutable $now): array
     {
         if ([] === $userIds) {

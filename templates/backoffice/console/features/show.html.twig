@@ -6,6 +6,8 @@
 {% set enabled = detail.all|filter(r => r.state.enabled)|length %}
 {% set params = {q: filters.q != '' ? filters.q : null, state: filters.state != 'all' ? filters.state : null, plan: filters.plan != 'all' ? filters.plan : null}|filter(v => v is not null) %}
 {% set switchable = detail.clinics|filter(r => r.state.own and not r.clinic.isSuspended()) %}
+{# Support reads the features; an administrator changes them. #}
+{% set can_edit = is_granted('ROLE_CONSOLE_ADMIN') %}
 
 {% block page_title %}{{ feature.name }}{% endblock %}
 
@@ -16,7 +18,7 @@
       <a href="{{ path('backoffice_features') }}">Fonctionnalités</a>{{ co.icon('chevron-right', 12) }}<strong>{{ feature.name }}</strong>
     </nav>
     <div class="co-head-actions">
-      <button class="co-btn is-primary" type="button" data-action="co-dialog#open" data-co-dialog-id-param="dialog-all"{% if feature.upcoming or feature.isCut() or detail.missing|length == 0 %} disabled{% endif %}>Activer pour toutes</button>
+      <button class="co-btn is-primary" type="button" data-action="co-dialog#open" data-co-dialog-id-param="dialog-all"{% if feature.upcoming or feature.isCut() or detail.missing|length == 0 or not can_edit %} disabled{% endif %}>Activer pour toutes</button>
     </div>
   </div>
 
@@ -39,10 +41,12 @@
         <b>Coupée partout depuis {{ feature.cutAt|co_when }}{% if feature.cutByName %} par {{ feature.cutByName }}{% endif %}.</b>
         Motif : « {{ feature.cutReason }} ». Aucune clinique ne l'a, quel que soit son réglage. Les réglages des cliniques sont gardés pour la remise en service.
       </span>
+      {% if can_edit %}
       <form class="co-banner-actions" method="post" action="{{ path('backoffice_feature_restore', {code: feature.code}) }}">
         <input type="hidden" name="_token" value="{{ csrf }}">
         <button class="co-btn is-white is-sm" type="submit">Remettre en service</button>
       </form>
+      {% endif %}
     </div>
   {% endif %}
 
@@ -92,7 +96,7 @@
                         <input type="hidden" name="_token" value="{{ csrf }}">
                         <input type="hidden" name="enabled" value="0">
                         <label class="co-switch" title="{{ not row.state.own ? row.state.decisionLabel ~ ' : son interrupteur ne décide pas' : (row.state.enabled ? 'Désactiver' : 'Activer') ~ ' pour ' ~ row.clinic.name }}">
-                          <input type="checkbox" name="enabled" value="1"{% if row.state.enabled %} checked{% endif %}{% if not row.state.own %} disabled{% endif %} data-action="co-autosubmit#submit">
+                          <input type="checkbox" name="enabled" value="1"{% if row.state.enabled %} checked{% endif %}{% if not row.state.own or not can_edit %} disabled{% endif %} data-action="co-autosubmit#submit">
                           <span class="co-sr">{{ feature.name }} pour {{ row.clinic.name }}</span>
                         </label>
                         <noscript><button class="co-btn is-white is-sm" type="submit">OK</button></noscript>
@@ -108,7 +112,7 @@
 
           <div class="co-pager">
             <span>{{ detail.clinics|length }} clinique{{ detail.clinics|length > 1 ? 's' }}{{ params|length > 0 ? ' affichée' ~ (detail.clinics|length > 1 ? 's') ~ ' sur ' ~ detail.all|length }}</span>
-            {% if switchable|length > 0 and not feature.upcoming %}
+            {% if switchable|length > 0 and not feature.upcoming and can_edit %}
               <span class="co-pager-pages co-bulk">
                 {% for on in [true, false] %}
                   <form method="post" action="{{ path('backoffice_feature_bulk', {code: feature.code}) }}" data-turbo-frame="_top">
@@ -140,21 +144,21 @@
           <input type="hidden" name="_token" value="{{ csrf }}">
           <div class="co-field">
             <label for="feature-status">Statut</label>
-            <select class="co-select" id="feature-status" name="status"{% if feature.upcoming %} disabled{% endif %} data-action="co-autosubmit#submit">
+            <select class="co-select" id="feature-status" name="status"{% if feature.upcoming or not can_edit %} disabled{% endif %} data-action="co-autosubmit#submit">
               {% if feature.upcoming %}<option selected>À venir</option>{% endif %}
               {% for value, label in statuses %}<option value="{{ value }}"{% if value == feature.status %} selected{% endif %}>{{ label }}</option>{% endfor %}
             </select>
           </div>
           <div class="co-field">
             <label for="feature-audience">Réservée à</label>
-            <select class="co-select" id="feature-audience" name="audience"{% if feature.upcoming %} disabled{% endif %} data-action="co-autosubmit#submit">
+            <select class="co-select" id="feature-audience" name="audience"{% if feature.upcoming or not can_edit %} disabled{% endif %} data-action="co-autosubmit#submit">
               {% for value, label in audiences %}<option value="{{ value }}"{% if value == feature.audience %} selected{% endif %}>{{ label }}</option>{% endfor %}
             </select>
             <span class="co-hint">Une clinique d'une autre formule ne l'a pas, quel que soit son interrupteur.</span>
           </div>
           <label class="co-check">
             <input type="hidden" name="default_on" value="0">
-            <input type="checkbox" name="default_on" value="1"{% if feature.defaultOn %} checked{% endif %}{% if feature.upcoming %} disabled{% endif %} data-action="co-autosubmit#submit">
+            <input type="checkbox" name="default_on" value="1"{% if feature.defaultOn %} checked{% endif %}{% if feature.upcoming or not can_edit %} disabled{% endif %} data-action="co-autosubmit#submit">
             <span>Activée par défaut pour les nouvelles cliniques<small>Pré-cochée à l'étape 3 de la création, si la formule choisie y a droit.</small></span>
           </label>
           <div class="co-tile">
@@ -165,7 +169,7 @@
         </form>
       </section>
 
-      {% if not feature.upcoming and not feature.isCut() %}
+      {% if not feature.upcoming and not feature.isCut() and can_edit %}
         <section class="co-card is-danger" aria-labelledby="feature-cut">
           <div class="co-card-head"><h2 class="co-label" id="feature-cut">Coupe-circuit</h2></div>
           <div class="co-card-body co-form-stack">

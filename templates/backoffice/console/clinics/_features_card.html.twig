@@ -21,7 +21,7 @@
           <input type="hidden" name="back" value="clinic">
           <input type="hidden" name="enabled" value="0">
           <label class="co-switch"{% if not card.state.own %} title="{{ card.state.decisionLabel }} : son interrupteur ne décide pas"{% endif %}>
-            <input type="checkbox" name="enabled" value="1"{% if card.state.enabled %} checked{% endif %}{% if not card.state.own %} disabled{% endif %} data-action="co-autosubmit#submit">
+            <input type="checkbox" name="enabled" value="1"{% if card.state.enabled %} checked{% endif %}{% if not card.state.own or not is_granted('ROLE_CONSOLE_ADMIN') %} disabled{% endif %} data-action="co-autosubmit#submit">
             <span class="co-sr">{{ card.feature.name }}</span>
           </label>
           <noscript><button class="co-btn is-white is-sm" type="submit">OK</button></noscript>

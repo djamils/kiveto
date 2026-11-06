@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\System\IdentityAccess\Application\Query\GetBackofficeProfile;
 
+/**
+ * A back-office account with its console settings, its role ('admin',
+ * 'support') and its state ('ACTIVE', 'PENDING': invited, 'DISABLED').
+ */
 final readonly class BackofficeProfileView
 {
     public const string DEFAULT_TIME_ZONE = 'Europe/Paris';
@@ -16,7 +20,14 @@ final readonly class BackofficeProfileView
         public bool $notifyOnRegistryFailure,
         public bool $notifyOnInvitationExpiry,
         public \DateTimeImmutable $memberSince,
+        public string $role = 'admin',
+        public string $status = 'ACTIVE',
     ) {
+    }
+
+    public function isAdmin(): bool
+    {
+        return 'admin' === $this->role;
     }
 
     /**

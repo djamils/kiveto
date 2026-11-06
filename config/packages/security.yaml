@@ -114,7 +114,11 @@ security:
         - { host: '%kiveto.host_pattern.portal%', path: '^/(invitation$|\.well-known/)', roles: PUBLIC_ACCESS }
         # Console: the two sign-in steps, the configuration of the second
         # factor, forgot password and reset link.
-        - { host: '%kiveto.host_pattern.backoffice%', path: '^/(login(/verification|/configuration)?|mot-de-passe-oublie|reinitialiser(/[^/]+)?)$', roles: PUBLIC_ACCESS }
+        - { host: '%kiveto.host_pattern.backoffice%', path: '^/(login(/verification|/configuration)?|mot-de-passe-oublie|reinitialiser(/[^/]+)?|invitation(/[^/]+)?)$', roles: PUBLIC_ACCESS }
+        # Console, administrators only: the team, the translations, and what
+        # changes the features or the registry (support reads them).
+        - { host: '%kiveto.host_pattern.backoffice%', path: '^/(team|translations)(/|$)', roles: ROLE_CONSOLE_ADMIN }
+        - { host: '%kiveto.host_pattern.backoffice%', path: '^/(features/|registry/import$)', methods: [POST], roles: ROLE_CONSOLE_ADMIN }
 
         # Protect everything else
         - { host: '%kiveto.host_pattern.clinic%', path: '^/', roles: IS_AUTHENTICATED_FULLY }

@@ -109,18 +109,22 @@ services:
         arguments:
             $users: '@App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface'
             $type: !php/const App\System\IdentityAccess\Domain\ValueObject\UserType::CLINIC
+            $consoleProfiles: null
 
     App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.portal:
         class: App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider
         arguments:
             $users: '@App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface'
             $type: !php/const App\System\IdentityAccess\Domain\ValueObject\UserType::PORTAL
+            $consoleProfiles: null
 
     App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.backoffice:
         class: App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider
         arguments:
             $users: '@App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface'
             $type: !php/const App\System\IdentityAccess\Domain\ValueObject\UserType::BACKOFFICE
+            # The role of a member of the Kiveto team: ROLE_CONSOLE_ADMIN or ROLE_CONSOLE_SUPPORT
+            $consoleProfiles: '@App\System\IdentityAccess\Application\Port\BackofficeProfileStoreInterface'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

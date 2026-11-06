@@ -33,13 +33,13 @@ final readonly class CheckAccountTokenHandler
         }
 
         $user     = $this->users->findById(UserId::fromString($token->userId()));
-        $expected = TokenPurpose::INVITATION === $token->purpose() ? UserStatus::PENDING : UserStatus::ACTIVE;
+        $expected = $token->purpose()->isInvitation() ? UserStatus::PENDING : UserStatus::ACTIVE;
 
         return match (true) {
-            null === $user                                                                           => new AccountTokenCheck(AccountTokenCheck::INVALID),
-            TokenPurpose::INVITATION === $token->purpose() && UserStatus::ACTIVE === $user->status() => new AccountTokenCheck(AccountTokenCheck::ALREADY_ACTIVE),
-            $expected !== $user->status()                                                            => new AccountTokenCheck(AccountTokenCheck::INVALID),
-            default                                                                                  => new AccountTokenCheck(AccountTokenCheck::VALID, $user->requireEmail()),
+            null === $user                                                              => new AccountTokenCheck(AccountTokenCheck::INVALID),
+            $token->purpose()->isInvitation() && UserStatus::ACTIVE === $user->status() => new AccountTokenCheck(AccountTokenCheck::ALREADY_ACTIVE),
+            $expected !== $user->status()                                               => new AccountTokenCheck(AccountTokenCheck::INVALID),
+            default                                                                     => new AccountTokenCheck(AccountTokenCheck::VALID, $user->requireEmail()),
         };
     }
 }

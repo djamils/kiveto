@@ -17,6 +17,7 @@ final class PublicAccountLinkBuilderTest extends TestCase
         self::assertSame('https://clinic.kiveto.app/reinitialiser/abc-_1', $links->passwordResetUrl('abc-_1'));
         self::assertSame('https://clinic.kiveto.app/support/abc-_1', $links->supportHandoffUrl('abc-_1'));
         self::assertSame('https://clinic.kiveto.app/support/a%2Fb%3D', $links->supportHandoffUrl('a/b='), 'the secret is encoded');
+        self::assertSame('https://backoffice.kiveto.app/invitation/a%2Fb', $links->consoleInvitationUrl('a/b'), 'the console\'s host');
     }
 
     public function testTheTeamsResetLinkPointsToTheBackofficeHostOfTheSameScheme(): void

@@ -32,7 +32,11 @@ final readonly class ConsoleRuntime implements RuntimeExtensionInterface
         ['Fonctionnalités', 'backoffice_features', 'backoffice_feature'],
         ['Registre ANMV', 'backoffice_registry', 'backoffice_registry'],
         ['Journal d’audit', 'backoffice_audit', 'backoffice_audit'],
+        ['Équipe', 'backoffice_team', 'backoffice_team'],
     ];
+
+    /** The tabs an administrator only sees. */
+    private const array ADMIN_TABS = ['backoffice_team'];
 
     public function __construct(
         private CurrentAdmin $currentAdmin,
@@ -49,6 +53,7 @@ final readonly class ConsoleRuntime implements RuntimeExtensionInterface
     {
         $route = $this->requestStack->getCurrentRequest()?->attributes->getString('_route') ?? '';
         $tabs  = [];
+        $admin = $this->currentAdmin->find()->admin ?? false;
 
         foreach (self::TABS as [$label, $tabRoute, $prefix]) {
             if (null === $tabRoute) {
@@ -57,7 +62,7 @@ final readonly class ConsoleRuntime implements RuntimeExtensionInterface
                 continue;
             }
 
-            if (null === $this->router->getRouteCollection()->get($tabRoute)) {
+            if (null === $this->router->getRouteCollection()->get($tabRoute) || (!$admin && \in_array($tabRoute, self::ADMIN_TABS, true))) {
                 continue;
             }
 
@@ -83,7 +88,7 @@ final readonly class ConsoleRuntime implements RuntimeExtensionInterface
             tabs: $tabs,
             searchUrl: $this->url('backoffice_search'),
             accountUrl: $this->url('backoffice_account'),
-            translationsUrl: $this->url('backoffice_translations'),
+            translationsUrl: $admin ? $this->url('backoffice_translations') : null,
             auditUrl: $this->url('backoffice_audit'),
         );
     }

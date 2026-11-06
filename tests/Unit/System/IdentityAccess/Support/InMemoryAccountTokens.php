@@ -44,6 +44,11 @@ final class InMemoryAccountTokens implements AccountTokenRepositoryInterface
         return $this->invalidate(static fn (AccountToken $t): bool => $t->userId() === $userId && TokenPurpose::PASSWORD_RESET === $t->purpose(), $at);
     }
 
+    public function invalidateConsoleInvitations(string $userId, \DateTimeImmutable $at): int
+    {
+        return $this->invalidate(static fn (AccountToken $t): bool => $t->userId() === $userId && TokenPurpose::CONSOLE_INVITATION === $t->purpose(), $at);
+    }
+
     public function latestUnusedInvitation(string $userId): ?AccountToken
     {
         $latest = null;

@@ -48,6 +48,7 @@ final class CurrentAdmin
             email: $email,
             name: $profile instanceof BackofficeProfileView ? $profile->displayName : BackofficeProfileView::nameFromEmail($email),
             timeZone: new \DateTimeZone($profile instanceof BackofficeProfileView ? $profile->timeZone : self::DEFAULT_TIME_ZONE),
+            admin: !$profile instanceof BackofficeProfileView || $profile->isAdmin(),
         );
     }
 

@@ -189,3 +189,21 @@ The following security features are intentionally out of scope for the current p
 
 - **2FA** — only back-office accounts have a second factor (« Console second factor »); clinic staff sign in with a password alone.
 - **Account lockout** — no brute-force protection (failed attempt counter, temporary lock). Planned for Phase 3.
+
+
+## The Kiveto team in the console
+
+- `InviteConsoleMember` creates a PENDING back-office account with its name
+  and role (`ConsoleRole`: `admin`, `support`) and a 7-day
+  `CONSOLE_INVITATION` link to the console's `/invitation/{secret}`, where
+  `ActivateInvitedUser` sets the password; the second factor is set up at
+  the first sign-in. Inviting again a PENDING address issues a new link and
+  kills the previous one.
+- `ChangeConsoleRole` and `SwitchConsoleMember` keep an active
+  administrator; one never switches oneself off; off closes every session.
+- The backoffice `ContextUserProvider` adds `ROLE_CONSOLE_ADMIN` or
+  `ROLE_CONSOLE_SUPPORT` from the profile (no profile: administrator);
+  `security.yaml` keeps the team, the translations and the changes of the
+  features and of the registry to administrators.
+- The first administrator of a deployment: `bin/console app:console:invite
+  <email> "<name>"` prints the link.

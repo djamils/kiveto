@@ -1,0 +1,124 @@
+{% extends 'backoffice/console/base.html.twig' %}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+
+{% block page_title %}Équipe{% endblock %}
+
+{% set csrf = csrf_token('backoffice_team') %}
+
+{% block content %}
+<div class="co-sheet" data-controller="co-dialog" data-co-dialog-open-value="{{ open_dialog }}">
+  <header class="co-head">
+    <div class="co-head-title">
+      <h1 class="co-title">Équipe Kiveto</h1>
+      <span class="co-sub">Les comptes de la console · {{ members|filter(m => m.member.status == 'ACTIVE')|length }} actif{{ members|filter(m => m.member.status == 'ACTIVE')|length > 1 ? 's' }}</span>
+    </div>
+    <div class="co-head-actions">
+      <button class="co-btn is-primary" type="button" data-action="co-dialog#open" data-co-dialog-id-param="dialog-invite">{{ co.icon('plus', 13) }} Inviter un membre</button>
+    </div>
+  </header>
+
+  {% if invitation %}
+    <div class="co-banner is-success co-team-link" role="status" data-controller="co-copy">
+      {{ co.icon('check-circle', 14) }}
+      <span>
+        <b>Invitation prête pour {{ invitation.email }}.</b> Envoie-lui ce lien : il choisit son mot de passe, puis configure la double authentification à sa première connexion. Valable jusqu'au {{ ('@' ~ invitation.expiresAt)|date('d/m/Y à H:i', 'Europe/Paris') }}. Il n'apparaîtra plus.
+        <span class="co-team-link-row">
+          <input class="co-input is-mono" type="text" value="{{ invitation.url }}" readonly data-co-copy-target="source" aria-label="Lien d'invitation">
+          <button class="co-btn is-white is-sm" type="button" data-action="co-copy#copy" data-co-copy-target="button">Copier</button>
+        </span>
+      </span>
+    </div>
+  {% endif %}
+
+  <section class="co-card" aria-label="Membres de l'équipe">
+    <div class="co-table-wrap">
+      <table class="co-table co-team">
+        <thead><tr><th>Membre</th><th>Rôle</th><th>État</th><th>Dernière connexion</th><th class="is-actions"><span class="co-sr">Actions</span></th></tr></thead>
+        <tbody>
+          {% for row in members %}
+            {% set m = row.member %}
+            <tr class="{{ m.status == 'DISABLED' ? 'is-greyed' }}">
+              <td>
+                <div class="co-who">
+                  <span class="co-initials">{{ m.displayName|co_initials }}</span>
+                  <span><b>{{ m.displayName }}{% if row.you %} <span class="co-badge is-outline">Toi</span>{% endif %}</b><span>{{ m.email }}</span></span>
+                </div>
+              </td>
+              <td>
+                <form method="post" action="{{ path('backoffice_team_member', {id: m.userId}) }}" data-controller="co-autosubmit">
+                  <input type="hidden" name="_token" value="{{ csrf }}">
+                  <select class="co-select is-sm" name="role" data-action="co-autosubmit#submit" aria-label="Rôle de {{ m.displayName }}">
+                    {% for value, label in roles %}<option value="{{ value }}"{% if value == m.role %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                  </select>
+                  <noscript><button class="co-btn is-white is-sm" type="submit">OK</button></noscript>
+                </form>
+              </td>
+              <td>
+                {% if m.status == 'ACTIVE' %}<span class="co-badge is-green">Actif</span>
+                {% elseif m.status == 'PENDING' %}<span class="co-badge is-orange">Invitation en attente</span>
+                {% else %}<span class="co-badge is-outline">Désactivé</span>{% endif %}
+              </td>
+              <td>{{ row.lastLoginAt ? row.lastLoginAt|co_when : '—' }}</td>
+              <td class="is-actions co-team-actions">
+                {% if m.status == 'PENDING' %}
+                  <form method="post" action="{{ path('backoffice_team_invite') }}">
+                    <input type="hidden" name="_token" value="{{ csrf }}">
+                    <input type="hidden" name="email" value="{{ m.email }}">
+                    <input type="hidden" name="name" value="{{ m.displayName }}">
+                    <input type="hidden" name="role" value="{{ m.role }}">
+                    <button class="co-btn is-white is-sm" type="submit">Nouveau lien</button>
+                  </form>
+                {% endif %}
+                {% if not row.you %}
+                  <form method="post" action="{{ path('backoffice_team_member', {id: m.userId}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf }}">
+                    <input type="hidden" name="enabled" value="{{ m.status == 'DISABLED' ? 1 : 0 }}">
+                    <button class="co-btn is-sm {{ m.status == 'DISABLED' ? 'is-white' : 'is-danger-text' }}" type="submit">{{ m.status == 'DISABLED' ? 'Réactiver' : 'Désactiver' }}</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {{ co.count_foot(members|length, 'membre', 'membres') }}
+  </section>
+
+  <section class="co-card" aria-labelledby="team-roles">
+    <div class="co-card-head"><h2 class="co-label" id="team-roles">Les rôles</h2></div>
+    <div class="co-card-body co-prose">
+      <p><b>Administrateur</b> : tout, y compris l'équipe, les fonctionnalités (réglages, coupe-circuit), le registre ANMV et les traductions.</p>
+      <p><b>Support</b> : les cliniques, leurs utilisateurs et les sessions support ; les fonctionnalités et le registre en lecture seule.</p>
+      <p>La console garde toujours au moins un administrateur actif. Chaque changement est inscrit au journal d'audit.</p>
+    </div>
+  </section>
+
+  <dialog class="co-modal" id="dialog-invite" aria-labelledby="dialog-invite-title" data-action="click->co-dialog#backdrop">
+    <form method="post" action="{{ path('backoffice_team_invite') }}">
+      <input type="hidden" name="_token" value="{{ csrf }}">
+      <header class="co-dialog-head">
+        <div>
+          <h2 id="dialog-invite-title">Inviter un membre de l'équipe Kiveto</h2>
+          <span>Tu obtiens un lien valable 7 jours, à lui envoyer. L'envoi par e-mail arrivera après la pré-alpha.</span>
+        </div>
+        <button class="co-btn is-white is-icon" type="button" data-action="co-dialog#close" aria-label="Fermer">{{ co.icon('x', 14) }}</button>
+      </header>
+      <div class="co-dialog-body">
+        <div class="co-field"><label for="invite-name">Nom</label><input class="co-input" id="invite-name" name="name" required maxlength="80" autocomplete="off"></div>
+        <div class="co-field"><label for="invite-email">E-mail</label><input class="co-input" id="invite-email" type="email" name="email" required autocomplete="off"></div>
+        <fieldset class="co-segment">
+          <legend class="co-field-label">Rôle</legend>
+          {% for value, label in roles %}
+            <label><input type="radio" name="role" value="{{ value }}"{% if value == 'support' %} checked{% endif %}><span>{{ label }}</span></label>
+          {% endfor %}
+        </fieldset>
+      </div>
+      <footer class="co-dialog-foot">
+        <button class="co-btn is-white" type="button" data-action="co-dialog#close">Annuler</button>
+        <button class="co-btn is-primary" type="submit">Créer l'invitation</button>
+      </footer>
+    </form>
+  </dialog>
+</div>
+{% endblock %}

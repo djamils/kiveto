@@ -243,3 +243,26 @@ above. What differs from the mock-up, and why:
 - **Greyed « Pré-alpha »:** journey I (Migrations, a tab without page) and
   « Exporter les données » of a clinic, as decided.
 
+
+
+## Second pass (2026-11-06, after the first review)
+
+1. **Layout.** Pages across the window; the foot of every table (count,
+   pages) stays at the bottom of the screen; clinic marks centred and tinted
+   (brand colour, else a tint from the id); « À traiter » folded after five,
+   filtered by kind; no ⌘K badge; the company search's sources.
+2. **Forms.** The masked code of A2 and of the configuration (« 000 000 »,
+   « XXXXX-XXXXX »); every form checked as one types, no browser bubble;
+   the new clinic named from the registry, its tenant shown with
+   « Modifier », the summary live; Turbo frames on the clinics, users and
+   audit lists, morphing back on the same page.
+3. **Features.** `FeatureResolver` decides (upcoming, kill switch, plan,
+   the clinic's switch, legacy); kill switch with its reason; « Réservée à »
+   a plan; the feature page filters and switches the clinics shown; its
+   settings save as they change.
+4. **ANMV.** Each import keeps its source files (SHA-256, size, who
+   launched it) and they download from its page; the files of the last
+   import are not imported again.
+5. **Team.** « Équipe »: members invited with a link (shown once, sent by
+   hand in pre-alpha), roles administrator / support, switched off and on;
+   `app:console:invite` for the first administrator.

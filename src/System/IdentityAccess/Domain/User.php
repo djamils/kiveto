@@ -335,6 +335,26 @@ final class User extends AggregateRoot
     }
 
     /**
+     * A member of the Kiveto team loses the console (« Équipe »); back on
+     * as for a clinic account.
+     */
+    public function disableConsoleMember(): void
+    {
+        self::assertBackoffice($this->type);
+
+        $this->status = UserStatus::DISABLED;
+    }
+
+    public function enableConsoleMember(): void
+    {
+        self::assertBackoffice($this->type);
+
+        if (UserStatus::DISABLED === $this->status) {
+            $this->status = str_starts_with($this->passwordHash, self::UNUSABLE_PASSWORD_PREFIX) ? UserStatus::PENDING : UserStatus::ACTIVE;
+        }
+    }
+
+    /**
      * The address of an invitation not yet accepted is corrected. Uniqueness
      * among clinic accounts is the caller's to check.
      */
@@ -368,6 +388,13 @@ final class User extends AggregateRoot
     {
         if (UserType::CLINIC !== $type) {
             throw new \LogicException('Only a clinic account is managed from the console.');
+        }
+    }
+
+    private static function assertBackoffice(UserType $type): void
+    {
+        if (UserType::BACKOFFICE !== $type) {
+            throw new \LogicException('Only a console account is a member of the Kiveto team.');
         }
     }
 

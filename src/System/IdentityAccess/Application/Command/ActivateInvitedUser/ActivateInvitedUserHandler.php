@@ -12,7 +12,6 @@ use App\System\IdentityAccess\Application\Exception\UnacceptablePasswordExceptio
 use App\System\IdentityAccess\Application\Port\PasswordHasherInterface;
 use App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface;
 use App\System\IdentityAccess\Domain\Token\AccountTokenRepositoryInterface;
-use App\System\IdentityAccess\Domain\Token\TokenPurpose;
 use App\System\IdentityAccess\Domain\ValueObject\UserId;
 use App\System\IdentityAccess\Domain\ValueObject\UserStatus;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -35,7 +34,7 @@ final readonly class ActivateInvitedUserHandler
         $now   = $this->clock->now();
         $token = $this->tokens->findByHashForUpdate($this->tokenHasher->hash($command->token));
 
-        if (null === $token || TokenPurpose::INVITATION !== $token->purpose() || !$token->isUsable($now)) {
+        if (null === $token || !$token->purpose()->isInvitation() || !$token->isUsable($now)) {
             throw new InvalidAccountTokenException();
         }
 

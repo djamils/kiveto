@@ -47,4 +47,9 @@ final readonly class PublicAccountLinkBuilder implements AccountLinkBuilderInter
     {
         return $this->baseUrl . '/support/' . rawurlencode($secret);
     }
+
+    public function consoleInvitationUrl(string $secret): string
+    {
+        return $this->backofficeBaseUrl . '/invitation/' . rawurlencode($secret);
+    }
 }

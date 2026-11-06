@@ -7,7 +7,8 @@ namespace App\Presentation\Backoffice\Security;
 use App\Presentation\Backoffice\ViewModel\ConsoleFormat;
 
 /**
- * The member of the Kiveto team signed in to the console.
+ * The member of the Kiveto team signed in to the console, administrator
+ * or support.
  */
 final readonly class ConsoleAdmin
 {
@@ -16,7 +17,14 @@ final readonly class ConsoleAdmin
         public string $email,
         public string $name,
         public \DateTimeZone $timeZone,
+        public bool $admin = true,
     ) {
+    }
+
+    /** « Administrateur » or « Support ». */
+    public function roleLabel(): string
+    {
+        return $this->admin ? 'Administrateur' : 'Support';
     }
 
     public function initials(): string

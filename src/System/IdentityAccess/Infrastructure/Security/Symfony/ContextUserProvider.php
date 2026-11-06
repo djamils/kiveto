@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\System\IdentityAccess\Infrastructure\Security\Symfony;
 
+use App\System\IdentityAccess\Application\Port\BackofficeProfileStoreInterface;
 use App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface;
+use App\System\IdentityAccess\Domain\ValueObject\ConsoleRole;
 use App\System\IdentityAccess\Domain\ValueObject\UserType;
 use Symfony\Component\Security\Core\Exception\UnsupportedUserException;
 use Symfony\Component\Security\Core\Exception\UserNotFoundException;
@@ -31,9 +33,13 @@ use Symfony\Component\Security\Core\User\UserProviderInterface;
  */
 final readonly class ContextUserProvider implements UserProviderInterface
 {
+    /**
+     * @param BackofficeProfileStoreInterface|null $consoleProfiles the console's (backoffice firewall): its role, ROLE_CONSOLE_ADMIN or ROLE_CONSOLE_SUPPORT
+     */
     public function __construct(
         private UserRepositoryInterface $users,
         private UserType $type,
+        private ?BackofficeProfileStoreInterface $consoleProfiles = null,
     ) {
     }
 
@@ -45,11 +51,19 @@ final readonly class ContextUserProvider implements UserProviderInterface
             throw new UserNotFoundException(\sprintf('User "%s" not found.', $identifier));
         }
 
+        $roles = ['ROLE_USER'];
+
+        // Only a console account has a role in the console.
+        if (null !== $this->consoleProfiles && UserType::BACKOFFICE === $this->type) {
+            $role    = ConsoleRole::tryFrom($this->consoleProfiles->find($user->id()->toString())->role ?? '') ?? ConsoleRole::ADMIN;
+            $roles[] = $role->securityRole();
+        }
+
         return new SecurityUser(
             id: $user->id()->toString(),
             email: $user->requireEmail(),
             type: $user->type(),
-            roles: ['ROLE_USER'],
+            roles: $roles,
             passwordFingerprint: $user->passwordFingerprint(),
         );
     }

@@ -72,6 +72,11 @@ final class AccountFakes implements PasswordHasherInterface, AccountLinkBuilderI
         return 'https://clinic/support/' . $secret;
     }
 
+    public function consoleInvitationUrl(string $secret): string
+    {
+        return 'https://backoffice/invitation/' . $secret;
+    }
+
     public function requestStaffInvitation(StaffInvitationRequest $request): void
     {
         $this->invitations[] = $request;

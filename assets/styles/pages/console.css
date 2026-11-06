@@ -548,6 +548,13 @@ body.co-body.is-auth{background:#0a0a0b}
 .co .co-filter-search{width:200px;padding:5px 10px;font-size:12.5px;background:#fff}
 .co .co-bulk{display:flex;gap:6px}
 .co .co-bulk form{margin:0}
+
+/* ── Équipe ── */
+.co-team-link-row{display:flex;gap:8px;margin-top:8px;max-width:720px}
+.co .co-team-link-row .co-input{flex:1;font-size:12px;padding:6px 10px;background:#fff}
+.co .co-team-actions{display:flex;gap:6px;justify-content:flex-end}
+.co .co-team-actions form,.co .co-team form{margin:0}
+.co-team tr.is-greyed td{color:var(--co-faint)}
 @media (max-width:720px){.co-registry-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 /* ── ⌘K search ── */

@@ -24,7 +24,7 @@
     </div>
     <form class="co-head-actions" method="post" action="{{ path('backoffice_registry_import_launch') }}">
       <input type="hidden" name="_token" value="{{ csrf_token('backoffice_registry') }}">
-      <button class="co-btn is-primary" type="submit"{% if (latest and latest.running) or status.sameAsLast %} disabled title="{{ status.sameAsLast ? 'Ces fichiers sont ceux du dernier import' : 'Un import est en cours' }}"{% endif %}>{{ co.icon('refresh', 13) }} Lancer l'import</button>
+      <button class="co-btn is-primary" type="submit"{% if (latest and latest.running) or status.sameAsLast or not is_granted('ROLE_CONSOLE_ADMIN') %} disabled title="{{ status.sameAsLast ? 'Ces fichiers sont ceux du dernier import' : 'Un import est en cours' }}"{% endif %}>{{ co.icon('refresh', 13) }} Lancer l'import</button>
     </form>
   </header>
 
