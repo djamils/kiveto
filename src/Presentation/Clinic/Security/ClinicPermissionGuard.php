@@ -34,6 +34,14 @@ final class ClinicPermissionGuard implements ResetInterface
     // Answer a prescription renewal request (ClinicPermission::CREATE_PRESCRIPTION).
     public const string CREATE_PRESCRIPTION = 'create_prescription';
 
+    // The others of ClinicPermission, read by ClinicRoutePermissions.
+    public const string VIEW_DASHBOARD      = 'view_dashboard';
+    public const string VIEW_MEDICAL_RECORD = 'view_medical_record';
+    public const string CREATE_CONSULTATION = 'create_consultation';
+    public const string RECORD_VITALS       = 'record_vitals';
+    public const string COLLECT_PAYMENTS    = 'collect_payments';
+    public const string MANAGE_STOCK        = 'manage_stock';
+
     /** @var array<string, list<string>> the request's answers, by « user/clinic » */
     private array $answers = [];
 

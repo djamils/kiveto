@@ -11,6 +11,7 @@ use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceDetails;
 use App\Context\Billing\Domain\Exception\InvoiceNotTransmissibleException;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
 use App\Presentation\Clinic\Form\Shared\AmountParser;
+use App\Presentation\Clinic\Security\ClinicPermissionGuard;
 use App\Presentation\Clinic\ViewModel\Billing\BillingErrorMessage;
 use App\Presentation\Clinic\ViewModel\Billing\BillingSheetBuilder;
 use App\Presentation\Clinic\ViewModel\Billing\ReadinessMessages;
@@ -34,6 +35,7 @@ final class SubmitCheckoutController extends AbstractController
         private readonly CurrentClinicContextInterface $currentClinicContext,
         private readonly CsrfTokenManagerInterface $csrfTokenManager,
         private readonly ReadinessMessages $readiness,
+        private readonly ClinicPermissionGuard $guard,
     ) {
     }
 
@@ -65,6 +67,13 @@ final class SubmitCheckoutController extends AbstractController
 
         if (null === PaymentMethod::tryFrom($request->request->getString('method'))) {
             $this->addFlash('error', 'Moyen de paiement inconnu.');
+
+            return $this->redirectToRoute('clinic_checkout', ['admissionId' => $admissionId]);
+        }
+
+        // Every role collects payments; a discount is the administration's.
+        if ($this->discountRequested($request) && !$this->guard->has(ClinicPermissionGuard::MANAGE_BILLING)) {
+            $this->addFlash('error', 'Seuls les administrateurs de la clinique peuvent accorder une remise.');
 
             return $this->redirectToRoute('clinic_checkout', ['admissionId' => $admissionId]);
         }
@@ -117,11 +126,18 @@ final class SubmitCheckoutController extends AbstractController
      * The discount is part of the same form: it has to land on the invoice
      * before it is issued, since an issued invoice no longer moves.
      */
+    private function discountRequested(Request $request): bool
+    {
+        $percent = mb_trim($request->request->getString('discount_percent'));
+
+        return '' !== $percent && '0' !== $percent;
+    }
+
     private function applyDiscount(Request $request, string $clinicId, string $invoiceId): void
     {
         $percent = mb_trim($request->request->getString('discount_percent'));
 
-        if ('' === $percent || '0' === $percent) {
+        if (!$this->discountRequested($request)) {
             return;
         }
 

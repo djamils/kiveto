@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Prescription;
 
 use App\Context\Prescription\Application\Command\PreparePrescriptionForConsultation\PreparePrescriptionForConsultation;
+use App\Presentation\Clinic\Security\ClinicPermissionGuard;
+use App\Presentation\Clinic\Security\RequiresClinicPermission;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
@@ -24,6 +26,7 @@ use Symfony\Component\Routing\Attribute\Route;
     name: 'clinic_prescription_prepare',
     methods: ['GET'],
 )]
+#[RequiresClinicPermission(ClinicPermissionGuard::CREATE_PRESCRIPTION)]
 final class PreparePrescriptionController extends AbstractController
 {
     public function __construct(

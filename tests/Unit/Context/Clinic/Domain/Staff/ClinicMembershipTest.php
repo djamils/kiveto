@@ -503,9 +503,12 @@ final class ClinicMembershipTest extends TestCase
             isClinicAdministrator: true,
         )->permissions();
 
+        // The hat adds administration, never care: the record stays read-only.
         self::assertContains(ClinicPermission::MANAGE_STAFF, $permissions);
+        self::assertContains(ClinicPermission::VIEW_MEDICAL_RECORD, $permissions);
         self::assertNotContains(ClinicPermission::CREATE_PRESCRIPTION, $permissions);
-        self::assertNotContains(ClinicPermission::VIEW_MEDICAL_RECORD, $permissions);
+        self::assertNotContains(ClinicPermission::CREATE_CONSULTATION, $permissions);
+        self::assertNotContains(ClinicPermission::RECORD_VITALS, $permissions);
     }
 
     public function testGrantAdministrationRecordsEvent(): void
