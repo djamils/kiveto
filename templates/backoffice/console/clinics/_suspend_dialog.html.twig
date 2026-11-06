@@ -1,0 +1,35 @@
+{# C6 — « Suspendre la clinique ? », confirmed by typing the tenant id. #}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+<dialog class="co-modal" id="dialog-suspend" aria-labelledby="dialog-suspend-title" data-action="click->co-dialog#backdrop">
+  <form method="post" action="{{ path('backoffice_clinic_suspend', {id: sheet.clinic.id}) }}" data-controller="co-typed-confirm" data-co-typed-confirm-expected-value="{{ sheet.clinic.slug }}">
+    <input type="hidden" name="_token" value="{{ csrf_token('backoffice_clinic') }}">
+    <header class="co-dialog-head is-danger">
+      <span class="co-dialog-icon">{{ co.icon('warning', 16) }}</span>
+      <div><h2 id="dialog-suspend-title">Suspendre {{ sheet.clinic.name }} ?</h2><span>Effet immédiat. Réversible depuis cette fiche.</span></div>
+    </header>
+    <div class="co-dialog-body">
+      {% if suspend_error|default(null) %}<div class="co-error-box" role="alert">{{ suspend_error }}</div>{% endif %}
+      <ul class="co-consequences">
+        <li>Les {{ sheet.team|length }} utilisateurs sont déconnectés et ne peuvent plus se connecter.</li>
+        <li>La clinique disparaît de la prise de RDV dans l'app Portal.</li>
+        <li>Les rappels SMS et e-mails programmés sont mis en pause.</li>
+        <li>Toutes les données sont conservées.</li>
+      </ul>
+      <div class="co-field">
+        <label for="suspend-reason">Motif</label>
+        <select class="co-select" id="suspend-reason" name="reason" required>
+          {% for value, label in reasons %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="co-field"><label for="suspend-comment">Commentaire (journalisé)</label><textarea class="co-textarea" id="suspend-comment" name="comment" rows="2" maxlength="500"></textarea></div>
+      <div class="co-field">
+        <label for="suspend-confirm">Tape <code class="co-danger-code">{{ sheet.clinic.slug }}</code> pour confirmer</label>
+        <input class="co-input is-mono" id="suspend-confirm" name="confirmation" autocomplete="off" required data-co-typed-confirm-target="input" data-action="input->co-typed-confirm#check">
+      </div>
+    </div>
+    <footer class="co-dialog-foot">
+      <button class="co-btn is-white" type="button" data-action="co-dialog#close">Annuler</button>
+      <button class="co-btn is-danger-solid" type="submit" data-co-typed-confirm-target="submit">Suspendre la clinique</button>
+    </footer>
+  </form>
+</dialog>

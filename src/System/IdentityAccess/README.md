@@ -118,7 +118,7 @@ A phone with neither account nor invitation is answered `registration_required` 
 Single-use links sent by e-mail, table `identity_access__account_tokens` (`AccountToken`, `TokenPurpose`):
 
 - The secret is 32 random bytes in base64url; **only its sha256 is stored** (`token_hash`, unique). Secret and digest come from Shared's `OpaqueTokenHasherInterface`, also used by refresh tokens and onboarding grants.
-- `INVITATION` — 72 h, scoped to **(clinic, user)**: a new invitation of a clinic invalidates only that clinic's previous one, so two clinics inviting the same person never cancel each other.
+- `INVITATION` — 7 days, scoped to **(clinic, user)**: a new invitation of a clinic invalidates only that clinic's previous one, so two clinics inviting the same person never cancel each other.
 - `PASSWORD_RESET` — 30 min; a new one, and a successful reset, invalidate the user's other reset tokens.
 - A token is used once (`used_at`); invalidated tokens are marked used too.
 - Issuing a link locks the user row (`SELECT … FOR UPDATE`) before invalidating the previous ones: a double click leaves one live link.
@@ -135,6 +135,8 @@ Query `GetInvitationStatuses(clinicId, userIds)` answers `PENDING_VALID`, `PENDI
 | `ActivateInvitedUser(token, plainPassword)` | Usable invitation, password of 8 characters or more → `activate()`, token used, `ActivationResult::ACTIVATED`. An account already ACTIVE (link of another clinic) → token used, `ALREADY_ACTIVE`. |
 | `RequestPasswordReset(email)` | **Asynchronous** (`async` transport, raw `messenger.bus.command`). For an ACTIVE clinic account only: invalidates its reset tokens, issues a 30-minute one and requests `PASSWORD_RESET` (key `password-reset:<tokenId>`, « Demande reçue le … à … » Europe/Paris). Otherwise does nothing. |
 | `ResetPassword(token, plainPassword)` | Usable reset token of an ACTIVE account → `changePassword()`, token and every other reset token of the user used. |
+| `GetAccountSummaries(userIds)` | `AccountSummary` (e-mail, phone, type, status, created, last sign-in) of each known id, keyed by id — the console's member and user lists. |
+| `SearchAccounts(type, text, page, perPage)` | `AccountPage` of the accounts of one type, newest first, the text matched literally on the e-mail or the phone. |
 | `CheckAccountToken(token, purpose)` | `AccountTokenCheck{VALID (with the e-mail) | INVALID | ALREADY_ACTIVE}` for the public pages. |
 
 Unusable links throw `InvalidAccountTokenException` (« Ce lien n’est plus valide. »), refused passwords `UnacceptablePasswordException`. Ports: `PasswordHasherInterface` (Symfony hasher), `AccountLinkBuilderInterface` (`KIVETO_PUBLIC_BASE_URL`), `NotificationRequesterInterface` (`CommandBusNotificationRequester` → Notification's `RequestNotification`, sender « Kiveto <no-reply@kiveto.app> »).

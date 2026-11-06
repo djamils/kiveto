@@ -65,6 +65,9 @@ parameters:
     notification.sms.segments_per_veterinarian: 400
     notification.sms.overage_unit_price: '0.079'
     notification.sms.default_overage_cap: 500
+
+    # Console: what a veterinarian costs a paying clinic, € HT cents per month.
+    app.console.price_per_vet_cents: 9900
     # Notification: delay (ms) before the local simulator fakes a delivery webhook.
     notification.simulator.delivery_delay: 5000
 
@@ -675,6 +678,16 @@ services:
 
     App\Context\Clinic\Application\Port\ClinicGroupReadRepositoryInterface:
         class: App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicGroupReadRepository
+
+    # Console: the clinic as a customer (plan, onboarding, suspension) and its read side
+    App\Context\Clinic\Domain\Account\ClinicAccountRepositoryInterface:
+        class: App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository\DbalClinicAccountRepository
+
+    App\Context\Clinic\Application\Port\ClinicConsoleReadRepositoryInterface:
+        class: App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository\DbalClinicConsoleReadRepository
+
+    App\Context\Clinic\Application\Port\ClinicAppointmentsInterface:
+        class: App\Context\Clinic\Infrastructure\Adapter\Scheduling\QueryBusClinicAppointments
 
     App\Context\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicMapper: ~
     App\Context\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicGroupMapper: ~

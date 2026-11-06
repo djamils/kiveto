@@ -234,12 +234,12 @@ final class NotificationDemoStory extends Story
         $this->invite($settings, $inviter, 'hugo.martin@kiveto.local', 'Hugo', 'Martin', ClinicMemberRole::VETERINARY, '#5b8def');
         $ines = $this->invite($settings, $inviter, 'ines.garcia@kiveto.local', 'Inès', 'Garcia', ClinicMemberRole::VETERINARY_ASSISTANT, '#e0a458');
 
-        // Sent four days ago: the 72-hour link has run out.
+        // Sent nine days ago: the seven-day link has run out.
         $this->connection->executeStatement(
             "UPDATE identity_access__account_tokens SET created_at = :sent, expires_at = :expired WHERE user_id = :user AND purpose = 'INVITATION'",
             [
-                'sent'    => $this->utc('-4 days'),
-                'expired' => $this->utc('-1 day'),
+                'sent'    => $this->utc('-9 days'),
+                'expired' => $this->utc('-2 days'),
                 'user'    => Uuid::fromString($ines)->toBinary(),
             ],
         );

@@ -134,7 +134,7 @@ final class AccountUseCasesTest extends TestCase
     }
 
     /**
-     * AC 28 / 29: a 72-hour link; « Renvoyer » replaces the link of that clinic only.
+     * AC 28 / 29: a 7-day link; « Renvoyer » replaces the link of that clinic only.
      */
     public function testAnInvitationIsALinkOfTheClinic(): void
     {
@@ -149,7 +149,7 @@ final class AccountUseCasesTest extends TestCase
         ]);
         $token = $this->tokens->findByHash(hash('sha256', AccountFakes::secretOf($request->activationUrl)));
         self::assertNotNull($token);
-        self::assertSame(['2026-10-29 07:14', self::CLINIC_A], [$token->expiresAt()->format('Y-m-d H:i'), $token->clinicId()]);
+        self::assertSame(['2026-11-02 07:14', self::CLINIC_A], [$token->expiresAt()->format('Y-m-d H:i'), $token->clinicId()]);
 
         $this->invite($userId, self::CLINIC_B);
         $this->invite($userId, self::CLINIC_A);
@@ -207,7 +207,7 @@ final class AccountUseCasesTest extends TestCase
 
         foreach (['unknown', $link] as $i => $secret) {
             if (1 === $i) {
-                $this->clock = new FrozenClock(new \DateTimeImmutable('2026-10-29 08:00:00', new \DateTimeZone('UTC')));
+                $this->clock = new FrozenClock(new \DateTimeImmutable('2026-11-02 08:00:00', new \DateTimeZone('UTC')));
             }
 
             try {

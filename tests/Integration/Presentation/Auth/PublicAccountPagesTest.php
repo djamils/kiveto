@@ -216,7 +216,7 @@ final class PublicAccountPagesTest extends WebTestCase
 
     /**
      * A1: the secret kept by a link page lives 30 minutes at most in the
-     * session, even when the link itself (an invitation, 72 h) is still good.
+     * session, even when the link itself (an invitation, seven days) is still good.
      */
     public function testTheSecretKeptInTheSessionExpires(): void
     {

@@ -31,6 +31,15 @@ Several establishments (clinics) may carry one SIREN, each with its own invoice 
 ### ClinicGroup
 Lightweight aggregate linking clinics under a shared brand or owner entity.
 
+### ClinicAccount (`Domain/Account/`) — the clinic as Kiveto's customer
+One row per clinic (`clinic__clinic_accounts`, keyed by the clinic id), read and written only by the Kiveto console; a clinic without a row reads `ClinicAccount::defaultFor()` (pilot, no end, not onboarded).
+- **Plan** (`ClinicPlan`): `pilot` (free, `pilotEndsOn` kept and set to midnight), `paid`, `internal` (not billed). The console shows the amount as billable veterinarians × `app.console.price_per_vet_cents` (9 900 by default), 0 € for `internal`.
+- **Software in parallel** during the alpha (`ParallelSoftware`), a free **internal note** (2 000 characters), the **onboarded** date (set once).
+- **Suspension** (`ClinicSuspension`): reason (`SuspensionReason`), comment (500 characters, logged), when and by whom (the console admin's id and name). `SuspendClinic(clinicId, reason, comment, actorId, actorName)` suspends the clinic (`Clinic::suspend`, its events published) and records it on the account; `ReactivateClinic` reactivates the clinic and clears it.
+- `OpenClinicAccount(clinicId, plan, pilotEndsOn, parallelSoftware)` at creation, `ReviseClinicAccount` from « Modifier la clinique » (an empty software clears it; dates `Y-m-d`, `ClinicAccountDates`).
+- **Onboarding** (`ClinicOnboardingChecklist`, `GetClinicOnboarding` → `ClinicOnboardingView`): clinic created, team invited, invitations accepted, opening hours set, first appointment (Scheduling's `CountClinicAppointments` through `ClinicAppointmentsInterface`); the legacy import step is shown but not counted (pre-alpha). `CompleteClinicOnboardings` (every 15 minutes, schedule `clinic`) marks onboarded each clinic not suspended whose steps are all done, once: the console then shows it « Pilote actif ».
+- Console reads: `GetClinicAccount` (`ClinicAccountView`, labels included), `ListConsoleClinics(search, clinicId, limit)` (not closed; members and active veterinarians counted; search on name, slug, SIRET, legal name), `ListConsoleMembers(clinicId?, userId?)` (with their staff profile, `printedName()`), `CheckClinicSlug(slug)` → `available | taken | invalid` (the wizard's live check).
+
 ### Staff Sub-domain (`Domain/Staff/`)
 Manages who works at which clinic and in which capacity.
 
@@ -85,8 +94,10 @@ Clinic is the source of truth of what Notification needs about a clinic and push
 | Consumed by | Inventory, Scheduling, Presentation | `ListClinicMembersForNotification` (Inventory bell recipients), `GetStaffPrintedName` (appointment messages, invitation e-mail) |
 | Produces | AccessControl BC | `ClinicMembershipCreated/Disabled/Enabled/RoleChanged` domain events → AccessControl syncs its RBAC projection |
 | Consumed by | Billing BC | `GetClinicSellerIdentity` query — the seller identity of an invoice and its numbering uniqueness, through Billing's own port |
+| Reads | Scheduling | `CountClinicAppointments` through `ClinicAppointmentsInterface` (`QueryBusClinicAppointments`) — the « first appointment » step of the onboarding |
+| Consumed by | Presentation (console) | `ClinicAccount` commands and queries, `ListConsoleClinics`, `ListConsoleMembers`, `CheckClinicSlug` |
 | Reads | IdentityAccess BC | `UserExistenceCheckerInterface` port (implemented by `IdentityAccessUserExistenceAdapter`) — verifies a user UUID exists before creating a membership |
 
 ## Known Debt
 
-- `ClinicController` has multiple public action methods (pre-existing violation of the single-`__invoke` controller rule). Tracked as a separate chore.
+None known: the multi-action back-office `ClinicController` was replaced by the console's single-action controllers.

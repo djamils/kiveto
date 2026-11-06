@@ -29,7 +29,7 @@ final class DbalAccountTokenRepositoryTest extends KernelTestCase
 
         $found = $tokens->findByHashForUpdate(hash('sha256', 'secret-1'));
         self::assertNotNull($found);
-        self::assertSame([$token->id()->toString(), self::USER, TokenPurpose::INVITATION, self::CLINIC_A, '2026-10-29 10:00:00', null, '2026-10-26 10:00:00'], [
+        self::assertSame([$token->id()->toString(), self::USER, TokenPurpose::INVITATION, self::CLINIC_A, '2026-11-02 10:00:00', null, '2026-10-26 10:00:00'], [
             $found->id()->toString(), $found->userId(), $found->purpose(), $found->clinicId(), $found->expiresAt()->format('Y-m-d H:i:s'), $found->usedAt(), $found->createdAt()->format('Y-m-d H:i:s'),
         ]);
 
@@ -44,7 +44,7 @@ final class DbalAccountTokenRepositoryTest extends KernelTestCase
         $tokens = $this->tokens();
         $this->issue('01960000-0000-7000-8000-00000000a011', self::USER, TokenPurpose::INVITATION, self::CLINIC_A, 's-a', '2026-10-26 10:00:00');
         $this->issue('01960000-0000-7000-8000-00000000a012', self::USER, TokenPurpose::INVITATION, self::CLINIC_B, 's-b', '2026-10-26 10:00:00');
-        $this->issue('01960000-0000-7000-8000-00000000a013', self::OTHER, TokenPurpose::INVITATION, self::CLINIC_A, 's-o', '2026-10-20 10:00:00');
+        $this->issue('01960000-0000-7000-8000-00000000a013', self::OTHER, TokenPurpose::INVITATION, self::CLINIC_A, 's-o', '2026-10-18 10:00:00');
         $this->issue('01960000-0000-7000-8000-00000000a014', self::USER, TokenPurpose::PASSWORD_RESET, null, 's-r1', '2026-10-26 10:00:00');
         $this->issue('01960000-0000-7000-8000-00000000a015', self::USER, TokenPurpose::PASSWORD_RESET, null, 's-r2', '2026-10-26 10:05:00');
 

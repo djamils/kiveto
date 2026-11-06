@@ -1,0 +1,135 @@
+{% extends 'backoffice/console/base.html.twig' %}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+
+{% block page_title %}Cliniques{% endblock %}
+
+{% set params = {status: status != 'all' ? status : null, q: search != '' ? search : null, sort: sort != 'activity' ? sort : null}|filter(v => v is not null) %}
+
+{% block content %}
+  <header class="co-head">
+    <div class="co-head-title">
+      <h1 class="co-title">Cliniques</h1>
+      <span class="co-sub">{{ list.counts.all }} clinique{{ list.counts.all > 1 ? 's' }} · {{ list.people }} utilisateur{{ list.people > 1 ? 's' }}</span>
+    </div>
+
+    <form class="co-search-field" method="get" action="{{ path('backoffice_clinics') }}" role="search">
+      {% for name, value in params|filter((v, k) => k != 'q') %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+      <label class="co-sr" for="clinics-q">Rechercher une clinique</label>
+      {{ co.icon('search', 14) }}
+      <input class="co-input" id="clinics-q" type="search" name="q" value="{{ search }}" placeholder="Clinique, SIRET, utilisateur, e-mail…">
+    </form>
+
+    <div class="co-head-actions">
+      <a class="co-btn is-primary" href="{{ path('backoffice_clinic_new') }}">{{ co.icon('plus', 13) }} Nouvelle clinique</a>
+    </div>
+  </header>
+
+  {% if list.counts.all == 0 %}
+    <div class="co-stats">
+      {% for label in ['Pilotes actifs', 'En onboarding', 'Suspendues', 'Utilisateurs actifs (7 j)'] %}
+        <div class="co-stat"><span>{{ label }}</span><b>0</b><small>—</small></div>
+      {% endfor %}
+    </div>
+    <section class="co-card">
+      <div class="co-filters">
+        <span class="co-pill is-active">Toutes <span class="co-pill-count">0</span></span>
+        <span class="co-pill">Pilote actif <span class="co-pill-count">0</span></span>
+        <span class="co-pill">Onboarding <span class="co-pill-count">0</span></span>
+        <span class="co-pill">Suspendues <span class="co-pill-count">0</span></span>
+      </div>
+      <div class="co-empty co-empty-first">
+        <b>Aucune clinique pour l'instant</b>
+        <p>Crée la première clinique pilote : son tenant, son équipe et ses fonctionnalités. Les invitations partent à la fin.</p>
+        <a class="co-btn is-primary" href="{{ path('backoffice_clinic_new') }}">{{ co.icon('plus', 13) }} Créer la première clinique</a>
+      </div>
+    </section>
+  {% else %}
+    {% if list.alerts|length > 0 %}
+      <section class="co-card co-todo" aria-labelledby="clinics-todo">
+        <div class="co-card-head"><h2 class="co-label co-todo-title" id="clinics-todo">À traiter · {{ list.alerts|length }}</h2></div>
+        <ul class="co-todo-list">
+          {% for alert in list.alerts %}
+            <li>
+              <span class="co-badge is-orange">{{ alert.label }}</span>
+              <span class="co-todo-text">{{ alert.text }} · <b>{{ alert.clinic.name }}</b></span>
+              {% if alert.action == 'resend' %}
+                <form method="post" action="{{ path('backoffice_clinic_invitations_resend', {id: alert.clinic.id}) }}">
+                  <input type="hidden" name="_token" value="{{ csrf_token('backoffice_clinic') }}">
+                  <input type="hidden" name="back" value="list">
+                  <button class="co-btn is-link" type="submit">Relancer</button>
+                </form>
+              {% else %}
+                <a href="{{ path('backoffice_clinic_show', {id: alert.clinic.id}) }}">Ouvrir</a>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+
+    <div class="co-stats">
+      <div class="co-stat"><span>Pilotes actifs</span><b>{{ list.stats.active.value }}</b><small>{{ list.stats.active.hint }}</small></div>
+      <div class="co-stat"><span>En onboarding</span><b>{{ list.stats.onboarding.value }}</b><small>{{ list.stats.onboarding.hint }}</small></div>
+      <div class="co-stat"><span>Suspendues</span><b>{{ list.stats.suspended.value }}</b><small>{{ list.stats.suspended.hint }}</small></div>
+      <div class="co-stat"><span>Utilisateurs actifs (7 j)</span><b>{{ list.stats.users.value }}</b><small>{{ list.stats.users.hint }}</small></div>
+    </div>
+
+    <section class="co-card" aria-label="Liste des cliniques">
+      <div class="co-filters">
+        {% for key, label in {all: 'Toutes', active: 'Pilote actif', onboarding: 'Onboarding', suspended: 'Suspendues'} %}
+          <a class="co-pill{{ status == key ? ' is-active' }}" href="{{ path('backoffice_clinics', params|merge({status: key != 'all' ? key : null})|filter(v => v is not null)) }}">
+            {{ label }} <span class="co-pill-count">{{ list.counts[key] }}</span>
+          </a>
+        {% endfor %}
+        <form class="co-filters-end" method="get" action="{{ path('backoffice_clinics') }}" data-controller="co-autosubmit">
+          {% for name, value in params|filter((v, k) => k != 'sort') %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+          <label class="co-filter-select">Trier par
+            <select class="co-select is-sm" name="sort" data-action="co-autosubmit#submit">
+              {% for value, label in sorts %}<option value="{{ value }}"{% if sort == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+          </label>
+        </form>
+      </div>
+
+      <div class="co-table-wrap">
+        <table class="co-table co-clinics">
+          <thead>
+            <tr>
+              <th>Clinique</th><th>Statut</th><th>Vétos</th><th>Utilisateurs</th>
+              {% if features_total %}<th>Fonctions</th>{% endif %}
+              <th>Dernière activité</th><th class="is-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in list.rows %}
+              <tr>
+                <td>
+                  <a class="co-who" href="{{ path('backoffice_clinic_show', {id: row.clinic.id}) }}">
+                    <span class="co-initials is-square">{{ row.clinic.name|co_initials }}</span>
+                    <span><b>{{ row.clinic.name }}</b><span>{{ row.place ?? '—' }} · <code>{{ row.clinic.slug }}</code></span></span>
+                  </a>
+                </td>
+                <td><span class="co-badge {{ row.lifecycle.badge }}">{{ row.lifecycle.label }}</span></td>
+                <td class="is-num">{{ row.clinic.veterinarians }}</td>
+                <td class="is-num">{{ row.members }}</td>
+                {% if features_total %}<td class="is-num">{{ row.features ?? 0 }} / {{ features_total }}</td>{% endif %}
+                <td>
+                  {% if row.lastLogin %}{{ row.lastLogin|co_when }}
+                  {% elseif row.pending > 0 %}{{ row.pending }} invitation{{ row.pending > 1 ? 's' }} en attente
+                  {% else %}Jamais connectée{% endif %}
+                </td>
+                <td class="is-actions">
+                  <a class="co-row-link" href="{{ path('backoffice_clinic_show', {id: row.clinic.id, support: 1}) }}" title="Session support" aria-label="Session support · {{ row.clinic.name }}">{{ co.icon('login', 14) }}</a>
+                  <a class="co-row-link" href="{{ path('backoffice_clinic_show', {id: row.clinic.id}) }}" title="Ouvrir" aria-label="Ouvrir · {{ row.clinic.name }}">{{ co.icon('arrow-right', 14) }}</a>
+                </td>
+              </tr>
+            {% else %}
+              <tr><td colspan="7"><div class="co-empty"><b>Aucune clinique</b>Rien ne correspond à cette recherche.</div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {{ co.pager(list.page, list.pageCount, list.total, list.perPage, 'backoffice_clinics', params) }}
+    </section>
+  {% endif %}
+{% endblock %}

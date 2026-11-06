@@ -175,4 +175,21 @@ final class ConsoleFormat
 
         return number_format($units, 0, ',', ' ') . (0 === $rest ? '' : ',' . \sprintf('%02d', $rest)) . ' €';
     }
+
+    /**
+     * A typed phone number in the E.164 form the clinic keeps: « 04 91 00 00
+     * 00 » becomes +33491000000, « 0032… » +32…; anything else is kept for
+     * the domain to refuse. Null when nothing was typed.
+     */
+    public static function phone(?string $typed): ?string
+    {
+        $digits = (string) preg_replace('/[\s.\-()]+/', '', (string) $typed);
+
+        return match (true) {
+            '' === $digits                          => null,
+            str_starts_with($digits, '00')          => '+' . substr($digits, 2),
+            1 === preg_match('/^0\d{9}$/', $digits) => '+33' . substr($digits, 1),
+            default                                 => $digits,
+        };
+    }
 }

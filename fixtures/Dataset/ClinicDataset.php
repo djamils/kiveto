@@ -18,6 +18,7 @@ use App\Fixtures\Context\ClientPortal\Story\ClientPortalStatesStory;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicMembershipDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicStaffProfileDataStory;
+use App\Fixtures\Context\Clinic\Story\ConsoleDemoStory;
 use App\Fixtures\Context\Clinic\Story\TeamDemoStory;
 use App\Fixtures\Context\Consultation\Story\ConsultationDemoStory;
 use App\Fixtures\Context\Consultation\Story\ConsultationRegisterStory;
@@ -151,6 +152,11 @@ final class ClinicDataset extends Story
         // After the Portal links (its clients have none), before the
         // notifications (they drain the bell entries its requests queued).
         OnlineBookingStory::load();
+
+        // The clinics as the Kiveto console sees them: accounts, onboarding,
+        // waiting and expired invitations, a suspension. Before the
+        // notifications, which send the invitation e-mails it queued.
+        ConsoleDemoStory::load();
 
         // The notifications: messaging profiles, the confirmations the
         // bookings above queued, SMS quotas, every delivery status, the bell,

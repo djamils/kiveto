@@ -13,7 +13,7 @@ enum TokenPurpose: string
     public function lifetime(): \DateInterval
     {
         return match ($this) {
-            self::INVITATION     => new \DateInterval('PT72H'),
+            self::INVITATION     => new \DateInterval('P7D'),
             self::PASSWORD_RESET => new \DateInterval('PT30M'),
         };
     }

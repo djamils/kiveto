@@ -430,6 +430,10 @@ Lus par le Portal à travers son port.
 
 `(query, limit = 8)` → `CompanySearchResult{available, reason, hits}` : moins de 3 caractères (hors SIREN / SIRET) → aucun appel ; panne → `available: false`, `reason` `throttled` (budget épuisé ou 429 : réessayer) ou `down` (saisie manuelle).
 
+#### VerifyVatNumber
+
+`(vatNumber)` → `VatNumberCheck` `valid | invalid | unavailable` : le numéro est normalisé (espaces, casse) ; un numéro mal formé est `invalid` sans appel ; VIES indisponible → `unavailable`. Sert la création d'une clinique dans la console Kiveto (aucun client n'est lu ni écrit).
+
 #### GetClientById
 Retourne les détails complets d'un client (incluant tous ses contact methods).
 

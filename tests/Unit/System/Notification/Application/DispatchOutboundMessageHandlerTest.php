@@ -287,12 +287,12 @@ final class DispatchOutboundMessageHandlerTest extends TestCase
 
     /**
      * N10: a reset link (30 min) that expired while the message waited for
-     * its retries is not sent; an invitation (72 h) still in time is.
+     * its retries is not sent; an invitation (7 days) still in time is.
      */
     public function testAOneTimeLinkThatExpiredWhileWaitingIsNotSent(): void
     {
         $this->messages->save(Messages::sms(key: 'password-reset:t-1', purpose: MessagePurpose::PASSWORD_RESET, at: new \DateTimeImmutable('2026-10-16T09:30:00+00:00')));
-        $this->messages->save(Messages::sms(id: '01960000-0000-7000-8000-000000000502', key: 'invitation:t-2', purpose: MessagePurpose::STAFF_INVITATION, at: new \DateTimeImmutable('2026-10-14T10:00:01+00:00')));
+        $this->messages->save(Messages::sms(id: '01960000-0000-7000-8000-000000000502', key: 'invitation:t-2', purpose: MessagePurpose::STAFF_INVITATION, at: new \DateTimeImmutable('2026-10-09T10:00:01+00:00')));
 
         ($this->handler)(new DispatchOutboundMessage('01960000-0000-7000-8000-000000000501'));
         ($this->handler)(new DispatchOutboundMessage('01960000-0000-7000-8000-000000000502'));

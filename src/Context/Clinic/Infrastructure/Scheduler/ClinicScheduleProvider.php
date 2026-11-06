@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\Clinic\Infrastructure\Scheduler;
 
+use App\Context\Clinic\Application\Command\Account\CompleteClinicOnboardings\CompleteClinicOnboardings;
 use App\Context\Clinic\Application\Command\Staff\RecordVeterinarianDailyCounts\RecordVeterinarianDailyCounts;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
@@ -35,6 +36,7 @@ final readonly class ClinicScheduleProvider implements ScheduleProviderInterface
                 new RecordVeterinarianDailyCounts(),
                 from: new \DateTimeImmutable('today 00:07', new \DateTimeZone('Europe/Paris')),
             ))
+            ->add(RecurringMessage::every('15 minutes', new CompleteClinicOnboardings()))
         ;
     }
 }

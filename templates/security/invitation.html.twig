@@ -20,7 +20,7 @@
       <a class="btn p" href="{{ path('clinic_login') }}"><span class="lb">Se connecter</span></a>
     {% elseif state == 'invalid' %}
       <h1 class="titre" id="t-invit">Ce lien n’est plus valide</h1>
-      <p class="sous">Il a déjà servi, a été remplacé par un plus récent ou a expiré (72 heures). Demandez à la personne qui vous a invité de vous renvoyer une invitation depuis l’équipe de la clinique.</p>
+      <p class="sous">Il a déjà servi, a été remplacé par un plus récent ou a expiré (7 jours). Demandez à la personne qui vous a invité de vous renvoyer une invitation depuis l’équipe de la clinique.</p>
       <a class="btn s" href="{{ path('clinic_login') }}"><span class="lb">Retour à la connexion</span></a>
     {% else %}
       <h1 class="titre" id="t-invit">Activer mon compte</h1>

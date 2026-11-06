@@ -1,0 +1,64 @@
+{# C4 — « Modifier la clinique », a side panel. #}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+<dialog class="co-drawer" id="dialog-edit" aria-labelledby="dialog-edit-title" data-action="click->co-dialog#backdrop">
+  <form method="post" action="{{ path('backoffice_clinic_update', {id: sheet.clinic.id}) }}" class="co-drawer-form">
+    <input type="hidden" name="_token" value="{{ csrf_token('backoffice_clinic') }}">
+    <header class="co-dialog-head">
+      <div><h2 id="dialog-edit-title">Modifier la clinique</h2><span>{{ sheet.clinic.name }}</span></div>
+      <button class="co-btn is-white is-icon" type="button" data-action="co-dialog#close" aria-label="Fermer">{{ co.icon('x', 14) }}</button>
+    </header>
+    <div class="co-dialog-body">
+      {% if edit_error|default(null) %}<div class="co-error-box" role="alert">{{ edit_error }}</div>{% endif %}
+      <p class="co-label">Établissement</p>
+      <div class="co-field"><label for="edit-name">Nom affiché</label><input class="co-input" id="edit-name" name="name" value="{{ sheet.clinic.name }}" required maxlength="120"></div>
+      <div class="co-row2">
+        <div class="co-field"><label for="edit-phone">Téléphone</label><input class="co-input" id="edit-phone" name="phone" value="{{ sheet.identity.phone }}"></div>
+        <div class="co-field"><label for="edit-email">E-mail</label><input class="co-input" id="edit-email" type="email" name="email" value="{{ sheet.identity.email }}"></div>
+      </div>
+      <div class="co-field"><label for="edit-street">Adresse</label><input class="co-input" id="edit-street" name="street" value="{{ sheet.identity.street }}"></div>
+      <div class="co-row-zip">
+        <div class="co-field"><label for="edit-postal">Code postal</label><input class="co-input" id="edit-postal" name="postal_code" value="{{ sheet.identity.postalCode }}" maxlength="10"></div>
+        <div class="co-field"><label for="edit-city">Ville</label><input class="co-input" id="edit-city" name="city" value="{{ sheet.identity.city }}"></div>
+      </div>
+      <div class="co-row2">
+        <div class="co-field">
+          <label for="edit-zone">Fuseau horaire</label>
+          <select class="co-select" id="edit-zone" name="time_zone">
+            {% for zone in time_zones %}<option value="{{ zone }}"{% if zone == sheet.identity.timeZone %} selected{% endif %}>{{ zone }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="co-field">
+          <label for="edit-software">Logiciel en parallèle</label>
+          <select class="co-select" id="edit-software" name="parallel_software">
+            <option value="">—</option>
+            {% for value, label in softwares %}<option value="{{ value }}"{% if value == sheet.account.parallelSoftware %} selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="co-tile">
+        <span>Entreprise (SIRET, TVA)</span>
+        <b>{{ sheet.identity.legalName ?? '—' }} · {{ sheet.identity.siret ?? '—' }}</b>
+        <span>Non modifiable. Un changement d'entreprise = une nouvelle clinique.</span>
+      </div>
+      <p class="co-label">Abonnement</p>
+      <div class="co-row2">
+        <div class="co-field">
+          <label for="edit-plan">Formule</label>
+          <select class="co-select" id="edit-plan" name="plan">
+            {% for value, label in plans %}<option value="{{ value }}"{% if value == sheet.account.plan %} selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="co-field"><label for="edit-pilot">Fin du pilote</label><input class="co-input" id="edit-pilot" type="date" name="pilot_ends_on" value="{{ sheet.account.pilotEndsOn ? sheet.account.pilotEndsOn|date('Y-m-d') : '' }}"></div>
+      </div>
+      <div class="co-field">
+        <label for="edit-note">Note interne</label>
+        <textarea class="co-textarea" id="edit-note" name="internal_note" rows="3" maxlength="2000">{{ sheet.account.internalNote }}</textarea>
+        <span class="co-hint">Visible uniquement dans le backoffice.</span>
+      </div>
+    </div>
+    <footer class="co-dialog-foot">
+      <button class="co-btn is-white" type="button" data-action="co-dialog#close">Annuler</button>
+      <button class="co-btn is-primary" type="submit">Enregistrer</button>
+    </footer>
+  </form>
+</dialog>
