@@ -1,0 +1,31 @@
+{# E4 — « Désactiver … ? » with its reason. #}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+{% set live_sessions = sheet.sessions|length %}
+<dialog class="co-modal" id="dialog-disable" aria-labelledby="dialog-disable-title" data-action="click->co-dialog#backdrop">
+  <form method="post" action="{{ path('backoffice_user_disable', {id: sheet.account.id}) }}">
+    <input type="hidden" name="_token" value="{{ csrf_token('backoffice_user') }}">
+    <header class="co-dialog-head is-danger">
+      <span class="co-dialog-icon">{{ co.icon('user-x', 16) }}</span>
+      <div><h2 id="dialog-disable-title">Désactiver {{ sheet.name }} ?</h2><span>Réversible. Le compte reste visible dans les historiques.</span></div>
+    </header>
+    <div class="co-dialog-body">
+      {% if disable_error|default(null) %}<div class="co-error-box" role="alert">{{ disable_error }}</div>{% endif %}
+      <ul class="co-consequences">
+        {% if live_sessions > 0 %}<li>{{ live_sessions > 1 ? 'Les ' ~ live_sessions ~ ' sessions actives sont révoquées' : 'La session active est révoquée' }} immédiatement.</li>{% endif %}
+        {% if sheet.live_clinics|length > 0 %}<li>L'accès à {{ sheet.live_clinics|length > 1 ? sheet.live_clinics|slice(0, -1)|join(', ') ~ ' et ' ~ sheet.live_clinics|last : sheet.live_clinics|first }} est retiré.</li>{% endif %}
+        <li>Consultations, ordonnances et factures restent signées à son nom.</li>
+        {% if sheet.is_vet %}<li>Ne compte plus comme véto facturable au prochain cycle.</li>{% endif %}
+      </ul>
+      <div class="co-field">
+        <label for="disable-reason">Motif</label>
+        <select class="co-select" id="disable-reason" name="reason" required>
+          {% for value, label in reasons %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <footer class="co-dialog-foot">
+      <button class="co-btn is-white" type="button" data-action="co-dialog#close">Annuler</button>
+      <button class="co-btn is-danger-solid" type="submit">Désactiver le compte</button>
+    </footer>
+  </form>
+</dialog>

@@ -1,0 +1,23 @@
+{# E3 — « Modifier l'e-mail » of an invitation. #}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+<dialog class="co-modal" id="dialog-email" aria-labelledby="dialog-email-title" data-action="click->co-dialog#backdrop">
+  <form method="post" action="{{ path('backoffice_user_invitation_email', {id: sheet.account.id}) }}">
+    <input type="hidden" name="_token" value="{{ csrf_token('backoffice_user') }}">
+    <header class="co-dialog-head">
+      <div><h2 id="dialog-email-title">Modifier l'e-mail</h2><span>{{ sheet.name }}</span></div>
+      <button class="co-btn is-white is-icon" type="button" data-action="co-dialog#close" aria-label="Fermer">{{ co.icon('x', 14) }}</button>
+    </header>
+    <div class="co-dialog-body">
+      {% if email_error|default(null) %}<div class="co-error-box" role="alert">{{ email_error }}</div>{% endif %}
+      <div class="co-field">
+        <label for="email-new">Nouvelle adresse</label>
+        <input class="co-input" id="email-new" type="email" name="email" value="{{ sheet.account.email }}" required maxlength="180" autofocus>
+        <span class="co-hint">L'invitation repart à cette adresse ; l'ancien lien ne fonctionne plus.</span>
+      </div>
+    </div>
+    <footer class="co-dialog-foot">
+      <button class="co-btn is-white" type="button" data-action="co-dialog#close">Annuler</button>
+      <button class="co-btn is-primary" type="submit">Enregistrer et renvoyer</button>
+    </footer>
+  </form>
+</dialog>

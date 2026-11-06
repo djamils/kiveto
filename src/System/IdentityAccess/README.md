@@ -137,6 +137,9 @@ Query `GetInvitationStatuses(clinicId, userIds)` answers `PENDING_VALID`, `PENDI
 | `ResetPassword(token, plainPassword)` | Usable reset token of an ACTIVE account → `changePassword()`, token and every other reset token of the user used. |
 | `GetAccountSummaries(userIds)` | `AccountSummary` (e-mail, phone, type, status, created, last sign-in) of each known id, keyed by id — the console's member and user lists. |
 | `SearchAccounts(type, text, page, perPage)` | `AccountPage` of the accounts of one type, newest first, the text matched literally on the e-mail or the phone. |
+| `DisableClinicAccount(userId)` | The Kiveto console turns a clinic account off (`User::disableStaff()`): no sign-in, every session revoked (answers how many). Its memberships stay, so `EnableClinicAccount(userId)` gives the same access back: ACTIVE when a password was chosen, PENDING otherwise. |
+| `ChangeInvitedUserEmail(userId, email)` | Corrects the address of a PENDING clinic account (`User::changeInvitedEmail()`): normalised, refused when malformed (`InvalidArgumentException`) or held by another clinic account (`DomainException`), French messages. The caller sends the invitations again. |
+| `GetLatestInvitation(userId)` | `InvitationView{clinicId, sentAt, expiresAt, expired}` of the most recent unused invitation link, or null — the console's « Invitation envoyée le … · expire le … ». |
 | `CheckAccountToken(token, purpose)` | `AccountTokenCheck{VALID (with the e-mail) | INVALID | ALREADY_ACTIVE}` for the public pages. |
 
 Unusable links throw `InvalidAccountTokenException` (« Ce lien n’est plus valide. »), refused passwords `UnacceptablePasswordException`. Ports: `PasswordHasherInterface` (Symfony hasher), `AccountLinkBuilderInterface` (`KIVETO_PUBLIC_BASE_URL`), `NotificationRequesterInterface` (`CommandBusNotificationRequester` → Notification's `RequestNotification`, sender « Kiveto <no-reply@kiveto.app> »).

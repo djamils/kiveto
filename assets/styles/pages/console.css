@@ -431,3 +431,21 @@ body.co-body.is-auth{background:#0a0a0b}
 .co-created-list b{display:block;font-size:13.5px;color:var(--co-ink)}
 .co-created-list span{font-size:12px;color:var(--co-muted)}
 @media (max-width:900px){.co-stepper{grid-template-columns:1fr}.co-stepper li{border-left:0;border-top:1px solid var(--co-divider)}}
+
+/* ── Users (E1–E4) ── */
+.co-segmented{display:inline-flex;gap:2px;padding:3px;border-radius:9px;background:#eef2f6;border:1px solid var(--co-line);margin:0 0 16px}
+.co .co-segmented a{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 14px;border-radius:7px;font-size:13px;font-weight:500;color:var(--co-ink-3)}
+.co .co-segmented a span{color:var(--co-muted);font-weight:400}
+.co .co-segmented a.is-active{background:#fff;color:var(--co-ink);box-shadow:0 1px 2px rgba(15,23,42,.08)}
+.co .co-segmented a:hover{color:var(--co-ink)}
+.co-badge.co-more{margin-left:6px;font-size:11px;padding:0 6px}
+.co .co-btn.is-danger-text{color:var(--co-red)}
+.co .co-btn.is-danger-text:hover{border-color:var(--co-red-line);background:var(--co-red-pale)}
+.co .co-strong{font-weight:600;color:var(--co-ink)}
+.co .co-strong:hover{color:var(--co-accent)}
+.co-invitation{align-items:center}
+.co-invitation .co-banner-actions{display:flex;gap:8px;margin-left:auto}
+.co-access tr.is-greyed td{color:var(--co-faint)}
+.co-access tr.is-greyed .co-strong{color:var(--co-muted)}
+.co-access form{margin:0}
+

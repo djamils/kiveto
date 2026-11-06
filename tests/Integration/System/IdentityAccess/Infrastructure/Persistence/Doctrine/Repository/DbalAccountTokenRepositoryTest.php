@@ -61,6 +61,25 @@ final class DbalAccountTokenRepositoryTest extends KernelTestCase
         self::assertNull($tokens->findByHash(hash('sha256', 's-b'))?->usedAt());
     }
 
+    public function testTheLatestUnusedInvitationOfAUserIsFound(): void
+    {
+        self::assertNull($this->tokens()->latestUnusedInvitation(self::USER));
+
+        $this->issue('01960000-0000-7000-8000-00000000a031', self::USER, TokenPurpose::INVITATION, self::CLINIC_A, 's-l1', '2026-10-20 10:00:00');
+        $this->issue('01960000-0000-7000-8000-00000000a032', self::USER, TokenPurpose::INVITATION, self::CLINIC_B, 's-l2', '2026-10-25 10:00:00');
+        $this->issue('01960000-0000-7000-8000-00000000a033', self::USER, TokenPurpose::PASSWORD_RESET, null, 's-l3', '2026-10-26 10:00:00');
+        $this->issue('01960000-0000-7000-8000-00000000a034', self::OTHER, TokenPurpose::INVITATION, self::CLINIC_A, 's-l4', '2026-10-27 10:00:00');
+
+        $tokens = $this->tokens();
+        $latest = $tokens->latestUnusedInvitation(self::USER);
+        self::assertSame('01960000-0000-7000-8000-00000000a032', $latest?->id()->toString());
+
+        $tokens->invalidateInvitations(self::USER, self::CLINIC_B, new \DateTimeImmutable('2026-10-26 10:00:00'));
+        $tokens = $this->tokens();
+        $latest = $tokens->latestUnusedInvitation(self::USER);
+        self::assertSame(self::CLINIC_A, $latest?->clinicId(), 'a used link no longer counts');
+    }
+
     public function testTheEntityDescribesTheTable(): void
     {
         $this->issue('01960000-0000-7000-8000-00000000a021', self::USER, TokenPurpose::PASSWORD_RESET, null, 's-e', '2026-10-26 10:00:00');

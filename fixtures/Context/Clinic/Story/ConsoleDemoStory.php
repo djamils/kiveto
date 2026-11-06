@@ -15,6 +15,7 @@ use App\Shared\Application\Bus\CommandBusInterface;
 use App\System\Audit\Application\Command\RecordAuditEntry\RecordAuditEntry;
 use App\System\Audit\Domain\ValueObject\ActorKind;
 use App\System\Audit\Domain\ValueObject\AuditCategory;
+use App\System\IdentityAccess\Application\Command\DisableClinicAccount\DisableClinicAccount;
 use App\System\IdentityAccess\Application\Command\RegisterInvitedUser\InvitedUserRegistration;
 use App\System\IdentityAccess\Application\Command\RegisterInvitedUser\RegisterInvitedUser;
 use App\System\IdentityAccess\Application\Command\SendInvitation\SendInvitation;
@@ -31,7 +32,9 @@ use Zenstruck\Foundry\Story;
  *   three days ago (« À traiter · Invitations »);
  * - Alpilles, created nine days ago: its only invitation expired and nobody
  *   ever signed in (« Activation »);
- * - Côte Bleue: suspended for an unpaid invoice, its vet's account kept.
+ * - Côte Bleue: suspended for an unpaid invoice, its vet's account kept;
+ * - Alpilles also had an assistant whose account Kiveto disabled (E1
+ *   « Désactivés »).
  *
  * Each new clinic has its « clinic.created » entry in the audit log, signed
  * by the console admin (by « Kiveto », a system actor, when the clinics are
@@ -89,6 +92,9 @@ final class ConsoleDemoStory extends Story
         ));
         $this->account(self::ALPILLES_ID, 'pilot', $pilotEnd, 'vetocom', null, '');
         $this->invite(self::ALPILLES_ID, 'Clinique des Alpilles', 'Saint-Rémy-de-Provence', 'marc.vidal@kiveto.local', 'Marc', 'Vidal', ClinicMemberRole::VETERINARY, true, '-8 days');
+        $lucas = $this->invite(self::ALPILLES_ID, 'Clinique des Alpilles', 'Saint-Rémy-de-Provence', 'lucas.moreau@kiveto.local', 'Lucas', 'Moreau', ClinicMemberRole::VETERINARY_ASSISTANT, false, '-8 days');
+        $this->commandBus->dispatch(new DisableClinicAccount($lucas));
+        $this->audit(self::ALPILLES_ID, 'Clinique des Alpilles', 'user.disabled', 'Compte désactivé · compte en double', '-6 days', ['Compte' => 'lucas.moreau@kiveto.local', 'Motif' => 'Compte en double']);
 
         $this->clinic(self::COTE_BLEUE_ID, 'clinic-cote-bleue', 'Clinique de la Côte Bleue', '-75 days', new LetterheadEmbeddable(
             legalName: 'SARL Côte Bleue Vétérinaire',
@@ -140,7 +146,7 @@ final class ConsoleDemoStory extends Story
      * An invitation as the console sends it, dated `$sent` (its link lasts
      * seven days from then).
      */
-    private function invite(string $clinicId, string $clinicName, string $city, string $email, string $firstName, string $lastName, ClinicMemberRole $role, bool $administrator, string $sent): void
+    private function invite(string $clinicId, string $clinicName, string $city, string $email, string $firstName, string $lastName, ClinicMemberRole $role, bool $administrator, string $sent): string
     {
         $registration = $this->commandBus->dispatch(new RegisterInvitedUser($email));
         \assert($registration instanceof InvitedUserRegistration);
@@ -177,6 +183,8 @@ final class ConsoleDemoStory extends Story
         );
 
         $this->audit($clinicId, $clinicName, 'user.invited', \sprintf('Invitation envoyée à %s %s', $firstName, $lastName), $sent, ['E-mail' => $email]);
+
+        return $registration->userId;
     }
 
     /**

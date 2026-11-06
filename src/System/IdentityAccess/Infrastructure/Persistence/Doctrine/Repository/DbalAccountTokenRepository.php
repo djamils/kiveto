@@ -90,6 +90,16 @@ final readonly class DbalAccountTokenRepository implements AccountTokenRepositor
         return array_map(static fn (mixed $id): string => Uuid::fromBinary(\is_string($id) ? $id : '')->toRfc4122(), $ids);
     }
 
+    public function latestUnusedInvitation(string $userId): ?AccountToken
+    {
+        $row = $this->connection->fetchAssociative(
+            'SELECT * FROM ' . self::TABLE . ' WHERE user_id = :user AND purpose = :purpose AND used_at IS NULL ORDER BY created_at DESC LIMIT 1',
+            ['user' => self::binary($userId), 'purpose' => TokenPurpose::INVITATION->value],
+        );
+
+        return false === $row ? null : self::token($row);
+    }
+
     private function find(string $tokenHash, string $lock): ?AccountToken
     {
         $row = $this->connection->fetchAssociative(
@@ -97,10 +107,14 @@ final readonly class DbalAccountTokenRepository implements AccountTokenRepositor
             ['hash' => $tokenHash],
         );
 
-        if (false === $row) {
-            return null;
-        }
+        return false === $row ? null : self::token($row);
+    }
 
+    /**
+     * @param array<string, mixed> $row
+     */
+    private static function token(array $row): AccountToken
+    {
         $usedAt = RowAccessor::nullableString($row, 'used_at');
 
         return AccountToken::reconstitute(
