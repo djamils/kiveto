@@ -8,6 +8,7 @@ use App\Context\Scheduling\Application\Notification\AppointmentMessageComposer;
 use App\Context\Scheduling\Application\Port\ClientContact;
 use App\Context\Scheduling\Application\Port\ClientContactInterface;
 use App\Context\Scheduling\Application\Port\ClinicDirectoryInterface;
+use App\Context\Scheduling\Application\Port\ClinicFeaturesInterface;
 use App\Context\Scheduling\Application\Port\NotificationRequesterInterface;
 use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Notification\AppointmentNotificationStateRepositoryInterface;
@@ -44,6 +45,7 @@ final readonly class RequestAppointmentReminderHandler
         private AppointmentMessageComposer $composer,
         private NotificationRequesterInterface $notifications,
         private ClockInterface $clock,
+        private ?ClinicFeaturesInterface $features = null,
     ) {
     }
 
@@ -60,7 +62,10 @@ final readonly class RequestAppointmentReminderHandler
 
         $appointment = $this->appointments->findById($appointmentId);
 
-        if (null === $appointment || !self::isToCome($appointment, $now)) {
+        $smsOff = null !== $appointment && null !== $this->features && !$this->features->smsRemindersOn($appointment->clinicId()->toString());
+
+        // Gone, past, or Kiveto switched the clinic's SMS reminders off.
+        if (null === $appointment || !self::isToCome($appointment, $now) || $smsOff) {
             $state->dropReminder();
             $this->states->save($state);
 

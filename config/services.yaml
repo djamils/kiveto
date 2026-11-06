@@ -278,6 +278,16 @@ services:
     App\System\Audit\Application\Port\AuditLogReadRepositoryInterface:
         class: App\System\Audit\Infrastructure\Persistence\Doctrine\Repository\DbalAuditLogReadRepository
 
+    # FeatureCatalog: what Kiveto switches on per clinic, and the modules it gates
+    App\System\FeatureCatalog\Domain\FeatureRepositoryInterface:
+        class: App\System\FeatureCatalog\Infrastructure\Persistence\Doctrine\Repository\DbalFeatureRepository
+
+    App\Context\Scheduling\Application\Port\ClinicFeaturesInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\FeatureCatalog\QueryBusClinicFeatures
+
+    App\Context\Billing\Application\Port\ElectronicInvoicingFeatureInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\FeatureCatalog\QueryBusElectronicInvoicingFeature
+
     # ============================================================================
     # PORTAL API — rate limiters (one-time codes, anti SMS-pumping)
     # ============================================================================

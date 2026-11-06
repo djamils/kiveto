@@ -1,0 +1,51 @@
+{% extends 'backoffice/console/base.html.twig' %}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+
+{% block page_title %}Fonctionnalités{% endblock %}
+
+{% block content %}
+  <header class="co-head">
+    <div class="co-head-title">
+      <h1 class="co-title">Fonctionnalités</h1>
+      <span class="co-sub">{{ available }} fonctionnalité{{ available > 1 ? 's' }} activable{{ available > 1 ? 's' }} par clinique</span>
+    </div>
+  </header>
+
+  <div class="co-banner is-info" role="note">
+    {{ co.icon('info', 14) }}
+    <span>Désactiver une fonctionnalité masque son entrée dans la VetApp et l'app Portal, et bloque les routes API correspondantes. Les données déjà saisies sont conservées.</span>
+  </div>
+
+  <section class="co-card" aria-label="Catalogue des fonctionnalités">
+    <div class="co-table-wrap">
+      <table class="co-table co-features">
+        <thead>
+          <tr><th>Fonctionnalité</th><th>Statut</th><th>Par défaut</th><th>Cliniques activées</th><th>Modifiée</th><th class="is-actions"><span class="co-sr">Ouvrir</span></th></tr>
+        </thead>
+        <tbody>
+          {% for feature in features %}
+            <tr class="{{ feature.upcoming ? 'is-greyed' }}">
+              <td>
+                <a class="co-feature-name" href="{{ path('backoffice_feature_show', {code: feature.code}) }}">
+                  <b>{{ feature.name }}</b>
+                  <span>{{ feature.description }}</span>
+                  <code>{{ feature.code }}</code>
+                </a>
+              </td>
+              <td><span class="co-badge {{ badges[feature.status] }}">{{ feature.statusLabel }}</span></td>
+              <td>{{ feature.upcoming ? '—' : (feature.defaultOn ? 'Activée' : 'Désactivée') }}</td>
+              <td>
+                {% if feature.upcoming %}—{% else %}
+                  <span class="co-dots" aria-hidden="true">{% for i in 1..max(1, clinics) %}<i class="{{ i <= feature.enabledCount ? 'is-on' }}"></i>{% endfor %}</span>
+                  {{ feature.enabledCount }} / {{ clinics }}
+                {% endif %}
+              </td>
+              <td>{{ feature.updatedAt ? feature.updatedAt|co_date : '—' }}</td>
+              <td class="is-actions"><a class="co-row-link" href="{{ path('backoffice_feature_show', {code: feature.code}) }}" aria-label="Ouvrir · {{ feature.name }}">{{ co.icon('arrow-right', 14) }}</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

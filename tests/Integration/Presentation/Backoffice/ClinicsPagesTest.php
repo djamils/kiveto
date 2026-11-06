@@ -102,7 +102,7 @@ final class ClinicsPagesTest extends WebTestCase
         self::assertSelectorTextContains('.co-dl', 'Pilote (gratuit)');
         self::assertSelectorTextContains('.co-dl', '99 € HT / mois');
         self::assertSelectorExists('#dialog-suspend');
-        self::assertSelectorTextContains('.co-settings .is-greyed', 'Exporter les données');
+        self::assertSelectorTextContains('[aria-labelledby=sheet-danger] .is-greyed', 'Exporter les données');
     }
 
     public function testAnUnknownClinicIsNotFound(): void
@@ -527,11 +527,11 @@ final class ClinicsPagesTest extends WebTestCase
     private function token(string $clinicId = self::LYON): string
     {
         $crawler = $this->browser->getCrawler();
-        $field   = $crawler->filter('input[name="_token"]');
+        $field   = $crawler->filter('form.co-col input[name="_token"], #dialog-edit input[name="_token"]');
 
         if (0 === $field->count()) {
             $crawler = $this->browser->request('GET', self::CONSOLE . '/clinics/' . $clinicId);
-            $field   = $crawler->filter('input[name="_token"]');
+            $field   = $crawler->filter('#dialog-edit input[name="_token"]');
         }
 
         return (string) $field->first()->attr('value');

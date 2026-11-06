@@ -32,6 +32,7 @@ use App\Fixtures\Context\Scheduling\Story\SchedulingPlanningBlockStory;
 use App\Fixtures\Context\Scheduling\Story\SchedulingStory;
 use App\Fixtures\System\AccessControl\Story\RolePermissionSeedStory;
 use App\Fixtures\System\ElectronicInvoicing\Story\ElectronicInvoicingDemoStory;
+use App\Fixtures\System\FeatureCatalog\Story\FeatureCatalogDemoStory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\Fixtures\System\IdentityAccess\Story\ClinicVetStory;
 use App\Fixtures\System\Notification\Story\NotificationDemoStory;
@@ -157,6 +158,9 @@ final class ClinicDataset extends Story
         // waiting and expired invitations, a suspension. Before the
         // notifications, which send the invitation e-mails it queued.
         ConsoleDemoStory::load();
+
+        // The features each demo clinic has (FeatureCatalog).
+        FeatureCatalogDemoStory::load();
 
         // The notifications: messaging profiles, the confirmations the
         // bookings above queued, SMS quotas, every delivery status, the bell,

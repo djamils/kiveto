@@ -12,6 +12,7 @@ use App\Context\Billing\Application\Command\RequestDocumentTransmission\RequestD
 use App\Context\Billing\Application\Command\RequestDocumentTransmission\RequestDocumentTransmissionHandler;
 use App\Context\Billing\Application\EventSubscriber\OnInvoiceTransmissionStatusChanged;
 use App\Context\Billing\Application\EventSubscriber\OnProfessionalDocumentIssuedRequestTransmission;
+use App\Context\Billing\Application\Port\ElectronicInvoicingFeatureInterface;
 use App\Context\Billing\Application\Port\SellerIdentityProviderInterface;
 use App\Context\Billing\Application\Port\TransmissionStatusProjectionInterface;
 use App\Context\Billing\Application\Port\TransmissionStatusUpdate;
@@ -142,6 +143,37 @@ final class ElectronicInvoicingBridgeTest extends TestCase
         new RequestDocumentTransmissionHandler($projection, $transmitter)(new RequestDocumentTransmission(self::CLINIC, 'private', 'invoice'));
 
         self::assertSame([[self::CLINIC, ['documentId' => self::DOC, 'paid' => 1000]]], $transmitter->transmitted);
+    }
+
+    /**
+     * Kiveto has not switched « Facturation électronique » on for the
+     * clinic: the document waits, its frozen copy is not even read (the
+     * reconciliation sends it once the feature is on).
+     */
+    public function testADocumentWaitsWhileTheFeatureIsOff(): void
+    {
+        $projection = $this->createMock(TransmissionStatusProjectionInterface::class);
+        $projection->expects(self::never())->method('frozenDocument');
+        $transmitter = new RecordingTransmitter();
+        $feature     = $this->createMock(ElectronicInvoicingFeatureInterface::class);
+        $feature->expects(self::once())->method('isOnFor')->with(self::CLINIC)->willReturn(false);
+
+        new RequestDocumentTransmissionHandler($projection, $transmitter, $feature)(new RequestDocumentTransmission(self::CLINIC, self::DOC, 'invoice'));
+
+        self::assertSame([], $transmitter->transmitted);
+    }
+
+    public function testADocumentIsHandedOverOnceTheFeatureIsOn(): void
+    {
+        $projection                       = new InMemoryTransmissionStatusProjection();
+        $projection->documents[self::DOC] = ['documentId' => self::DOC, 'paid' => 0];
+        $transmitter                      = new RecordingTransmitter();
+        $feature                          = $this->createMock(ElectronicInvoicingFeatureInterface::class);
+        $feature->expects(self::once())->method('isOnFor')->with(self::CLINIC)->willReturn(true);
+
+        new RequestDocumentTransmissionHandler($projection, $transmitter, $feature)(new RequestDocumentTransmission(self::CLINIC, self::DOC, 'invoice'));
+
+        self::assertSame([[self::CLINIC, ['documentId' => self::DOC, 'paid' => 0]]], $transmitter->transmitted);
     }
 
     // ── Reconciliation ──

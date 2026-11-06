@@ -9,6 +9,7 @@ use App\Context\Clinic\Application\Command\Clinic\CreateClinic\CreateClinic;
 use App\Context\Clinic\Application\Command\Clinic\UpdateClinicLetterhead\UpdateClinicLetterhead;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
 use App\Presentation\Backoffice\Audit\ConsoleAuditTrail;
+use App\Presentation\Backoffice\Feature\ConsoleFeatures;
 use App\Presentation\Backoffice\ViewModel\ConsoleDirectory;
 use App\Presentation\Backoffice\ViewModel\ConsoleFormat;
 use App\Shared\Application\Bus\CommandBusInterface;
@@ -31,6 +32,7 @@ final readonly class ClinicCreator
         private CommandBusInterface $commandBus,
         private ConsoleStaffInviter $inviter,
         private ConsoleAuditTrail $auditTrail,
+        private ConsoleFeatures $features,
         private ClockInterface $clock,
         private LoggerInterface $logger,
     ) {
@@ -74,6 +76,7 @@ final readonly class ClinicCreator
             : null;
 
         $this->commandBus->dispatch(new OpenClinicAccount($clinicId, $draft->plan, $pilotEnd, self::text($place['parallelSoftware'] ?? null)));
+        $this->features->applyStarting($clinicId, $draft->features);
 
         $this->auditTrail->record(
             'clinic.created',

@@ -11,6 +11,7 @@ use App\Context\Clinic\Domain\Account\ParallelSoftware;
 use App\Presentation\Backoffice\Clinic\ClinicCreator;
 use App\Presentation\Backoffice\Clinic\ClinicDraft;
 use App\Presentation\Backoffice\Controller\Account\ShowAccountController;
+use App\Presentation\Backoffice\Feature\ConsoleFeatures;
 use App\Presentation\Backoffice\ViewModel\ConsoleDirectory;
 use App\Presentation\Backoffice\ViewModel\ConsoleFormat;
 use App\Shared\Application\Bus\QueryBusInterface;
@@ -34,6 +35,7 @@ final class NewClinicController extends AbstractController
     public function __construct(
         private readonly QueryBusInterface $queryBus,
         private readonly ClinicCreator $creator,
+        private readonly ConsoleFeatures $features,
         #[Autowire('%app.console.price_per_vet_cents%')]
         private readonly int $pricePerVetCents,
     ) {
@@ -89,7 +91,8 @@ final class NewClinicController extends AbstractController
             $errors['slug'] = 'Ce tenant vient d’être pris : choisis-en un autre.';
         }
 
-        $vets = $draft->veterinarians();
+        $vets     = $draft->veterinarians();
+        $features = 3 === $step ? $this->features->starting() : [];
 
         return $this->render('backoffice/console/clinics/new.html.twig', [
             'step'      => $step,
@@ -98,6 +101,7 @@ final class NewClinicController extends AbstractController
             'roles'     => array_combine(self::ROLES, array_map(ConsoleDirectory::roleLabel(...), self::ROLES)),
             'softwares' => array_combine(array_map(static fn (ParallelSoftware $s): string => $s->value, ParallelSoftware::cases()), array_map(static fn (ParallelSoftware $s): string => $s->label(), ParallelSoftware::cases())),
             'zones'     => ShowAccountController::TIME_ZONES,
+            'features'  => $features,
             'price'     => ConsoleFormat::euros($this->pricePerVetCents),
             'summary'   => [
                 'vets'    => $vets,
@@ -222,8 +226,9 @@ final class NewClinicController extends AbstractController
     {
         $plan            = $request->request->getString('plan');
         $draft->plan     = \in_array($plan, ['pilot', 'paid'], true) ? $plan : 'pilot';
+        $offered         = array_column(array_filter($this->features->starting(), static fn (array $f): bool => !$f['upcoming']), 'code');
         $features        = $request->request->all('features');
-        $draft->features = array_values(array_filter($features, is_string(...)));
+        $draft->features = array_values(array_filter($features, static fn (mixed $code): bool => \in_array($code, $offered, true)));
 
         return [];
     }

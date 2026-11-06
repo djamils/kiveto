@@ -112,7 +112,7 @@
                 <td><span class="co-badge {{ row.lifecycle.badge }}">{{ row.lifecycle.label }}</span></td>
                 <td class="is-num">{{ row.clinic.veterinarians }}</td>
                 <td class="is-num">{{ row.members }}</td>
-                {% if features_total %}<td class="is-num">{{ row.features ?? 0 }} / {{ features_total }}</td>{% endif %}
+                {% if features_total %}<td class="is-num">{{ feature_counts[row.clinic.id] ?? 0 }} / {{ features_total }}</td>{% endif %}
                 <td>
                   {% if row.lastLogin %}{{ row.lastLogin|co_when }}
                   {% elseif row.pending > 0 %}{{ row.pending }} invitation{{ row.pending > 1 ? 's' }} en attente

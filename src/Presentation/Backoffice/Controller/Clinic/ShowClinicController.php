@@ -8,6 +8,7 @@ use App\Context\Clinic\Domain\Account\ClinicPlan;
 use App\Context\Clinic\Domain\Account\ParallelSoftware;
 use App\Context\Clinic\Domain\Account\SuspensionReason;
 use App\Presentation\Backoffice\Controller\Account\ShowAccountController;
+use App\Presentation\Backoffice\Feature\ConsoleFeatures;
 use App\Presentation\Backoffice\ViewModel\Clinic\ClinicSheetBuilder;
 use App\Presentation\Backoffice\ViewModel\ConsoleDirectory;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -26,6 +27,7 @@ final class ShowClinicController extends AbstractController
 
     public function __construct(
         private readonly ClinicSheetBuilder $builder,
+        private readonly ConsoleFeatures $features,
     ) {
     }
 
@@ -58,6 +60,8 @@ final class ShowClinicController extends AbstractController
             'reasons'          => array_combine(array_map(static fn (SuspensionReason $r): string => $r->value, SuspensionReason::cases()), array_map(static fn (SuspensionReason $r): string => $r->label(), SuspensionReason::cases())),
             'roles'            => ['VETERINARY' => ConsoleDirectory::roleLabel('VETERINARY'), 'VETERINARY_ASSISTANT' => 'ASV', 'RECEPTIONIST' => 'Accueil', 'MANAGER' => 'Gérant'],
             'price_per_vet'    => $this->builder->pricePerVet(),
+            'features'         => $this->features->ofClinic($id),
+            'feature_badges'   => ConsoleFeatures::BADGES,
         ]);
     }
 }
