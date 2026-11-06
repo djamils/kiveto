@@ -2,7 +2,7 @@
 title: 'Kiveto Console — the backoffice redesign'
 slug: 'backoffice-console'
 created: '2026-11-06'
-status: 'in-progress'
+status: 'done'
 branch: 'feature/backoffice-console'
 source: 'D:\Kiveto\Kiveto Backoffice.pdf (38 screens, journeys A–I) and its HTML/PNG export kiveto-console-ecrans'
 tech_stack:
@@ -206,3 +206,40 @@ JSON endpoint, keyboard navigation.
 - Demo fixtures show each state: clinics pilot / onboarding / suspended /
   internal, pending and expired invitations, a disabled user, support
   sessions, registry runs succeeded and failed, features at every status.
+
+## Implementation notes (2026-11-06)
+
+Delivered as eight commits on `feature/backoffice-console`, one per slice
+above. What differs from the mock-up, and why:
+
+- **Onboarding (C2):** the steps are clinic created, team invited,
+  invitations accepted, opening hours set and first appointment; the
+  mock-up's « Salles et agenda » is « Horaires d'ouverture » (there is no
+  room concept) and the legacy import step is shown greyed « Pré-alpha »,
+  not counted. Onboarding completes every 15 minutes (schedule `clinic`).
+- **Company (B3):** the registry search is the Client BC's
+  `SearchCompanyRegistry`; the VAT number is computed from the SIREN and
+  checked with VIES (`VerifyVatNumber`).
+- **Sessions (E2, H2):** the place of a session is its masked IP address
+  (no geolocation).
+- **Clinic staff second factor (E2):** not offered yet; the security card
+  says so, greyed « Pré-alpha ».
+- **Invitation (E3):** the banner shows the dates of the latest link; the
+  delivery status of the e-mail and the automatic reminder are not shown
+  (no such data yet). « Annuler l'invitation » revokes the links and turns
+  the account off.
+- **Features (F1–F3):** a clinic created before the catalogue keeps the
+  modules it already had (legacy state); « Prévenir les administrateurs par
+  e-mail » is greyed « Pré-alpha ».
+- **Support (D1–D3):** the hand-off is a one-time secret valid two
+  minutes; the clinic host opens the session without a sign-in event (no
+  login recorded, not listed in « Sessions actives »); read-only refuses
+  every change; the banner shows the expiry time (no live countdown).
+- **Registry (G1–G4):** the files are dropped in
+  `storage/pharma-registry/ANMV/current/` (the import command's folder)
+  and « Lancer l'import » hands them to a worker; the history reads the
+  snapshots' diff entries. The per-clinic catalogue impact (G4) is greyed
+  « Pré-alpha ».
+- **Greyed « Pré-alpha »:** journey I (Migrations, a tab without page) and
+  « Exporter les données » of a clinic, as decided.
+

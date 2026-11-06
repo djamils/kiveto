@@ -1,0 +1,35 @@
+{% extends 'backoffice/console/base.html.twig' %}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+
+{% block page_title %}Recherche{% endblock %}
+
+{% block content %}
+  <header class="co-head">
+    <div class="co-head-title">
+      <h1 class="co-title">Recherche</h1>
+      <span class="co-sub">Cliniques, personnel, propriétaires, fonctionnalités, pages</span>
+    </div>
+    <form class="co-search-field" method="get" action="{{ path('backoffice_search') }}" role="search">
+      <label class="co-sr" for="search-q">Rechercher</label>
+      {{ co.icon('search', 14) }}
+      <input class="co-input" id="search-q" type="search" name="q" value="{{ query }}" placeholder="Clinique, utilisateur, SIRET…" autofocus>
+    </form>
+  </header>
+
+  {% if query|length < 2 %}
+    <div class="co-empty"><b>Tape au moins deux caractères</b>Nom de clinique, tenant, SIRET, nom ou e-mail d'une personne, téléphone…</div>
+  {% elseif groups|length == 0 %}
+    <div class="co-empty"><b>Aucun résultat</b>Rien ne correspond à « {{ query }} ».</div>
+  {% else %}
+    {% for group in groups %}
+      <section class="co-card co-search-group" aria-label="{{ group.label }}">
+        <div class="co-card-head"><h2 class="co-label">{{ group.label }} · {{ group.items|length }}</h2></div>
+        <ul class="co-search-results">
+          {% for item in group.items %}
+            <li><a href="{{ item.url }}"><b>{{ item.label }}</b><span>{{ item.sub }}</span></a></li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endfor %}
+  {% endif %}
+{% endblock %}

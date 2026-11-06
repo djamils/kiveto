@@ -505,3 +505,24 @@ body.co-body.is-auth{background:#0a0a0b}
 .co-card.is-greyed{opacity:.6}
 .co-registry-diff code{font-size:12px}
 @media (max-width:720px){.co-registry-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ── ⌘K search ── */
+.co-palette{width:min(620px,calc(100vw - 32px));max-height:70vh;margin:12vh auto auto;padding:0;border:1px solid var(--co-line);border-radius:12px;box-shadow:0 24px 64px rgba(15,23,42,.25);background:#fff;color:var(--co-ink);font-family:'Geist',system-ui,sans-serif;overflow:hidden}
+.co-palette::backdrop{background:rgba(15,23,42,.35)}
+.co-palette-field{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--co-line)}
+.co-palette-field input{flex:1;border:0;outline:0;font:inherit;font-size:15px;color:var(--co-ink);background:transparent}
+.co-palette-field kbd{font-family:var(--co-mono);font-size:11px;color:var(--co-muted);border:1px solid var(--co-line);border-radius:5px;padding:1px 6px}
+.co-palette-list{max-height:calc(70vh - 110px);overflow:auto;padding:6px}
+.co-palette-group{margin:8px 10px 4px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--co-faint)}
+.co-palette-list a{display:flex;flex-direction:column;gap:1px;padding:8px 10px;border-radius:8px;color:var(--co-ink);text-decoration:none}
+.co-palette-list a b{font-size:13.5px;font-weight:600}
+.co-palette-list a span{font-size:12px;color:var(--co-muted)}
+.co-palette-list a.is-active{background:var(--co-accent-pale)}
+.co-palette-list a.is-active b{color:var(--co-accent)}
+.co-palette-status{margin:0;padding:18px 16px;font-size:13px;color:var(--co-muted)}
+.co-search-group{margin-bottom:14px}
+.co-search-results{list-style:none;margin:0;padding:0}
+.co .co-search-results a{display:flex;flex-direction:column;padding:10px 16px;border-top:1px solid var(--co-divider);color:var(--co-ink)}
+.co-search-results li:first-child a{border-top:0}
+.co .co-search-results a span{font-size:12.5px;color:var(--co-muted)}
+.co .co-search-results a:hover b{color:var(--co-accent)}
