@@ -235,12 +235,13 @@ final class PortalInvitationActionTest extends WebTestCase
         self::assertTrue($this->portal(self::INVITABLE, ['canManage'])[0]);
         self::assertStringContainsString('id="mPortal"', (string) $this->browser->getResponse()->getContent());
 
-        // A membership no longer in force grants no permission.
+        // A membership no longer in force loses the clinic at the next request
+        // (RequireClinicSelectionSubscriber), before any permission is read.
         $this->connection()->executeStatement("UPDATE clinic__clinic_memberships SET engagement = 'CONTRACTOR', valid_until_utc = NOW() - INTERVAL 1 DAY");
 
         $this->invite(self::INVITABLE, 'sms');
 
-        self::assertResponseStatusCodeSame(403);
+        self::assertResponseRedirects('/select-clinic');
         self::assertSame([], $this->invitations(self::INVITABLE));
         self::assertSame([], $this->portalMessages());
     }
