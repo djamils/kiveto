@@ -7,7 +7,10 @@ namespace App\Presentation\Backoffice\Audit;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
 use App\Context\Clinic\Application\Query\Staff\GetStaffPrintedName\GetStaffPrintedName;
+use App\Presentation\Backoffice\Security\BackofficeAuthenticator;
 use App\Presentation\Backoffice\Security\CurrentAdmin;
+use App\Presentation\Backoffice\Security\InvalidSecondFactorException;
+use App\Presentation\Backoffice\Security\SecondFactorRequiredException;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
@@ -61,6 +64,7 @@ final readonly class SignInAuditListener
                 action: 'admin.login',
                 summary: 'Connexion au backoffice',
                 request: $event->getRequest(),
+                details: \is_string($method = $event->getRequest()->attributes->get(BackofficeAuthenticator::METHOD_ATTRIBUTE)) ? ['Second facteur' => $method] : [],
             );
         }
     }
@@ -68,12 +72,16 @@ final readonly class SignInAuditListener
     #[AsEventListener(event: LoginFailureEvent::class)]
     public function onFailure(LoginFailureEvent $event): void
     {
-        if ($event->getException() instanceof TooManyLoginAttemptsAuthenticationException) {
+        $exception = $event->getException();
+
+        // Too many attempts: the limiter stops the flood; a missing second
+        // factor is the next step of a right password, not a refusal.
+        if ($exception instanceof TooManyLoginAttemptsAuthenticationException || $exception instanceof SecondFactorRequiredException) {
             return;
         }
 
         $summary = match ($event->getFirewallName()) {
-            'backoffice' => 'Échec de connexion au backoffice',
+            'backoffice' => $exception instanceof InvalidSecondFactorException ? 'Échec de connexion au backoffice (code de vérification invalide)' : 'Échec de connexion au backoffice',
             'clinic'     => 'Échec de connexion à la VetApp',
             default      => null,
         };

@@ -73,13 +73,14 @@ security:
                 path: /logout
                 invalidate_session: true
 
+        # The console: password, then the second factor (BackofficeAuthenticator).
         backoffice:
             lazy: true
             pattern: ^/
             host: '%kiveto.host_pattern.backoffice%'
             provider: backoffice_user_provider
             custom_authenticators:
-                - App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticator
+                - App\Presentation\Backoffice\Security\BackofficeAuthenticator
             logout:
                 path: /logout
                 invalidate_session: true
@@ -109,7 +110,9 @@ security:
         - { host: '%kiveto.host_pattern.portal%', path: '^/api/portal/v1', roles: IS_AUTHENTICATED_FULLY }
         # Invitation landing page and app-link files of the owner app.
         - { host: '%kiveto.host_pattern.portal%', path: '^/(invitation$|\.well-known/)', roles: PUBLIC_ACCESS }
-        - { host: '%kiveto.host_pattern.backoffice%', path: '^/login', roles: PUBLIC_ACCESS }
+        # Console: the two sign-in steps, the configuration of the second
+        # factor, forgot password and reset link.
+        - { host: '%kiveto.host_pattern.backoffice%', path: '^/(login(/verification|/configuration)?|mot-de-passe-oublie|reinitialiser(/[^/]+)?)$', roles: PUBLIC_ACCESS }
 
         # Protect everything else
         - { host: '%kiveto.host_pattern.clinic%', path: '^/', roles: IS_AUTHENTICATED_FULLY }

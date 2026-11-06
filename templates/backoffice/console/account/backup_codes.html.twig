@@ -1,0 +1,24 @@
+{% extends 'backoffice/console/base.html.twig' %}
+
+{% block page_title %}Codes de secours{% endblock %}
+
+{% block content %}
+  <header class="co-head">
+    <div class="co-head-title">
+      <h1 class="co-title">Codes de secours</h1>
+      <span class="co-sub">Affichés une seule fois</span>
+    </div>
+  </header>
+
+  <section class="co-card co-codes-card" aria-label="Codes de secours">
+    <div class="co-card-body">
+      <div class="co-banner is-warning" role="note">Note ces dix codes et range-les hors de ton téléphone. Chacun remplace une fois le code de l'application si tu la perds.</div>
+      <ol class="co-codes">
+        {% for code in codes %}<li><code>{{ code }}</code></li>{% endfor %}
+      </ol>
+      <div class="co-form-end">
+        <a class="co-btn is-primary" href="{{ path('backoffice_clinics') }}">J'ai noté mes codes</a>
+      </div>
+    </div>
+  </section>
+{% endblock %}

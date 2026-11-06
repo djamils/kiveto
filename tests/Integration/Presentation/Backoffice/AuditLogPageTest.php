@@ -7,12 +7,12 @@ namespace App\Tests\Integration\Presentation\Backoffice;
 use App\Fixtures\Context\Clinic\Factory\ClinicEntityFactory;
 use App\Fixtures\Context\Clinic\Factory\ClinicMembershipEntityFactory;
 use App\Fixtures\Context\Clinic\Factory\StaffProfileEntityFactory;
-use App\Fixtures\System\IdentityAccess\Factory\BackofficeUserFactory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\System\Audit\Application\Command\RecordAuditEntry\RecordAuditEntry;
 use App\System\Audit\Domain\ValueObject\ActorKind;
 use App\System\Audit\Domain\ValueObject\AuditCategory;
+use App\Tests\Support\Console\SignsInToTheConsole;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -25,6 +25,7 @@ use Zenstruck\Foundry\Test\Factories;
 final class AuditLogPageTest extends WebTestCase
 {
     use Factories;
+    use SignsInToTheConsole;
 
     private const string HOST   = 'http://backoffice.kiveto.local';
     private const string CLINIC = '01960000-0000-7000-8000-00000000a0c1';
@@ -37,7 +38,7 @@ final class AuditLogPageTest extends WebTestCase
         $this->browser->disableReboot();
         $this->connection()->executeStatement('DELETE FROM audit__entries');
 
-        BackofficeUserFactory::new()->withEmail('djamil@kiveto.test')->withPlainPassword('mot-de-passe-admin')->create();
+        $this->createConsoleAdmin();
     }
 
     public function testTheConsoleNeedsASignIn(): void
@@ -66,8 +67,8 @@ final class AuditLogPageTest extends WebTestCase
 
     public function testARefusedSignInIsRecordedWithTheAddressTyped(): void
     {
-        $this->browser->request('POST', self::HOST . '/login', server: $this->json(), content: '{"email":"djamil@kiveto.test","password":"faux"}');
-        self::assertResponseStatusCodeSame(401);
+        $this->submitConsolePassword($this->browser, password: 'faux');
+        self::assertResponseRedirects('/login');
 
         $this->signIn();
         $this->browser->request('GET', self::HOST . '/audit?category=access');
@@ -155,8 +156,8 @@ final class AuditLogPageTest extends WebTestCase
 
     private function signIn(): void
     {
-        $this->browser->request('POST', self::HOST . '/login', server: $this->json(), content: '{"email":"djamil@kiveto.test","password":"mot-de-passe-admin"}');
-        self::assertResponseIsSuccessful();
+        $this->signInToTheConsole($this->browser);
+        self::assertResponseRedirects('/clinics');
     }
 
     /**

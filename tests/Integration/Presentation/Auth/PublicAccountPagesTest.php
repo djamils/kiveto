@@ -76,11 +76,14 @@ final class PublicAccountPagesTest extends WebTestCase
         $this->browser->request('GET', self::HOST . '/login');
         self::assertSelectorExists('a#lOubli[href="/mot-de-passe-oublie"]');
 
-        foreach (['http://portal.kiveto.local/login', 'http://backoffice.kiveto.local/login'] as $login) {
-            $this->browser->request('GET', $login);
-            self::assertResponseIsSuccessful();
-            self::assertSelectorNotExists('#lOubli');
-        }
+        $this->browser->request('GET', 'http://portal.kiveto.local/login');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorNotExists('#lOubli');
+
+        // The console has a reset page of its own.
+        $this->browser->request('GET', 'http://backoffice.kiveto.local/login');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('a#lOubli[href="/mot-de-passe-oublie"]');
     }
 
     /**

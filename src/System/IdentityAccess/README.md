@@ -149,6 +149,19 @@ The secret kept in the session is bound to its page (one key per page) and lives
 
 `SecurityUser` carries a **password fingerprint** (first 16 hex characters of the sha256 of the password hash) and implements `EquatableInterface`. `ContextUserProvider::refreshUser()` reloads the account at every request: when the password changed elsewhere (reset), the fingerprints differ and Symfony closes the session — every other open session of the user is logged out.
 
+**Signed-in sessions** (`identity_access__user_sessions`, `UserSessionStoreInterface`): one row per web session of a CLINIC or BACKOFFICE account (the session id stored as a sha256 digest, user agent, IP, created, last seen, ended, revoked). `UserSessionListener` opens it at the sign-in (after the session id migration), tracks it at most every 30 seconds (`TrackUserSession`, which answers false for a revoked row or another account's), ends a revoked one at its next request (token cleared, session invalidated, back to `/login`) and ends it at logout (`EndUserSession`). `ListUserSessions` (last 30 days, the asking browser flagged) and `RevokeUserSessions` (one row, or all but the asking browser's) serve « Sessions actives ». Owner accounts are not tracked: their sessions are refresh-token families.
+
+## Console second factor (back office)
+
+Back-office accounts sign in with a password **and** a second factor (`BackofficeAuthenticator` in `Presentation/Backoffice/Security`):
+
+- **TOTP** (RFC 6238: HMAC-SHA1, 30 s, 6 digits, one step of drift each way; `Domain/SecondFactor/Totp`). `SecondFactor` keeps the key, the last step used (a code is accepted once) and ten **backup codes** (HMAC digests through `OtpCodeHasherInterface`, normalised: case, spaces and dashes ignored; each used once). The key is encrypted at rest (`TotpSecretCipher`: libsodium secretbox, key = HMAC-SHA256 of a context with the kernel secret — rotating `APP_SECRET` makes every admin configure his app again).
+- `PrepareSecondFactor` gives a fresh key (and its otpauth:// URI); `EnableSecondFactor(userId, secret, code)` enables it once a code of it is typed (a previous factor replaced) and answers the ten backup codes in clear, shown once; `VerifySecondFactor` answers `APP_CODE`, `BACKUP_CODE`, `INVALID` or `NOT_ENABLED` and never throws; `RegenerateBackupCodes`; `GetSecondFactorStatus`.
+- **Trusted devices** (`identity_access__trusted_devices`): `TrustDevice` answers the secret of a 30-day cookie (only its sha256 stored); `IsDeviceTrusted`; `RevokeTrustedDevices`.
+- **Console profile** (`identity_access__backoffice_profiles`, `BackofficeProfileStoreInterface`): display name (80 characters), display time zone and two e-mail preferences (registry import failed, invitation expired). An account without a row reads the defaults (name from the address, Europe/Paris, both e-mails). `UpdateBackofficeProfile`, `GetBackofficeProfile`, `ListBackofficeProfiles` (active accounts).
+- `ChangeOwnPassword(userId, current, new)`: the current password proves the holder; every session closes (fingerprint).
+- `RequestPasswordReset(email, backoffice: true)` resets a back-office account; its link opens the console's `/reinitialiser` (`AccountLinkBuilderInterface::backofficePasswordResetUrl()`: the backoffice host of `KIVETO_DOMAIN`, scheme of `KIVETO_PUBLIC_BASE_URL`).
+
 ## Domain Events
 
 - `UserRegistered` — emitted when a new user account is created via `RegisterUser` command.
@@ -161,5 +174,5 @@ The secret kept in the session is bound to its page (one key per page) and lives
 
 The following security features are intentionally out of scope for the current phase and documented here as known debt:
 
-- **2FA** — no second factor authentication is implemented. Planned for Phase 3.
+- **2FA** — only back-office accounts have a second factor (« Console second factor »); clinic staff sign in with a password alone.
 - **Account lockout** — no brute-force protection (failed attempt counter, temporary lock). Planned for Phase 3.

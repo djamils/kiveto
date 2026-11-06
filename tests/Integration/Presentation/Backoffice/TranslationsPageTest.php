@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Presentation\Backoffice;
 
-use App\Fixtures\System\IdentityAccess\Factory\BackofficeUserFactory;
+use App\Tests\Support\Console\SignsInToTheConsole;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -17,6 +17,7 @@ use Zenstruck\Foundry\Test\Factories;
 final class TranslationsPageTest extends WebTestCase
 {
     use Factories;
+    use SignsInToTheConsole;
 
     private const string HOST = 'http://backoffice.kiveto.local';
 
@@ -27,9 +28,9 @@ final class TranslationsPageTest extends WebTestCase
         $this->browser = self::createClient();
         $this->browser->disableReboot();
 
-        BackofficeUserFactory::new()->withEmail('djamil@kiveto.test')->withPlainPassword('mot-de-passe-admin')->create();
-        $this->browser->request('POST', self::HOST . '/login', server: ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json'], content: '{"email":"djamil@kiveto.test","password":"mot-de-passe-admin"}');
-        self::assertResponseIsSuccessful();
+        $this->createConsoleAdmin();
+        $this->signInToTheConsole($this->browser);
+        self::assertResponseRedirects('/clinics');
     }
 
     public function testAnAdminSavesFindsAndDeletesATranslation(): void

@@ -10,4 +10,9 @@ interface AccountLinkBuilderInterface
     public function invitationUrl(string $secret): string;
 
     public function passwordResetUrl(string $secret): string;
+
+    /**
+     * The reset page of the console (backoffice host).
+     */
+    public function backofficePasswordResetUrl(string $secret): string;
 }

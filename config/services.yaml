@@ -239,6 +239,22 @@ services:
     App\System\IdentityAccess\Domain\Session\RefreshTokenRepositoryInterface:
         class: App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DbalRefreshTokenRepository
 
+    # Console: second factor, trusted browsers, signed-in sessions, profiles
+    App\System\IdentityAccess\Domain\SecondFactor\SecondFactorRepositoryInterface:
+        class: App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DbalSecondFactorRepository
+
+    App\System\IdentityAccess\Domain\SecondFactor\TrustedDeviceRepositoryInterface:
+        class: App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DbalTrustedDeviceRepository
+
+    App\System\IdentityAccess\Application\Port\UserSessionStoreInterface:
+        class: App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DbalUserSessionStore
+
+    App\System\IdentityAccess\Application\Port\BackofficeProfileStoreInterface:
+        class: App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DbalBackofficeProfileStore
+
+    App\System\IdentityAccess\Application\Port\SecondFactorSecretsInterface:
+        class: App\System\IdentityAccess\Infrastructure\Security\RandomSecondFactorSecrets
+
     # Password sign-in of the web firewalls (ContextAuthenticator): Symfony's
     # login limiter (keys hashed with the kernel secret) over the login_account
     # and login_ip limiters of config/packages/rate_limiter.yaml.

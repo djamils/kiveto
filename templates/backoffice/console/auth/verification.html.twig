@@ -1,0 +1,45 @@
+{% extends 'backoffice/console/auth/_layout.html.twig' %}
+
+{% block auth_title %}Double authentification{% endblock %}
+
+{% block auth_before_card %}
+  <span class="co-auth-account">{{ email }}</span>
+{% endblock %}
+
+{% block card %}
+  <h1 class="co-auth-title">Double authentification</h1>
+  {% if backup %}
+    <p class="co-auth-sub">Saisis l'un de tes codes de secours. Il ne servira qu'une fois.</p>
+  {% else %}
+    <p class="co-auth-sub">Saisis le code à 6 chiffres affiché par ton application d'authentification.</p>
+  {% endif %}
+
+  {% if error %}
+    <div class="co-error-box" role="alert">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
+  {% endif %}
+
+  <form class="co-auth-form" method="post" action="{{ path('backoffice_login_verification') }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token('backoffice_sign_in') }}">
+    <div class="co-field">
+      <label for="code">{{ backup ? 'Code de secours' : 'Code' }}</label>
+      {% if backup %}
+        <input class="co-input is-mono co-auth-code" id="code" name="code" autocomplete="off" placeholder="XXXXX-XXXXX" required autofocus>
+      {% else %}
+        <input class="co-input is-mono co-auth-code" id="code" name="code" inputmode="numeric" pattern="[0-9 ]{6,7}" maxlength="7" autocomplete="one-time-code" placeholder="000 000" required autofocus>
+      {% endif %}
+    </div>
+    <label class="co-check">
+      <input type="checkbox" name="trust_device" value="1">
+      <span>Faire confiance à cet appareil 30 jours</span>
+    </label>
+    <button class="co-btn is-primary co-auth-submit" type="submit">Vérifier</button>
+  </form>
+
+  <p class="co-auth-alt">
+    {% if backup %}
+      <a href="{{ path('backoffice_login_verification') }}">Utiliser l'application d'authentification</a>
+    {% else %}
+      <a href="{{ path('backoffice_login_verification', {mode: 'secours'}) }}">Utiliser un code de secours</a>
+    {% endif %}
+  </p>
+{% endblock %}

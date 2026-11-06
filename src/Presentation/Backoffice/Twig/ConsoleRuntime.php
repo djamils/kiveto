@@ -118,6 +118,14 @@ final readonly class ConsoleRuntime implements RuntimeExtensionInterface
         return null === $at ? '—' : ConsoleFormat::logDate($at, $this->currentAdmin->timeZone());
     }
 
+    /**
+     * Seen within the last `minutes` (« Active maintenant »).
+     */
+    public function recent(?\DateTimeImmutable $at, int $minutes = 5): bool
+    {
+        return null !== $at && $this->clock->now()->getTimestamp() - $at->getTimestamp() < $minutes * 60;
+    }
+
     public function time(?\DateTimeImmutable $at): string
     {
         return null === $at ? '—' : $at->setTimezone($this->currentAdmin->timeZone())->format('H:i');

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Presentation\Backoffice\Twig;
 
 use App\Presentation\Backoffice\ViewModel\ConsoleFormat;
+use App\Presentation\Backoffice\ViewModel\UserAgentLabel;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
 use Twig\TwigFunction;
@@ -19,6 +20,8 @@ final class ConsoleExtension extends AbstractExtension
     {
         return [
             new TwigFunction('console_shell', [ConsoleRuntime::class, 'shell']),
+            new TwigFunction('co_recent', [ConsoleRuntime::class, 'recent']),
+            new TwigFunction('user_agent_label', UserAgentLabel::of(...)),
         ];
     }
 

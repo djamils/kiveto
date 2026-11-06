@@ -1,0 +1,19 @@
+{% extends 'backoffice/console/auth/_layout.html.twig' %}
+
+{% block auth_title %}Configurer la double authentification{% endblock %}
+
+{% block auth_before_card %}
+  <span class="co-auth-account">{{ email }}</span>
+{% endblock %}
+
+{% block card %}
+  <h1 class="co-auth-title">Configurer la double authentification</h1>
+  <p class="co-auth-sub">Obligatoire pour l'équipe Kiveto : un code de ton téléphone sera demandé à chaque connexion.</p>
+
+  {{ include('backoffice/console/auth/_second_factor_setup.html.twig', {
+    setup: setup,
+    qr: qr,
+    action: action,
+    error: error ? error.messageKey|trans(error.messageData, 'security') : null,
+  }) }}
+{% endblock %}

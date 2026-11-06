@@ -1,0 +1,41 @@
+{#
+ # « Sessions actives » of an account (« Mon compte », a user's sheet).
+ #   sessions: list<UserSessionView>, csrf, action: the revoke route,
+ #   others: true for the admin's own list (« Déconnecter les autres »),
+ #   false for someone else's (« Révoquer toutes les sessions »).
+ #}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+{% if sessions|length == 0 %}
+  <p class="co-card-body co-sub">{{ empty_text|default('Aucune session ouverte.') }}</p>
+{% else %}
+  <ul class="co-sessions">
+    {% for session in sessions %}
+      <li>
+        <div class="co-settings-text">
+          <b>{{ user_agent_label(session.userAgent) }}</b>
+          {% if session.current %}
+            <span class="is-live">Cette session · {{ session.ipAddress|co_ip }}</span>
+          {% elseif co_recent(session.lastSeenAt) %}
+            <span class="is-live">Active maintenant · {{ session.ipAddress|co_ip }}</span>
+          {% else %}
+            <span>{{ session.lastSeenAt|co_when|capitalize }} · {{ session.ipAddress|co_ip }}</span>
+          {% endif %}
+        </div>
+        {% if not session.current %}
+          <form method="post" action="{{ action }}">
+            <input type="hidden" name="_token" value="{{ csrf }}">
+            <input type="hidden" name="session_id" value="{{ session.id }}">
+            <button class="co-btn is-white is-sm" type="submit">Révoquer</button>
+          </form>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+  {% set revocable = sessions|filter(s => not s.current)|length %}
+  {% if revocable > 0 %}
+    <form class="co-sessions-all" method="post" action="{{ action }}">
+      <input type="hidden" name="_token" value="{{ csrf }}">
+      <button class="co-btn is-white" type="submit">{{ others ? 'Déconnecter les autres sessions' : 'Révoquer toutes les sessions' }}</button>
+    </form>
+  {% endif %}
+{% endif %}
