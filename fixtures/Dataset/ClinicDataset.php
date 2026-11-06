@@ -40,6 +40,7 @@ use App\Fixtures\System\Notification\Story\NotificationDemoStory;
 use App\Fixtures\System\PharmaceuticalRegistry\Story\ControlledSubstancesStory;
 use App\Fixtures\System\PharmaceuticalRegistry\Story\CoreMedicationsStory;
 use App\Fixtures\System\PharmaceuticalRegistry\Story\LivestockMedicationsStory;
+use App\Fixtures\System\PharmaceuticalRegistry\Story\RegistryImportsDemoStory;
 use App\Fixtures\System\Taxation\Story\TaxonomyBootstrapStory;
 use App\Fixtures\System\Translation\Story\RegulatoryTranslationStory;
 use Zenstruck\Foundry\Attribute\AsFixture;
@@ -96,6 +97,8 @@ final class ClinicDataset extends Story
         CoreMedicationsStory::load();
         ControlledSubstancesStory::load();
         LivestockMedicationsStory::load();
+        // The weekly imports the console's « Registre ANMV » lists
+        RegistryImportsDemoStory::load();
 
         // Seed the demo clinic's Catalog (acts, articles, packages, price lists)
         CompanionClinicCatalogStory::load();

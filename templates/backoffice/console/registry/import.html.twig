@@ -1,0 +1,70 @@
+{% extends 'backoffice/console/base.html.twig' %}
+{% import 'backoffice/console/_macros.html.twig' as co %}
+
+{% block page_title %}Import du {{ snapshot.downloadedAt|co_date }}{% endblock %}
+
+{% set labels = {CREATE: ['Ajoutée', 'is-green', 'Nouvelle AMM'], UPDATE: ['Modifiée', 'is-blue', 'Fiche modifiée'], WITHDRAW: ['Retirée', 'is-orange', 'Retirée du marché']} %}
+{% set params = kind != 'all' ? {kind: kind} : {} %}
+{% set fields = {commercialName: 'libellé', holderLaboratoryLabel: 'titulaire de l’AMM', statusCode: 'statut', authorizationDate: 'date d’AMM', natureCode: 'nature', pharmaceuticalFormLabel: 'forme', atcVetCode: 'code ATCvet', permanentIdentifier: 'identifiant permanent', presentations: 'conditionnements', compositions: 'composition', voiesAdministration: 'voies d’administration'} %}
+
+{% block content %}
+  <div class="co-head">
+    <nav class="co-crumbs" aria-label="Fil d'Ariane">
+      <a href="{{ path('backoffice_registry') }}">Registre ANMV</a>{{ co.icon('chevron-right', 12) }}<strong>Import du {{ snapshot.downloadedAt|co_date }}</strong>
+    </nav>
+    <div class="co-head-actions"><a class="co-btn is-white" href="{{ path('backoffice_registry_import_export', {id: snapshot.id}) }}">{{ co.icon('download', 13) }} Exporter le différentiel</a></div>
+  </div>
+
+  <div class="co-sheet-title">
+    <h1 class="co-title">Import du {{ snapshot.downloadedAt|co_long_date }}
+      {% if snapshot.applied %}<span class="co-badge is-green">Réussi</span>{% elseif snapshot.failed %}<span class="co-badge is-red">Échec</span>{% else %}<span class="co-badge is-indigo">En cours</span>{% endif %}
+    </h1>
+    <span class="co-sub">Source ANMV · {{ snapshot.downloadedAt|co_time }}{% if snapshot.seconds is not null %} · {{ snapshot.seconds }} s{% endif %}</span>
+  </div>
+
+  <div class="co-grid">
+    <div class="co-col">
+      <section class="co-card" aria-label="Changements">
+        <div class="co-filters">
+          {% for key, label in {all: ['Tout', snapshot.changes], created: ['Ajoutées', snapshot.created], updated: ['Modifiées', snapshot.updated], withdrawn: ['Retirées', snapshot.withdrawn]} %}
+            <a class="co-pill{{ kind == key ? ' is-active' }}" href="{{ path('backoffice_registry_import', {id: snapshot.id}|merge(key != 'all' ? {kind: key} : {})) }}">{{ label[0] }} <span class="co-pill-count">{{ label[1] }}</span></a>
+          {% endfor %}
+        </div>
+        <div class="co-table-wrap">
+          <table class="co-table co-registry-diff">
+            <thead><tr><th>N° AMM</th><th>Médicament</th><th>Changement</th><th>Détail</th></tr></thead>
+            <tbody>
+              {% for line in detail.lines %}
+                {% set label = labels[line.kind] ?? [line.kind, 'is-outline', ''] %}
+                <tr>
+                  <td><code>{{ line.identifier }}</code></td>
+                  <td><b>{{ line.name ?? '—' }}</b>{% if line.laboratory %}<span class="co-sub co-block">{{ line.laboratory }}</span>{% endif %}</td>
+                  <td><span class="co-badge {{ label[1] }}">{{ label[0] }}</span></td>
+                  <td>{{ line.changedFields|length > 0 ? ('Modifié : ' ~ line.changedFields|map(f => fields[f] ?? f)|join(', ')) : label[2] }}</td>
+                </tr>
+              {% else %}
+                <tr><td colspan="4"><div class="co-empty"><b>Aucun changement</b>Rien de ce type dans cet snapshot.</div></td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {{ co.pager(detail.page, detail.pageCount, detail.total, detail.perPage, 'backoffice_registry_import', {id: snapshot.id}|merge(params)) }}
+      </section>
+    </div>
+
+    <div class="co-col">
+      <section class="co-card" aria-labelledby="registry-meaning">
+        <div class="co-card-head"><h2 class="co-label" id="registry-meaning">Ce qui change pour les cliniques</h2></div>
+        <div class="co-card-body co-prose">
+          <p><b>AMM retirée</b> : le produit reste dans le catalogue de la clinique et est signalé « AMM retirée » dans la Pharmacie.</p>
+          <p><b>AMM modifiée</b> : les champs du registre sont mis à jour, l'identifiant ne change pas.</p>
+          <p><b>AMM ajoutée</b> : disponible à la recherche dans le Catalogue.</p>
+        </div>
+      </section>
+      <section class="co-card is-greyed" aria-labelledby="registry-impact" title="Non géré en pré-alpha">
+        <div class="co-card-head"><h2 class="co-label" id="registry-impact">Impact sur les catalogues <span class="co-prealpha">Pré-alpha</span></h2></div>
+        <p class="co-card-body co-sub">Le détail par clinique des produits concernés arrivera avec le suivi des catalogues.</p>
+      </section>
+    </div>
+  </div>
+{% endblock %}

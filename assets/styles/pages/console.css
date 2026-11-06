@@ -490,3 +490,18 @@ body.co-body.is-auth{background:#0a0a0b}
 .co-support-ended{align-items:center}
 .co .co-banner-link{margin-left:auto;white-space:nowrap;font-weight:500}
 
+
+/* ── ANMV registry (G1–G4) ── */
+.co-card-head-inline{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.co-registry-when{font-size:16px;font-weight:600;color:var(--co-ink)}
+.co-registry-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0}
+.co-registry-stats .co-tile b{font-size:20px}
+.co .co-registry-stats b.is-green{color:var(--co-green)}
+.co .co-registry-stats b.is-blue{color:var(--co-blue)}
+.co .co-registry-stats b.is-orange{color:var(--co-orange)}
+.co .co-block{display:block}
+.co-prose p{font-size:13px;line-height:1.55;color:var(--co-ink-2);margin:0 0 10px}
+.co-prose p:last-child{margin-bottom:0}
+.co-card.is-greyed{opacity:.6}
+.co-registry-diff code{font-size:12px}
+@media (max-width:720px){.co-registry-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}

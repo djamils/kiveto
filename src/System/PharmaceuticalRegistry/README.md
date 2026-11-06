@@ -48,6 +48,13 @@ bin/console app:pharmaceutical-registry:full-import-cycle \
   --dictionary=path/to/dict.xml
 ```
 
+## The console's « Registre ANMV » (G1–G4)
+
+- `ListRegistryImports(limit, source)` → `RegistryStatusView`: the authorisations in the registry, the latest imports (`RegistryImportView`: status, download and end, error, and the counts of entries by diff kind), whether the files of the next import are waiting.
+- `GetRegistryImport(id, kind, page, perPage)` → `RegistryImportDetail`: a page of the entries an import added, changed or withdrew (`RegistryDiffLine`: identifier, commercial name and holder from the raw DTO, changed fields).
+- `RequestRegistryImport(source)` (routed to `async`): imports the files waiting in `storage/pharma-registry/<source>/current/` with `RunFullImportCycleHandler`, then archives them; nothing when they are not there.
+- Ports: `RegistryImportReadRepositoryInterface` (`DbalRegistryImportReadRepository`), `RegistryImportFilesInterface` (`StorageRegistryImportFiles`, over `ImportFileManager`).
+
 ## Deferred items
 
 See `_bmad-output/implementation-artifacts/tech-spec-system-pharmaceutical-registry-bc.md` for:
