@@ -1,0 +1,19 @@
+{# C1 — « Sessions support » of a clinic: the latest ones. #}
+<section class="co-card" aria-labelledby="sheet-support">
+  <div class="co-card-head">
+    <h2 class="co-label" id="sheet-support">Sessions support</h2>
+    <div class="co-card-head-actions"><a href="{{ path('backoffice_audit', {clinic: sheet.clinic.id, category: 'support', period: 'tout'}) }}">Journal</a></div>
+  </div>
+  {% if sheet.support.sessions|length == 0 %}
+    <p class="co-card-body co-sub">Aucune session support pour l'instant.</p>
+  {% else %}
+    <ul class="co-support-list">
+      {% for session in sheet.support.sessions %}
+        <li>
+          <div><b>{{ session.name }}</b><span>{{ session.view.startedAt|co_when }}</span></div>
+          <small>{{ session.view.minutes }} min · {{ session.view.modeLabel|lower }} · {{ session.view.reason }}</small>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</section>

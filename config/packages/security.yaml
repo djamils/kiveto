@@ -98,6 +98,8 @@ security:
         # Forgot password, reset link and invitation link (the token-less
         # addresses are where the links redirect once the secret is in the session)
         - { host: '%kiveto.host_pattern.clinic%', path: '^/(mot-de-passe-oublie|reinitialiser(/[^/]+)?|invitation(/[^/]+)?)$', roles: PUBLIC_ACCESS }
+        # A support session opens from its one-time hand-off (D1 → D2).
+        - { host: '%kiveto.host_pattern.clinic%', path: '^/support/[^/]+$', roles: PUBLIC_ACCESS }
         - { host: '%kiveto.host_pattern.portal%', path: '^/login', roles: PUBLIC_ACCESS }
         # Portal API: sign-in, refresh, registration (anchored), invitations,
         # terms and docs are public;

@@ -167,6 +167,14 @@ Back-office accounts sign in with a password **and** a second factor (`Backoffic
 - `ChangeOwnPassword(userId, current, new)`: the current password proves the holder; every session closes (fingerprint).
 - `RequestPasswordReset(email, backoffice: true)` resets a back-office account; its link opens the console's `/reinitialiser` (`AccountLinkBuilderInterface::backofficePasswordResetUrl()`: the backoffice host of `KIVETO_DOMAIN`, scheme of `KIVETO_PUBLIC_BASE_URL`).
 
+## Support sessions (console)
+
+A member of the Kiveto team signs in to a clinic as one of its people (D1–D3), for a logged reason, 15, 30 or 60 minutes, read-only unless the clinic has `support.write_mode` (FeatureCatalog, checked by the console):
+
+- `SupportSession` (`identity_access__support_sessions`): clinic, person, admin (id and name), reason, mode (`SupportMode`), start, expiry, the sha256 of a one-time hand-off secret, claimed, ended, pages seen and changes made.
+- `StartSupportSession` answers a `SupportHandoff` whose URL (`AccountLinkBuilderInterface::supportHandoffUrl()`, `KIVETO_PUBLIC_BASE_URL/support/<secret>`) opens it on the clinic host; `ClaimSupportSession` takes it once within two minutes; `RecordSupportPage` counts (false once it ended or ran out); `EndSupportSession` ends it at the time asked or at its expiry, once; `GetSupportSession`, `ListClinicSupportSessions` (claimed ones, newest first).
+- On the clinic host (`Presentation/Clinic/Support`) the token is set without a `LoginSuccessEvent`: no sign-in of the holder is recorded or tracked, and `SupportSessionListener` keeps the session out of « Sessions actives », refuses every change in read-only mode, counts pages and ends the session when its time is up. « Terminer la session » signs the browser out and sends it back to the clinic's sheet in the console, which shows what the session was. Start and end are in the audit log (`support.session_started`, `support.session_ended`).
+
 ## Domain Events
 
 - `UserRegistered` — emitted when a new user account is created via `RegisterUser` command.

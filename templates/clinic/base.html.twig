@@ -45,6 +45,7 @@
 {%- endblock %}
 
 {% block body %}
+{% if app.session is not null and app.session.get('support.session_id') %}{{ include('clinic/_support_banner.html.twig') }}{% endif %}
 {% set _shell = clinic_shell() %}
 {% set _route = app.request.attributes.get('_route') %}
 {% set _no_sidebar = block('show_sidebar')|trim == 'false' or block('sidebar_mode')|trim == 'none' %}

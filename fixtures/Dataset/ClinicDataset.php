@@ -35,6 +35,7 @@ use App\Fixtures\System\ElectronicInvoicing\Story\ElectronicInvoicingDemoStory;
 use App\Fixtures\System\FeatureCatalog\Story\FeatureCatalogDemoStory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\Fixtures\System\IdentityAccess\Story\ClinicVetStory;
+use App\Fixtures\System\IdentityAccess\Story\SupportSessionsDemoStory;
 use App\Fixtures\System\Notification\Story\NotificationDemoStory;
 use App\Fixtures\System\PharmaceuticalRegistry\Story\ControlledSubstancesStory;
 use App\Fixtures\System\PharmaceuticalRegistry\Story\CoreMedicationsStory;
@@ -161,6 +162,9 @@ final class ClinicDataset extends Story
 
         // The features each demo clinic has (FeatureCatalog).
         FeatureCatalogDemoStory::load();
+
+        // Past support sessions of the console (Paris).
+        SupportSessionsDemoStory::load();
 
         // The notifications: messaging profiles, the confirmations the
         // bookings above queued, SMS quotas, every delivery status, the bell,

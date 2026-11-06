@@ -20,6 +20,15 @@
     </div>
   </div>
 
+  {% if support_summary|default(null) %}
+    {% set ended = support_summary.view %}
+    <div class="co-banner is-success co-support-ended" role="status">
+      {{ co.icon('check-circle', 14) }}
+      <div><b>Session support terminée.</b> <span>{{ support_summary.name }} · {{ ended.minutes }} min · {{ ended.modeLabel|lower }} · {{ ended.pages }} page{{ ended.pages > 1 ? 's' }} consultée{{ ended.pages > 1 ? 's' }}, {{ ended.writes == 0 ? 'aucune modification' : ended.writes ~ ' modification' ~ (ended.writes > 1 ? 's') }}.</span></div>
+      <a class="co-banner-link" href="{{ path('backoffice_audit', {clinic: sheet.clinic.id, category: 'support', period: 'tout'}) }}">Voir dans le journal</a>
+    </div>
+  {% endif %}
+
   {% if suspended and sheet.account.suspendedAt %}
     <div class="co-banner is-danger co-suspended" role="status">
       {{ co.icon('warning', 14) }}
@@ -153,6 +162,7 @@
       </section>
 
       {% if features|default([])|length > 0 %}{{ include('backoffice/console/clinics/_features_card.html.twig') }}{% endif %}
+      {% if sheet.support_url %}{{ include('backoffice/console/clinics/_support_card.html.twig') }}{% endif %}
       {% block sheet_side %}{% endblock %}
 
       <section class="co-card is-danger" aria-labelledby="sheet-danger">
@@ -184,6 +194,7 @@
   {{ include('backoffice/console/clinics/_edit_dialog.html.twig') }}
   {{ include('backoffice/console/clinics/_invite_dialog.html.twig') }}
   {% if not suspended %}{{ include('backoffice/console/clinics/_suspend_dialog.html.twig') }}{% endif %}
+  {% if sheet.support_url and not suspended %}{{ include('backoffice/console/clinics/_support_dialog.html.twig') }}{% endif %}
   {% block sheet_dialogs %}{% endblock %}
 </div>
 {% endblock %}

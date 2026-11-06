@@ -17,7 +17,10 @@ use App\Shared\Application\Bus\QueryBusInterface;
 use App\System\Audit\Application\Query\ListClinicActivity\ListClinicActivity;
 use App\System\Audit\Application\Query\SearchAuditLog\AuditLogPage;
 use App\System\Audit\Application\Query\SearchAuditLog\SearchAuditLog;
+use App\System\FeatureCatalog\Application\Query\IsFeatureEnabled\IsFeatureEnabled;
 use App\System\IdentityAccess\Application\Query\GetInvitationStatuses\GetInvitationStatuses;
+use App\System\IdentityAccess\Application\Query\ListClinicSupportSessions\ListClinicSupportSessions;
+use App\System\IdentityAccess\Application\Query\SupportSessionView;
 use App\System\Notification\Application\Query\GetSmsUsage\GetSmsUsage;
 use App\System\Notification\Application\Query\GetSmsUsage\SmsUsageView;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -106,6 +109,50 @@ final readonly class ClinicSheetBuilder
             'created_by'  => ($created->items[0] ?? null)?->actorName,
             'users_url'   => $this->url('backoffice_users', ['clinic' => $clinicId]),
             'support_url' => $this->url('backoffice_support_start', ['id' => $clinicId]),
+            'support'     => $this->support($clinicId),
+        ];
+    }
+
+    /**
+     * D1 — who a support session can sign in as (active accounts of live
+     * memberships), whether writing is allowed, the latest sessions.
+     *
+     * @return array{clinicName: string, suspended: bool, can_write: bool, members: array<string, array{userId: string, name: string, role: string}>, sessions: list<array{name: string, view: SupportSessionView}>}|null
+     */
+    public function support(string $clinicId): ?array
+    {
+        $clinic = $this->directory->clinic($clinicId);
+
+        if (null === $clinic) {
+            return null;
+        }
+
+        $members  = array_values(array_filter($this->directory->members(clinicId: $clinicId), static fn (ConsoleMemberRow $m): bool => !$m->isDisabled()));
+        $accounts = $this->directory->accounts(array_map(static fn (ConsoleMemberRow $m): string => $m->userId, $members));
+        $names    = [];
+        $people   = [];
+        foreach ($members as $member) {
+            $names[$member->userId] = $member->printedName();
+
+            if (true === ($accounts[$member->userId] ?? null)?->isActive()) {
+                $people[$member->userId] = ['userId' => $member->userId, 'name' => $member->printedName(), 'role' => ConsoleDirectory::roleLabel($member->role)];
+            }
+        }
+
+        $sessions = [];
+        $answer   = $this->queryBus->ask(new ListClinicSupportSessions($clinicId, 3));
+        foreach (\is_array($answer) ? $answer : [] as $view) {
+            if ($view instanceof SupportSessionView) {
+                $sessions[] = ['name' => $names[$view->userId] ?? 'Compte retiré', 'view' => $view];
+            }
+        }
+
+        return [
+            'clinicName' => $clinic->name,
+            'suspended'  => $clinic->isSuspended(),
+            'can_write'  => true === $this->queryBus->ask(new IsFeatureEnabled($clinicId, 'support.write_mode')),
+            'members'    => $people,
+            'sessions'   => $sessions,
         ];
     }
 

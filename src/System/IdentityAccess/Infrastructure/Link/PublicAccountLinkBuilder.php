@@ -42,4 +42,9 @@ final readonly class PublicAccountLinkBuilder implements AccountLinkBuilderInter
     {
         return $this->backofficeBaseUrl . '/reinitialiser/' . rawurlencode($secret);
     }
+
+    public function supportHandoffUrl(string $secret): string
+    {
+        return $this->baseUrl . '/support/' . rawurlencode($secret);
+    }
 }

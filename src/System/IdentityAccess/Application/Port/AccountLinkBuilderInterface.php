@@ -15,4 +15,7 @@ interface AccountLinkBuilderInterface
      * The reset page of the console (backoffice host).
      */
     public function backofficePasswordResetUrl(string $secret): string;
+
+    /** The clinic host's address that opens a support session (one-time secret). */
+    public function supportHandoffUrl(string $secret): string;
 }
