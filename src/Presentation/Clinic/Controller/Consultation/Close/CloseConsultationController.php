@@ -43,6 +43,7 @@ final class CloseConsultationController extends AbstractController
             $this->commandBus->dispatch(
                 new CloseConsultation(
                     consultationId: $id,
+                    clinicId: $this->endpoint->currentClinicId(),
                     closedByUserId: $user->id(),
                     summary: '' !== $summary ? $summary : null,
                 )

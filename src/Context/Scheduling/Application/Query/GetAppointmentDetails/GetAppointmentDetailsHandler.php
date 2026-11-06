@@ -37,8 +37,8 @@ final readonly class GetAppointmentDetailsHandler
                 CONCAT(c.first_name, ' ', c.last_name) as owner_label,
                 an.name as animal_label
             FROM scheduling__appointments a
-            LEFT JOIN client__clients c ON c.id = a.owner_id
-            LEFT JOIN animal__animals an ON an.id = a.animal_id
+            LEFT JOIN client__clients c ON c.id = a.owner_id AND c.clinic_id = a.clinic_id
+            LEFT JOIN animal__animals an ON an.id = a.animal_id AND an.clinic_id = a.clinic_id
             WHERE a.id = UUID_TO_BIN(:appointmentId)
         SQL;
 

@@ -51,6 +51,7 @@ final class AddPerformedActHandlerTest extends TestCase
 
         ($this->handler)(new AddPerformedAct(
             consultationId: self::CONSULTATION_ID,
+            clinicId: self::CLINIC_ID,
             label: 'Otoscopy',
             quantity: 1.0,
             performedAt: '2026-04-10T09:20:00+00:00',
@@ -68,6 +69,26 @@ final class AddPerformedActHandlerTest extends TestCase
 
         ($this->handler)(new AddPerformedAct(
             consultationId: self::CONSULTATION_ID,
+            clinicId: self::CLINIC_ID,
+            label: 'Otoscopy',
+            quantity: 1.0,
+            performedAt: '2026-04-10T09:20:00+00:00',
+            createdByUserId: self::USER_ID,
+        ));
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testAConsultationOfAnotherClinicIsNotFound(): void
+    {
+        $this->consultations->expects(self::once())->method('findById')->willReturn($this->makeConsultation());
+        $this->consultations->expects(self::never())->method('save');
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Consultation not found');
+
+        ($this->handler)(new AddPerformedAct(
+            consultationId: self::CONSULTATION_ID,
+            clinicId: '99999999-9999-4999-8999-999999999999',
             label: 'Otoscopy',
             quantity: 1.0,
             performedAt: '2026-04-10T09:20:00+00:00',

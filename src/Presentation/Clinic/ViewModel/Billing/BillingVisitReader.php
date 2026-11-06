@@ -7,6 +7,7 @@ namespace App\Presentation\Clinic\ViewModel\Billing;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -36,24 +37,27 @@ final readonly class BillingVisitReader
      *     animal: array{id: ?string, name: string, species: ?string}
      * }>
      */
-    public function visits(array $admissionIds): array
+    public function visits(string $clinicId, array $admissionIds): array
     {
         if ([] === $admissionIds) {
             return [];
         }
 
+        // Every row of the chain belongs to the clinic: an admission id of
+        // another clinic (an invoice drafted for it before the handler checked
+        // it) reads nothing.
         $rows = $this->connection->fetchAllAssociative(
             'SELECT BIN_TO_UUID(a.id) AS admission_id, BIN_TO_UUID(c.id) AS consultation_id, c.status,
                     BIN_TO_UUID(c.practitioner_user_id) AS vet_id, c.started_at_utc, c.chief_complaint,
                     BIN_TO_UUID(p.animal_link_id) AS animal_id, se.animal_name, se.species, p.display_label_value
              FROM admission__admissions a
-             INNER JOIN patient__patients p ON p.id = a.patient_id
-             LEFT JOIN animal__search_entries se ON se.id = p.animal_link_id
-             LEFT JOIN consultation__consultations c ON c.admission_id = a.id
-             WHERE a.id IN (?)
+             INNER JOIN patient__patients p ON p.id = a.patient_id AND p.clinic_id = a.clinic_id
+             LEFT JOIN animal__search_entries se ON se.id = p.animal_link_id AND se.clinic_id = a.clinic_id
+             LEFT JOIN consultation__consultations c ON c.admission_id = a.id AND c.clinic_id = a.clinic_id
+             WHERE a.id IN (?) AND a.clinic_id = ?
              ORDER BY c.started_at_utc ASC',
-            [$this->binaries($admissionIds)],
-            [ArrayParameterType::BINARY],
+            [$this->binaries($admissionIds), Uuid::fromString($clinicId)->toBinary()],
+            [ArrayParameterType::BINARY, ParameterType::BINARY],
         );
 
         $visits        = [];

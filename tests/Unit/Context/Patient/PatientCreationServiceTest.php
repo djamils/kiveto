@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\Patient;
 
+use App\Context\Patient\Application\Port\AnimalNameProviderInterface;
 use App\Context\Patient\Application\Port\PatientReadRepositoryInterface;
 use App\Context\Patient\Application\Service\PatientCreationService;
+use App\Context\Patient\Domain\Exception\AnimalNotInClinicException;
 use App\Context\Patient\Domain\Exception\PatientAlreadyExistsForAnimalException;
 use App\Context\Patient\Domain\Repository\PatientRepositoryInterface;
 use App\Context\Patient\Domain\ValueObject\ClinicId;
@@ -24,6 +26,7 @@ final class PatientCreationServiceTest extends TestCase
     private UuidGeneratorInterface&MockObject $uuidGenerator;
     private ClockInterface&MockObject $clock;
     private PatientCreationService $service;
+    private ?string $animalOfTheClinic = 'Rex';
 
     protected function setUp(): void
     {
@@ -34,12 +37,34 @@ final class PatientCreationServiceTest extends TestCase
 
         $eventBus = $this->createStub(EventBusInterface::class);
 
+        // The animals the clinic can read: Rex, unless a test makes it another clinic's.
+        $animals = $this->createStub(AnimalNameProviderInterface::class);
+        $animals->method('getAnimalName')->willReturnCallback(fn (): ?string => $this->animalOfTheClinic);
+
         $this->service = new PatientCreationService(
             patientRepository: $this->patientRepository,
             patientReadRepository: $this->patientReadRepository,
             uuidGenerator: $this->uuidGenerator,
             domainEventPublisher: new DomainEventPublisher($eventBus),
             clock: $this->clock,
+            animals: $animals,
+        );
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testCreateFromAnimalRefusesAnAnimalOfAnotherClinic(): void
+    {
+        $this->animalOfTheClinic = null;
+
+        $this->patientReadRepository->expects(self::never())->method('existsActiveForAnimal');
+        $this->patientRepository->expects(self::never())->method('save');
+
+        $this->expectException(AnimalNotInClinicException::class);
+
+        $this->service->createFromAnimal(
+            clinicId: ClinicId::fromString('12345678-9abc-def0-1234-56789abcdef0'),
+            animalId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            animalName: 'Rex',
         );
     }
 

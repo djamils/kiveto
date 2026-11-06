@@ -61,6 +61,7 @@ final class CloseConsultationSendsToReceptionTest extends KernelTestCase
 
         $this->commandBus->dispatch(new CloseConsultation(
             consultationId: $consultationId,
+            clinicId: self::CLINIC_ID,
             closedByUserId: self::VET_ID,
             summary: null,
         ));
@@ -76,10 +77,10 @@ final class CloseConsultationSendsToReceptionTest extends KernelTestCase
         $first  = $this->startConsultation($admissionId);
         $second = $this->startConsultation($admissionId);
 
-        $this->commandBus->dispatch(new CloseConsultation($first, self::VET_ID, null));
+        $this->commandBus->dispatch(new CloseConsultation($first, self::CLINIC_ID, self::VET_ID, null));
         self::assertSame('in_consultation_room', $this->locationOf($admissionId));
 
-        $this->commandBus->dispatch(new CloseConsultation($second, self::VET_ID, null));
+        $this->commandBus->dispatch(new CloseConsultation($second, self::CLINIC_ID, self::VET_ID, null));
         self::assertSame('at_reception', $this->locationOf($admissionId));
     }
 

@@ -255,7 +255,7 @@ final class PortalRequestsStory extends Story
             quantity: 1.0,
             createdByUserId: $vet,
         ));
-        $this->commandBus->dispatch(new CloseConsultation($consultationId, $vet, 'Boiterie en nette amélioration. Meloxidyl prolongé 10 jours.'));
+        $this->commandBus->dispatch(new CloseConsultation($consultationId, self::PARIS, $vet, 'Boiterie en nette amélioration. Meloxidyl prolongé 10 jours.'));
         $this->commandBus->dispatch(new CloseAdmission(self::PARIS, $admissionId, 'released_to_owner'));
 
         $prescriptionId = $this->commandBus->dispatch(new PreparePrescriptionForConsultation(self::PARIS, $consultationId, $vet));

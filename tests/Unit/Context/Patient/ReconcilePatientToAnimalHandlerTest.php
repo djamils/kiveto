@@ -6,8 +6,10 @@ namespace App\Tests\Unit\Context\Patient;
 
 use App\Context\Patient\Application\Command\ReconcilePatientToAnimal\ReconcilePatientToAnimal;
 use App\Context\Patient\Application\Command\ReconcilePatientToAnimal\ReconcilePatientToAnimalHandler;
+use App\Context\Patient\Application\Port\AnimalNameProviderInterface;
 use App\Context\Patient\Application\Port\PatientReadRepositoryInterface;
 use App\Context\Patient\Application\Service\PatientIdentityResolutionService;
+use App\Context\Patient\Domain\Exception\AnimalNotInClinicException;
 use App\Context\Patient\Domain\Patient;
 use App\Context\Patient\Domain\Repository\PatientRepositoryInterface;
 use App\Context\Patient\Domain\ValueObject\ClinicId;
@@ -42,9 +44,45 @@ final class ReconcilePatientToAnimalHandlerTest extends TestCase
                 $this->createStub(IntegrationEventBusInterface::class),
             ),
             clock: $this->clock,
+            animals: $this->animals(),
         );
 
         $this->handler = new ReconcilePatientToAnimalHandler($service);
+    }
+
+    public function testAnAnimalOfAnotherClinicIsNeverLinked(): void
+    {
+        $clinicId = '12345678-9abc-def0-1234-56789abcdef0';
+        $now      = new \DateTimeImmutable('2024-06-01T10:00:00+00:00');
+        $this->clock->method('now')->willReturn($now);
+        $this->patientReadRepository->method('getActivePatientIdForAnimal')->willReturn(null);
+
+        $handler = new ReconcilePatientToAnimalHandler(new PatientIdentityResolutionService(
+            patientRepository: $this->patientRepository,
+            patientReadRepository: $this->patientReadRepository,
+            domainEventPublisher: new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+            integrationEventPublisher: new IntegrationEventPublisher($this->createStub(IntegrationEventBusInterface::class)),
+            clock: $this->clock,
+            animals: $this->animals(null),
+        ));
+        $this->patientRepository->expects(self::once())->method('get')->willReturn(Patient::createUnidentified(
+            id: PatientId::fromString('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+            clinicId: ClinicId::fromString($clinicId),
+            provisionalLabel: 'Inconnu',
+            observedSpecies: null,
+            observedColor: null,
+            now: $now,
+        ));
+        $this->patientRepository->expects(self::never())->method('save');
+
+        $this->expectException(AnimalNotInClinicException::class);
+
+        $handler(new ReconcilePatientToAnimal(
+            sourcePatientId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            animalId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+            animalName: 'Max',
+            clinicId: $clinicId,
+        ));
     }
 
     public function testRoutesSourcePatientIdFromAdmissionToService(): void
@@ -91,5 +129,14 @@ final class ReconcilePatientToAnimalHandlerTest extends TestCase
             animalName: $animalName,
             clinicId: $clinicId,
         ));
+    }
+
+    /** The animals the clinic can read, by their name: null when the animal is another clinic's. */
+    private function animals(?string $name = 'Max'): AnimalNameProviderInterface
+    {
+        $animals = $this->createStub(AnimalNameProviderInterface::class);
+        $animals->method('getAnimalName')->willReturn($name);
+
+        return $animals;
     }
 }

@@ -8,6 +8,7 @@ use App\Context\Scheduling\Application\Port\AppointmentConflictCheckerInterface;
 use App\Context\Scheduling\Application\Port\ClinicTimezoneResolverInterface;
 use App\Context\Scheduling\Application\Port\MembershipEligibilityCheckerInterface;
 use App\Context\Scheduling\Application\Port\PractitionerDayLockInterface;
+use App\Context\Scheduling\Application\Service\AppointmentParties;
 use App\Context\Scheduling\Application\Service\PlanningBlockGate;
 use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Exception\PractitionerNotBookableException;
@@ -37,6 +38,7 @@ final readonly class ScheduleAppointmentHandler
         private ClinicTimezoneResolverInterface $timezoneResolver,
         private DomainEventPublisher $domainEventPublisher,
         private PractitionerDayLockInterface $dayLock,
+        private AppointmentParties $parties,
     ) {
     }
 
@@ -58,6 +60,8 @@ final readonly class ScheduleAppointmentHandler
         if (!$isEligible) {
             throw PractitionerNotBookableException::at($command->practitionerUserId, $command->clinicId);
         }
+
+        $this->parties->assertOfClinic($command->clinicId, $command->ownerId, $command->animalId);
 
         $timeSlot = new TimeSlot($command->startsAtUtc, $command->durationMinutes);
         $clinicTz = $this->timezoneResolver->resolveTimezone($clinicId);

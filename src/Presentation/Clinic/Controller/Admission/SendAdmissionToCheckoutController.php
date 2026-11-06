@@ -72,6 +72,7 @@ final class SendAdmissionToCheckoutController extends AbstractController
                 if (!$details->isClosed()) {
                     $this->commandBus->dispatch(new CloseConsultation(
                         consultationId: $consultationId,
+                        clinicId: $clinicId,
                         closedByUserId: $user->id(),
                         summary: null,
                     ));

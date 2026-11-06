@@ -77,6 +77,7 @@ final class CloseConsultationHandlerTest extends TestCase
 
         ($this->handler)(new CloseConsultation(
             consultationId: self::CONSULTATION_ID,
+            clinicId: self::CLINIC_ID,
             closedByUserId: self::USER_ID,
             summary: 'Done',
         ));
@@ -103,6 +104,7 @@ final class CloseConsultationHandlerTest extends TestCase
 
         ($this->handler)(new CloseConsultation(
             consultationId: self::CONSULTATION_ID,
+            clinicId: self::CLINIC_ID,
             closedByUserId: self::USER_ID,
             summary: null,
         ));
@@ -120,6 +122,7 @@ final class CloseConsultationHandlerTest extends TestCase
 
         ($this->handler)(new CloseConsultation(
             consultationId: self::CONSULTATION_ID,
+            clinicId: self::CLINIC_ID,
             closedByUserId: self::USER_ID,
             summary: null,
         ));
@@ -142,6 +145,7 @@ final class CloseConsultationHandlerTest extends TestCase
 
         ($this->handler)(new CloseConsultation(
             consultationId: self::CONSULTATION_ID,
+            clinicId: self::CLINIC_ID,
             closedByUserId: self::USER_ID,
             summary: null,
         ));
@@ -159,6 +163,27 @@ final class CloseConsultationHandlerTest extends TestCase
 
         ($this->handler)(new CloseConsultation(
             consultationId: self::CONSULTATION_ID,
+            clinicId: self::CLINIC_ID,
+            closedByUserId: self::USER_ID,
+            summary: null,
+        ));
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testAConsultationOfAnotherClinicIsNotFound(): void
+    {
+        $this->consultations->expects(self::once())->method('findById')->willReturn($this->makeAdmissionConsultation());
+        $this->consultations->expects(self::never())->method('save');
+        $this->coordinator->expects(self::never())->method('completeAppointment');
+        $this->consultationsRead->expects(self::never())->method('hasOpenConsultationForAdmission');
+        $this->admissions->expects(self::never())->method('sendToReception');
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Consultation not found');
+
+        ($this->handler)(new CloseConsultation(
+            consultationId: self::CONSULTATION_ID,
+            clinicId: '99999999-9999-4999-8999-999999999999',
             closedByUserId: self::USER_ID,
             summary: null,
         ));

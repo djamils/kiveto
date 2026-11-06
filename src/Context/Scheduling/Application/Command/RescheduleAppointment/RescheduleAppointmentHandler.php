@@ -8,6 +8,7 @@ use App\Context\Scheduling\Application\Port\AppointmentConflictCheckerInterface;
 use App\Context\Scheduling\Application\Port\ClinicTimezoneResolverInterface;
 use App\Context\Scheduling\Application\Port\MembershipEligibilityCheckerInterface;
 use App\Context\Scheduling\Application\Port\PractitionerDayLockInterface;
+use App\Context\Scheduling\Application\Service\AppointmentParties;
 use App\Context\Scheduling\Application\Service\PlanningBlockGate;
 use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Booking\OnlineBookingSettingsRepositoryInterface;
@@ -38,6 +39,7 @@ final readonly class RescheduleAppointmentHandler
         private ClinicTimezoneResolverInterface $timezoneResolver,
         private PractitionerDayLockInterface $dayLock,
         private PlanningBlockGate $planningBlockGate,
+        private AppointmentParties $parties,
     ) {
     }
 
@@ -108,6 +110,7 @@ final readonly class RescheduleAppointmentHandler
         // Refused when the new expiry is already past: the request would expire at once
         $appointment->reschedule($newTimeSlot, $pendingExpiresAt, $this->clock->now());
         $appointment->changePractitionerAssignee($newAssignee);
+        $this->parties->assertOfClinic($command->clinicId, $command->ownerId, $command->animalId);
         $appointment->changeOwnerAndAnimal($command->ownerId, $command->animalId);
 
         if ($command->changeDetails) {

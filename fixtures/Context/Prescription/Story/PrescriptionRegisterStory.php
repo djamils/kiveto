@@ -190,7 +190,7 @@ final class PrescriptionRegisterStory extends Story
             ));
         }
 
-        $this->commandBus->dispatch(new CloseConsultation(consultationId: $consultationId, closedByUserId: $vetUserId, summary: 'Traitement prescrit, conseils donnés au propriétaire.'));
+        $this->commandBus->dispatch(new CloseConsultation(consultationId: $consultationId, clinicId: self::PARIS, closedByUserId: $vetUserId, summary: 'Traitement prescrit, conseils donnés au propriétaire.'));
         $this->commandBus->dispatch(new CloseAdmission(clinicId: self::PARIS, admissionId: $admissionId, closureReason: 'released_to_owner'));
 
         $prescriptionId = $this->commandBus->dispatch(new PreparePrescriptionForConsultation(clinicId: self::PARIS, consultationId: $consultationId, prescriberUserId: $vetUserId));

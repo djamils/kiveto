@@ -30,7 +30,8 @@ final readonly class CloseConsultationHandler
         $consultationId = ConsultationId::fromString($command->consultationId);
         $consultation   = $this->consultations->findById($consultationId);
 
-        if (null === $consultation) {
+        // A consultation of another clinic is not found either.
+        if (null === $consultation || $consultation->getClinicId()->toString() !== $command->clinicId) {
             throw new \DomainException('Consultation not found');
         }
 
