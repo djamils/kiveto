@@ -77,9 +77,9 @@ COPY composer.json composer.lock symfony.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --no-progress --prefer-dist --no-interaction
 
 COPY . .
-# What `composer install` and `make assets` do in dev, for prod: bundle
-# assets, importmap packages, Tailwind (minified), then the AssetMapper
-# compilation into public/assets.
+# What `composer install` and `make assets` do in dev: bundle assets,
+# importmap packages, Tailwind (minified); then, for prod only, the
+# AssetMapper compilation into public/assets.
 RUN set -eux; \
     composer dump-autoload --no-dev --classmap-authoritative --no-interaction; \
     bin/console assets:install public --no-interaction; \

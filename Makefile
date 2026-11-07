@@ -156,7 +156,7 @@ help:
 	@echo "  jwt-keys        generate the Portal API JWT keypair (config/jwt, kept if present)"
 	@echo "  openapi-export  write the Portal API contract to openapi/portal.v1.yaml"
 	@echo "  openapi-check   fail when openapi/portal.v1.yaml differs from the code"
-	@echo "  assets          tailwind:build + asset-map:compile"
+	@echo "  assets          tailwind:build, then AssetMapper serves assets/ (removes public/assets)"
 	@echo "  tailwind-build  compile Tailwind CSS"
 	@echo ""
 	@echo "Options:"
@@ -252,12 +252,14 @@ tailwind-build:
 	$(Q)$(EXEC_PHP) php -d memory_limit=1G bin/console tailwind:build --minify
 	@$(call ok,Tailwind CSS compiled)
 
+# Dev: Tailwind, then AssetMapper serves assets/ as it is on every reload.
+# In debug, a public/assets/ left by asset-map:compile is served as it is and
+# hides every later change, so it is removed. Only the production image
+# compiles public/assets/ (Dockerfile).
 assets: tailwind-build
-	@$(call step,Cleaning previous assets...)
+	@$(call step,Removing compiled assets (AssetMapper serves assets/ in dev)...)
 	$(Q)rm -rf public/assets
-	@$(call step,Compiling AssetMapper...)
-	$(Q)$(SYMFONY) asset-map:compile
-	@$(call ok,Assets compiled)
+	@$(call ok,Assets ready)
 
 jwt-keys:
 	@$(call step,Generating the Portal API JWT keypair...)
