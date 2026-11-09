@@ -139,6 +139,27 @@ Quick reference is in `CONTRIBUTING.md` §7. Typical chain:
 dev-story`. Skip steps for small changes — use `/bmad-quick-spec` then
 `/bmad-quick-dev` for tweaks and small features.
 
+### 9. Browser checks with Playwright live in `docs/playwright/`
+
+UI checks run in a real browser with Playwright, never with plain HTTP calls.
+Everything they produce — scripts, screenshots, notes, tickets drawn from
+them — goes under `docs/playwright/` (git-ignored with `docs/`), never in
+`/tmp` or a session scratchpad:
+
+```
+docs/playwright/
+├── package.json, node_modules/   # local Playwright install (npm i -D playwright)
+├── lib/common.js                 # shared helpers (login, clinic selection)
+└── runs/<YYYY-MM-DD>-<slug>/     # one folder per check session
+    ├── scripts/                  # the scripts of that run, run from docs/playwright/
+    ├── screenshots/<width>px-<context>/NN-<step>.png
+    └── *.md                      # findings or ticket text, if any
+```
+
+`<context>` names what varies (clinic, branch…), e.g. `390px-paris`,
+`1400px-master`. Never install Playwright in the app's `package.json` or the
+production image. When reporting, give the run folder path.
+
 ---
 
 ## Useful pointers
@@ -152,6 +173,7 @@ dev-story`. Skip steps for small changes — use `/bmad-quick-spec` then
 | UI Kit components and roadmap           | `_bmad-output/ui-kit-roadmap.md`      |
 | Current project context                 | `_bmad-output/project-context.md`     |
 | Past implementation notes (legacy)      | `docs/legacy/` (untracked, on disk)   |
+| Playwright checks and screenshots       | `docs/playwright/` (untracked)        |
 | Make targets reference                  | `Makefile` (`make help`)              |
 
 ---
